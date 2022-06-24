@@ -1,5 +1,6 @@
 from one.api import ONE
 from reproducible_ephys_processing import bin_spikes2D
+from brainwidemap import bwm_query
 from ibllib.atlas import AllenAtlas
 from ibllib.atlas.regions import BrainRegions
 from brainbox.io.one import SpikeSortingLoader
@@ -64,8 +65,9 @@ trial_split = {'choice':['choice left', 'choice right'],
                'fback':['correct','false'],
                'block':['pleft 0.8','pleft 0.2'],
                'action':['choice left', 'choice right']}            
-  
-nrand = 20  # number of random trial splits for choice control
+
+
+nrand = 50  # number of random trial splits for control
 min_reg = 200  # minimum number of neurons in pooled region
 one = ONE() #ONE(mode='local')
 ba = AllenAtlas()
@@ -93,6 +95,116 @@ def norm_curve(r,split):
        stim_responsive = False
         
     return r, stim_responsive     
+
+
+def generate_pseudo_blocks(n_trials, factor=60, min_=20, max_=100, first5050=90):
+    """
+    Generate a pseudo block structure
+    Parameters
+    ----------
+    n_trials : int
+        how many trials to generate
+    factor : int
+        factor of the exponential
+    min_ : int
+        minimum number of trials per block
+    max_ : int
+        maximum number of trials per block
+    first5050 : int
+        amount of trials with 50/50 left right probability at the beginning
+    Returns
+    ---------
+    probabilityLeft : 1D array
+        array with probability left per trial
+    """
+
+    block_ids = []
+    while len(block_ids) < n_trials:
+        x = np.random.exponential(factor)
+        while (x <= min_) | (x >= max_):
+            x = np.random.exponential(factor)
+        if (len(block_ids) == 0) & (np.random.randint(2) == 0):
+            block_ids += [0.2] * int(x)
+        elif (len(block_ids) == 0):
+            block_ids += [0.8] * int(x)
+        elif block_ids[-1] == 0.2:
+            block_ids += [0.8] * int(x)
+        elif block_ids[-1] == 0.8:
+            block_ids += [0.2] * int(x)
+    return np.array([0.5] * first5050 + block_ids[:n_trials - first5050])
+
+
+def compute_impostor_behavior():
+
+    '''
+    for a given split, get the behavior of 
+    5 random concatenated sessions to match length
+    for block there is the pseudo session method
+    
+    eid_no is the one eid to exclude
+    '''
+    
+    df = bwm_query(one)
+    
+    eids_plus = list(set(df['eid'].values))
+    
+    R = {}
+    for split in align:
+        d = {}
+        for eid in eids_plus: 
+            try:            
+                trials = one.load_object(eid, 'trials', collection='alf')
+                
+                toolong = 2  # discard trials were feedback - stim is above that [sec]
+
+                # Load in trials data
+                trials = one.load_object(eid, 'trials', collection='alf')
+                   
+                # remove certain trials    
+                stim_diff = trials['feedback_times'] - trials['stimOn_times']     
+       
+                rm_trials = np.bitwise_or.reduce([np.isnan(trials['stimOn_times']),
+                                           np.isnan(trials['choice']),
+                                           np.isnan(trials['feedback_times']),
+                                           np.isnan(trials['probabilityLeft']),
+                                           np.isnan(trials['firstMovement_times']),
+                                           np.isnan(trials['feedbackType']),
+                                           stim_diff > toolong])
+                       
+                trn = []
+
+                if split in ['choice', 'action']:
+                    for choice in [1,-1]:
+                        trn.append(np.arange(len(trials['choice']))
+                            [np.bitwise_and.reduce([
+                            ~rm_trials,trials['choice'] == choice])])             
+
+                elif split == 'stim':    
+                    for side in ['Left', 'Right']:
+                        trn.append(np.arange(len(trials['stimOn_times']))
+                            [np.bitwise_and.reduce([ ~rm_trials,
+                            trials[f'contrast{side}'] == 1.0])])
+                   
+                elif split == 'fback':    
+                    for fb in [1,-1]:
+                        trn.append(np.arange(len(trials['choice']))
+                            [np.bitwise_and.reduce([
+                            ~rm_trials,trials['feedbackType'] == fb])])
+              
+                elif split == 'block':
+                    for pleft in [0.8, 0.2]:
+                        trn.append(np.arange(len(trials['choice']))
+                            [np.bitwise_and.reduce([
+                             ~rm_trials,trials['probabilityLeft'] == pleft])])    
+
+                d[eid] = trn
+                print(eid, 'done')
+            except:
+                print(eid, 'faulty')
+        R[split] = d
+
+    np.save('/home/mic/paper-brain-wide-map/manifold_analysis/'
+            'bwm_behave.npy',R,allow_pickle=True)    
 
 
 def get_name(brainregion):
@@ -131,32 +243,37 @@ def get_psths_atlasids(split,eid, probe, ind_trials=False, control=False):
                                np.isnan(trials['feedbackType']),
                                stim_diff > toolong])
     events = []
+    trn = []
 
-    if split == 'choice':
+
+    if split in ['choice', 'action']:
         for choice in [1,-1]:
             events.append(trials['firstMovement_times'][np.bitwise_and.reduce([
-                       ~rm_trials,trials['choice'] == choice])])   
+                       ~rm_trials,trials['choice'] == choice])])
+            trn.append(np.arange(len(trials['choice']))[np.bitwise_and.reduce([
+                       ~rm_trials,trials['choice'] == choice])])             
 
-    elif split == 'action':
-        for choice in [1,-1]:
-            events.append(trials['firstMovement_times'][np.bitwise_and.reduce([
-                       ~rm_trials,trials['choice'] == choice])])  
-                       
     elif split == 'stim':    
         for side in ['Left', 'Right']:
-            for contrast in [1.0]:#[0.0, 0.0625, 0.125, 0.25,
-                events.append(trials['stimOn_times'][np.bitwise_and.reduce([
-                    ~rm_trials,trials[f'contrast{side}'] == contrast])])
+            events.append(trials['stimOn_times'][np.bitwise_and.reduce([
+                ~rm_trials,trials[f'contrast{side}'] == 1.0])])
+            trn.append(np.arange(len(trials['stimOn_times']))[np.bitwise_and.reduce([
+                       ~rm_trials,trials[f'contrast{side}'] == 1.0])])
        
     elif split == 'fback':    
         for fb in [1,-1]:
             events.append(trials['feedback_times'][np.bitwise_and.reduce([
-                ~rm_trials,trials[f'feedbackType'] == fb])])       
+                ~rm_trials,trials['feedbackType'] == fb])])
+            trn.append(np.arange(len(trials['choice']))[np.bitwise_and.reduce([
+                       ~rm_trials,trials['feedbackType'] == fb])])
+                       
               
     elif split == 'block':
         for pleft in [0.8, 0.2]:
             events.append(trials['stimOn_times'][np.bitwise_and.reduce([
                 ~rm_trials,trials['probabilityLeft'] == pleft])])
+            trn.append(np.arange(len(trials['choice']))[np.bitwise_and.reduce([
+                       ~rm_trials,trials['probabilityLeft'] == pleft])])      
 
     else:
         print('what is the split?', split)
@@ -164,22 +281,35 @@ def get_psths_atlasids(split,eid, probe, ind_trials=False, control=False):
 
     # bin and cut into trials    
     bins = []
+
     for event in events:
         bi, _ = bin_spikes2D(spikes['times'][spike_idx], 
                            spikes['clusters'][spike_idx],
                            clusters['cluster_id'],event, 
                            pre_post[split][0], pre_post[split][1], T_BIN(split))
         bins.append(bi)                   
-                                                     
+                                              
     b = np.concatenate(bins)        
     ntr, nclus, nbins = b.shape
     
     if ind_trials:
-        return bins, clusters['atlas_id']
+        return bins, clusters['atlas_id'], trn
     
     else:
         if control:
-            # only average a random half of the trials
+
+            # nrand times random split of trials as control    
+            for i in range(nrand):
+                if split == 'block':
+                    spl = generate_pseudo_blocks(ntr, first5050=0) == 0.8
+                else:
+                    spl = np.random.randint(0, high=2, size=ntr).astype(bool)
+                b_r = (b[spl]).mean(axis=0)  # compute PSTH
+                b_l = (b[~spl]).mean(axis=0)  # compute PSTH
+                w.append(b_r)
+                w.append(b_l)            
+            
+            
             print('only half the trials')
             ntrs = [bi.shape[0] for bi in bins]
             trs = [random.sample(range(ntr), ntr//2) for ntr in ntrs]
@@ -200,18 +330,6 @@ def get_psths_atlasids(split,eid, probe, ind_trials=False, control=False):
         # zscore each PETH
         #w = [zscore(x,nan_policy='omit',axis=1) for x in w0]
         
-    #    if control:
-    #        # nrand times random split of trials as control    
-    #        for i in range(nrand):
-    #            if split == 'block':
-    #                spl = generate_pseudo_blocks(ntr, first5050=0) == 0.8
-    #            else:
-    #                spl = np.random.randint(0, high=2, size=ntr).astype(bool)
-    #            b_r = (b[spl]).mean(axis=0)  # compute PSTH
-    #            b_l = (b[~spl]).mean(axis=0)  # compute PSTH
-    #            w.append(b_r)
-    #            w.append(b_l)
-        
         w0 = np.array(w0)  # PSTHs, first two are left. right choice, rest rand
 
         return w0, s0, clusters['atlas_id']
@@ -223,76 +341,6 @@ def get_psths_atlasids(split,eid, probe, ind_trials=False, control=False):
 ###    
 '''  
 
-
-def bwm_query(one, alignment_resolved=True, return_details=False):
-    """
-    Function to query for brainwide map sessions that pass the most important quality controls. Returns a dataframe
-    with one row per insertions and columns ['pid', 'eid', 'probe_name', 'session_number', 'date', 'subject', 'lab']
-    Parameters
-    ----------
-    one: ONE instance (can be remote or local)
-    alignment_resolved: bool, default is True. If True, only returns sessions with resolved alignment,
-                        if False returns all sessions with at least one alignment
-    return_details: bool, default is False. If True returns a second output a list containing the full insertion
-                    dictionary for all insertions returned by the query. Only needed if you need information that is
-                    not contained in the output dataframe
-    Returns
-    -------
-    bwm_df: pd.DataFrame of BWM sessions to be included in analyses with columns
-            ['pid', 'eid', 'probe_name', 'session_number', 'date', 'subject', 'lab']
-    """
-
-    base_query = (
-        'session__project__name__icontains,ibl_neuropixel_brainwide_01,'
-        'session__json__IS_MOCK,False,'
-        'session__qc__lt,50,'
-        '~json__qc,CRITICAL,'
-        'session__extended_qc__behavior,1,'
-        'json__extended_qc__tracing_exists,True,'
-    )
-
-    if alignment_resolved:
-        base_query += 'json__extended_qc__alignment_resolved,True,'
-    else:
-        base_query += 'json__extended_qc__alignment_count__gt,0,'
-
-    qc_pass = (
-        '~session__extended_qc___task_stimOn_goCue_delays__lt,0.9,'
-        '~session__extended_qc___task_response_feedback_delays__lt,0.9,'
-        '~session__extended_qc___task_wheel_move_before_feedback__lt,0.9,'
-        '~session__extended_qc___task_wheel_freeze_during_quiescence__lt,0.9,'
-        '~session__extended_qc___task_error_trial_event_sequence__lt,0.9,'
-        '~session__extended_qc___task_correct_trial_event_sequence__lt,0.9,'
-        '~session__extended_qc___task_reward_volumes__lt,0.9,'
-        '~session__extended_qc___task_reward_volume_set__lt,0.9,'
-        '~session__extended_qc___task_stimulus_move_before_goCue__lt,0.9,'
-        '~session__extended_qc___task_audio_pre_trial__lt,0.9')
-
-    marked_pass = (
-        'session__extended_qc___experimenter_task,PASS')
-
-    insertions = list(one.alyx.rest('insertions', 'list', django=base_query + qc_pass))
-    insertions.extend(list(one.alyx.rest('insertions', 'list', django=base_query + marked_pass)))
-
-    bwm_df = pd.DataFrame({
-        'pid': np.array([i['id'] for i in insertions]),
-        'eid': np.array([i['session'] for i in insertions]),
-        'probe_name': np.array([i['name'] for i in insertions]),
-        'session_number': np.array([i['session_info']['number'] 
-                                    for i in insertions]),
-        'date': np.array([parser.parse(i['session_info']['start_time']).date() 
-                          for i in insertions]),
-        'subject': np.array([i['session_info']['subject'] for i in insertions]),
-        'lab': np.array([i['session_info']['lab'] for i in insertions]),
-    }).sort_values(by=['lab', 'subject', 'date', 'eid'])
-    bwm_df.drop_duplicates(inplace=True)
-    bwm_df.reset_index(inplace=True, drop=True)
-
-    if return_details:
-        return bwm_df, insertions
-    else:
-        return bwm_df
-   
 
 def download_data_only():
     df = bwm_query(one)
@@ -413,7 +461,7 @@ def raw_d_stacked(split, mapping='Swanson', control=False,
     regs = Counter(acs)
 
     print(len(regs), 'regions pre filter')
-    print(regs)
+    #print(regs)
     
     regs1 = {}
     for reg in regs:
@@ -428,7 +476,7 @@ def raw_d_stacked(split, mapping='Swanson', control=False,
     print(len(regs), 'regions post filter')
     
     if control:
-        nshufs = 20 + 1
+        nshufs = 500 + 1
     else:
         nshufs = 1            
         
@@ -439,12 +487,14 @@ def raw_d_stacked(split, mapping='Swanson', control=False,
             # shuffle region label list
             random.shuffle(acs)    
 
+        if j%50 == 0:
+            print(j)
         D = {}
         
         for reg in regs:
 
             
-            print(reg)
+            #print(reg)
             res = {}
 
             if ind_trials:
@@ -512,10 +562,6 @@ def raw_d_stacked(split, mapping='Swanson', control=False,
 #            else:
             a,b = 0,1
             
-            # save average PETH
-            res['avg_PETH_a'] = np.nanmean(ws_[a],axis=0)
-            res['avg_PETH_b'] = np.nanmean(ws_[b],axis=0)
-            
             ncells, nobs = ws_[a].shape
             nt = len(ws_)
             
@@ -529,13 +575,18 @@ def raw_d_stacked(split, mapping='Swanson', control=False,
                 # strictly standardized mean difference
                 d_var = ((ws_[0] - ws_[1])/((ss_[0] + ss_[1])**0.5))**2
 
-                # square the take root to make a metric
+                # square then take root to make a metric
                 res['d_var_m'] = np.nanmean(d_var,axis=0)**0.5  #average over cells
                 
                 # d_var can be negative or positive, finding largest magnitude
                 res['max_d_var_m'] = np.max(res['d_var_m'])     
 
             if not control:
+            
+                # save average PETH
+                res['avg_PETH_a'] = np.nanmean(ws_[a],axis=0)
+                res['avg_PETH_b'] = np.nanmean(ws_[b],axis=0)            
+                
                 if c != None:
                     # save first 6 PCs for illustration
                     pca = PCA()
@@ -765,13 +816,12 @@ def plot_all(curve = 'd_var_m'):
             p = 1 - (0.01 * percentileofscore(null_,max_,kind='weak'))
             ps[reg] = p
                         
-        tops[split] = [acronyms[:15], [ps[reg] for reg in acronyms[:15]]]
+        tops[split] = [acronyms, [np.round(ps[reg],2) for reg in acronyms]]
         print(split, curve)
-        print(acronyms[:15])
+        print(tops[split])
         print(sum([ps[reg] < 0.01 for reg in ps]), len(ps), 
               np.round(sum([ps[reg] < 0.01 for reg in ps])/len(ps),2) )              
-        
-    return
+
                       
 #    '''
 #    multi 3d -- this time with top region only
@@ -882,6 +932,62 @@ def plot_all(curve = 'd_var_m'):
                     f'curves_{split}_mapping{mapping}.npy',
                     allow_pickle=True).flat[0][0]
                                  
+        regs = tops[split][0][tops[split][1] < 0.01][:15]            
+
+        for reg in regs:
+            xx = xs(split)-pre_post[split][0]
+            
+            axs[k].plot(xx,f[reg][curve], linewidth = 2,
+                          color=palette[reg], 
+                          label=f"{reg}")# [{f[reg]['nclus'][1]}]
+
+        axs[k].axvline(x=0, lw=0.5, linestyle='--', c='k')
+        
+        if split == 'block':
+            ha = 'right'
+        else:
+            ha = 'left'    
+        
+        axs[k].text(0, 0.01, align[split],
+                      transform=axs[k].get_xaxis_transform(),
+                      horizontalalignment = ha)           
+        texts = []
+        for reg in regs:
+            y = np.max(f[reg][curve])
+            x = xx[np.argmax(f[reg][curve])]
+            texts.append(axs[k].text(x, y, 
+                                     f"{reg}",#['nclus'][1] 
+                                     color = palette[reg],
+                                     fontsize=9))
+                                     
+        adjust_text(texts)             
+
+        
+        axs[k].set_ylabel(curve)
+        axs[k].set_xlabel('time [sec]')
+        axs[k].set_title(f'{split}')
+
+                
+        k +=1
+
+
+    '''
+    plot average curve per region
+    highlight one cosmos area per split
+
+    curve types: dist_0, dist_split
+    regk is what chunk of Beryl regions to plot
+    in groups of consecutive 10
+    '''
+
+    regk=0
+
+    for split in align:
+        axs.append(fig.add_subplot(4, len(align), k + 1))
+        f = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'
+                    f'curves_{split}_mapping{mapping}.npy',
+                    allow_pickle=True).flat[0][0]
+                                 
         regs = tops[split][0]            
 
         for reg in regs:
@@ -919,6 +1025,11 @@ def plot_all(curve = 'd_var_m'):
 
                 
         k +=1
+
+
+
+
+
    
     '''
     max dist_split onto swanson flat maps
