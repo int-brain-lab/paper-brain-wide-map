@@ -60,8 +60,6 @@ pre_post = {'choice':[0.1,0],'stim':[0,0.1],
             
 trial_split = {'choice':['choice left', 'choice right'],
                'stim':[1.0,1.0],
-               #[0.0, 0.0625, 0.125, 0.25,1.0, 
-               #       0.0, 0.0625, 0.125, 0.25,1.0],
                'fback':['correct','false'],
                'block':['pleft 0.8','pleft 0.2'],
                'action':['choice left', 'choice right']}            
@@ -69,7 +67,7 @@ trial_split = {'choice':['choice left', 'choice right'],
 
 nrand = 50  # number of random trial splits for control
 min_reg = 200  # minimum number of neurons in pooled region
-one = ONE() #ONE(mode='local')
+one = ONE() 
 ba = AllenAtlas()
 br = BrainRegions()
 
@@ -77,24 +75,6 @@ br = BrainRegions()
 def xs(split):
     return np.arange((pre_post[split][0] + pre_post[split][1])/
                       T_BIN(split))*T_BIN(split)
-
-
-def norm_curve(r,split):
-
-    '''
-    normalize curve by pre-stim baseline
-    '''
-    # normalise via pre-stim baseline
-    bsl_m = np.mean(r[0:int(abs(pre_post[split][0])/T_BIN(split))])
-    bsl_st = np.std(r[0:int(abs(pre_post[split][0])/T_BIN(split))])
-    postStim = np.mean(r[int(abs(pre_post[split][0])/T_BIN(split)):])         
-    r = (r-bsl_m)/(bsl_m + 0.1)
-    # check if mean baseline is above mean after stim
-    stim_responsive = True
-    if bsl_m > postStim:
-       stim_responsive = False
-        
-    return r, stim_responsive     
 
 
 def generate_pseudo_blocks(n_trials, factor=60, min_=20, max_=100, first5050=90):
@@ -155,7 +135,8 @@ def compute_impostor_behavior():
             try:            
                 trials = one.load_object(eid, 'trials', collection='alf')
                 
-                toolong = 2  # discard trials were feedback - stim is above that [sec]
+                # discard trials were feedback - stim is above that [sec]
+                toolong = 2  
 
                 # Load in trials data
                 trials = one.load_object(eid, 'trials', collection='alf')
@@ -212,12 +193,11 @@ def get_name(brainregion):
     return br.name[np.argwhere(br.id == regid)[0, 0]]
 
 
-def get_psths_atlasids(split,eid, probe, ind_trials=False, control=False):
+def get_psths_atlasids(split,eid, probe, control=False):
 
     '''
     for a given session, probe, bin neural activity
-    cut into trials, reduced to PSTHs, reduced via PCA per region,
-    reduce to 2 D curves describing the PCA trajectories
+    cut into trials, reduced to PSTHs
     '''    
        
     toolong = 2  # discard trials were feedback - stim is above that [sec]
@@ -267,7 +247,6 @@ def get_psths_atlasids(split,eid, probe, ind_trials=False, control=False):
             trn.append(np.arange(len(trials['choice']))[np.bitwise_and.reduce([
                        ~rm_trials,trials['feedbackType'] == fb])])
                        
-              
     elif split == 'block':
         for pleft in [0.8, 0.2]:
             events.append(trials['stimOn_times'][np.bitwise_and.reduce([
@@ -289,50 +268,68 @@ def get_psths_atlasids(split,eid, probe, ind_trials=False, control=False):
                            pre_post[split][0], pre_post[split][1], T_BIN(split))
         bins.append(bi)                   
                                               
-    b = np.concatenate(bins)        
+    b = np.concatenate(bins)
+    
+    #  recreate temporal trial order              
+    dx = np.concatenate([list(zip([True]*len(trn[0]),trn[0])),
+                    list(zip([False]*len(trn[1]),trn[1]))])
+
+    b = b[np.argsort(dx[:, 1])] 
+    
+           
     ntr, nclus, nbins = b.shape
     
-    if ind_trials:
-        return bins, clusters['atlas_id'], trn
-    
-    else:
-        if control:
 
-            # nrand times random split of trials as control    
-            for i in range(nrand):
-                if split == 'block':
-                    spl = generate_pseudo_blocks(ntr, first5050=0) == 0.8
-                else:
-                    spl = np.random.randint(0, high=2, size=ntr).astype(bool)
-                b_r = (b[spl]).mean(axis=0)  # compute PSTH
-                b_l = (b[~spl]).mean(axis=0)  # compute PSTH
-                w.append(b_r)
-                w.append(b_l)            
-            
-            
-            print('only half the trials')
-            ntrs = [bi.shape[0] for bi in bins]
-            trs = [random.sample(range(ntr), ntr//2) for ntr in ntrs]
-            
-            w0 = []
-            s0 = []
-            k = 0
-            for bi in bins:
-                w0.append(bi[trs[k]].mean(axis=0))
-                s0.append(bi[trs[k]].var(axis=0))
-                k +=1    
-            
-        else: # average all trials
-            print('all trials')     
-            w0 = [bi.mean(axis=0) for bi in bins]  # average trials to get PSTH
-            s0 = [bi.var(axis=0) for bi in bins]
-            
-        # zscore each PETH
-        #w = [zscore(x,nan_policy='omit',axis=1) for x in w0]
+    if control:
+        # average trials to get PSTH
+        w0 = [bi.mean(axis=0) for bi in bins]  
+        s0 = [bi.var(axis=0) for bi in bins]
         
-        w0 = np.array(w0)  # PSTHs, first two are left. right choice, rest rand
+        #  Load impostor behavior
+        spl = np.load('/home/mic/paper-brain-wide-map/'
+                      'manifold_analysis/bwm_behave.npy',
+                      allow_pickle=True).flat[0][split]
+        
+        #  exclude current session
+        del spl[eid]    
+        
+        # nrand times random impostor/pseudo split of trials 
+        for i in range(nrand):
+            if split == 'block':  # pseudo sessions
+                ys = generate_pseudo_blocks(ntr, first5050=0) == 0.8
+            else:  # impostor sessions
+                eids = random.choices([*spl],k=20)
+                bs = []
+                for eid in eids:
+                    t = spl[eid]
+                    
+                    # some sessions have empty behavior
+                    if (len(t[0]) < 2) or (len(t[1]) < 2):
+                        continue
+                           
+                    x = np.concatenate([list(zip([True]*len(t[0]),t[0])),
+                                    list(zip([False]*len(t[1]),t[1]))])
+                
+                    bs.append(np.array(x[np.argsort(x[:, 1])][:,0],
+                              dtype=bool))
+                              
+                ys = np.concatenate(bs)[:ntr]              
+                        
+                print(b.shape, len(ys))
+                w0.append(b[ys].mean(axis=0))
+                s0.append(b[ys].var(axis=0))
+                
+                w0.append(b[~ys].mean(axis=0))
+                s0.append(b[~ys].var(axis=0))                      
 
-        return w0, s0, clusters['atlas_id']
+
+    else: # average all trials
+        print('all trials')
+        w0 = [bi.mean(axis=0) for bi in bins] 
+        s0 = [bi.var(axis=0) for bi in bins]
+
+
+    return np.array(w0), np.array(s0), clusters['atlas_id']
 
       
 '''    
