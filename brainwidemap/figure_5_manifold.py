@@ -10,7 +10,7 @@ from ibllib.atlas.plots import plot_scalar_on_flatmap, plot_scalar_on_slice
 from ibllib.atlas import FlatMap
 from ibllib.atlas.flatmaps import plot_swanson
 
-from scipy import optimize,signal
+from scipy import optimize, signal, stats
 import pandas as pd
 import numpy as np
 from collections import Counter, ChainMap
@@ -31,6 +31,15 @@ from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from adjustText import adjust_text
 import random
 import time
+import matplotlib.image as mpimg
+import math
+import string
+
+import cProfile
+import pstats
+
+import warnings
+warnings.filterwarnings("ignore")
 
 
 blue_left = [0.13850039, 0.41331206, 0.74052025]
@@ -52,6 +61,11 @@ align = {'block':'stim on',
          'choice':'motion on',
          'action':'motion on',
          'fback':'feedback'}
+         
+align = {'stim':'stim on',
+         'choice':'motion on',
+         'fback':'feedback'}         
+         
 
 pre_post = {'choice':[0.1,0],'stim':[0,0.1],
             'fback':[0,0.1],'block':[0.4,0],
@@ -65,8 +79,8 @@ trial_split = {'choice':['choice left', 'choice right'],
                'action':['choice left', 'choice right']}            
 
 
-nrand = 50  # number of random trial splits for control
-min_reg = 200  # minimum number of neurons in pooled region
+nrand = 500  # number of random trial splits for control
+min_reg = 100  # minimum number of neurons in pooled region
 one = ONE() 
 ba = AllenAtlas()
 br = BrainRegions()
@@ -193,11 +207,12 @@ def get_name(brainregion):
     return br.name[np.argwhere(br.id == regid)[0, 0]]
 
 
-def get_psths_atlasids(split,eid, probe, control=False):
+def get_d_vars(split,eid, probe, 
+               mapping='Swanson', control=False):
 
     '''
     for a given session, probe, bin neural activity
-    cut into trials, reduced to PSTHs
+    cut into trials, compute d_var per region
     '''    
        
     toolong = 2  # discard trials were feedback - stim is above that [sec]
@@ -262,11 +277,28 @@ def get_psths_atlasids(split,eid, probe, control=False):
     bins = []
 
     for event in events:
-        bi, _ = bin_spikes2D(spikes['times'][spike_idx], 
-                           spikes['clusters'][spike_idx],
-                           clusters['cluster_id'],event, 
-                           pre_post[split][0], pre_post[split][1], T_BIN(split))
-        bins.append(bi)                   
+    
+        #  overlapping time bins (assuming T_BIN = 0.005)
+        #  that results in 3 ms off
+        bis = []
+        st = 4
+        for ts in range(st):
+    
+            bi, _ = bin_spikes2D(spikes['times'][spike_idx], 
+                               spikes['clusters'][spike_idx],
+                               clusters['cluster_id'],
+                               np.array(event) + ts*0.001, 
+                               pre_post[split][0], pre_post[split][1], 
+                               T_BIN(split))
+            bis.append(bi)
+            
+        ntr, nn, nbin = bi.shape
+        ar = np.zeros((ntr, nn, st*nbin))
+        
+        for ts in range(st):
+            ar[:,:,ts::st] = bis[ts]
+                           
+        bins.append(ar)                   
                                               
     b = np.concatenate(bins)
     
@@ -281,7 +313,7 @@ def get_psths_atlasids(split,eid, probe, control=False):
     
 
     if control:
-        # average trials to get PSTH
+        # get mean and var across trials
         w0 = [bi.mean(axis=0) for bi in bins]  
         s0 = [bi.var(axis=0) for bi in bins]
         
@@ -298,7 +330,7 @@ def get_psths_atlasids(split,eid, probe, control=False):
             if split == 'block':  # pseudo sessions
                 ys = generate_pseudo_blocks(ntr, first5050=0) == 0.8
             else:  # impostor sessions
-                eids = random.choices([*spl],k=20)
+                eids = random.choices([*spl],k=30)
                 bs = []
                 for eid in eids:
                     t = spl[eid]
@@ -314,14 +346,12 @@ def get_psths_atlasids(split,eid, probe, control=False):
                               dtype=bool))
                               
                 ys = np.concatenate(bs)[:ntr]              
-                        
-                print(b.shape, len(ys))
-                w0.append(b[ys].mean(axis=0))
-                s0.append(b[ys].var(axis=0))
-                
-                w0.append(b[~ys].mean(axis=0))
-                s0.append(b[~ys].var(axis=0))                      
 
+            w0.append(b[ys].mean(axis=0))
+            s0.append(b[ys].var(axis=0))
+            
+            w0.append(b[~ys].mean(axis=0))
+            s0.append(b[~ys].var(axis=0))                      
 
     else: # average all trials
         print('all trials')
@@ -329,7 +359,54 @@ def get_psths_atlasids(split,eid, probe, control=False):
         s0 = [bi.var(axis=0) for bi in bins]
 
 
-    return np.array(w0), np.array(s0), clusters['atlas_id']
+    ws = np.array(w0)
+    ss = np.array(s0)
+    acs = br.id2acronym(clusters['atlas_id'],mapping=mapping)            
+    acs = np.array(acs) 
+    
+    regs = Counter(acs)
+
+    D = {}
+    
+    for reg in regs:
+        if reg in ['void','root']:
+            continue
+
+        res = {}
+
+        ws_ = [y[acs == reg] for y in ws]
+        ss_ = [y[acs == reg] for y in ss]
+     
+        wsc = np.concatenate(ws_,axis=1)
+
+        #Discard cells that have nan entries in the PETH or PETH = 0 for all t
+        respcells = [k for k in range(wsc.shape[0]) if 
+                     (not np.isnan(wsc[k]).any()
+                     and wsc[k].any())] 
+                        
+        ws_ = [x[respcells] for x in ws_]
+        ss_ = [x[respcells] for x in ss_]        
+
+        res['nclus'] = len(respcells)
+        
+        d_vars = []
+                
+        for j in range(len(ws_)//2):
+
+
+            # strictly standardized mean difference
+            d_var = (((ws_[2*j] - ws_[2*j + 1])/
+                      ((ss_[2*j] + ss_[2*j + 1])**0.5))**2)
+
+            # sum over cells, divide by #neu later
+            d_var_m = np.nansum(d_var,axis=0)
+            d_vars.append(d_var_m)
+
+        res['d_vars'] = d_vars
+
+        D[reg] = res
+        
+    return D    
 
       
 '''    
@@ -339,9 +416,10 @@ def get_psths_atlasids(split,eid, probe, control=False):
 '''  
 
 
-def download_data_only():
-    df = bwm_query(one)
-    eids_plus = df[['eid','probe_name']].values
+def download_data_only(eids_plus = None):
+    if eids_plus is None:
+        df = bwm_query(one)
+        eids_plus = df[['eid','probe_name']].values
     Fs = []
    
     k=0
@@ -363,8 +441,8 @@ def download_data_only():
         
 
 
-def get_all_psths_ids(split,eids_plus = None, control = False,
-                      ind_trials=False):
+def get_all_d_vars(split,eids_plus = None, control = True, 
+                   mapping='Swanson'):
 
     '''
     for all BWM insertions, get the PSTHs and acronyms,
@@ -377,249 +455,122 @@ def get_all_psths_ids(split,eids_plus = None, control = False,
         eids_plus = df[['eid','probe_name']].values
         #eids_plus = get_bwm_sessions()
 
-    ws = []
-    ss = []
-    ids = []
     Fs = []
     eid_probe = []
-        
+    Ds = []   
     k=0
     for pid in eids_plus:
         eid, probe = pid
         try:
-            if ind_trials:
-                w, ac = get_psths_atlasids(split,eid, probe, control=control,
-                                              ind_trials=ind_trials)            
-            else:        
-                w, s, ac = get_psths_atlasids(split,eid, probe, control=control,
-                                              ind_trials=ind_trials)
-                ss.append(s)
-                                              
-            ws.append(w)
-            ids.append(ac)
+        
+            D = get_d_vars(split,eid, probe, 
+                           control=control, mapping=mapping)
+            Ds.append(D)                               
             eid_probe.append(eid+'_'+probe)
             gc.collect() 
-            print(k, 'of', len(eids_plus), 'ok') 
+            print(k+1, 'of', len(eids_plus), 'ok') 
         except:
             Fs.append(pid)
             gc.collect()
-            print(k, 'of', len(eids_plus), 'fail')
+            print(k+1, 'of', len(eids_plus), 'fail')
         k+=1            
         
-    R = {'ws':ws, 'ss': ss, 'ids':ids, 'eid_probe':eid_probe} 
+    R = {'Ds':Ds, 'eid_probe':eid_probe} 
     
-    np.save('/home/mic/paper-brain-wide-map/manifold_analysis/'
-           f'bwm_psths_{split}.npy', R, allow_pickle=True) 
+    np.save('/mnt/8cfe1683-d974-40f3-a20b-b217cad4722a/manifold/'
+           f'd_vars_{split}_{mapping}.npy', R, allow_pickle=True) 
 
     print(f'{len(Fs)}, load failures:')
     return Fs
 
     
-def raw_d_stacked(split, mapping='Swanson', control=False,
-                  ind_trials=False):
+def d_var_stacked(split, mapping='Swanson'):
                   
 
     time0 = time.perf_counter()
 
     '''
-    stack psths of all sessions
-    for each region, 
-    get Euclidean dist curves (dist_0, dist_choice)
-    and get 3d PCA trajectory
-    mapping in Cosmos, Beryl, Swanson
-    
+    average d_var_m via nanmean across insertions,
+    remove regions with too few neurons (min_reg)
+    compute maxes, latencies and p-values
     '''
-    # minimum variance explained ratio when picking PC dim 
-    minvar = 0.95  
-
-    
+  
     print(split)
     
-    R = np.load('/home/mic/paper-brain-wide-map/'
-                f'manifold_analysis/bwm_psths_{split}.npy',
-                allow_pickle=True).flat[0]
+    R = np.load('/mnt/8cfe1683-d974-40f3-a20b-b217cad4722a/manifold/'
+                f'd_vars_{split}_{mapping}.npy', allow_pickle=True).flat[0]
 
+    # pooling of insertions per region, discard low-neuron-number regs
+    regs = np.concatenate([list(x.keys()) for x in R['Ds']])  
+    regd = {reg:[] for reg in Counter(regs)}
     
-    # concatenate sessions   
-    if not ind_trials:
-        nt, nclus, nobs = R['ws'][0].shape
-        ws = [np.concatenate([R['ws'][k][i] for k in range(len(R['ws']))])
-              for i in range(nt)]   
+    for D in R['Ds']:
+        for reg in D:
+            regd[reg].append(D[reg]['nclus'])
+            
+    regs = [x for x in regd if sum(regd[x]) > min_reg]
+    nclus = {reg:sum(regd[reg]) for reg in regs}
+    
+    print(f'pre min_reg filter: {len(regd)}; post: {len(regs)}')
 
-        ss = [np.concatenate([R['ss'][k][i] for k in range(len(R['ws']))])
-              for i in range(nt)] 
-    
-    ids = np.concatenate([R['ids'][k] for k in range(len(R['ws']))])
-    
-    # mapp atlas ids to acronyms                       
-    acs = br.id2acronym(ids,mapping=mapping)            
-    acs = np.array(acs)
+    regd = {reg:[] for reg in regs}
+    for D in R['Ds']:
+        for reg in D:
+            if reg in regs:
+                regd[reg].append(D[reg]['d_vars'])
 
-    regs = Counter(acs)
+    # nanmean across insertions and take sqrt
+    for reg in regd:
+        regd[reg] = (np.nansum(np.array(regd[reg]),axis=0)**0.5/
+                     nclus[reg])
 
-    print(len(regs), 'regions pre filter')
-    #print(regs)
-    
-    regs1 = {}
-    for reg in regs:
-        if reg in ['void','root']:
-            continue
-        if regs[reg] < min_reg:
-            continue
-        regs1[reg] = regs[reg] 
-    
-    regs = regs1   
-    
-    print(len(regs), 'regions post filter')
-    
-    if control:
-        nshufs = 500 + 1
-    else:
-        nshufs = 1            
+
+    r = {}
+    for reg in regd:
+        res = {}
+
+        # nclus
+        res['nclus'] = nclus[reg]
         
-    M = {}
-    for j in range(nshufs):
-    
-        if j != 0:
-            # shuffle region label list
-            random.shuffle(acs)    
+        # full curve
+        d_var_m = regd[reg][0]
+        res['d_var_m'] = d_var_m
 
-        if j%50 == 0:
-            print(j)
-        D = {}
+        # maximum
+        maxes = [np.max(x) for x in regd[reg]]
+        d_var_max = maxes[0]
+        res['max-min/max+min'] = ((np.max(d_var_m) - np.min(d_var_m))/
+                                  (np.max(d_var_m) + np.min(d_var_m)))
         
-        for reg in regs:
+        # p value
+        null_d = maxes[1:]
+        p = 1 - (0.01 * percentileofscore(null_d,d_var_max,kind='weak'))
+        res['p'] = p
+        
+        # latency  
+        if d_var_max == np.inf:
+            loc = np.where(d_var_m == np.inf)[0]  
+        else:
+            loc = np.where(d_var_m > 0.95 * d_var_max)[0]
+                            
+        res['lat'] = (xs(split)-pre_post[split][0])[loc[0]]
 
-            
-            #print(reg)
-            res = {}
-
-            if ind_trials:
-
-                # get all trials of all cells in region
-                ws0 = []  # trials for trial condition 0
-                ws1 = []  # trials for trial condition 1
-                
-                discard = []
-                for k in range(len(R['ws'])):
-                    acs0 = br.id2acronym(R['ids'][k],mapping=mapping)
-                    if sum(acs0 == reg) == 0:
-                        continue
-                    
-                    a = R['ws'][k][0][:,acs0 == reg]
-                    b = R['ws'][k][1][:,acs0 == reg]
-                    
-                    # match trial numbers per session
-                    n_t = np.min([a.shape[0], b.shape[0]])
-                    
-                    # keep track of # discarded trials
-                    discard.append(abs(a.shape[0] - b.shape[0])/
-                                  np.max([a.shape[0],b.shape[0]]))
-                    
-                    a = a[:n_t]
-                    b = b[:n_t] 
-                    
-                    a = np.reshape(a,(a.shape[0]*a.shape[1], a.shape[2]))
-                    b = np.reshape(b,(b.shape[0]*b.shape[1], b.shape[2]))
-                    
-                    ws0.append(a)
-                    ws1.append(b)
-                
-                # reshape to have trials x obs
-                ws_ = [np.array(np.concatenate(ws0)),
-                       np.array(np.concatenate(ws1))]
-                wsc = np.concatenate(ws_,axis=1)
-                
-                res['nclus'] = [discard, wsc.shape[0]]
-      
-            else:
-           
-                ws_ = [y[acs == reg] for y in ws]
-                ss_ = [y[acs == reg] for y in ss]
-             
-                wsc = np.concatenate(ws_,axis=1)
-                ssc = np.concatenate(ss_,axis=1)
-
-                #Discard cells that have nan entries in the PETH or PETH = 0 for all t
-                respcells = [k for k in range(wsc.shape[0]) if 
-                             (not np.isnan(wsc[k]).any()
-                             and wsc[k].any())] 
-                        
-                wsc = wsc[respcells]
-                ws_ = [x[respcells] for x in ws_]
-                
-                ssc = ssc[respcells]
-                ss_ = [x[respcells] for x in ss_]        
-
-                res['nclus'] = [regs[reg], len(respcells)]
+        r[reg] = res
 
 
-#            if split == 'stim':
-#                a,b = 4,9
-#            else:
-            a,b = 0,1
-            
-            ncells, nobs = ws_[a].shape
-            nt = len(ws_)
-            
-            if not ind_trials:           
-                # get dist_split, i.e. dist of corresponding psth points  
-
-#                # vanilla Euclidean distance
-#                res['d_euc'] = np.sum((ws_[0] - ws_[1])**2,axis=0)**0.5
-#                res['max_d_euc'] = np.max(res['d_euc'])
-                
-                # strictly standardized mean difference
-                d_var = ((ws_[0] - ws_[1])/((ss_[0] + ss_[1])**0.5))**2
-
-                # square then take root to make a metric
-                res['d_var_m'] = np.nanmean(d_var,axis=0)**0.5  #average over cells
-                
-                # d_var can be negative or positive, finding largest magnitude
-                res['max_d_var_m'] = np.max(res['d_var_m'])     
-
-            if not control:
-            
-                # save average PETH
-                res['avg_PETH_a'] = np.nanmean(ws_[a],axis=0)
-                res['avg_PETH_b'] = np.nanmean(ws_[b],axis=0)            
-                
-                if c != None:
-                    # save first 6 PCs for illustration
-                    pca = PCA()
-                    wsc  = pca.fit_transform(wsc.T)
-                    res['pca_tra'] = wsc[:,:6] 
-
-                    pcadim = np.where(np.cumsum(pca.explained_variance_ratio_)
-                                                > minvar)[0][0]
-                                                
-                    # reduce prior to distance computation
-                    wsc = wsc[:,:pcadim].T  # nPCs x nobs, trial means          
-                    
-                    # split it up again into trajectories after PCA        
-                    ws_ = [wsc[:,u * nobs: (u + 1) * nobs] for u in range(nt)]
-
-                    # PCA Euclidean distance
-                    res['d_euc_pca'] = np.sum((ws_[0] - ws_[1])**2,axis=0)**0.5
-                    res['max_d_euc_pca'] = np.max(res['d_euc_pca'])
-                    
-            D[reg] = res
-        M[j] = D 
     np.save('/home/mic/paper-brain-wide-map/manifold_analysis/'
-           f'curves_{split}_mapping{mapping}.npy', 
-           M, allow_pickle=True)
+           f'curves_{split}_{mapping}.npy', 
+           r, allow_pickle=True)
            
     time1 = time.perf_counter()
     
     print(time1 - time0, 'sec')
 
 
-def curves_params_all():
+def curves_params_all(split):
 
-    for split in align:
-        get_all_psths_ids(split,eids_plus = None, control = False,
-                      ind_trials=True)
-        raw_d_stacked(split, mapping='Swanson',control=True)        
+    get_all_d_vars(split)
+    d_var_stacked(split)        
 
       
 '''    
@@ -644,299 +595,168 @@ def get_allen_info():
                                 
     palette = dict(zip(dfa.acronym, dfa.color_hex_triplet))
     
-    return dfa, palette
+    return dfa, palette           
 
 
-def reformat_res(mapping='Swanson'):
+def put_panel_label(ax, n):                    
+    ax.text(-0.1, 1.30,  string.ascii_lowercase[n], 
+                  transform=ax.transAxes, 
+                  fontsize=16, va='top', ha='right', weight='bold')
 
 
-    for split in align:
-    
-        d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'
-                    f'curves_{split}_mapping{mapping}.npy',
-                    allow_pickle=True).flat[0]
-
-#        if split == 'stim':
-#            a,b = 4,9
-#        else:
-        a,b = 0,1
-
-        for reg in d:
-            # save average PETH
-            d[reg]['avg_PETH_a'] = d[reg]['avg_PETH'][a]
-            d[reg]['avg_PETH_b'] = d[reg]['avg_PETH'][b]
-            d[reg]['max_avg_PETH_a'] = np.max(d[reg]['avg_PETH'][a])
-            d[reg]['max_avg_PETH_b'] = np.max(d[reg]['avg_PETH'][b])
-            
-        np.save('/home/mic/paper-brain-wide-map/manifold_analysis/'
-               f'curves_{split}_mapping{mapping}.npy', 
-               d, allow_pickle=True)            
-                    
-
-
-def plot_all(curve = 'd_var_m'):
+def plot_all(curve = 'd_var_m', curve_only=False):
 
     '''
-    First row all example region PCs
-    Second row PCs for top region, by top curve max
-    Third row curves top 5 last 5 for max curve metric 
-    Fourth row being max curve mapped on Swanson
-    
-    curve in ['d_euc', 'd_var_m', 'd_var_s', 'avg_PETH_a', 'avg_PETH_b']
 
-    multi 3d
     ''' 
+    
+    if curve_only:
+        nrows = 1
+    else:
+        nrows = 5
         
     mapping='Swanson'
-    reg = 'CP'
     
-    fig = plt.figure(figsize=(12, 10))
-    dfa, palette = get_allen_info()
+    fig = plt.figure(figsize=(15, 10))
+    _, palette = get_allen_info()
     
     font = {'size'   : 8}
-    mpl.rc('font', **font)
-
-    
-    cbar_types = {0:'Blues', 1:'Reds'} | {j:'Greys' 
-                  for j in range(2,nrand*2+2)}                  
+    mpl.rc('font', **font)                
 
     axs = []
     axsi = []
-    
+
+   
     k = 0
-#    for split in align:
 
-#        axs.append(fig.add_subplot(4, len(align), k + 1, projection='3d'))
+    if not curve_only:
+        '''
+        load schematic intro
+        '''
+        axs.append(fig.add_subplot(nrows, 1, 1))
+        
+        img = mpimg.imread('/home/mic/paper-brain-wide-map/'
+                           'overleaf_figs/manifold/intro.png')
+        imgplot = axs[k].imshow(img)
+        axs[k].axis('off')
+        put_panel_label(axs[k], k)
+        k += 1
+    
 
-#         
-#        f = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'
-#                    f'curves_{split}_mapping{mapping}.npy',
-#                    allow_pickle=True).flat[0]
-
-#        # get Allen colors and info
-#        
-#        regs = list(Counter(f.keys()).keys())
-#        nobs, npcs = f[regs[0]]['pca_tra'].shape
-#        ntra = nobs//len(xs(split))
-#           
-
-#        cs = [f[reg]['pca_tra'][len(xs(split))*tra:len(xs(split))*(tra+1)] 
-#              for tra in range(ntra)]
-
-#        pp = range(ntra)
-#        
-#        for j in range(ntra):
-#        
-#        
-#            if split == 'stim':
-#                col = []
-
-#                if j < 5:
-#                    cmap = (plt.get_cmap('Blues')
-#                            (np.linspace(0,1,ntra//2 + 5)))
-#                else:
-#                    cmap = (plt.get_cmap('Reds')
-#                            (np.linspace(0,1,ntra//2 + 5)))                     
-
-#                
-#                for i in range(len(xs(split))):
-#                    col.append(cmap[j%5 + 5])
-#          
-#            elif split == 'fback':
-#                col = [['g', 'purple'][j]] * len(xs(split))
-#                   
-#            else:
-
-#                col = [[blue_left, red_right][j]] * len(xs(split))               
-#                   
-#            p = axs[k].scatter(cs[pp[j]][:,0],cs[pp[j]][:,1],cs[pp[j]][:,3],
-#                               color=col, s=20,
-#                               label=trial_split[split][pp[j]], 
-#                               depthshade=False) 
-#            
-#        axs[k].set_xlabel('pc1')    
-#        axs[k].set_ylabel('pc2')
-#        axs[k].set_zlabel('pc3')
-#        axs[k].set_title(split)   
-#        axs[k].grid(False)
-#        axs[k].axis('off') 
-#              
-#        axs[k].legend(frameon=False).set_draggable(True)
-#        
-#        # put dist_split as inset        
-#        axsi.append(inset_axes(axs[k], width="20%", height="20%", 
-#                               loc=4, borderpad=1,
-#                               bbox_to_anchor=(-0.1,0.1,1,1), 
-#                               bbox_transform=axs[k].transAxes))
-#                            
-#        xx = xs(split)-pre_post[split][0]
-
-#        axsi[k].plot(xx,f[reg][curve], linewidth = 1,
-#                      color=palette[reg], label=f'{curve} {reg}')
-#                   
-#        axsi[k].spines['right'].set_visible(False)
-#        axsi[k].spines['top'].set_visible(False)
-#        axsi[k].spines['left'].set_visible(False)
-#        axsi[k].set_yticks([])
-#        axsi[k].set_xlabel('time [sec]')                         
-#        #axsi[k].set_title(reg) 
-#        
-#                   
-#        axsi[k].axvline(x=0, lw=0.5, linestyle='--', c='k',
-#                        label = align[split])
-#        axsi[k].legend(frameon=False,
-#                       loc='upper right', 
-#                       bbox_to_anchor=(-0.7, 0.5)).set_draggable(True)
-#        k +=1
-
-
-    ## get top 5 and last 2 max regions for each split
-    mapping='Swanson'
     tops = {}
+    lower = {}
     for split in align:
     
         d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'         
-                    f'curves_{split}_mapping{mapping}.npy',
-                    allow_pickle=True).flat[0]
+                    f'curves_{split}_{mapping}.npy',
+                    allow_pickle=True).flat[0]              
              
-        maxs = np.array([d[0][x][f'max_{curve}'] for x in d[0]])
-        acronyms = np.array([x for x in d[0]])
+        maxs = np.array([d[x]['max-min/max+min'] for x in d])
+        acronyms = np.array(list(d.keys()))
         order = list(reversed(np.argsort(maxs)))
         maxs = maxs[order]
         acronyms = acronyms[order] 
+             
+        tops[split] = [acronyms, 
+                      [d[reg]['p'] for reg in acronyms]]
         
-        # get p-values
-        ps = {}
-        for reg in d[0]:
-            max_ = d[0][reg][f'max_{curve}']
-            null_ = [d[i][reg][f'max_{curve}'] for i in range(1,len(d))]
-            p = 1 - (0.01 * percentileofscore(null_,max_,kind='weak'))
-            ps[reg] = p
-                        
-        tops[split] = [acronyms, [np.round(ps[reg],2) for reg in acronyms]]
+        maxs = np.array([d[reg]['max-min/max+min'] for reg in acronyms
+                         if d[reg]['p'] < 0.01])
+                         
+        maxsf = [v for v in maxs if not (math.isinf(v) or math.isnan(v))]         
+        lower[split] = np.percentile(maxsf, 25)          
         print(split, curve)
-        print(tops[split])
-        print(sum([ps[reg] < 0.01 for reg in ps]), len(ps), 
-              np.round(sum([ps[reg] < 0.01 for reg in ps])/len(ps),2) )              
+        print('25 percentile: ',np.percentile(maxsf, 25))
+        print(f'{len(maxsf)} of {len(d)} are significant')
+        tops[split+'_s'] = f'{len(maxsf)} of {len(d)}'
+            
+    '''
+    plot average curve per region
+    curve types: dist_0, dist_split
+    regk is what chunk of Beryl regions to plot
+    in groups of consecutive 10
+    '''
 
-                      
-#    '''
-#    multi 3d -- this time with top region only
-#    '''     
+    for split in align:
+        if curve_only:
+            axs.append(fig.add_subplot(nrows, len(align), k + 1))
+        else:
+            axs.append(fig.add_subplot(nrows, len(align), k + len(align)))
+            
+        f = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'
+                    f'curves_{split}_{mapping}.npy',
+                    allow_pickle=True).flat[0]
+                    
+        if curve_only:                        
+            regs = tops[split][0][np.array(tops[split][1]) < 0.01]         
+        else:
+            regs = tops[split][0][np.array(tops[split][1]) < 0.01][:15]     
+        
+        for reg in regs:
+            xx = xs(split)-pre_post[split][0]
+            
+            axs[k].plot(xx,f[reg][curve], linewidth = 2,
+                          color=palette[reg], 
+                          label=f"{reg} {f[reg]['nclus']}")
 
+        axs[k].axvline(x=0, lw=0.5, linestyle='--', c='k')
+        
+        if split == 'block':
+            ha = 'right'
+        else:
+            ha = 'left'    
+        
+        axs[k].text(0, 0.01, align[split],
+                      transform=axs[k].get_xaxis_transform(),
+                      horizontalalignment = ha)           
+        texts = []
+        for reg in regs:
+            y = np.max(f[reg][curve])
+            x = xx[np.argmax(f[reg][curve])]
+            ss = f"{reg} {f[reg]['nclus']}" # {np.round(f[reg]['max-min/max+min'],2)}"
+            texts.append(axs[k].text(x, y, ss, 
+                                     color = palette[reg],
+                                     fontsize=9))
+                                     
+        #adjust_text(texts)             
 
-#    for split in align:
+        
+        axs[k].set_ylabel(curve)
+        axs[k].set_xlabel('time [sec]')
+        axs[k].set_title(f'{split}')
+        put_panel_label(axs[k], k)
+                
+        k +=1
 
-#        axs.append(fig.add_subplot(4, len(align), k + 1, projection='3d'))
-
-#         
-#        f = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'
-#                    f'curves_{split}_mapping{mapping}.npy',
-#                    allow_pickle=True).flat[0]
-
-#        # get Allen colors and info
-#        
-#        regs = list(Counter(f.keys()).keys())
-#        nobs, npcs = f[regs[0]]['pca_tra'].shape
-#        ntra = nobs//len(xs(split))
-#           
-#        reg = tops[split][0]
-#        cs = [f[reg]['pca_tra'][len(xs(split))*tra:len(xs(split))*(tra+1)] 
-#              for tra in range(ntra)]
-
-#        
-#        pp = range(ntra)
-#        
-#        for j in range(ntra):
-#        
-#        
-#            if split == 'stim':
-#                col = []
-
-#                if j < 5:
-#                    cmap = (plt.get_cmap('Blues')
-#                            (np.linspace(0,1,ntra//2 + 5)))
-#                else:
-#                    cmap = (plt.get_cmap('Reds')
-#                            (np.linspace(0,1,ntra//2 + 5)))                     
-
-#                
-#                for i in range(len(xs(split))):
-#                    col.append(cmap[j%5 + 5])
-#          
-#            elif split == 'fback':
-#                col = [['g', 'purple'][j]] * len(xs(split))
-#                   
-#            else:
-
-#                col = [[blue_left, red_right][j]] * len(xs(split))               
-
-#            p = axs[k].scatter(cs[pp[j]][:,0],cs[pp[j]][:,1],cs[pp[j]][:,2],
-#                               color=col, s=20,
-#                               label=trial_split[split][pp[j]], 
-#                               depthshade=False) 
-#            
-#        axs[k].set_xlabel('pc1')    
-#        axs[k].set_ylabel('pc2')
-#        axs[k].set_zlabel('pc3')
-#        axs[k].set_title(split)   
-#        axs[k].grid(False)
-#        axs[k].axis('off') 
-#              
-#        axs[k].legend(frameon=False).set_draggable(True)
-#        
-#        # put dist_split as inset
-#        
-#        axsi.append(inset_axes(axs[k], width="20%", height="20%", 
-#                               loc=4, borderpad=1,
-#                               bbox_to_anchor=(-0.1,0.1,1,1), 
-#                               bbox_transform=axs[k].transAxes))
-#                            
-
-#        xx = xs(split)-pre_post[split][0]
-
-#        axsi[k].plot(xx,f[reg][curve], linewidth = 1,
-#                      color=palette[reg], label=f'{curve} {reg}')
-#                   
-#        axsi[k].spines['right'].set_visible(False)
-#        axsi[k].spines['top'].set_visible(False)
-#        axsi[k].spines['left'].set_visible(False)
-#        axsi[k].set_yticks([])
-#        axsi[k].set_xlabel('time [sec]')                         
-#        #axsi[k].set_title(reg) 
-#        
-#                   
-#        axsi[k].axvline(x=0, lw=0.5, linestyle='--', c='k',
-#                        label = align[split])
-#        axsi[k].legend(frameon=False,
-#                       loc='upper right', 
-#                       bbox_to_anchor=(-0.7, 0.5)).set_draggable(True)
-#        k +=1
-
+    if curve_only:
+        return
+    '''
+    plot latency versus max for all significant regions
+    '''   
     
-    '''
-    plot average curve per region
-    curve types: dist_0, dist_split
-    regk is what chunk of Beryl regions to plot
-    in groups of consecutive 10
-    '''
-
-    regk=0
-
     for split in align:
-        axs.append(fig.add_subplot(4, len(align), k + 1))
-        f = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'
-                    f'curves_{split}_mapping{mapping}.npy',
-                    allow_pickle=True).flat[0][0]
-                                 
-        regs = tops[split][0][tops[split][1] < 0.01][:15]            
+    
+        axs.append(fig.add_subplot(nrows, len(align), k + len(align)))
+        
+        d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'         
+                    f'curves_{split}_{mapping}.npy',
+                    allow_pickle=True).flat[0]
 
-        for reg in regs:
-            xx = xs(split)-pre_post[split][0]
-            
-            axs[k].plot(xx,f[reg][curve], linewidth = 2,
-                          color=palette[reg], 
-                          label=f"{reg}")# [{f[reg]['nclus'][1]}]
+        acronyms = [tops[split][0][j] for j in range(len(tops[split][0]))
+                if tops[split][1][j] < 0.01]
+
+        maxes = np.array([d[x][f'max-min/max+min'] for x in acronyms])
+        lats = np.array([d[x]['lat'] for x in acronyms])
+        cols = [palette[reg] for reg in acronyms]
+        
+        axs[k].scatter(lats, maxes, color=cols, marker='o',s=1)        
+        axs[k].axhline(y=lower[split],linestyle='--',color='r')
+        
+        for i in range(len(acronyms)):
+            if d[acronyms[i]]['max-min/max+min'] > lower[split]:
+                axs[k].annotate('  ' + acronyms[i],
+                                (lats[i], maxes[i]),
+                    fontsize=5,color=palette[acronyms[i]])            
 
         axs[k].axvline(x=0, lw=0.5, linestyle='--', c='k')
         
@@ -948,122 +768,98 @@ def plot_all(curve = 'd_var_m'):
         axs[k].text(0, 0.01, align[split],
                       transform=axs[k].get_xaxis_transform(),
                       horizontalalignment = ha)           
-        texts = []
-        for reg in regs:
-            y = np.max(f[reg][curve])
-            x = xx[np.argmax(f[reg][curve])]
-            texts.append(axs[k].text(x, y, 
-                                     f"{reg}",#['nclus'][1] 
-                                     color = palette[reg],
-                                     fontsize=9))
-                                     
-        adjust_text(texts)             
-
-        
-        axs[k].set_ylabel(curve)
-        axs[k].set_xlabel('time [sec]')
-        axs[k].set_title(f'{split}')
-
-                
+  
+        axs[k].set_ylabel(f'(max-min)/(max+min)')
+        axs[k].set_xlabel('latency (0.95 * max) [sec]')
+        axs[k].set_title(f"{split}, {tops[split+'_s']}")
+        put_panel_label(axs[k], k)     
         k +=1
-
-
-    '''
-    plot average curve per region
-    highlight one cosmos area per split
-
-    curve types: dist_0, dist_split
-    regk is what chunk of Beryl regions to plot
-    in groups of consecutive 10
-    '''
-
-    regk=0
-
-    for split in align:
-        axs.append(fig.add_subplot(4, len(align), k + 1))
-        f = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'
-                    f'curves_{split}_mapping{mapping}.npy',
-                    allow_pickle=True).flat[0][0]
-                                 
-        regs = tops[split][0]            
-
-        for reg in regs:
-            xx = xs(split)-pre_post[split][0]
-            
-            axs[k].plot(xx,f[reg][curve], linewidth = 2,
-                          color=palette[reg], 
-                          label=f"{reg}")# [{f[reg]['nclus'][1]}]
-
-        axs[k].axvline(x=0, lw=0.5, linestyle='--', c='k')
-        
-        if split == 'block':
-            ha = 'right'
-        else:
-            ha = 'left'    
-        
-        axs[k].text(0, 0.01, align[split],
-                      transform=axs[k].get_xaxis_transform(),
-                      horizontalalignment = ha)           
-        texts = []
-        for reg in regs:
-            y = np.max(f[reg][curve])
-            x = xx[np.argmax(f[reg][curve])]
-            texts.append(axs[k].text(x, y, 
-                                     f"{reg}",#['nclus'][1] 
-                                     color = palette[reg],
-                                     fontsize=9))
-                                     
-        adjust_text(texts)             
-
-        
-        axs[k].set_ylabel(curve)
-        axs[k].set_xlabel('time [sec]')
-        axs[k].set_title(f'{split}')
-
-                
-        k +=1
-
-
-
-
 
    
     '''
     max dist_split onto swanson flat maps
+    (only regs with p < 0.01)
     '''
 
     for split in align:
     
-        axs.append(fig.add_subplot(4, len(align),k + 1))   
+        axs.append(fig.add_subplot(nrows, len(align),k + len(align)))   
  
         d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'         
-                    f'curves_{split}_mapping{mapping}.npy',
-                    allow_pickle=True).flat[0][0]
+                    f'curves_{split}_{mapping}.npy',
+                    allow_pickle=True).flat[0]
 
+        acronyms = [tops[split][0][j] for j in range(len(tops[split][0]))
+                if tops[split][1][j] < 0.01]
 
-        values = np.array([d[x][f'max_{curve}'] for x in d])
-        acronyms = np.array([x for x in d])                  
+        values = np.array([d[x][f'max-min/max+min'] for x in acronyms])
+             
         plot_swanson(list(acronyms), list(values), cmap='Blues', 
                      ax=axs[k], br=br)#, orientation='portrait')
         axs[k].axis('off')
-        axs[k].set_title(f'max_{curve} {split}')
+        axs[k].set_title(f'(max-min)/(max+min), {split}')
+        put_panel_label(axs[k], k)
         k += 1
+
+    '''
+    lat onto swanson flat maps
+    (only regs with p < 0.01)
+    '''
+
+    for split in align:
+    
+        axs.append(fig.add_subplot(nrows, len(align),k + len(align)))   
+ 
+        d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'         
+                    f'curves_{split}_{mapping}.npy',
+                    allow_pickle=True).flat[0]
+                    
+        acronyms = [tops[split][0][j] for j in range(len(tops[split][0]))
+                if tops[split][1][j] < 0.01]
+
+        #  compute latencies (inverted, shorter latency is darker)
+        for x in acronyms:
+            
+            if np.max(d[x]['d_var_m']) == np.inf:
+                loc = np.where(d[x]['d_var_m'] == np.inf)[0]  
+            else:
+                loc = np.where(d[x]['d_var_m'] > 
+                                0.95 * np.max(d[x]['d_var_m']))[0]
+                                
+            d[x]['lat'] = xs(split)[-1] - xs(split)[loc[0]]
+
+        values = np.array([d[x]['lat'] for x in acronyms])
+                         
+        plot_swanson(list(acronyms), list(values), cmap='Blues', 
+                     ax=axs[k], br=br)#, orientation='portrait')
+        axs[k].axis('off')
+        axs[k].set_title(f'lat (dark = early), {split}')
+        put_panel_label(axs[k], k)
+        k += 1
+
+
+    '''
+    general subplots settings
+    '''
 
 
     fig.subplots_adjust(top=0.999,
 bottom=0.01,
 left=0.057,
 right=0.979,
-hspace=0.1,
-wspace=0.3)
+hspace=0.4,
+wspace=0.15)
+                   
     #fig.suptitle(f'pcadim {pcadim}')
     #fig.canvas.manager.set_window_title(f'pcadim {pcadim}')     
 #    fig.savefig('/home/mic/paper-brain-wide-map/'
 #               f'overleaf_figs/manifold/plots/'
 #               f'all_panels_pcadim{pcadim}.png',dpi=200)
 #    plt.close()
+
     font = {'size'   : 10}
     mpl.rc('font', **font)    
+
 
 
 def plot_session_numbers():
@@ -1214,61 +1010,6 @@ def swanson_gif(split, curve='d_var_m', recompute=True):
     plt.ion()
 
 
-def plot_average_PETHs(region, split):
-
-    '''
-    plot average PETH per region
-    '''
-    
-    _, palette = get_allen_info()
-    
-    f = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'
-                f'avPETH_{mapping}.npy',
-                allow_pickle=True).flat[0][split]
-                             
-    regs = f.keys()
-
-              
-    xx = list(xs(split)-pre_post[split][0])*len(trial_split[split])
-    
-    
-    fig, ax = plt.subplots()
-    
-    ax.plot(f[reg], linewidth = 2,
-                  color=palette[reg], 
-                  label=f"{reg}")# [{f[reg]['nclus']}]
-
-
-    for i in range(len(trial_split[split])):
-        ax.axvline(x=i*len(xs(split)) + pre_post[split][0]/T_BIN(split), 
-                   lw=0.5, linestyle='--', c='k')
-        
-                                 
-    adjust_text(texts)
-    axs[k].set_ylabel(curve)
-    axs[k].set_xlabel('time [sec]')
-    axs[k].set_title(f'{split}')
-
-
-def get_tops(split, curve = 'd_var_m'):
-
-    '''
-    also get fraction of significant regions
-    '''
-    
-    mapping='Swanson'
-
-    d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/one_bin/'         
-                f'curves_{split}_mapping{mapping}.npy',
-                allow_pickle=True).flat[0]
-    
-    maxs = np.array([d[x][f'max_{curve}'] for x in d])
-    acronyms = np.array([x for x in d])
-    order = list(reversed(np.argsort(maxs)))
-    maxs = maxs[order]
-    acronyms = acronyms[order] 
-    return acronyms[:35]
-
         
 def plot_average_curves(split='stim', mapping='Swanson', curve = 'd_var_m',
                         single_reg='VISl'):
@@ -1341,12 +1082,6 @@ def plot_average_curves(split='stim', mapping='Swanson', curve = 'd_var_m',
     ax.set_ylabel(curve)
     ax.set_xlabel('time [sec]')
     ax.set_title(f'{split}')
-
-
-
-
-
-
 
 
 
