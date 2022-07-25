@@ -30,12 +30,11 @@ import seaborn as sns
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from adjustText import adjust_text
 import matplotlib.image as mpimg
+from matplotlib.gridspec import GridSpec
 
 from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d import proj3d
 from matplotlib.patches import FancyArrowPatch
-
-
 
 import random
 import time
@@ -703,62 +702,49 @@ def get_allen_info():
     return dfa, palette           
 
 
-def put_panel_label(ax, n):                    
-    ax.text(-0.1, 1.30,  string.ascii_lowercase[n], 
-                  transform=ax.transAxes, 
-                  fontsize=16, va='top', ha='right', weight='bold')
+def put_panel_label(ax, k):                    
+        ax.annotate(string.ascii_lowercase[k],(-0.1, 1.30),
+                        xycoords='axes fraction',
+                        fontsize=16, va='top', ha='right', weight='bold')
 
 
-def plot_all(curve = 'd_var_m', curve_only=False):
+#    if not curve_only:
+#        '''
+#        load schematic intro
+#        '''
+#        axs.append(fig.add_subplot(nrows, 3, 2))
+#        
+#        img = mpimg.imread('/home/mic/paper-brain-wide-map/'
+#                           'overleaf_figs/manifold/intro.png')
+#        imgplot = axs[k].imshow(img)
+#        axs[k].axis('off')
+#        put_panel_label(axs[k], k)
+#        k += 1
+
+
+def plot_all():
 
     '''
-
-    ''' 
-    
-    if curve_only:
-        nrows = 1
-    else:
-        nrows = 6
+    main figure: show example trajectories,
+    d_var_m for select regions and scatter all sigificant regions
+    '''
+ 
+    curve = 'd_var_m'
+    nrows = 3
         
     mapping='Swanson'
     
-    fig = plt.figure(figsize=(10, 15))
-    figs = plt.figure(figsize=(10, 15))  # figure for swanson maps
-    
+    fig = plt.figure(figsize=(10, 10))
+    gs = GridSpec(nrows, len(align), figure=fig)
     _, palette = get_allen_info()
     
     font = {'size'   : 8}
     mpl.rc('font', **font)                
 
     axs = []
-    axsi = []
-
-   
+  
     k = 0
 
-    if not curve_only:
-        '''
-        load schematic intro
-        '''
-        axs.append(fig.add_subplot(nrows, 3, 1))
-        
-        img = mpimg.imread('/home/mic/paper-brain-wide-map/'
-                           'overleaf_figs/manifold/intro.png')
-        imgplot = axs[k].imshow(img)
-        axs[k].axis('off')
-        put_panel_label(axs[k], k)
-        k += 1
-        
-        '''
-        plot Swanson flatmap with labels and colors
-        '''
-        axs.append(fig.add_subplot(nrows, 3, 2))
-        plot_swanson(annotate=True, ax=axs[k])
-        axs[k].axis('off')
-        put_panel_label(axs[k], k)
-        k += 1
-
-    
 
     '''
     plot for each split an example region and session PCA trajectory
@@ -776,7 +762,7 @@ def plot_all(curve = 'd_var_m', curve_only=False):
                 
 
         reg, ins = exs[split]
-        axs.append(fig.add_subplot(nrows, len(align), k + 2,
+        axs.append(fig.add_subplot(nrows, len(align), k + 1,
                                    projection='3d'))           
 
         npcs, nobs = d[reg][ins].shape
@@ -839,12 +825,22 @@ def plot_all(curve = 'd_var_m', curve_only=False):
         axs[k].yaxis.set_ticklabels([])
         axs[k].zaxis.set_ticklabels([])
             
+        axs[k].xaxis.labelpad=-15
+        axs[k].yaxis.labelpad=-15
+        axs[k].zaxis.labelpad=-15            
+            
         axs[k].set_xlabel('pc1')
         axs[k].set_ylabel('pc2')
         axs[k].set_zlabel('pc3')
+  
+        '''
+        draw coordinate system with pc1, pc2, pc3 labels
+        '''
+  
              
         axs[k].legend(frameon=False).set_draggable(True)
-    
+        put_panel_label(axs[k], k)
+
         k+=1
 
 
@@ -876,26 +872,22 @@ def plot_all(curve = 'd_var_m', curve_only=False):
         tops[split+'_s'] = f'{len(maxsf)} of {len(d)}'
             
     '''
-    plot average curve per region
-    curve types: dist_0, dist_split
-    regk is what chunk of Beryl regions to plot
-    in groups of consecutive 10
+    plot average curve per select 5 regions per split
     '''
 
+    ret = {'stim': ['VISl', 'VISam', 'VISpm', 'AUDd', 'RN', 'VISp'],
+          'choice': ['VII', 'RN', 'MOp', 'MOs','SSp-ul', 'NPC','GRN'],
+          'fback': ['AUDp', 'FF','SSp-n','AUDv','AUDd','MARN']}
+
+
     for split in align:
-        if curve_only:
-            axs.append(fig.add_subplot(nrows, len(align), k + 1))
-        else:
-            axs.append(fig.add_subplot(nrows, len(align), k + 2))
+        axs.append(fig.add_subplot(nrows, len(align), k + 1))
             
         f = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'
                     f'curves_{split}_{mapping}.npy',
                     allow_pickle=True).flat[0]['regs']
                     
-        if curve_only:                        
-            regs = tops[split][0][np.array(tops[split][1]) < 0.01]         
-        else:
-            regs = tops[split][0][np.array(tops[split][1]) < 0.01][:15]     
+        regs = ret[split]   
 
           
         for reg in regs:
@@ -930,7 +922,7 @@ def plot_all(curve = 'd_var_m', curve_only=False):
                                      color = palette[reg],
                                      fontsize=9))
                                      
-        #adjust_text(texts)             
+        adjust_text(texts)             
 
         
         axs[k].set_ylabel(curve)
@@ -940,15 +932,13 @@ def plot_all(curve = 'd_var_m', curve_only=False):
                 
         k +=1
 
-    if curve_only:
-        return
     '''
     plot latency versus max for all significant regions
     '''   
     
     for split in align:
     
-        axs.append(fig.add_subplot(nrows, len(align), k + 2))
+        axs.append(fig.add_subplot(nrows, len(align), k + 1))
         
         d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'         
                     f'curves_{split}_{mapping}.npy',
@@ -991,6 +981,44 @@ def plot_all(curve = 'd_var_m', curve_only=False):
         put_panel_label(axs[k], k)     
         k +=1
 
+    fig = plt.gcf()
+    fig.tight_layout()
+    
+    fig.subplots_adjust(top=0.921,
+bottom=0.051,
+left=0.073,
+right=0.971,
+hspace=0.537,
+wspace=0.5)    
+    
+    
+    fig.tight_layout()                    
+#    fig.savefig('/home/mic/paper-brain-wide-map/'
+#               f'overleaf_figs/manifold/plots/'
+#               f'main.png',dpi=200)
+#    plt.close()
+
+    font = {'size'   : 10}
+    mpl.rc('font', **font) 
+
+
+def plot_swanson_supp(mapping = 'Swanson'):
+    
+    figs = plt.figure(figsize=(10, 9), constrained_layout=True) 
+    gs = GridSpec(3, 3, figure=figs)
+
+
+    nrows = 3
+    axs = []
+    k = 0
+    '''
+    plot Swanson flatmap with labels and colors
+    '''
+    axs.append(figs.add_subplot(gs[0,:]))
+    plot_swanson(annotate=True, ax=axs[k])
+    axs[k].axis('off')
+    put_panel_label(axs[k], k)
+    k += 1
    
     '''
     max dist_split onto swanson flat maps
@@ -999,21 +1027,22 @@ def plot_all(curve = 'd_var_m', curve_only=False):
 
     for split in align:
     
-        axs.append(fig.add_subplot(nrows, len(align),k + 2))   
+        axs.append(figs.add_subplot(gs[1,k-1]))   
  
         d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'         
                     f'curves_{split}_{mapping}.npy',
                     allow_pickle=True).flat[0]['regs']
 
-        acronyms = [tops[split][0][j] for j in range(len(tops[split][0]))
-                if tops[split][1][j] < 0.01]
+        # get significant regions only
+        acronyms = [reg for reg in d
+                if d[reg]['p'] < 0.01]
 
         values = np.array([d[x][f'max-min/max+min'] for x in acronyms])
              
         plot_swanson(list(acronyms), list(values), cmap='Blues', 
                      ax=axs[k], br=br)#, orientation='portrait')
         axs[k].axis('off')
-        axs[k].set_title(f'(max-min)/(max+min), {split}')
+        axs[k].set_title(f'{split} \n amplitude')
         put_panel_label(axs[k], k)
         k += 1
 
@@ -1024,14 +1053,15 @@ def plot_all(curve = 'd_var_m', curve_only=False):
 
     for split in align:
     
-        axs.append(fig.add_subplot(nrows, len(align),k + 2))   
+        axs.append(figs.add_subplot(gs[2,k-4]))   
  
         d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'         
                     f'curves_{split}_{mapping}.npy',
                     allow_pickle=True).flat[0]['regs']
                     
-        acronyms = [tops[split][0][j] for j in range(len(tops[split][0]))
-                if tops[split][1][j] < 0.01]
+        # get significant regions only
+        acronyms = [reg for reg in d
+                if d[reg]['p'] < 0.01]
 
         #  compute latencies (inverted, shorter latency is darker)
         for x in acronyms:
@@ -1047,7 +1077,7 @@ def plot_all(curve = 'd_var_m', curve_only=False):
 
             xs = np.linspace(0, 
                              pre_post[split][0] + pre_post[split][1],
-                             len(f[reg][curve]))            
+                             len(d[x]['d_var_m']))            
 
             d[x]['lat'] = xs[-1] - xs[loc[0]]
 
@@ -1056,32 +1086,113 @@ def plot_all(curve = 'd_var_m', curve_only=False):
         plot_swanson(list(acronyms), list(values), cmap='Blues', 
                      ax=axs[k], br=br)#, orientation='portrait')
         axs[k].axis('off')
-        axs[k].set_title(f'lat (dark = early), {split}')
+        axs[k].set_title(f'{split} \n latency (dark = early)')
         put_panel_label(axs[k], k)
         k += 1
 
 
-    '''
-    general subplots settings
-    '''
+        '''
+        general subplots settings
+        '''
 
 
-    fig.subplots_adjust(top=0.94,
-    bottom=0.01,
-    left=0.057,
-    right=0.979,
-    hspace=0.4,
-    wspace=0.15)
-                   
-    #fig.suptitle(f'pcadim {pcadim}')
-    #fig.canvas.manager.set_window_title(f'pcadim {pcadim}')     
+    figs.subplots_adjust(top=0.89,
+bottom=0.018,
+left=0.058,
+right=0.985,
+hspace=0.0,
+wspace=0.214)
+                       
+ 
 #    fig.savefig('/home/mic/paper-brain-wide-map/'
 #               f'overleaf_figs/manifold/plots/'
 #               f'all_panels_pcadim{pcadim}.png',dpi=200)
-#    plt.close()
+
 
     font = {'size'   : 10}
     mpl.rc('font', **font)    
+
+
+def plot_cosmos_lines():
+
+    mapping = 'Swanson'
+    df, palette = get_allen_info()
+    fig = plt.figure(figsize=(20, 15), constrained_layout=True)
+     
+    gs = GridSpec(3, 7, figure=fig)
+
+    sc = 0
+    for split in align:
+    
+        d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'
+                    f'curves_{split}_{mapping}.npy',
+                    allow_pickle=True).flat[0]['regs']
+                    
+        # get significant regions only
+        regsa = [reg for reg in d
+                if d[reg]['p'] < 0.01]
+                                
+        # get cosmos parent regions for Swanson acronyms 
+        cosregs = [df[df['id'] == int(df[df['acronym']==reg]['structure_id_path']
+                   .values[0].split('/')[4])]['acronym']
+                   .values[0] for reg in regsa]
+                   
+        cosregsC = list(Counter(cosregs))
+        
+        cosregsC = sorted(cosregsC)         
+        
+        k = 0
+        axs = []                 
+        for cos in cosregsC:
+            
+            axs.append(fig.add_subplot(gs[sc,k]))
+            regs = np.array(regsa)[np.array(cosregs)==cos]
+ 
+            print(split, cos, regs)
+
+            texts = []
+            for reg in regs:
+                if any(np.isinf(d[reg]['d_var_m'])):
+                    print(f'inf in d_var_m of {reg}')
+                    continue
+
+                xx = np.linspace(-pre_post[split][0], 
+                                  pre_post[split][1], len(d[reg]['d_var_m']))        
+
+                axs[k].plot(xx,d[reg]['d_var_m'], linewidth = 2,
+                              color=palette[reg], 
+                              label=f"{reg}")# {d[reg]['nclus']}
+                              
+                y = np.max(d[reg]['d_var_m'])
+                x = xx[np.argmax(d[reg]['d_var_m'])]
+                ss = f"{reg}"#  {d[reg]['nclus']}"
+                texts.append(axs[k].text(x, y, ss, 
+                                         color = palette[reg],
+                                         fontsize=9))                             
+
+            #adjust_text(texts)
+            
+    
+            axs[k].axvline(x=0, lw=0.5, linestyle='--', c='k')
+            axs[k].text(0, 0.01, align[split],
+                          transform=axs[k].get_xaxis_transform(),
+                          horizontalalignment = 'right' if split == 'block'
+                          else 'left')           
+
+            axs[k].set_ylabel('d_var_m')
+            axs[k].set_xlabel('time [sec]')
+            axs[k].set_title(f'{split}, {cos}')
+            put_panel_label(axs[k], k)
+                    
+            k +=1
+        sc +=1
+    plt.tight_layout()
+
+
+
+
+
+
 
 
 
@@ -1232,79 +1343,6 @@ def swanson_gif(split, curve='d_var_m', recompute=True):
 
     plt.ion()
 
-
-        
-def plot_average_curves(split='stim', mapping='Swanson', curve = 'd_var_m',
-                        single_reg='VISl'):
-    
-    '''
-    plot average curve per region
-    curve types: dist_0, dist_split
-
-    single_reg=region to illustrate null distribution;
-    if single_reg=False, the first 55 regions are shown
-    '''
-
-    fig, ax = plt.subplots()
-    _, palette = get_allen_info()
-    
-    g = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'
-                f'curves_{split}_{mapping}.npy',
-                allow_pickle=True).flat[0]
-    
-    f = g[0]            
-                   
-    maxs = np.array([f[x][f'max_{curve}'] for x in f])
-    acronyms = np.array([x for x in f])
-    order = list(reversed(np.argsort(maxs)))
-    maxs = maxs[order]
-    acronyms = acronyms[order]               
-    
-    print(len(acronyms),'regs in total')
-    print('first 20:')
-    print(acronyms[:20])
-    print('last 5:')
-    print(acronyms[-5:])               
-    
-    if single_reg:
-        regs = [single_reg]
-    else:                             
-        regs = np.concatenate([acronyms[:55], acronyms[-10:]])           
-
-    for reg in regs:
-        xx = xs(split)-pre_post[split][0]
-        
-        ax.plot(xx,f[reg][curve], linewidth = 2,
-                      color=palette[reg], 
-                      label=f"{reg}")# [{f[reg]['nclus'][1]}]
-                      
-        if single_reg:
-            for i in range(len(g))[1:]:
-                ax.plot(xx,g[i][reg][curve], linewidth = 1,
-                              color='gray')            
-
-    ax.axvline(x=0, lw=0.5, linestyle='--', c='k')
-    
-    if split == 'block':
-        ha = 'right'
-    else:
-        ha = 'left'    
-    
-    ax.text(0, 0.01, align[split],
-                  transform=ax.get_xaxis_transform(),
-                  horizontalalignment = ha)           
-    texts = []
-    for reg in regs:
-        y = np.max(f[reg][curve])
-        x = xx[np.argmax(f[reg][curve])]
-        texts.append(ax.text(x, y, f"{reg}",#['nclus'][1] 
-                             color = palette[reg],
-                             fontsize=9))
-                                 
-    #adjust_text(texts)             
-    ax.set_ylabel(curve)
-    ax.set_xlabel('time [sec]')
-    ax.set_title(f'{split}')
 
 
 class Arrow3D(FancyArrowPatch):
