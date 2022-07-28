@@ -832,7 +832,15 @@ def plot_all():
         axs[k].set_xlabel('pc1')
         axs[k].set_ylabel('pc2')
         axs[k].set_zlabel('pc3')
-  
+        
+        # remove box panes
+        axs[k].xaxis.pane.fill = False
+        axs[k].yaxis.pane.fill = False
+        axs[k].zaxis.pane.fill = False
+        axs[k].xaxis.pane.set_edgecolor('w')
+        axs[k].yaxis.pane.set_edgecolor('w')
+        axs[k].zaxis.pane.set_edgecolor('w')
+               
         '''
         draw coordinate system with pc1, pc2, pc3 labels
         '''
@@ -924,7 +932,8 @@ def plot_all():
                                      
         adjust_text(texts)             
 
-        
+        axs[k].spines['top'].set_visible(False)
+        axs[k].spines['right'].set_visible(False)        
         axs[k].set_ylabel(curve)
         axs[k].set_xlabel('time [sec]')
         axs[k].set_title(f'{split}')
@@ -973,8 +982,10 @@ def plot_all():
         
         axs[k].text(0, 0.01, align[split],
                       transform=axs[k].get_xaxis_transform(),
-                      horizontalalignment = ha)           
-  
+                      horizontalalignment = ha)
+                                
+        axs[k].spines['top'].set_visible(False)
+        axs[k].spines['right'].set_visible(False)  
         axs[k].set_ylabel(f'(max-min)/(max+min)')
         axs[k].set_xlabel('latency (min+0.7*(max-min)) [sec]')
         axs[k].set_title(f"{split}, {tops[split+'_s']} regs are sig")
@@ -1178,7 +1189,8 @@ def plot_cosmos_lines():
                           transform=axs[k].get_xaxis_transform(),
                           horizontalalignment = 'right' if split == 'block'
                           else 'left')           
-
+            axs[k].spines['top'].set_visible(False)
+            axs[k].spines['right'].set_visible(False)
             axs[k].set_ylabel('d_var_m')
             axs[k].set_xlabel('time [sec]')
             axs[k].set_title(f'{split}, {cos}')
