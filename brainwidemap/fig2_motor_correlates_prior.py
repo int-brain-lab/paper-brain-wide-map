@@ -383,13 +383,13 @@ def get_PSTHs_7behaviors():
     plt.ioff()
     for eid in eids:
         try:
-            R[eid] = PSTH_pseudo(eid,lag = -0.4)    
+            R[eid] = PSTH_pseudo(eid,lag = -0.6, duration = 0.4)    
         except:
             print(f'something off with {eid}')
             continue
     
     s = ('/home/mic/paper-brain-wide-map/'
-         'behavioral_block_correlates/behave70.4.npy')
+         'behavioral_block_correlates/behave7.npy')
     np.save(s,R,allow_pickle=True)            
             
 
@@ -521,7 +521,7 @@ def example_block_structure():
 
 
 
-def Result_7behave(hists=False):
+def Result_7behave(hists=False, save_df = False):
 
     '''
     bar plot
@@ -558,30 +558,51 @@ def Result_7behave(hists=False):
         c1flat = [item for sublist in c1 for item in sublist]
         c1flat.insert(0,'eid')      
         columns = c1flat
+
         r = []
         
         for eid in R:
+            flag = False
             l = []
-            for b in R[eid]:
-                for j in R[eid][b]:
-                    l.append(j)
-            l.insert(0,eid)
-            r.append(l)
-     
-        df  = pd.DataFrame(data=r,columns=columns)  
-    #    df.to_pickle('/home/mic/paper-brain-wide-map/'
-    #                 'behavioral_block_correlates/ME.pkl')
+            if R[eid] == (None, None):
+                continue
+            else:
+                for b in R[eid]:
+                    if flag:
+                        break    
+                    for j in R[eid][b]:
+
+                        if type(j)!= str and np.isnan(j):
+                            flag = True
+                            break   
+                        l.append(j)
+                    
+                if flag:
+                    continue
+                else:            
+                    l.insert(0,eid)
+                    r.append(l)
+        
+        df  = pd.DataFrame(data=r,columns=columns)
 
         vals = [sum(df[x+'_p']<0.05)/len(df) for x in behave7]
         
         # check how many sessions have at least one modulated behavior
         ps  = [x+'_p' for x in behave7]
         rr = [[float(df[df['eid']==eid][y]) for y in ps] for eid in df['eid']]
-        sigs = 0       
-        for i in rr:
-            if any(np.array(i)*len(behave7)*len(rr) < 0.05):
-                sigs += 1
-
+        sigs = np.zeros(len(rr))
+        sigs0 = np.zeros(len(rr))   
+        for i in range(len(rr)):
+            if any(np.array(rr[i])*len(behave7)*len(rr) < 0.05):
+                sigs[i] = 1  # Bonferroni corrected
+            if any(np.array(rr[i]) < 0.05):
+                sigs0[i] = 1  # uncorrected
+                      
+        df['atLeastOne_p<0.05'] = sigs0
+        df['atLeastOne_p<0.05_BF'] = sigs
+ 
+                  
+        sigs = sum(sigs) 
                 
         print(t, (f'{sigs} out of {len(rr)}' 
               ' have at least one behavior modulated'))         
@@ -592,6 +613,11 @@ def Result_7behave(hists=False):
         ax.barh(np.arange(len(vals))+k*0.25, list(reversed(vals)), 
                 height = bwidth, label = infos[t][1], color=cs[k])
 
+        if save_df:  
+            df.to_pickle('/home/mic/paper-brain-wide-map/'
+                         'behavioral_block_correlates/ME.pkl')
+            df.to_excel('/home/mic/paper-brain-wide-map/'
+                         'behavioral_block_correlates/ME.xlsx')
         k += 1
     
     ax.axvline(x=0.05, linestyle='--',c='k')
