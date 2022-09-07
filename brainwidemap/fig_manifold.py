@@ -32,10 +32,11 @@ from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from adjustText import adjust_text
 import matplotlib.image as mpimg
 from matplotlib.gridspec import GridSpec
-
+from matplotlib import colors
 from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d import proj3d
 from matplotlib.patches import FancyArrowPatch
+from pdf2image import convert_from_path
 
 import random
 import time
@@ -76,13 +77,13 @@ def T_BIN(split, c=c):
 #         'action':'motion on',
 #         'fback':'feedback'}
          
-align = {'stim':'stim on',
+align = {'fback':'feedback',
          'choice':'motion on',
-         'fback':'feedback'}         
+         'stim':'stim on'}         
          
 
-pre_post = {'choice':[0.1,0],'stim':[0,0.1],
-            'fback':[0,0.1],'block':[0.4,0],
+pre_post = {'choice':[0.15,0],'stim':[0,0.15],
+            'fback':[0,0.15],'block':[0.4,0],
             'action':[0.025,0.3]}  #[pre_time, post_time], 
             #if single bin, not possible to have pre/post
             
@@ -99,9 +100,16 @@ br = BrainRegions()
 
 
 def xs(split):
-    # not this only works for 4 overlapping bins, stride 1 ms
+    # this only works for 4 overlapping bins, stride 1 ms
     return np.arange((pre_post[split][0] + pre_post[split][1])/
                       T_BIN(split))*T_BIN(split)
+
+
+
+def grad(c,nobs):
+    cmap = mpl.cm.get_cmap(c)
+    
+    return [cmap((nobs - p)/nobs) for p in range(nobs)]
 
 
 def generate_pseudo_blocks(n_trials, factor=60, min_=20, max_=100, first5050=90):
@@ -546,6 +554,8 @@ def d_var_stacked(split, mapping='Swanson'):
     average d_var_m via nanmean across insertions,
     remove regions with too few neurons (min_reg)
     compute maxes, latencies and p-values
+    
+    load in single_d_vars for PCA and std of d_var maxes across cells 
     '''
   
     print(split)
@@ -579,15 +589,20 @@ def d_var_stacked(split, mapping='Swanson'):
     regs = Counter(acs)
     stde = {}
     pcs = {}
+    euc = {}  # also compute Euclidean distance on PCA reduced trajectories
     for reg in regs:            
         if (reg in ['root', 'void']) or (regs[reg] < min_reg):
             continue
         stde[reg] = np.std(maxes[acs == reg])/np.sqrt(regs[reg])
 
         dat = ws[:,acs == reg,:]
-        pca = PCA(n_components=3)
+        pca = PCA(n_components=30)
         wsc = pca.fit_transform(np.concatenate(dat,axis=1).T).T
-        pcs[reg] = wsc
+        
+        nobs = wsc.shape[1] // ntravis
+        t0,t1 = wsc[:,:nobs], wsc[:,nobs:nobs*2] # actual trajectories
+        euc[reg] = sum((t0 - t1)**2)**0.5
+        pcs[reg] = wsc[:3]
 
     # getting d_vars params for controls (extra file for storage)    
     R = np.load('/mnt/8cfe1683-d974-40f3-a20b-b217cad4722a/manifold/'
@@ -625,6 +640,7 @@ def d_var_stacked(split, mapping='Swanson'):
         res['nclus'] = nclus[reg]
         res['stde'] = stde[reg]
         res['pcs'] = pcs[reg]
+        res['euc'] = euc[reg]
         
         # full curve
         d_var_m = regd[reg][0]
@@ -651,7 +667,19 @@ def d_var_stacked(split, mapping='Swanson'):
         
         res['lat'] = np.linspace(-pre_post[split][0], 
                         pre_post[split][1], len(d_var_m))[loc[0]]
-
+                      
+                      
+        # amplitude and latitude for Euclidean distance also; no p                
+        res['amp_euc'] = ((np.max(euc[reg]) - np.min(euc[reg]))/
+                          (np.max(euc[reg]) + np.min(euc[reg])))
+        
+        loc = np.where(euc[reg] > 
+               np.min(euc[reg]) + 0.7*(np.max(euc[reg]) - 
+               np.min(euc[reg])))[0]
+                                 
+        res['lat_euc'] = np.linspace(-pre_post[split][0], 
+                        pre_post[split][1], len(euc[reg]))[loc[0]]
+                        
         r[reg] = res
     
     np.save('/home/mic/paper-brain-wide-map/manifold_analysis/'
@@ -699,16 +727,18 @@ def put_panel_label(ax, k):
                         xycoords='axes fraction',
                         fontsize=16, va='top', ha='right', weight='bold')
 
-def plot_all():
+
+def plot_all(curve='d_var_m', amp_number=False):
 
     '''
     main figure: show example trajectories,
     d_var_m for select regions and scatter all sigificant regions
+    Instead of d_var_m there is also euc
     '''
 
     plt.rcParams['font.size'] = '11'
     plt.rcParams['figure.constrained_layout.use'] = True
-    curve = 'd_var_m'
+    
     nrows = 12
         
     mapping='Swanson'
@@ -721,7 +751,9 @@ def plot_all():
 
     axs = []
     k = 0
-
+    
+    amp_curve = ('max-min/max+min' if curve == 'd_var_m' 
+                         else 'amp_euc')
 
     '''
     load schematic intro and contrast trajectory plot (convert from svg)
@@ -735,10 +767,16 @@ def plot_all():
             axs.append(fig.add_subplot(gs[:3,-1]))            
             
         
+#        data_path = '/home/mic/paper-brain-wide-map/manifold_analysis/'
+#        svg2png(url=data_path + f'{imn}.svg',  
+#        write_to=data_path + f'{imn}.png',
+#        background_color='white', dpi=200)
+        
         data_path = '/home/mic/paper-brain-wide-map/manifold_analysis/'
-        svg2png(url=data_path + f'{imn}.svg',  
-        write_to=data_path + f'{imn}.png',
-        background_color='white', dpi=200)
+        img = convert_from_path(data_path + f'{imn}.pdf',
+                                fmt='png', dpi=200)  
+        write_to = data_path + f'{imn}.png'       
+        img[0].save(write_to, 'png')
         
         img = mpimg.imread(data_path + f'{imn}.png')
         imgplot = axs[k].imshow(img)
@@ -750,10 +788,11 @@ def plot_all():
     '''
     plot for each split an example region PCA trajectory
     '''
+
     
-    exs = {'stim': 'VISl',
+    exs = {'stim': 'VISpm',
            'choice': 'GRN',#'VII'
-           'fback': 'LDT'}
+           'fback': 'PSV'} # PSV
             
     c = 0
     for split in align:
@@ -769,6 +808,7 @@ def plot_all():
         nobs = nobs // ntravis
 
 
+
         for j in range(ntravis):
         
             # 3d trajectory
@@ -776,41 +816,31 @@ def plot_all():
     
             if split == 'fback':
                 if j == 0:
-                    col = ['green'] * nobs
+                    col = grad('Greens_r', nobs)# ['green'] * nobs
                 elif j == 1:
-                    col = ['purple'] * nobs
+                    col = grad('Purples_r', nobs)
                 else:
-                    col = ['gray'] * nobs
+                    col =  grad('Greys_r', nobs)
  
             else:
                 if j == 0:
-                    col = [blue_left] * nobs
+                    col = grad('Blues_r', nobs)
                 elif j == 1:
-                    col = [red_right] * nobs
+                    col = grad('Reds_r', nobs)
                 else:
-                    col = ['gray'] * nobs            
-               
-      
-            p = axs[k].scatter(cs[:,0],cs[:,1],cs[:,2], color=col, 
-                           s=10 if j in [0,1] else 0.1,
+                    col = grad('Greys_r', nobs)
+                    
+                            
+
+            axs[k].plot(cs[:,0],cs[:,1],cs[:,2], color=col[-1],
+                    linewidth = 2 if j in [0,1] else 1)
+                          
+            p = axs[k].scatter(cs[:,0],cs[:,1],cs[:,2], color=col,
+                           edgecolors = col, 
+                           s=20 if j in [0,1] else 1,
                            label=trial_split[split][j] if j in range(3)
                               else '_nolegend_', depthshade=False)
-                              
-            axs[k].plot(cs[:,0],cs[:,1],cs[:,2], color=col[0],
-                    linewidth = 0.2)        
 
-            if j in [0,1]:
-                # draw arrows along trajectory
-                for i in range(nobs//2):
-                    xs = [cs[i*2,0], cs[i*2 +1,0]] 
-                    ys = [cs[i*2,1], cs[i*2 +1,1]] 
-                    zs = [cs[i*2,2], cs[i*2 +1,2]] 
-
-                    arw = Arrow3D(xs,ys,zs,
-                                  arrowstyle="->", color=col[0], lw = 0.2, 
-                                  mutation_scale=15)
-                                  
-                    axs[k].add_artist(arw)
 
         # add triplet of arrows as coordinate system?
 
@@ -843,7 +873,6 @@ def plot_all():
         draw coordinate system with pc1, pc2, pc3 labels
         '''
   
-             
         axs[k].legend(frameon=False).set_draggable(True)
         put_panel_label(axs[k], k)
 
@@ -853,13 +882,13 @@ def plot_all():
 
     tops = {}
     lower = {}
-    for split in align:
+    for split in align: 
     
         d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'         
                     f'curves_{split}_{mapping}.npy',
                     allow_pickle=True).flat[0]              
              
-        maxs = np.array([d[x]['max-min/max+min'] for x in d])
+        maxs = np.array([d[x][amp_curve] for x in d])
         acronyms = np.array(list(d.keys()))
         order = list(reversed(np.argsort(maxs)))
         maxs = maxs[order]
@@ -868,7 +897,7 @@ def plot_all():
         tops[split] = [acronyms, 
                       [d[reg]['p'] for reg in acronyms]]
         
-        maxs = np.array([d[reg]['max-min/max+min'] for reg in acronyms
+        maxs = np.array([d[reg][amp_curve] for reg in acronyms
                          if d[reg]['p'] < 0.01])
                          
         maxsf = [v for v in maxs if not (math.isinf(v) or math.isnan(v))]         
@@ -877,15 +906,13 @@ def plot_all():
         print('25 percentile: ',np.percentile(maxsf, 25))
         print(f'{len(maxsf)}/{len(d)} are significant')
         tops[split+'_s'] = f'{len(maxsf)} of {len(d)}'
-            
+
+    
+                
     '''
     line plot per top 5 regions per split
     '''
     c = 0  # column index
-    
-    ret = {'stim': ['VISl', 'VISam', 'VISpm', 'AUDd', 'RN', 'VISp'],
-          'choice': ['VII', 'RN', 'MOp', 'MOs','SSp-ul', 'NPC','GRN'],
-          'fback': ['AUDp', 'FF','SSp-n','AUDv','AUDd','MARN']}
 
 
     for split in align:
@@ -894,14 +921,14 @@ def plot_all():
         f = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'
                     f'curves_{split}_{mapping}.npy',
                     allow_pickle=True).flat[0]
-                    
-        # specific region selection
-        #regs = ret[split]   
+                      
 
         # line plots for top 5 regions only
         regs = tops[split][0][:5]
-
-          
+        if split == 'fback':
+            regs = ['AUDp', 'LDT', 'PSV', 'BMAa', 'GU']
+        
+        texts = []          
         for reg in regs:
             if any(np.isinf(f[reg]['d_var_m'])):
                 print(f'inf in d_var_m of {reg}')
@@ -909,18 +936,36 @@ def plot_all():
 
 
             xx = np.linspace(-pre_post[split][0], 
-                              pre_post[split][1], len(f[reg][curve]))        
-
-            axs[k].plot(xx,f[reg][curve], linewidth = 2,
+                              pre_post[split][1], len(f[reg][curve]))
+                                    
+            # normalize curve
+            yy = ((f[reg][curve] - min(f[reg][curve]))/
+                  (max(f[reg][curve]) + min(f[reg][curve])))
+            
+            #yy = f[reg][curve]
+            
+            axs[k].plot(xx,yy, linewidth = 2,
                           color=palette[reg], 
                           label=f"{reg} {f[reg]['nclus']}")
             
-            # plot stderror bars on lines
-            axs[k].fill_between(xx,    
-                             f[reg][curve] + f[reg]['stde']/20,
-                             f[reg][curve] - f[reg]['stde']/20,
-                             color=palette[reg],
-                             alpha = 0.2) 
+            if curve == 'd_var_m':
+                # plot stderror bars on lines
+                axs[k].fill_between(xx,    
+                                 yy + f[reg]['stde'],
+                                 yy - f[reg]['stde'],
+                                 color=palette[reg],
+                                 alpha = 0.2)
+                             
+            # put region labels                 
+            y = np.max(yy)
+            x = xx[np.argmax(yy)]
+            ss = f"{reg} {f[reg]['nclus']}" 
+            
+            texts.append(axs[k].text(x, y, ss, 
+                                     color = palette[reg],
+                                     fontsize=9))                 
+                              
+        adjust_text(texts)                      
 
         axs[k].axvline(x=0, lw=0.5, linestyle='--', c='k')
         
@@ -932,21 +977,12 @@ def plot_all():
         axs[k].text(0, 0.01, align[split],
                       transform=axs[k].get_xaxis_transform(),
                       horizontalalignment = ha)           
-        texts = []
-        for reg in regs:
-            y = np.max(f[reg][curve])
-            x = xx[np.argmax(f[reg][curve])]
-            ss = f"{reg} {f[reg]['nclus']}" # {np.round(f[reg]['max-min/max+min'],2)}"
-            texts.append(axs[k].text(x, y, ss, 
-                                     color = palette[reg],
-                                     fontsize=9))
-                                     
-        adjust_text(texts)             
+        
 
         axs[k].spines['top'].set_visible(False)
         axs[k].spines['right'].set_visible(False)
         if c == 0:        
-            axs[k].set_ylabel('distance \n [a.u.]')
+            axs[k].set_ylabel('amplitude \n [a.u.]')
         axs[k].set_xlabel('time [sec]')
         axs[k].set_title(f'{split}')
         put_panel_label(axs[k], k)
@@ -958,6 +994,11 @@ def plot_all():
     scatter latency versus max for all significant regions
     '''   
     c = 0
+    
+    if amp_number: 
+        fig2 = plt.figure()
+        axss = []
+    
     for split in align:
     
         axs.append(fig.add_subplot(gs[8:,c]))
@@ -969,20 +1010,38 @@ def plot_all():
         acronyms = [tops[split][0][j] for j in range(len(tops[split][0]))
                 if tops[split][1][j] < 0.01]
 
-        maxes = np.array([d[x][f'max-min/max+min'] for x in acronyms])
-        lats = np.array([d[x]['lat'] for x in acronyms])
+        if curve == 'euc':
+            maxes = np.array([d[x][f'amp_euc'] for x in acronyms])
+            lats = np.array([d[x]['lat_euc'] for x in acronyms])        
+        else:
+            maxes = np.array([d[x][f'max-min/max+min'] for x in acronyms])
+            lats = np.array([d[x]['lat'] for x in acronyms])
+
         cols = [palette[reg] for reg in acronyms]
         stdes = np.array([d[x]['stde'] for x in acronyms])
         
-        axs[k].errorbar(lats, maxes, yerr=stdes, fmt='None', 
-                        ecolor=cols, ls = 'None', elinewidth = 0.5)
+
+        if amp_number:
+            axss.append(fig2.add_subplot(int(f'13{c+1}')))
+            nums = [1/d[reg]['nclus'] for reg in acronyms]
+
+            l = list(zip(nums, maxes, cols))
+            df = pd.DataFrame(l, columns=['1/nclus', 'maxes', 'cols'])
+            print(split, len(df['cols']), len(df['1/nclus']))      
+            sns.regplot(ax=axss[c], x="1/nclus", y="maxes", data=df)
+            axss[c].set_title(split)
+        
+        if curve == 'd_var_m':
+            axs[k].errorbar(lats, maxes, yerr=stdes, fmt='None', 
+                            ecolor=cols, ls = 'None', elinewidth = 0.5)
+                        
         axs[k].scatter(lats, maxes, color=cols, marker='o',s=1)                 
                
         axs[k].axhline(y=lower[split],linestyle='--',color='r')
         
         for i in range(len(acronyms)):
             reg = acronyms[i]
-            if d[acronyms[i]]['max-min/max+min'] > lower[split]:
+            if d[acronyms[i]][amp_curve] > lower[split]:
                 axs[k].annotate('  ' + reg, # f"{reg} {f[reg]['nclus']}" ,
                                 (lats[i], maxes[i]),
                     fontsize=9,color=palette[acronyms[i]])            
@@ -1016,8 +1075,10 @@ bottom=0.051,
 left=0.1,
 right=0.971,
 hspace=1.3,
-wspace=0.52)    
-    
+wspace=0.52)
+
+    if curve == 'euc':
+        fig.suptitle(f'distance metric: {curve}')  
     
     fig.tight_layout()                    
 #    fig.savefig('/home/mic/paper-brain-wide-map/'
@@ -1457,3 +1518,110 @@ def plot_all_3d(reg, split, mapping = 'Swanson'):
         ax.axis('off') 
               
         ax.legend(frameon=False).set_draggable(True)
+        
+        
+def inspect_regional_PETH(reg, split):
+    '''
+    for a given split and region, display PETHs as image,
+    lines separating insertions
+    '''
+           
+    print(split)
+    R = np.load('/mnt/8cfe1683-d974-40f3-a20b-b217cad4722a/manifold/'
+                f'single_d_vars_{split}_Swanson.npy', 
+                allow_pickle=True).flat[0]
+
+    # get stderror across cells for max-min/max+min
+    # pool data for illustrative PCA
+    acs = []
+    ws = []
+    sess = []
+
+    k = 0
+    for D_ in R['D_s']:
+
+        acs.append(D_['acs'])
+        ws.append(D_['ws'][:2])
+        sess.append([R['eid_probe'][k]]*len(D_['acs']))
+        k += 1
+        
+    sess = np.concatenate(sess)    
+    acs = np.concatenate(acs)
+    ws = np.concatenate(ws, axis=1)           
+    
+    # for the region under consideration plot temp plot
+    dat = ws[:,acs == reg,:]
+    sess0 = sess[acs == reg]
+    
+    fig, axs = plt.subplots(ncols =2, nrows=1)    
+                         
+    for i in range(2): 
+        axs[i].imshow(dat[i], cmap='Greys',aspect="auto",
+            interpolation='none')
+        
+        for s in Counter(sess0):
+            axs[i].axhline(y = np.where(sess0==s)[0][0], c = 'r', 
+                       linestyle = '--') 
+    
+        
+        axs[i].set_ylabel('cells')
+        axs[i].set_xlabel('time [sec]')
+        axs[i].set_title(f'PETH type {i}')
+        xs = np.linspace(0,pre_post[split][0] + pre_post[split][1],5)    
+        axs[i].set_xticks(np.linspace(0,dat[i].shape[-1],5))
+        axs[i].set_xticklabels(["{0:,.3f}".format(x) for x in xs])            
+        
+    fig.suptitle(f'{reg}, {split}')        
+    fig.tight_layout()   
+        
+        
+def save_df_for_table(): 
+    '''
+    reformat results for table
+    '''
+    
+    mapping = 'Swanson'
+    
+    columns = ['acronym', 'name', 'nclus'] 
+    
+    l = ['stde', 'max-min/max+min', 'p', 'lat', 'amp_euc', 'lat_euc']
+    
+    
+    r = []
+    
+    regs = []   
+    for split in align: 
+    
+        for x in l:
+            columns.append('_'.join([x, split]))
+
+        d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'         
+                    f'curves_{split}_{mapping}.npy',
+                    allow_pickle=True).flat[0] 
+        regs.append(list(d.keys()))
+        
+    regs = np.unique(np.concatenate(regs))
+    for reg in regs:
+        rr = []
+        for split in align:
+            d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'         
+                        f'curves_{split}_{mapping}.npy',
+                        allow_pickle=True).flat[0]
+                             
+            if split == 'fback':
+                rr.append([reg, get_name(reg), d[reg]['nclus']])
+            
+            if reg in d:    
+                rr.append([d[reg][x] for x in l])
+            else:
+                rr.append([np.nan for x in l])        
+                
+        r.append(np.concatenate(rr))    
+            
+      
+                          
+    df  = pd.DataFrame(data=r,columns=columns)        
+    df.to_pickle('/home/mic/paper-brain-wide-map/'
+                 'manifold_analysis/manifold_results.pkl')
+    df.to_excel('/home/mic/paper-brain-wide-map/'
+                 'manifold_analysis/manifold_results.xlsx')   
