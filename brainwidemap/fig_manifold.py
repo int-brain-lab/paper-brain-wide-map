@@ -37,6 +37,9 @@ from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d import proj3d
 from matplotlib.patches import FancyArrowPatch
 from pdf2image import convert_from_path
+import fitz
+from PIL import Image
+import io
 
 import random
 import time
@@ -57,8 +60,8 @@ red_right = [0.66080672, 0.21526712, 0.23069468]
 c = 0.0125  # 0.005 sec for a static bin size, or None for single bin
 sts = 0.002  # stride size in s for overlapping bins 
 ntravis = 20  # number of trajectories for visualisation, first 2 real
-nrand = 100  # number of random trial splits for control
-min_reg = 100  # minimum number of neurons in pooled region
+nrand = 200  # 100, takes 10 h number of random trial splits for control
+min_reg = 10  # 100, minimum number of neurons in pooled region
 
 # try 15 ms, 5 ms 
 
@@ -71,19 +74,20 @@ def T_BIN(split, c=c):
         return c    
 
 
-#align = {'block':'stim on',
+#align = {
 #         'stim':'stim on',
 #         'choice':'motion on',
 #         'action':'motion on',
 #         'fback':'feedback'}
          
-align = {'fback':'feedback',
+align = {'block':'stim on',
+         'stim':'stim on',
          'choice':'motion on',
-         'stim':'stim on'}         
-         
+         'fback':'feedback'}         
+         #
 
 pre_post = {'choice':[0.15,0],'stim':[0,0.15],
-            'fback':[0,0.15],'block':[0.4,0],
+            'fback':[0,0.15],'block':[0.4,-0.1],
             'action':[0.025,0.3]}  #[pre_time, post_time], 
             #if single bin, not possible to have pre/post
             
@@ -99,17 +103,10 @@ ba = AllenAtlas()
 br = BrainRegions()
 
 
-def xs(split):
-    # this only works for 4 overlapping bins, stride 1 ms
-    return np.arange((pre_post[split][0] + pre_post[split][1])/
-                      T_BIN(split))*T_BIN(split)
-
-
-
 def grad(c,nobs):
     cmap = mpl.cm.get_cmap(c)
     
-    return [cmap((nobs - p)/nobs) for p in range(nobs)]
+    return [cmap(0.5*(nobs - p)/nobs) for p in range(nobs)]
 
 
 def generate_pseudo_blocks(n_trials, factor=60, min_=20, max_=100, first5050=90):
@@ -167,8 +164,7 @@ def compute_impostor_behavior():
     for split in align:
         d = {}
         for eid in eids_plus: 
-            try:            
-                trials = one.load_object(eid, 'trials', collection='alf')
+            try:  
                 
                 # discard trials were feedback - stim is above that [sec]
                 toolong = 2  
@@ -229,7 +225,7 @@ def get_name(brainregion):
 
 
 def get_d_vars(split,eid, probe, 
-               mapping='Swanson', control=False):
+               mapping='Swanson', control=False, restrict=False):
 
     '''
     for a given session, probe, bin neural activity
@@ -242,7 +238,13 @@ def get_d_vars(split,eid, probe,
     sl = SpikeSortingLoader(eid=eid, pname=probe, one=one, atlas=ba)
     spikes, clusters, channels = sl.load_spike_sorting()
     clusters = sl.merge_clusters(spikes, clusters, channels)
-
+    
+    #only good units
+    clusters_labeled = clusters.to_df()
+    good_clusters = clusters_labeled[clusters_labeled['label']==1]
+    good_clusters.reset_index(drop=True, inplace=True)
+    clusters = good_clusters
+    
     # Find spikes that are from the clusterIDs
     spike_idx = np.isin(spikes['clusters'], clusters['cluster_id'])
 
@@ -273,8 +275,8 @@ def get_d_vars(split,eid, probe,
         for side in ['Left', 'Right']:
             events.append(trials['stimOn_times'][np.bitwise_and.reduce([
                 ~rm_trials,trials[f'contrast{side}'] == 1.0])])
-            trn.append(np.arange(len(trials['stimOn_times']))[np.bitwise_and.reduce([
-                       ~rm_trials,trials[f'contrast{side}'] == 1.0])])
+            trn.append(np.arange(len(trials['stimOn_times']))[np.bitwise_and.reduce([ 
+            ~rm_trials,trials[f'contrast{side}'] == 1.0])])
        
     elif split == 'fback':    
         for fb in [1,-1]:
@@ -330,8 +332,30 @@ def get_d_vars(split,eid, probe,
     b = b[np.argsort(dx[:, 1])] 
     
            
-    ntr, nclus, nbins = b.shape
+    ntr, nclus, nbins = b.shape    
     
+    acs = br.id2acronym(clusters['atlas_id'],mapping=mapping)            
+    acs = np.array(acs)
+
+    # Discard cells with any nan or 0 for all bins
+    wsc = np.concatenate(b,axis=1)
+    goodcells = [k for k in range(wsc.shape[0]) if 
+                 (not np.isnan(wsc[k]).any()
+                 and wsc[k].any())] 
+
+    acs = acs[goodcells]
+    b = b[:,goodcells,:]
+    bins2 = [x[:,goodcells,:] for x in bins]
+    bins = bins2    
+
+    # discard cells in regions root or void
+    goodcells = np.bitwise_and(acs != 'void', acs != 'root')
+
+    acs = acs[goodcells]
+    b = b[:,goodcells,:]
+    bins2 = [x[:,goodcells,:] for x in bins]
+    bins = bins2
+
 
     if control:
         # get mean and var across trials
@@ -348,7 +372,7 @@ def get_d_vars(split,eid, probe,
         
         # nrand times random impostor/pseudo split of trials 
         for i in range(nrand):
-            if split == 'block':  # pseudo sessions
+            if split == 'block':  #'block' pseudo sessions
                 ys = generate_pseudo_blocks(ntr, first5050=0) == 0.8
             else:  # impostor sessions
                 eids = random.choices([*spl],k=30)
@@ -382,8 +406,6 @@ def get_d_vars(split,eid, probe,
 
     ws = np.array(w0)
     ss = np.array(s0)
-    acs = br.id2acronym(clusters['atlas_id'],mapping=mapping)            
-    acs = np.array(acs) 
     
     regs = Counter(acs)
 
@@ -404,26 +426,22 @@ def get_d_vars(split,eid, probe,
     D = {}
     
     for reg in regs:
-        if reg in ['void','root']:
-            continue
+    
+        if restrict:
+            # only consider Brandon's regions
+            df = pd.read_csv('/home/mic/paper-brain-wide-map/'
+                 'manifold_analysis/10-09-2022_Brandon_block.csv')   
+            regs_b = list(Counter(df[df['p-value']<0.01]['region'].values))
+            if reg not in regs_b:
+                continue
+            
 
         res = {}
 
         ws_ = [y[acs == reg] for y in ws]
         ss_ = [y[acs == reg] for y in ss]
      
-        wsc = np.concatenate(ws_,axis=1)
-
-        #Discard cells that have nan entries in the PETH or PETH = 0 for all t
-        respcells = [k for k in range(wsc.shape[0]) if 
-                     (not np.isnan(wsc[k]).any()
-                     and wsc[k].any())] 
-                        
-        ws_ = [x[respcells] for x in ws_]
-        ss_ = [x[respcells] for x in ss_]        
-
-        res['nclus'] = len(respcells)
-        
+        res['nclus'] = sum(acs == reg)
         d_vars = []
                 
         for j in range(len(ws_)//2):
@@ -477,7 +495,8 @@ def download_data_only(eids_plus = None):
 
 
 def get_all_d_vars(split,eids_plus = None, control = True, 
-                   mapping='Swanson'):
+                   mapping='Swanson', exclude_fails=True,
+                   restrict=False):
 
     '''
     for all BWM insertions, get the PSTHs and acronyms,
@@ -488,23 +507,42 @@ def get_all_d_vars(split,eids_plus = None, control = True,
     if eids_plus == None:
         df = bwm_query(one)
         eids_plus = df[['eid','probe_name']].values
-        #eids_plus = get_bwm_sessions()
+        
+        if exclude_fails:
+            with open('/home/mic/load_failures.txt') as f:
+                lines = [line.rstrip() for line in f]    
+            ins = [[x.split("'")[1],x.split("'")[3]] for x in lines]
+            ins_s = ['_'.join(x) for x in ins]
+            eids_p = ['_'.join(x) for x in eids_plus] 
+            ins = list(set(eids_p) - set(ins_s))
+            eids_plus = [x.split('_') for x in ins]
+              
+        if restrict:
+            # only 
+            df = pd.read_csv('/home/mic/paper-brain-wide-map/'
+                             'manifold_analysis/10-09-2022_Brandon_block.csv')   
+            eids_b = list(Counter(df[df['p-value']<0.01]['eid'].values))
+            eids_plus_s = [x[0] for x in eids_plus]
+            ins = list(set(eids_b).intersection(set(eids_plus_s)))
+            
+            eids_plus = [x for x in eids_plus if x[0] in ins]
 
     Fs = []
     eid_probe = []
     Ds = []
     D_s = []   
     k=0
+    print(f'Processing {len(eids_plus)} insertions')
     for pid in eids_plus:
         eid, probe = pid    
         time0 = time.perf_counter()
         try:
             if not control:
-                D_ = get_d_vars(split,eid, probe, 
+                D_ = get_d_vars(split,eid, probe, restrict=restrict,
                                control=control, mapping=mapping)
                 D_s.append(D_)            
             else:
-                D, D_ = get_d_vars(split,eid, probe, 
+                D, D_ = get_d_vars(split,eid, probe, restrict=restrict, 
                                control=control, mapping=mapping)             
                 Ds.append(D)             
                 D_s.append(D_)
@@ -546,7 +584,7 @@ def get_all_d_vars(split,eids_plus = None, control = True,
     return Fs
 
     
-def d_var_stacked(split, mapping='Swanson'):
+def d_var_stacked(split, mapping='Swanson', restrict=False):
                   
     time0 = time.perf_counter()
 
@@ -590,7 +628,15 @@ def d_var_stacked(split, mapping='Swanson'):
     stde = {}
     pcs = {}
     euc = {}  # also compute Euclidean distance on PCA reduced trajectories
-    for reg in regs:            
+    for reg in regs:         
+        
+        if restrict:
+            # only consider Brandon's regions
+            df = pd.read_csv('/home/mic/paper-brain-wide-map/'
+                 'manifold_analysis/10-09-2022_Brandon_block.csv') 
+            regs_b = list(Counter(df[df['p-value']<0.01]['region'].values))
+            if reg not in regs_b:
+                continue           
         if (reg in ['root', 'void']) or (regs[reg] < min_reg):
             continue
         stde[reg] = np.std(maxes[acs == reg])/np.sqrt(regs[reg])
@@ -691,10 +737,10 @@ def d_var_stacked(split, mapping='Swanson'):
 
 
 
-def curves_params_all(split):
+def curves_params_all(split, restrict=False):
 
-    get_all_d_vars(split)
-    d_var_stacked(split)        
+    get_all_d_vars(split, restrict=restrict)
+    d_var_stacked(split, restrict=restrict)        
 
       
 '''    
@@ -765,21 +811,13 @@ def plot_all(curve='d_var_m', amp_number=False):
             axs.append(fig.add_subplot(gs[:3,0:2]))
         else:
             axs.append(fig.add_subplot(gs[:3,-1]))            
-            
-        
-#        data_path = '/home/mic/paper-brain-wide-map/manifold_analysis/'
-#        svg2png(url=data_path + f'{imn}.svg',  
-#        write_to=data_path + f'{imn}.png',
-#        background_color='white', dpi=200)
-        
+
         data_path = '/home/mic/paper-brain-wide-map/manifold_analysis/'
-        img = convert_from_path(data_path + f'{imn}.pdf',
-                                fmt='png', dpi=200)  
-        write_to = data_path + f'{imn}.png'       
-        img[0].save(write_to, 'png')
-        
-        img = mpimg.imread(data_path + f'{imn}.png')
-        imgplot = axs[k].imshow(img)
+        pdf = fitz.open(data_path + f'{imn}.pdf')
+        rgb = pdf[0].get_pixmap(dpi=600)
+        pil_image = Image.open(io.BytesIO(rgb.tobytes()))
+                
+        imgplot = axs[k].imshow(pil_image.convert('RGB'))
         axs[k].axis('off')
         put_panel_label(axs[k], k)
         k += 1
@@ -792,7 +830,8 @@ def plot_all(curve='d_var_m', amp_number=False):
     
     exs = {'stim': 'VISpm',
            'choice': 'GRN',#'VII'
-           'fback': 'PSV'} # PSV
+           'fback': 'LDT',
+           'block': 'VPL'} # PSV
             
     c = 0
     for split in align:
@@ -832,14 +871,15 @@ def plot_all(curve='d_var_m', amp_number=False):
                     
                             
 
-            axs[k].plot(cs[:,0],cs[:,1],cs[:,2], color=col[-1],
-                    linewidth = 2 if j in [0,1] else 1)
+            axs[k].plot(cs[:,0],cs[:,1],cs[:,2], color=col[len(col)//2],
+                    linewidth = 2 if j in [0,1] else 1,
+                    label=trial_split[split][j] if j in range(3)
+                              else '_nolegend_')
                           
             p = axs[k].scatter(cs[:,0],cs[:,1],cs[:,2], color=col,
                            edgecolors = col, 
                            s=20 if j in [0,1] else 1,
-                           label=trial_split[split][j] if j in range(3)
-                              else '_nolegend_', depthshade=False)
+                           depthshade=False)
 
 
         # add triplet of arrows as coordinate system?
@@ -924,7 +964,15 @@ def plot_all(curve='d_var_m', amp_number=False):
                       
 
         # line plots for top 5 regions only
-        regs = tops[split][0][:5]
+        
+        
+                
+        regs = [tops[split][0][j] for j in range(len(tops[split][0]))
+                if tops[split][1][j] < 0.01][:5]
+        
+        #tops[split][0][:5]
+        
+        
         if split == 'fback':
             regs = ['AUDp', 'LDT', 'PSV', 'BMAa', 'GU']
         
@@ -1080,7 +1128,12 @@ wspace=0.52)
     if curve == 'euc':
         fig.suptitle(f'distance metric: {curve}')  
     
-    fig.tight_layout()                    
+    fig.tight_layout()
+    
+    
+    fig.savefig('/home/mic/paper-brain-wide-map/'
+           f'overleaf_figs/manifold/'
+           f'manifold.pdf', dpi=400)              
 #    fig.savefig('/home/mic/paper-brain-wide-map/'
 #               f'overleaf_figs/manifold/plots/'
 #               f'main.png',dpi=200)
@@ -1191,9 +1244,7 @@ hspace=0.3,
 wspace=0.214)
                        
  
-#    fig.savefig('/home/mic/paper-brain-wide-map/'
-#               f'overleaf_figs/manifold/plots/'
-#               f'all_panels_pcadim{pcadim}.png',dpi=200)
+
 
 
     font = {'size'   : 10}
@@ -1504,9 +1555,7 @@ def plot_all_3d(reg, split, mapping = 'Swanson'):
                                   mutation_scale=15)
                                   
                     ax.add_artist(arw)
-
-
-                                       
+                              
         ax.set_xlabel('pc1')    
         ax.set_ylabel('pc2')
         ax.set_zlabel('pc3')
@@ -1601,16 +1650,31 @@ def save_df_for_table():
         regs.append(list(d.keys()))
         
     regs = np.unique(np.concatenate(regs))
+    
     for reg in regs:
         rr = []
+        
+        for split in align:
+            d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'         
+                        f'curves_{split}_{mapping}.npy',
+                        allow_pickle=True).flat[0]        
+            if reg in d:
+            
+                nclus = d[reg]['nclus']
+                break
+        
+        
+        rr.append([reg, get_name(reg), nclus])
+        
+        
         for split in align:
             d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'         
                         f'curves_{split}_{mapping}.npy',
                         allow_pickle=True).flat[0]
-                             
-            if split == 'fback':
-                rr.append([reg, get_name(reg), d[reg]['nclus']])
             
+            
+            
+                   
             if reg in d:    
                 rr.append([d[reg][x] for x in l])
             else:
@@ -1625,3 +1689,21 @@ def save_df_for_table():
                  'manifold_analysis/manifold_results.pkl')
     df.to_excel('/home/mic/paper-brain-wide-map/'
                  'manifold_analysis/manifold_results.xlsx')   
+
+
+def load_brandon():
+
+    # identify sessions/regions with highest block decoding
+
+    df = pd.read_csv('/home/mic/paper-brain-wide-map/manifold_analysis'
+                     '/10-09-2022_BWMmetaanalysis_decodeblock.csv')
+
+
+
+
+
+
+
+
+
+
