@@ -628,6 +628,7 @@ def d_var_stacked(split, mapping='Swanson', restrict=False):
     stde = {}
     pcs = {}
     euc = {}  # also compute Euclidean distance on PCA reduced trajectories
+    p_euc = {}
     for reg in regs:         
         
         if restrict:
@@ -643,14 +644,29 @@ def d_var_stacked(split, mapping='Swanson', restrict=False):
         stde[reg] = np.std(maxes[acs == reg])/np.sqrt(regs[reg])
 
         dat = ws[:,acs == reg,:]
-        pca = PCA(n_components = min(30, min_reg))
+        pca = PCA(n_components = min(30, dat.shape[1]))
         wsc = pca.fit_transform(np.concatenate(dat,axis=1).T).T
+        pcs[reg] = wsc[:3]
         
         nobs = wsc.shape[1] // ntravis
-        t0,t1 = wsc[:,:nobs], wsc[:,nobs:nobs*2] # actual trajectories
-        euc[reg] = sum((t0 - t1)**2)**0.5
-        pcs[reg] = wsc[:3]
-
+        
+        dists = []
+        for tr in range(ntravis // 2):
+            t0 = wsc[:,nobs * tr*2 :nobs * (tr*2 + 1)] 
+            t1 = wsc[:,nobs * (tr*2 + 1):nobs * (tr*2 + 2)] # actual trajectories
+            
+            dists.append(sum((t0 - t1)**2)**0.5)
+            
+        euc[reg] = dists[0]
+        
+        # get p-value for pca based Euclidean distance
+        amps = [((np.max(x) - np.min(x))/
+                (np.max(x) + np.min(x))) for x in dists]
+                          
+        p_euc[reg] = 1 - (0.01 * 
+                     percentileofscore(amps[1:],amps[0],kind='weak'))
+        
+        
     # getting d_vars params for controls (extra file for storage)    
     R = np.load('/mnt/8cfe1683-d974-40f3-a20b-b217cad4722a/manifold/'
                 f'd_vars_{split}_{mapping}.npy', allow_pickle=True).flat[0]
@@ -688,24 +704,24 @@ def d_var_stacked(split, mapping='Swanson', restrict=False):
         res['stde'] = stde[reg]
         res['pcs'] = pcs[reg]
         res['euc'] = euc[reg]
+        res['p_euc'] = p_euc[reg]
         
         # full curve
         d_var_m = regd[reg][0]
         res['d_var_m'] = d_var_m
 
-        # maximum
-        maxes = [np.max(x) for x in regd[reg]]
-        d_var_max = maxes[0]
-        res['max-min/max+min'] = ((np.max(d_var_m) - np.min(d_var_m))/
-                                  (np.max(d_var_m) + np.min(d_var_m)))
+        # amplitudes
+        amps = [((np.max(x) - np.min(x))/
+                 (np.max(x) + np.min(x)))  for x in regd[reg]]
+        res['max-min/max+min'] = amps[0]
         
         # p value
-        null_d = maxes[1:]
-        p = 1 - (0.01 * percentileofscore(null_d,d_var_max,kind='weak'))
+        null_d = amps[1:]
+        p = 1 - (0.01 * percentileofscore(null_d,amps[0],kind='weak'))
         res['p'] = p
         
         # latency  
-        if d_var_max == np.inf:
+        if np.max(d_var_m) == np.inf:
             loc = np.where(d_var_m == np.inf)[0]  
         else:
             loc = np.where(d_var_m > 
@@ -801,6 +817,8 @@ def plot_all(curve='d_var_m', amp_number=False):
     
     amp_curve = ('max-min/max+min' if curve == 'd_var_m' 
                          else 'amp_euc')
+                         
+    p_type = 'p' if curve == 'd_var_m' else 'p_euc'                    
 
     '''
     load schematic intro and contrast trajectory plot (convert from svg)
@@ -832,7 +850,7 @@ def plot_all(curve='d_var_m', amp_number=False):
     exs = {'stim': 'VISpm',
            'choice': 'GRN',#'VII'
            'fback': 'LDT',
-           'block': 'VPL'} # PSV
+           'block': 'CA1'} #VPL 
             
     c = 0
     for split in align:
@@ -846,8 +864,6 @@ def plot_all(curve='d_var_m', amp_number=False):
 
         npcs, nobs = d[reg]['pcs'].shape
         nobs = nobs // ntravis
-
-
 
         for j in range(ntravis):
         
@@ -936,18 +952,27 @@ def plot_all(curve='d_var_m', amp_number=False):
         acronyms = acronyms[order] 
              
         tops[split] = [acronyms, 
-                      [d[reg]['p'] for reg in acronyms]]
-        
+                      [d[reg][p_type] for reg in acronyms]]
+                      
+        if split == 'block':
+            print(tops[split])
+            
         maxs = np.array([d[reg][amp_curve] for reg in acronyms
-                         if d[reg]['p'] < 0.01])
+                         if d[reg][p_type] < 0.05])
                          
-        maxsf = [v for v in maxs if not (math.isinf(v) or math.isnan(v))]         
-        lower[split] = np.percentile(maxsf, 25)          
+        maxsf = [v for v in maxs if not (math.isinf(v) or math.isnan(v))] 
+               
+               
+        if maxsf == []:
+            lower[split] = 0
+        else:        
+            lower[split] = np.percentile(maxsf, 25)          
         print(split, curve)
-        print('25 percentile: ',np.percentile(maxsf, 25))
+        print('25 percentile: ',lower[split])
         print(f'{len(maxsf)}/{len(d)} are significant')
         tops[split+'_s'] = f'{len(maxsf)} of {len(d)}'
 
+        
     
                 
     '''
@@ -965,11 +990,8 @@ def plot_all(curve='d_var_m', amp_number=False):
                       
 
         # line plots for top 5 regions only
-        
-        
-                
         regs = [tops[split][0][j] for j in range(len(tops[split][0]))
-                if tops[split][1][j] < 0.01][:5]
+                if tops[split][1][j] < 0.05][:5]
         
         #tops[split][0][:5]
         
@@ -1057,7 +1079,7 @@ def plot_all(curve='d_var_m', amp_number=False):
                     allow_pickle=True).flat[0]
 
         acronyms = [tops[split][0][j] for j in range(len(tops[split][0]))
-                if tops[split][1][j] < 0.01]
+                if tops[split][1][j] < 0.05]
 
         if curve == 'euc':
             maxes = np.array([d[x][f'amp_euc'] for x in acronyms])
@@ -1176,7 +1198,7 @@ def plot_swanson_supp(mapping = 'Swanson'):
 
         # get significant regions only
         acronyms = [reg for reg in d
-                if d[reg]['p'] < 0.01]
+                if d[reg][p_type] < 0.01]
 
         values = np.array([d[x][f'max-min/max+min'] for x in acronyms])
              
@@ -1202,7 +1224,7 @@ def plot_swanson_supp(mapping = 'Swanson'):
                     
         # get significant regions only
         acronyms = [reg for reg in d
-                if d[reg]['p'] < 0.01]
+                if d[reg][p_type] < 0.01]
 
         #  compute latencies (inverted, shorter latency is darker)
         for x in acronyms:
@@ -1244,9 +1266,6 @@ right=0.985,
 hspace=0.3,
 wspace=0.214)
                        
- 
-
-
 
     font = {'size'   : 10}
     mpl.rc('font', **font)    
