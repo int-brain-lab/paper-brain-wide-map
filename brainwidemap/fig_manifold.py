@@ -639,10 +639,11 @@ def d_var_stacked(split, mapping='Swanson', restrict=False):
                 continue           
         if (reg in ['root', 'void']) or (regs[reg] < min_reg):
             continue
+            
         stde[reg] = np.std(maxes[acs == reg])/np.sqrt(regs[reg])
 
         dat = ws[:,acs == reg,:]
-        pca = PCA(n_components=30)
+        pca = PCA(n_components = min(30, min_reg))
         wsc = pca.fit_transform(np.concatenate(dat,axis=1).T).T
         
         nobs = wsc.shape[1] // ntravis
@@ -1671,10 +1672,7 @@ def save_df_for_table():
             d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'         
                         f'curves_{split}_{mapping}.npy',
                         allow_pickle=True).flat[0]
-            
-            
-            
-                   
+
             if reg in d:    
                 rr.append([d[reg][x] for x in l])
             else:
