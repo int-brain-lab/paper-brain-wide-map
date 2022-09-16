@@ -35,4 +35,3 @@ for eid in bwm_df['eid'].unique():
 
     # Or load all available data (trials, wheel, pose (DLC), motion_energy and pupil)
     sess_loader.load_session_data()
-

@@ -1,0 +1,11 @@
+[flake8]
+max-line-length = 130
+ignore = W504, W503, E266
+exclude =
+    .git,
+    __pycache__,
+    __init__.py,
+    scratch_*.py,
+    venv,
+    build,
+    dist,
