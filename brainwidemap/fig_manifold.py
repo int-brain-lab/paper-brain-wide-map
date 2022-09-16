@@ -19,8 +19,6 @@ import gc
 from scipy.stats import percentileofscore, zscore
 import umap
 import os
-from PIL import Image
-from cairosvg import svg2png
 from pathlib import Path
 import glob
 from dateutil import parser
@@ -35,13 +33,13 @@ from matplotlib.gridspec import GridSpec
 from matplotlib import colors
 from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d import proj3d
-from matplotlib.patches import FancyArrowPatch
 from pdf2image import convert_from_path
 import fitz
 from PIL import Image
 import io
 
 import random
+from random import shuffle
 import time
 
 import math
@@ -63,7 +61,6 @@ ntravis = 20  # number of trajectories for visualisation, first 2 real
 nrand = 200  # 100, takes 10 h number of random trial splits for control
 min_reg = 10  # 100, minimum number of neurons in pooled region
 
-# try 15 ms, 5 ms 
 
 def T_BIN(split, c=c):
 
@@ -73,30 +70,31 @@ def T_BIN(split, c=c):
     else:
         return c    
 
-
-#align = {
-#         'stim':'stim on',
-#         'choice':'motion on',
-#         'action':'motion on',
-#         'fback':'feedback'}
-         
-align = {'block':'stim on',
+# trial split types, see get_d_vars for details       
+align = {'block_stim_r':'stim on',
+         'block_stim_l':'stim on',
+         'block':'stim on',
          'stim':'stim on',
          'choice':'motion on',
          'fback':'feedback'}         
-         #
+#         'action':'motion on',         
 
+
+# [pre_time, post_time]
 pre_post = {'choice':[0.15,0],'stim':[0,0.15],
             'fback':[0,0.15],'block':[0.4,-0.1],
-            'action':[0.025,0.3]}  #[pre_time, post_time], 
-            #if single bin, not possible to have pre/post
-            
+            'block_stim_r':[0,0.15], 'block_stim_l':[0,0.15]}
+
+            #'action':[0.025,0.3]}  
+
+# labels for illustrative trajectory legend 
 trial_split = {'choice':['choice left', 'choice right','pseudo'],
                'stim':['stim left','stim right','pseudo'],
                'fback':['correct','false','pseudo'],
                'block':['pleft 0.8','pleft 0.2','pseudo'],
-               'action':['choice left', 'choice right','pseudo']}            
-
+               'action':['choice left', 'choice right','pseudo'],
+               'block_stim_r':['pleft 0.8','pleft 0.2','pseudo'],            
+               'block_stim_l':['pleft 0.8','pleft 0.2','pseudo']}
 
 one = ONE() 
 ba = AllenAtlas()
@@ -290,11 +288,31 @@ def get_d_vars(split,eid, probe,
             events.append(trials['stimOn_times'][np.bitwise_and.reduce([
                 ~rm_trials,trials['probabilityLeft'] == pleft])])
             trn.append(np.arange(len(trials['choice']))[np.bitwise_and.reduce([
-                       ~rm_trials,trials['probabilityLeft'] == pleft])])      
-
+                       ~rm_trials,trials['probabilityLeft'] == pleft])])
+                       
+    elif split == 'block_stim_l':
+        for pleft in [0.8, 0.2]:
+            events.append(trials['stimOn_times'][np.bitwise_and.reduce([
+                ~rm_trials,trials['probabilityLeft'] == pleft,
+                np.isnan(trials[f'contrastRight'])])])
+            trn.append(np.arange(len(trials['choice']))[np.bitwise_and.reduce([
+                       ~rm_trials,trials['probabilityLeft'] == pleft,
+                       np.isnan(trials[f'contrastRight'])])])
+                       
+    elif split == 'block_stim_r':
+        for pleft in [0.8, 0.2]:
+            events.append(trials['stimOn_times'][np.bitwise_and.reduce([
+                ~rm_trials,trials['probabilityLeft'] == pleft,
+                np.isnan(trials[f'contrastLeft'])])])
+            trn.append(np.arange(len(trials['choice']))[np.bitwise_and.reduce([
+                       ~rm_trials,trials['probabilityLeft'] == pleft,
+                       np.isnan(trials[f'contrastLeft'])])])
+                       
     else:
         print('what is the split?', split)
         return
+
+
 
     # bin and cut into trials    
     bins = []
@@ -362,18 +380,27 @@ def get_d_vars(split,eid, probe,
         w0 = [bi.mean(axis=0) for bi in bins]  
         s0 = [bi.var(axis=0) for bi in bins]
         
-        #  Load impostor behavior
-        spl = np.load('/home/mic/paper-brain-wide-map/'
-                      'manifold_analysis/bwm_behave.npy',
-                      allow_pickle=True).flat[0][split]
         
-        #  exclude current session
-        del spl[eid]    
+        if not 'block' in split:
+            #  Load impostor behavior
+            spl = np.load('/home/mic/paper-brain-wide-map/'
+                          'manifold_analysis/bwm_behave.npy',
+                          allow_pickle=True).flat[0][split]
+            
+            #  exclude current session
+            del spl[eid]    
         
         # nrand times random impostor/pseudo split of trials 
         for i in range(nrand):
             if split == 'block':  #'block' pseudo sessions
                 ys = generate_pseudo_blocks(ntr, first5050=0) == 0.8
+                
+            elif 'block_stim' in split:  # shuffle uniformly 
+                assert ntr == (len(trn[0]) + len(trn[1])), 'ntr??'    
+                ys = np.concatenate([np.full(len(trn[0]), True),
+                                     np.full(len(trn[1]), False)])               
+                shuffle(ys)                
+                
             else:  # impostor sessions
                 eids = random.choices([*spl],k=30)
                 bs = []
@@ -398,7 +425,7 @@ def get_d_vars(split,eid, probe,
             w0.append(b[~ys].mean(axis=0))
             s0.append(b[~ys].var(axis=0))                      
 
-    else: # average all trials
+    else: # average trials per condition
         print('all trials')
         w0 = [bi.mean(axis=0) for bi in bins] 
         s0 = [bi.var(axis=0) for bi in bins]
@@ -850,7 +877,11 @@ def plot_all(curve='d_var_m', amp_number=False):
     exs = {'stim': 'VISpm',
            'choice': 'GRN',#'VII'
            'fback': 'LDT',
-           'block': 'CA1'} #VPL 
+           'block': 'AVP',
+           'block_stim_l': 'IGL',
+           'block_stim_r': 'DMH'} #VPL 
+           
+           
             
     c = 0
     for split in align:
@@ -954,8 +985,8 @@ def plot_all(curve='d_var_m', amp_number=False):
         tops[split] = [acronyms, 
                       [d[reg][p_type] for reg in acronyms]]
                       
-        if split == 'block':
-            print(tops[split])
+#        if split == 'block':
+#            print(tops[split])
             
         maxs = np.array([d[reg][amp_curve] for reg in acronyms
                          if d[reg][p_type] < 0.05])
@@ -1133,7 +1164,7 @@ def plot_all(curve='d_var_m', amp_number=False):
         if c == 0:   
             axs[k].set_ylabel('amplitude [a.u.]')#f'(max-min)/(max+min)'
         axs[k].set_xlabel('latency [sec]')#(min+0.7*(max-min))
-        #axs[k].set_title(f"{split}, {tops[split+'_s']} sig")
+        axs[k].set_title(f"{split}, {tops[split+'_s']} sig")
         put_panel_label(axs[k], k)
         c += 1     
         k += 1
@@ -1497,19 +1528,6 @@ def swanson_gif(split, curve='d_var_m', recompute=True):
 
 
 
-class Arrow3D(FancyArrowPatch):
-    def __init__(self, xs, ys, zs, *args, **kwargs):
-        FancyArrowPatch.__init__(self, (0,0), (0,0), *args, **kwargs)
-        self._verts3d = xs, ys, zs
-
-    def do_3d_projection(self, renderer=None):
-        xs3d, ys3d, zs3d = self._verts3d
-        xs, ys, zs = proj3d.proj_transform(xs3d, ys3d, zs3d, self.axes.M)
-        self.set_positions((xs[0],ys[0]),(xs[1],ys[1]))
-
-        return np.min(zs)
-
-
 def plot_all_3d(reg, split, mapping = 'Swanson'):
 
     '''
@@ -1563,18 +1581,6 @@ def plot_all_3d(reg, split, mapping = 'Swanson'):
             ax.plot(cs[:,0],cs[:,1],cs[:,2], color=col[0],
                     linewidth = 0.2)        
 
-            if j in [0,1]:
-                # draw arrows along trajectory
-                for i in range(nobs//2):
-                    xs = [cs[i*2,0], cs[i*2 +1,0]] 
-                    ys = [cs[i*2,1], cs[i*2 +1,1]] 
-                    zs = [cs[i*2,2], cs[i*2 +1,2]] 
-
-                    arw = Arrow3D(xs,ys,zs,
-                                  arrowstyle="->", color=col[0], lw = 0.2, 
-                                  mutation_scale=15)
-                                  
-                    ax.add_artist(arw)
                               
         ax.set_xlabel('pc1')    
         ax.set_ylabel('pc2')
