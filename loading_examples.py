@@ -20,8 +20,6 @@ for pid in bwm_df['pid']:
 
 # Load session data for all eids
 for eid in bwm_df['eid'].unique():
-    if eid == 'bb6a5aae-2431-401d-8f6a-9fdd6de655a9':
-        continue
     print(f'Loading trials for {eid}')
     sess_loader = SessionLoader(one, eid)
     sess_loader.load_trials()
