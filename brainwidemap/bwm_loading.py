@@ -1,6 +1,7 @@
 from dateutil import parser
 import numpy as np
 import pandas as pd
+from iblutil.numerical import ismember
 
 from brainbox.io.one import SpikeSortingLoader
 
@@ -100,11 +101,13 @@ def load_good_units(one, pid):
     spike_loader = SpikeSortingLoader(pid=pid, one=one)
     spikes, clusters, channels = spike_loader.load_spike_sorting()
     clusters_labeled = SpikeSortingLoader.merge_clusters(spikes, clusters, channels).to_df()
-    good_clusters = clusters_labeled[clusters_labeled['label'] == 1]
-    good_clusters.reset_index(drop=True, inplace=True)
+    iok = clusters_labeled['label'] == 1
+    good_clusters = clusters_labeled[iok]
 
+    spike_idx, ib = ismember(spikes['clusters'], good_clusters.index)
+    good_clusters.reset_index(drop=True, inplace=True)
     # Filter spike trains for only good clusters
-    spike_idx = np.isin(spikes['clusters'], good_clusters['cluster_id'])
     good_spikes = {k: v[spike_idx] for k, v in spikes.items()}
+    good_spikes['clusters'] = good_clusters.index[ib].astype(np.int32)
 
     return good_spikes, good_clusters
