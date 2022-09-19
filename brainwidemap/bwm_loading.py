@@ -2,6 +2,8 @@ from dateutil import parser
 import numpy as np
 import pandas as pd
 
+from brainbox.io.one import SpikeSortingLoader
+
 
 def bwm_query(one, alignment_resolved=True, return_details=False):
     """
@@ -10,17 +12,20 @@ def bwm_query(one, alignment_resolved=True, return_details=False):
 
     Parameters
     ----------
-    one: ONE instance (can be remote or local)
-    alignment_resolved: bool, default is True. If True, only returns sessions with resolved alignment,
-                        if False returns all sessions with at least one alignment
-    return_details: bool, default is False. If True returns a second output a list containing the full insertion
-                    dictionary for all insertions returned by the query. Only needed if you need information that is
-                    not contained in the output dataframe
+    one: one.api.ONE
+        Instance to be used to local or remote database
+    alignment_resolved: bool
+        Default is True. If True, only returns sessions with resolved alignment, if False returns all sessions with at
+        least one alignment
+    return_details: bool
+        Default is False. If True returns a second output a list containing the full insertion dictionary for all
+        insertions returned by the query. Only needed if you need information that is not contained in the output dataframe
 
     Returns
     -------
-    bwm_df: pd.DataFrame of BWM sessions to be included in analyses with columns
-            ['pid', 'eid', 'probe_name', 'session_number', 'date', 'subject', 'lab']
+    bwm_df: pandas.DataFrame
+        Containing of BWM sessions to be included in analyses with columns
+        ['pid', 'eid', 'probe_name', 'session_number', 'date', 'subject', 'lab']
     """
 
     base_query = (
@@ -71,3 +76,35 @@ def bwm_query(one, alignment_resolved=True, return_details=False):
         return bwm_df, insertions
     else:
         return bwm_df
+
+
+def load_good_units(one, pid):
+    """
+    Function to load the cluster information and spike trains for clusters that pass all quality metrics.
+
+    Parameters
+    ----------
+    one: one.api.ONE
+        Instance to be used to local or remote database
+    pid: str
+        A probe insertion UUID
+
+    Returns
+    -------
+    good_clusters: pandas.DataFrame
+        Dataframe containing information of clusters for this pid that pass all quality metrics
+    good_spikes: dict
+        Spike trains associated with good clusters. Dictionary with keys ['depths', 'times', 'clusters', 'amps']
+    """
+
+    spike_loader = SpikeSortingLoader(pid=pid, one=one)
+    spikes, clusters, channels = spike_loader.load_spike_sorting()
+    clusters_labeled = SpikeSortingLoader.merge_clusters(spikes, clusters, channels).to_df()
+    good_clusters = clusters_labeled[clusters_labeled['label'] == 1]
+    good_clusters.reset_index(drop=True, inplace=True)
+
+    # Filter spike trains for only good clusters
+    spike_idx = np.isin(spikes['clusters'], good_clusters['cluster_id'])
+    good_spikes = {k: v[spike_idx] for k, v in spikes.items()}
+
+    return good_spikes, good_clusters
