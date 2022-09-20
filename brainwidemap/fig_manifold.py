@@ -1,9 +1,9 @@
 from one.api import ONE
 from reproducible_ephys_processing import bin_spikes2D
-from brainwidemap import bwm_query
+from brainwidemap import bwm_query, load_good_units
 from ibllib.atlas import AllenAtlas
 from ibllib.atlas.regions import BrainRegions
-from brainbox.io.one import SpikeSortingLoader
+from brainbox.io.one import SpikeSortingLoader, SessionLoader
 
 from ibllib.atlas.plots import prepare_lr_data
 from ibllib.atlas.plots import plot_scalar_on_flatmap, plot_scalar_on_slice
@@ -96,7 +96,7 @@ trial_split = {'choice':['choice left', 'choice right','pseudo'],
                'block_stim_r':['pleft 0.8','pleft 0.2','pseudo'],            
                'block_stim_l':['pleft 0.8','pleft 0.2','pseudo']}
 
-one = ONE() 
+one = ONE()  # (mode='local')
 ba = AllenAtlas()
 br = BrainRegions()
 
@@ -152,6 +152,8 @@ def compute_impostor_behavior():
     for block there is the pseudo session method
     
     eid_no is the one eid to exclude
+    
+    SOON TO BE REPLACED BY CHARLES' MODEL
     '''
     
     df = bwm_query(one)
@@ -222,8 +224,8 @@ def get_name(brainregion):
     return br.name[np.argwhere(br.id == regid)[0, 0]]
 
 
-def get_d_vars(split,eid, probe, 
-               mapping='Swanson', control=False, restrict=False):
+def get_d_vars(split, pid, 
+               mapping='Swanson', control=False):
 
     '''
     for a given session, probe, bin neural activity
@@ -232,22 +234,29 @@ def get_d_vars(split,eid, probe,
        
     toolong = 2  # discard trials were feedback - stim is above that [sec]
 
-    # Load in spikesorting
-    sl = SpikeSortingLoader(eid=eid, pname=probe, one=one, atlas=ba)
-    spikes, clusters, channels = sl.load_spike_sorting()
-    clusters = sl.merge_clusters(spikes, clusters, channels)
+#    # Load in spikesorting
+#    sl = SpikeSortingLoader(eid=eid, pname=probe, one=one, atlas=ba)
+#    spikes, clusters, channels = sl.load_spike_sorting()
+#    clusters = sl.merge_clusters(spikes, clusters, channels)
+#    
+#    #only good units
+#    clusters_labeled = clusters.to_df()
+#    good_clusters = clusters_labeled[clusters_labeled['label']==1]
+#    good_clusters.reset_index(drop=True, inplace=True)
+#    clusters = good_clusters
     
-    #only good units
-    clusters_labeled = clusters.to_df()
-    good_clusters = clusters_labeled[clusters_labeled['label']==1]
-    good_clusters.reset_index(drop=True, inplace=True)
-    clusters = good_clusters
+    # load in spikes
+    spikes, clusters = load_good_units(one, pid)    
     
     # Find spikes that are from the clusterIDs
     spike_idx = np.isin(spikes['clusters'], clusters['cluster_id'])
 
     # Load in trials data
-    trials = one.load_object(eid, 'trials', collection='alf')
+    eid,probe = one.pid2eid(pid)
+    #trials = one.load_object(eid, 'trials', collection='alf')
+    sess_loader = SessionLoader(one, eid)
+    sess_loader.load_trials()
+    trials = sess_loader.trials
        
     # remove certain trials    
     stim_diff = trials['feedback_times'] - trials['stimOn_times']     
@@ -454,15 +463,6 @@ def get_d_vars(split,eid, probe,
     
     for reg in regs:
     
-        if restrict:
-            # only consider Brandon's regions
-            df = pd.read_csv('/home/mic/paper-brain-wide-map/'
-                 'manifold_analysis/10-09-2022_Brandon_block.csv')   
-            regs_b = list(Counter(df[df['p-value']<0.01]['region'].values))
-            if reg not in regs_b:
-                continue
-            
-
         res = {}
 
         ws_ = [y[acs == reg] for y in ws]
@@ -496,34 +496,8 @@ def get_d_vars(split,eid, probe,
 '''  
 
 
-def download_data_only(eids_plus = None):
-    if eids_plus is None:
-        df = bwm_query(one)
-        eids_plus = df[['eid','probe_name']].values
-    Fs = []
-   
-    k=0
-    for pid in eids_plus:
-        eid, probe = pid
-
-        try:        
-            sl = SpikeSortingLoader(eid=eid, pname=probe, 
-                                    one=one, atlas=ba)
-            spikes, clusters, channels = sl.load_spike_sorting()    
-            gc.collect() 
-            print(k, 'of', len(eids_plus), 'ok') 
-        except:
-            Fs.append(pid)
-            gc.collect()
-            print(k, 'of', len(eids_plus), 'fail')
-        k+=1          
-    return Fs        
-        
-
-
-def get_all_d_vars(split,eids_plus = None, control = True, 
-                   mapping='Swanson', exclude_fails=True,
-                   restrict=False):
+def get_all_d_vars(split, eids_plus = None, control = True, 
+                   mapping='Swanson'):
 
     '''
     for all BWM insertions, get the PSTHs and acronyms,
@@ -533,26 +507,7 @@ def get_all_d_vars(split,eids_plus = None, control = True,
     
     if eids_plus == None:
         df = bwm_query(one)
-        eids_plus = df[['eid','probe_name']].values
-        
-        if exclude_fails:
-            with open('/home/mic/load_failures.txt') as f:
-                lines = [line.rstrip() for line in f]    
-            ins = [[x.split("'")[1],x.split("'")[3]] for x in lines]
-            ins_s = ['_'.join(x) for x in ins]
-            eids_p = ['_'.join(x) for x in eids_plus] 
-            ins = list(set(eids_p) - set(ins_s))
-            eids_plus = [x.split('_') for x in ins]
-              
-        if restrict:
-            # only 
-            df = pd.read_csv('/home/mic/paper-brain-wide-map/'
-                             'manifold_analysis/10-09-2022_Brandon_block.csv')   
-            eids_b = list(Counter(df[df['p-value']<0.01]['eid'].values))
-            eids_plus_s = [x[0] for x in eids_plus]
-            ins = list(set(eids_b).intersection(set(eids_plus_s)))
-            
-            eids_plus = [x for x in eids_plus if x[0] in ins]
+        eids_plus = df[['eid','probe_name', 'pid']].values
 
     Fs = []
     eid_probe = []
@@ -560,17 +515,15 @@ def get_all_d_vars(split,eids_plus = None, control = True,
     D_s = []   
     k=0
     print(f'Processing {len(eids_plus)} insertions')
-    for pid in eids_plus:
-        eid, probe = pid    
+    for i in eids_plus:
+        eid, probe, pid = i    
         time0 = time.perf_counter()
         try:
             if not control:
-                D_ = get_d_vars(split,eid, probe, restrict=restrict,
-                               control=control, mapping=mapping)
+                D_ = get_d_vars(split, pid, control=control, mapping=mapping)
                 D_s.append(D_)            
             else:
-                D, D_ = get_d_vars(split,eid, probe, restrict=restrict, 
-                               control=control, mapping=mapping)             
+                D, D_ = get_d_vars(split, pid, control=control, mapping=mapping)
                 Ds.append(D)             
                 D_s.append(D_)
                                          
@@ -611,7 +564,7 @@ def get_all_d_vars(split,eids_plus = None, control = True,
     return Fs
 
     
-def d_var_stacked(split, mapping='Swanson', restrict=False):
+def d_var_stacked(split, mapping='Swanson'):
                   
     time0 = time.perf_counter()
 
@@ -657,14 +610,7 @@ def d_var_stacked(split, mapping='Swanson', restrict=False):
     euc = {}  # also compute Euclidean distance on PCA reduced trajectories
     p_euc = {}
     for reg in regs:         
-        
-        if restrict:
-            # only consider Brandon's regions
-            df = pd.read_csv('/home/mic/paper-brain-wide-map/'
-                 'manifold_analysis/10-09-2022_Brandon_block.csv') 
-            regs_b = list(Counter(df[df['p-value']<0.01]['region'].values))
-            if reg not in regs_b:
-                continue           
+                
         if (reg in ['root', 'void']) or (regs[reg] < min_reg):
             continue
             
@@ -781,10 +727,10 @@ def d_var_stacked(split, mapping='Swanson', restrict=False):
 
 
 
-def curves_params_all(split, restrict=False):
+def curves_params_all(split):
 
-    get_all_d_vars(split, restrict=restrict)
-    d_var_stacked(split, restrict=restrict)        
+    get_all_d_vars(split)
+    d_var_stacked(split)        
 
       
 '''    
@@ -1097,10 +1043,15 @@ def plot_all(curve='d_var_m', amp_number=False):
     '''   
     c = 0
     
+    if curve == 'euc':
+        fig.suptitle(f'distance metric: {curve}') 
+           
     if amp_number: 
         fig2 = plt.figure()
         axss = []
-    
+        if curve == 'euc':
+            fig2.suptitle(f'distance metric: {curve}')
+          
     for split in align:
     
         axs.append(fig.add_subplot(gs[8:,c]))
@@ -1111,6 +1062,10 @@ def plot_all(curve='d_var_m', amp_number=False):
 
         acronyms = [tops[split][0][j] for j in range(len(tops[split][0]))
                 if tops[split][1][j] < 0.05]
+                
+        print(split)
+        print(acronyms)        
+                
 
         if curve == 'euc':
             maxes = np.array([d[x][f'amp_euc'] for x in acronyms])
@@ -1124,7 +1079,7 @@ def plot_all(curve='d_var_m', amp_number=False):
         
 
         if amp_number:
-            axss.append(fig2.add_subplot(int(f'13{c+1}')))
+            axss.append(fig2.add_subplot(int(f'1{len(align)}{c+1}')))
             nums = [1/d[reg]['nclus'] for reg in acronyms]
 
             l = list(zip(nums, maxes, cols))
@@ -1179,8 +1134,7 @@ right=0.971,
 hspace=1.3,
 wspace=0.52)
 
-    if curve == 'euc':
-        fig.suptitle(f'distance metric: {curve}')  
+  
     
     fig.tight_layout()
     
