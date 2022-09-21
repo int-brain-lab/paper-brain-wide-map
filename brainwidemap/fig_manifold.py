@@ -225,7 +225,7 @@ def get_name(brainregion):
 
 
 def get_d_vars(split, pid, 
-               mapping='Swanson', control=False):
+               mapping='Beryl', control=True):
 
     '''
     for a given session, probe, bin neural activity
@@ -248,8 +248,8 @@ def get_d_vars(split, pid,
     # load in spikes
     spikes, clusters = load_good_units(one, pid)    
     
-    # Find spikes that are from the clusterIDs
-    spike_idx = np.isin(spikes['clusters'], clusters['cluster_id'])
+#    # Find spikes that are from the clusterIDs
+#    spike_idx = np.isin(spikes['clusters'], clusters['cluster_id'])
 
     # Load in trials data
     eid,probe = one.pid2eid(pid)
@@ -321,8 +321,15 @@ def get_d_vars(split, pid,
         print('what is the split?', split)
         return
 
-
-
+    print('#trials per condition: ',len(trn[0]), len(trn[1]))
+    assert ((len(trn[0]) != 0) and (len(trn[0]) != 0), 
+           'zero trials to average')
+    assert (len(spikes['times']) == len(spikes['clusters']),     
+           'spikes != clusters') 
+            
+    #return spikes, clusters, events
+    
+                
     # bin and cut into trials    
     bins = []
 
@@ -334,8 +341,8 @@ def get_d_vars(split, pid,
         
         for ts in range(st):
     
-            bi, _ = bin_spikes2D(spikes['times'][spike_idx], 
-                               spikes['clusters'][spike_idx],
+            bi, _ = bin_spikes2D(spikes['times'], 
+                               spikes['clusters'],
                                clusters['cluster_id'],
                                np.array(event) + ts*sts, 
                                pre_post[split][0], pre_post[split][1], 
@@ -497,7 +504,7 @@ def get_d_vars(split, pid,
 
 
 def get_all_d_vars(split, eids_plus = None, control = True, 
-                   mapping='Swanson'):
+                   mapping='Beryl'):
 
     '''
     for all BWM insertions, get the PSTHs and acronyms,
@@ -564,7 +571,7 @@ def get_all_d_vars(split, eids_plus = None, control = True,
     return Fs
 
     
-def d_var_stacked(split, mapping='Swanson'):
+def d_var_stacked(split, mapping='Beryl'):
                   
     time0 = time.perf_counter()
 
@@ -777,7 +784,7 @@ def plot_all(curve='d_var_m', amp_number=False):
     
     nrows = 12
         
-    mapping='Swanson'
+    mapping='Beryl'
     
     fig = plt.figure(figsize=(10, 15))
     gs = fig.add_gridspec(nrows, len(align))
@@ -791,8 +798,50 @@ def plot_all(curve='d_var_m', amp_number=False):
     amp_curve = ('max-min/max+min' if curve == 'd_var_m' 
                          else 'amp_euc')
                          
-    p_type = 'p' if curve == 'd_var_m' else 'p_euc'                    
-
+    p_type = 'p' if curve == 'd_var_m' else 'p_euc'         
+    
+    
+    '''
+    get significant regions and high pass threshold for amp
+    '''           
+    tops = {}
+    lower = {}
+    for split in align: 
+    
+        d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'         
+                    f'curves_{split}_{mapping}.npy',
+                    allow_pickle=True).flat[0]              
+             
+        maxs = np.array([d[x][amp_curve] for x in d])
+        acronyms = np.array(list(d.keys()))
+        order = list(reversed(np.argsort(maxs)))
+        maxs = maxs[order]
+        acronyms = acronyms[order] 
+             
+        tops[split] = [acronyms, 
+                      [d[reg][p_type] for reg in acronyms]]
+                      
+#        if split == 'block':
+#            print(tops[split])
+            
+        maxs = np.array([d[reg][amp_curve] for reg in acronyms
+                         if d[reg][p_type] < 0.05])
+                         
+        maxsf = [v for v in maxs if not (math.isinf(v) or math.isnan(v))] 
+               
+               
+        if maxsf == []:
+            lower[split] = 0
+        else:        
+            lower[split] = np.percentile(maxsf, 25)          
+        print(split, curve)
+        print('25 percentile: ',lower[split])
+        print(f'{len(maxsf)}/{len(d)} are significant')
+        tops[split+'_s'] = f'{len(maxsf)} of {len(d)}'
+        print([tops[split][0][j] for j in range(len(tops[split][0]))
+                if tops[split][1][j] < 0.05])
+        
+    
     '''
     load schematic intro and contrast trajectory plot (convert from svg)
     '''
@@ -824,10 +873,13 @@ def plot_all(curve='d_var_m', amp_number=False):
            'choice': 'GRN',#'VII'
            'fback': 'LDT',
            'block': 'AVP',
-           'block_stim_l': 'IGL',
+           'block_stim_l': 'CA1',
            'block_stim_r': 'DMH'} #VPL 
-           
-           
+                  
+    # pick max amp region as example
+    exs = {split: [tops[split][0][j] for j in range(len(tops[split][0]))
+                if tops[split][1][j] < 0.05][0] for split in align}
+
             
     c = 0
     for split in align:
@@ -912,46 +964,7 @@ def plot_all(curve='d_var_m', amp_number=False):
 
         c += 1
         k += 1
-
-
-    tops = {}
-    lower = {}
-    for split in align: 
-    
-        d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'         
-                    f'curves_{split}_{mapping}.npy',
-                    allow_pickle=True).flat[0]              
-             
-        maxs = np.array([d[x][amp_curve] for x in d])
-        acronyms = np.array(list(d.keys()))
-        order = list(reversed(np.argsort(maxs)))
-        maxs = maxs[order]
-        acronyms = acronyms[order] 
-             
-        tops[split] = [acronyms, 
-                      [d[reg][p_type] for reg in acronyms]]
-                      
-#        if split == 'block':
-#            print(tops[split])
-            
-        maxs = np.array([d[reg][amp_curve] for reg in acronyms
-                         if d[reg][p_type] < 0.05])
-                         
-        maxsf = [v for v in maxs if not (math.isinf(v) or math.isnan(v))] 
-               
-               
-        if maxsf == []:
-            lower[split] = 0
-        else:        
-            lower[split] = np.percentile(maxsf, 25)          
-        print(split, curve)
-        print('25 percentile: ',lower[split])
-        print(f'{len(maxsf)}/{len(d)} are significant')
-        tops[split+'_s'] = f'{len(maxsf)} of {len(d)}'
-
-        
-    
-                
+      
     '''
     line plot per top 5 regions per split
     '''
@@ -972,9 +985,9 @@ def plot_all(curve='d_var_m', amp_number=False):
         
         #tops[split][0][:5]
         
-        
-        if split == 'fback':
-            regs = ['AUDp', 'LDT', 'PSV', 'BMAa', 'GU']
+#        
+#        if split == 'fback':
+#            regs = ['AUDp', 'LDT', 'PSV', 'BMAa', 'GU']
         
         texts = []          
         for reg in regs:
@@ -1063,8 +1076,8 @@ def plot_all(curve='d_var_m', amp_number=False):
         acronyms = [tops[split][0][j] for j in range(len(tops[split][0]))
                 if tops[split][1][j] < 0.05]
                 
-        print(split)
-        print(acronyms)        
+#        print(split)
+#        print(acronyms)        
                 
 
         if curve == 'euc':
@@ -1150,7 +1163,7 @@ wspace=0.52)
  
 
 
-def plot_swanson_supp(mapping = 'Swanson'):
+def plot_swanson_supp(mapping = 'Beryl'):
     
     figs = plt.figure(figsize=(10, 9), constrained_layout=True) 
     gs = GridSpec(3, 3, figure=figs)
@@ -1258,7 +1271,7 @@ wspace=0.214)
 
 def plot_cosmos_lines():
 
-    mapping = 'Swanson'
+    mapping = 'Beryl'
     df, palette = get_allen_info()
     fig = plt.figure(figsize=(20, 15), constrained_layout=True)
      
@@ -1337,7 +1350,7 @@ def plot_session_numbers():
 
 
     split = 'choice'
-    mapping = 'Swanson'
+    mapping = 'Beryl'
     R = np.load('/home/mic/paper-brain-wide-map/'
                 f'manifold_analysis/full_res/bwm_psths_{split}.npy',
                 allow_pickle=True).flat[0]
@@ -1433,7 +1446,7 @@ def swanson_gif(split, curve='d_var_m', recompute=True):
     split in stim, action
     '''
 
-    mapping = 'Swanson'      
+    mapping = 'Beryl'      
     
     f = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'
                 f'curves_{split}_mapping{mapping}.npy',
@@ -1482,7 +1495,7 @@ def swanson_gif(split, curve='d_var_m', recompute=True):
 
 
 
-def plot_all_3d(reg, split, mapping = 'Swanson'):
+def plot_all_3d(reg, split, mapping = 'Beryl'):
 
     '''
     for a given region and split
@@ -1609,7 +1622,7 @@ def save_df_for_table():
     reformat results for table
     '''
     
-    mapping = 'Swanson'
+    mapping = 'Beryl'
     
     columns = ['acronym', 'name', 'nclus'] 
     
