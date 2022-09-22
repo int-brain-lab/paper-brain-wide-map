@@ -57,9 +57,9 @@ red_right = [0.66080672, 0.21526712, 0.23069468]
 
 c = 0.0125  # 0.005 sec for a static bin size, or None for single bin
 sts = 0.002  # stride size in s for overlapping bins 
-ntravis = 20  # number of trajectories for visualisation, first 2 real
+ntravis = 30  # number of trajectories for visualisation, first 2 real
 nrand = 200  # 100, takes 10 h number of random trial splits for control
-min_reg = 10  # 100, minimum number of neurons in pooled region
+min_reg = 100  # 100, minimum number of neurons in pooled region
 
 
 def T_BIN(split, c=c):
@@ -233,26 +233,26 @@ def get_d_vars(split, pid,
     '''    
        
     toolong = 2  # discard trials were feedback - stim is above that [sec]
-
-#    # Load in spikesorting
-#    sl = SpikeSortingLoader(eid=eid, pname=probe, one=one, atlas=ba)
-#    spikes, clusters, channels = sl.load_spike_sorting()
-#    clusters = sl.merge_clusters(spikes, clusters, channels)
-#    
-#    #only good units
-#    clusters_labeled = clusters.to_df()
-#    good_clusters = clusters_labeled[clusters_labeled['label']==1]
-#    good_clusters.reset_index(drop=True, inplace=True)
-#    clusters = good_clusters
+    eid,probe = one.pid2eid(pid)
+    # Load in spikesorting
+    sl = SpikeSortingLoader(eid=eid, pname=probe, one=one, atlas=ba)
+    spikes, clusters, channels = sl.load_spike_sorting()
+    clusters = sl.merge_clusters(spikes, clusters, channels)
     
-    # load in spikes
-    spikes, clusters = load_good_units(one, pid)    
+    #only good units
+    clusters_labeled = clusters.to_df()
+    good_clusters = clusters_labeled[clusters_labeled['label']==1]
+    good_clusters.reset_index(drop=True, inplace=True)
+    clusters = good_clusters
     
-#    # Find spikes that are from the clusterIDs
-#    spike_idx = np.isin(spikes['clusters'], clusters['cluster_id'])
+#    # load in spikes
+#    spikes, clusters = load_good_units(one, pid)    
+    
+    # Find spikes that are from the clusterIDs
+    spike_idx = np.isin(spikes['clusters'], clusters['cluster_id'])
 
     # Load in trials data
-    eid,probe = one.pid2eid(pid)
+
     #trials = one.load_object(eid, 'trials', collection='alf')
     sess_loader = SessionLoader(one, eid)
     sess_loader.load_trials()
@@ -281,9 +281,9 @@ def get_d_vars(split, pid,
     elif split == 'stim':    
         for side in ['Left', 'Right']:
             events.append(trials['stimOn_times'][np.bitwise_and.reduce([
-                ~rm_trials,trials[f'contrast{side}'] == 1.0])])
+                ~rm_trials,~np.isnan(trials[f'contrast{side}'])])])
             trn.append(np.arange(len(trials['stimOn_times']))[np.bitwise_and.reduce([ 
-            ~rm_trials,trials[f'contrast{side}'] == 1.0])])
+            ~rm_trials,~np.isnan(trials[f'contrast{side}'])])])
        
     elif split == 'fback':    
         for fb in [1,-1]:
@@ -322,10 +322,10 @@ def get_d_vars(split, pid,
         return
 
     print('#trials per condition: ',len(trn[0]), len(trn[1]))
-    assert ((len(trn[0]) != 0) and (len(trn[0]) != 0), 
-           'zero trials to average')
-    assert (len(spikes['times']) == len(spikes['clusters']),     
-           'spikes != clusters') 
+    assert (len(trn[0]) != 0) and (len(trn[0]) != 0), 'zero trials to average'
+           
+    assert len(spikes['times']) == len(spikes['clusters']), 'spikes != clusters'    
+            
             
     #return spikes, clusters, events
     
@@ -341,8 +341,8 @@ def get_d_vars(split, pid,
         
         for ts in range(st):
     
-            bi, _ = bin_spikes2D(spikes['times'], 
-                               spikes['clusters'],
+            bi, _ = bin_spikes2D(spikes['times'][spike_idx], 
+                               spikes['clusters'][spike_idx],
                                clusters['cluster_id'],
                                np.array(event) + ts*sts, 
                                pre_post[split][0], pre_post[split][1], 
@@ -416,6 +416,11 @@ def get_d_vars(split, pid,
                 ys = np.concatenate([np.full(len(trn[0]), True),
                                      np.full(len(trn[1]), False)])               
                 shuffle(ys)                
+            
+            elif split == 'stim':
+                y_ = generate_pseudo_blocks(ntr, first5050=0)
+                o = np.random.uniform(low=0, high=1, size=(ntr,))
+                ys = o > y_                
                 
             else:  # impostor sessions
                 eids = random.choices([*spl],k=30)
@@ -504,18 +509,26 @@ def get_d_vars(split, pid,
 
 
 def get_all_d_vars(split, eids_plus = None, control = True, 
-                   mapping='Beryl'):
+                   mapping='Beryl', exclude_fails=True):
 
     '''
     for all BWM insertions, get the PSTHs and acronyms,
     '''
+    
+    time00 = time.perf_counter()
     
     print('split', split, 'control', control)
     
     if eids_plus == None:
         df = bwm_query(one)
         eids_plus = df[['eid','probe_name', 'pid']].values
+        
+    if exclude_fails:
+        with open('/home/mic/load_failures.txt') as f:
+            lines = [line.rstrip() for line in f]    
+        ins = [x.split("'")[1] for x in lines]    
 
+            
     Fs = []
     eid_probe = []
     Ds = []
@@ -523,7 +536,12 @@ def get_all_d_vars(split, eids_plus = None, control = True,
     k=0
     print(f'Processing {len(eids_plus)} insertions')
     for i in eids_plus:
-        eid, probe, pid = i    
+        eid, probe, pid = i  
+        if exclude_fails:
+            if pid in ins:
+                continue
+            
+          
         time0 = time.perf_counter()
         try:
             if not control:
@@ -540,7 +558,7 @@ def get_all_d_vars(split, eids_plus = None, control = True,
         except:
             Fs.append(pid)
             gc.collect()
-            print(k+1, 'of', len(eids_plus), 'fail')
+            print(k+1, 'of', len(eids_plus), 'fail', pid)
             
         time1 = time.perf_counter()
         print(time1 - time0, 'sec')
@@ -566,9 +584,11 @@ def get_all_d_vars(split, eids_plus = None, control = True,
         np.save('/mnt/8cfe1683-d974-40f3-a20b-b217cad4722a/manifold/'
                f'single_d_vars_{split}_{mapping}.npy', 
                R_, allow_pickle=True)
-
+               
+    time11 = time.perf_counter()
+    print((time11 - time00)/60, 'min for the complete bwm set')
     print(f'{len(Fs)}, load failures:')
-    return Fs
+    print(Fs)
 
     
 def d_var_stacked(split, mapping='Beryl'):
@@ -624,9 +644,11 @@ def d_var_stacked(split, mapping='Beryl'):
         stde[reg] = np.std(maxes[acs == reg])/np.sqrt(regs[reg])
 
         dat = ws[:,acs == reg,:]
-        pca = PCA(n_components = min(30, dat.shape[1]))
+        pca = PCA(n_components = 30)
         wsc = pca.fit_transform(np.concatenate(dat,axis=1).T).T
         pcs[reg] = wsc[:3]
+        
+        nclus = sum(acs == reg)
         
         nobs = wsc.shape[1] // ntravis
         
@@ -635,7 +657,8 @@ def d_var_stacked(split, mapping='Beryl'):
             t0 = wsc[:,nobs * tr*2 :nobs * (tr*2 + 1)] 
             t1 = wsc[:,nobs * (tr*2 + 1):nobs * (tr*2 + 2)] # actual trajectories
             
-            dists.append(sum((t0 - t1)**2)**0.5)
+            # normalize by nclus?
+            dists.append((sum((t0 - t1)**2)**0.5)/nclus)
             
         euc[reg] = dists[0]
         
@@ -672,8 +695,8 @@ def d_var_stacked(split, mapping='Beryl'):
 
     # nanmean across insertions and take sqrt
     for reg in regd:
-        regd[reg] = (np.nansum(np.array(regd[reg]),axis=0)**0.5/
-                     nclus[reg])
+        regd[reg] = (np.nansum(np.array(regd[reg]),axis=0)/
+                     nclus[reg])**0.5
 
     r = {}
     for reg in regd:
@@ -771,7 +794,7 @@ def put_panel_label(ax, k):
                         fontsize=16, va='top', ha='right', weight='bold')
 
 
-def plot_all(curve='d_var_m', amp_number=False):
+def plot_all(curve='d_var_m', amp_number=False, mapping='Beryl'):
 
     '''
     main figure: show example trajectories,
@@ -784,7 +807,7 @@ def plot_all(curve='d_var_m', amp_number=False):
     
     nrows = 12
         
-    mapping='Beryl'
+    
     
     fig = plt.figure(figsize=(10, 15))
     gs = fig.add_gridspec(nrows, len(align))
@@ -820,9 +843,7 @@ def plot_all(curve='d_var_m', amp_number=False):
              
         tops[split] = [acronyms, 
                       [d[reg][p_type] for reg in acronyms]]
-                      
-#        if split == 'block':
-#            print(tops[split])
+
             
         maxs = np.array([d[reg][amp_curve] for reg in acronyms
                          if d[reg][p_type] < 0.05])
@@ -835,7 +856,7 @@ def plot_all(curve='d_var_m', amp_number=False):
         else:        
             lower[split] = np.percentile(maxsf, 25)          
         print(split, curve)
-        print('25 percentile: ',lower[split])
+        print('25 percentile: ',np.round(lower[split],3))
         print(f'{len(maxsf)}/{len(d)} are significant')
         tops[split+'_s'] = f'{len(maxsf)} of {len(d)}'
         print([tops[split][0][j] for j in range(len(tops[split][0]))
@@ -876,11 +897,11 @@ def plot_all(curve='d_var_m', amp_number=False):
            'block_stim_l': 'CA1',
            'block_stim_r': 'DMH'} #VPL 
                   
-    # pick max amp region as example
-    exs = {split: [tops[split][0][j] for j in range(len(tops[split][0]))
-                if tops[split][1][j] < 0.05][0] for split in align}
+#    # pick max amp region as example
+#    exs = {split: [tops[split][0][j] for j in range(len(tops[split][0]))
+#                if tops[split][1][j] < 0.05][0] for split in align}
 
-            
+#            
     c = 0
     for split in align:
         d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'
@@ -1097,7 +1118,7 @@ def plot_all(curve='d_var_m', amp_number=False):
 
             l = list(zip(nums, maxes, cols))
             df = pd.DataFrame(l, columns=['1/nclus', 'maxes', 'cols'])
-            print(split, len(df['cols']), len(df['1/nclus']))      
+                  
             sns.regplot(ax=axss[c], x="1/nclus", y="maxes", data=df)
             axss[c].set_title(split)
         
