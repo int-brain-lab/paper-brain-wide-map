@@ -234,22 +234,22 @@ def get_d_vars(split, pid,
        
     toolong = 2  # discard trials were feedback - stim is above that [sec]
     eid,probe = one.pid2eid(pid)
-    # Load in spikesorting
-    sl = SpikeSortingLoader(eid=eid, pname=probe, one=one, atlas=ba)
-    spikes, clusters, channels = sl.load_spike_sorting()
-    clusters = sl.merge_clusters(spikes, clusters, channels)
+#    # Load in spikesorting
+#    sl = SpikeSortingLoader(eid=eid, pname=probe, one=one, atlas=ba)
+#    spikes, clusters, channels = sl.load_spike_sorting()
+#    clusters = sl.merge_clusters(spikes, clusters, channels)
+#    
+#    #only good units
+#    clusters_labeled = clusters.to_df()
+#    good_clusters = clusters_labeled[clusters_labeled['label']==1]
+#    good_clusters.reset_index(drop=True, inplace=True)
+#    clusters = good_clusters
     
-    #only good units
-    clusters_labeled = clusters.to_df()
-    good_clusters = clusters_labeled[clusters_labeled['label']==1]
-    good_clusters.reset_index(drop=True, inplace=True)
-    clusters = good_clusters
+    # load in spikes
+    spikes, clusters = load_good_units(one, pid)    
     
-#    # load in spikes
-#    spikes, clusters = load_good_units(one, pid)    
-    
-    # Find spikes that are from the clusterIDs
-    spike_idx = np.isin(spikes['clusters'], clusters['cluster_id'])
+#    # Find spikes that are from the clusterIDs
+#    spike_idx = np.isin(spikes['clusters'], clusters['cluster_id'])
 
     # Load in trials data
 
@@ -341,8 +341,9 @@ def get_d_vars(split, pid,
         
         for ts in range(st):
     
-            bi, _ = bin_spikes2D(spikes['times'][spike_idx], 
-                               spikes['clusters'][spike_idx],
+            bi, _ = bin_spikes2D(spikes['times'],#[spike_idx], 
+                               clusters['cluster_id'][spikes['clusters']],
+                                #spikes['clusters'][spike_idx],
                                clusters['cluster_id'],
                                np.array(event) + ts*sts, 
                                pre_post[split][0], pre_post[split][1], 
@@ -389,7 +390,8 @@ def get_d_vars(split, pid,
     b = b[:,goodcells,:]
     bins2 = [x[:,goodcells,:] for x in bins]
     bins = bins2
-
+    
+    return trials, trn, ntr
 
     if control:
         # get mean and var across trials
@@ -418,9 +420,10 @@ def get_d_vars(split, pid,
                 shuffle(ys)                
             
             elif split == 'stim':
-                y_ = generate_pseudo_blocks(ntr, first5050=0)
+                # get real block labels; use to generate stim side
+                y_ = trials['probabilityLeft'][sorted(dx[:, 1])].values
                 o = np.random.uniform(low=0, high=1, size=(ntr,))
-                ys = o > y_                
+                ys = o < y_                
                 
             else:  # impostor sessions
                 eids = random.choices([*spl],k=30)
@@ -658,7 +661,7 @@ def d_var_stacked(split, mapping='Beryl'):
             t1 = wsc[:,nobs * (tr*2 + 1):nobs * (tr*2 + 2)] # actual trajectories
             
             # normalize by nclus?
-            dists.append((sum((t0 - t1)**2)**0.5)/nclus)
+            dists.append((sum((t0 - t1)**2)**0.5))
             
         euc[reg] = dists[0]
         
@@ -753,7 +756,7 @@ def d_var_stacked(split, mapping='Beryl'):
            r, allow_pickle=True)
            
     time1 = time.perf_counter()    
-    print(time1 - time0, 'sec')
+    print('total time:', time1 - time0, 'sec')
 
 
 
@@ -897,11 +900,11 @@ def plot_all(curve='d_var_m', amp_number=False, mapping='Beryl'):
            'block_stim_l': 'CA1',
            'block_stim_r': 'DMH'} #VPL 
                   
-#    # pick max amp region as example
-#    exs = {split: [tops[split][0][j] for j in range(len(tops[split][0]))
-#                if tops[split][1][j] < 0.05][0] for split in align}
+    # pick max amp region as example
+    exs = {split: [tops[split][0][j] for j in range(len(tops[split][0]))
+                if tops[split][1][j] < 0.05][0] for split in align}
 
-#            
+            
     c = 0
     for split in align:
         d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'
@@ -1713,6 +1716,9 @@ def load_brandon():
 
 
 
+#7, load failures:
+#['05ec6af9-6c83-422d-91a3-ba815fa65e92', '7dcd74a9-fc7a-4c3c-85b9-769d869629ec', 'be76cfe3-b2bb-4358-956b-0fad07215972', '46630957-63fd-4d0d-a2ba-8766f0796db8', '06d42449-d6ac-4c35-8f85-24ecfbc08bc1', '54c8f5de-83d7-49b9-9b4c-67fe0f07289b', '8bf0f1a4-0d8c-4df3-a99e-f7c81c809652']
+#stim
 
 
 
