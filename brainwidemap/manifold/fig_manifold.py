@@ -166,8 +166,8 @@ def compute_impostor_behavior():
         for eid in eids_plus: 
             try:  
                 
-                # discard trials were feedback - stim is above that [sec]
-                toolong = 2  
+                # discard trials were feedback - stim is outside that range [sec]
+                rs_range = [0.08, 2]
 
                 # Load in trials data
                 trials = one.load_object(eid, 'trials', collection='alf')
@@ -231,8 +231,10 @@ def get_d_vars(split, pid,
     for a given session, probe, bin neural activity
     cut into trials, compute d_var per region
     '''    
-       
-    toolong = 2  # discard trials were feedback - stim is above that [sec]
+
+
+    
+    
     eid,probe = one.pid2eid(pid)
 #    # Load in spikesorting
 #    sl = SpikeSortingLoader(eid=eid, pname=probe, one=one, atlas=ba)
@@ -258,7 +260,8 @@ def get_d_vars(split, pid,
     sess_loader.load_trials()
     trials = sess_loader.trials
        
-    # remove certain trials    
+    # remove certain trials     
+    rs_range = [0.08, 2]  # discard [long/short] reaction time trials
     stim_diff = trials['feedback_times'] - trials['stimOn_times']     
     rm_trials = np.bitwise_or.reduce([np.isnan(trials['stimOn_times']),
                                np.isnan(trials['choice']),
@@ -266,7 +269,8 @@ def get_d_vars(split, pid,
                                np.isnan(trials['probabilityLeft']),
                                np.isnan(trials['firstMovement_times']),
                                np.isnan(trials['feedbackType']),
-                               stim_diff > toolong])
+                               stim_diff > rs_range[-1],
+                               stim_diff < rs_range[0]])
     events = []
     trn = []
 
@@ -391,7 +395,7 @@ def get_d_vars(split, pid,
     bins2 = [x[:,goodcells,:] for x in bins]
     bins = bins2
     
-    #  return trials, trn, ntr
+    # return trials, trn, ntr
 
     if control:
         # get mean and var across trials
@@ -405,8 +409,9 @@ def get_d_vars(split, pid,
                           'manifold_analysis/bwm_behave.npy',
                           allow_pickle=True).flat[0][split]
             
-            #  exclude current session
-            del spl[eid]    
+            #  exclude current session if present
+            if eid in list(spl.keys()):
+                del spl[eid]    
         
         # nrand times random impostor/pseudo split of trials 
         for i in range(nrand):
@@ -504,11 +509,55 @@ def get_d_vars(split, pid,
     return D, D_    
 
 
+
 '''    
 ###
 ### bulk processing 
 ###    
-'''  
+''' 
+
+def get_BWM_region_pid_pairs():
+
+    '''
+    get all BWM insertion/region pairs, then filter for those with
+    at least two insertions and at least 10 neurons;
+    takes 1 h min to run (loading clusters is the slow bit)
+    '''
+
+    columns = ['pid', 'Beryl', 'nclus']        
+    data = []    
+    
+    df = bwm_query(one)
+    pids = df['pid'].values
+    k = 0
+    for pid in pids:
+        spikes, clusters = load_good_units(one, pid)
+        acs = br.id2acronym(clusters['atlas_id'],
+                        mapping='Beryl')
+                        
+        # discard cells in regions root or void
+        goodcells = np.bitwise_and(acs != 'void', acs != 'root')
+
+        acs = Counter(acs[goodcells])                        
+                        
+        for reg in acs:
+            data.append([pid, reg, acs[reg]])
+
+        print(pid, f'{k} of {len(pids)} done')
+
+    df = pd.DataFrame(data, columns=columns)
+
+    # count number of insertions for each region
+    nsC = Counter(df['Beryl'].values)
+    ns = [nsC[reg] for reg in df['Beryl'].values]
+    df['#pids'] = ns
+    
+    df1 = df[df['nclus'] > 9]  # at least 10 neurons
+    df2 = df1[df1['#pids'] > 1]  # at least 2 recordings
+    
+    # df2.to_csv('bwm_sess_regions.csv')
+    return df, df2    
+    
 
 
 def get_all_d_vars(split, eids_plus = None, control = True, 
