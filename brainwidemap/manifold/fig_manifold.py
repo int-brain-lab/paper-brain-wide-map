@@ -391,7 +391,7 @@ def get_d_vars(split, pid,
     bins2 = [x[:,goodcells,:] for x in bins]
     bins = bins2
     
-    return trials, trn, ntr
+    #  return trials, trn, ntr
 
     if control:
         # get mean and var across trials
