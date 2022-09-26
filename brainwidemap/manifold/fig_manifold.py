@@ -330,10 +330,6 @@ def get_d_vars(split, pid,
            
     assert len(spikes['times']) == len(spikes['clusters']), 'spikes != clusters'    
             
-            
-    #return spikes, clusters, events
-    
-                
     # bin and cut into trials    
     bins = []
 
@@ -375,9 +371,9 @@ def get_d_vars(split, pid,
     
     acs = br.id2acronym(clusters['atlas_id'],mapping=mapping)            
     acs = np.array(acs)
-
-    # Discard cells with any nan or 0 for all bins
     wsc = np.concatenate(b,axis=1)
+
+    # Discard cells with any nan or 0 for all bins    
     goodcells = [k for k in range(wsc.shape[0]) if 
                  (not np.isnan(wsc[k]).any()
                  and wsc[k].any())] 
@@ -387,9 +383,13 @@ def get_d_vars(split, pid,
     bins2 = [x[:,goodcells,:] for x in bins]
     bins = bins2    
 
-    # discard cells in regions root or void
-    goodcells = np.bitwise_and(acs != 'void', acs != 'root')
-
+    # discard cells if not in csv list (at least 10 clus & at least 2 recs)
+    gregs = set(np.unique(pd.read_csv('/home/mic/paper-brain-wide-map/'
+                                      'manifold_analysis/'
+                                      'bwm_sess_regions.csv')['Beryl']))
+    acs_ = set(np.unique(acs)).intersection(gregs)
+    goodcells = np.bitwise_or.reduce([acs == reg for reg in acs_])
+    
     acs = acs[goodcells]
     b = b[:,goodcells,:]
     bins2 = [x[:,goodcells,:] for x in bins]
@@ -561,7 +561,7 @@ def get_BWM_region_pid_pairs():
 
 
 def get_all_d_vars(split, eids_plus = None, control = True, 
-                   mapping='Beryl', exclude_fails=True):
+                   mapping='Beryl', exclude_fails=False):
 
     '''
     for all BWM insertions, get the PSTHs and acronyms,
@@ -580,19 +580,26 @@ def get_all_d_vars(split, eids_plus = None, control = True,
             lines = [line.rstrip() for line in f]    
         ins = [x.split("'")[1] for x in lines]    
 
-            
+
+    # exclude pids that are not in csv list (min 10 and double ins)
+    gpids = np.unique(pd.read_csv('/home/mic/paper-brain-wide-map/'
+                                  'manifold_analysis/'
+                                  'bwm_sess_regions.csv')['pid'])    
+
     Fs = []
     eid_probe = []
     Ds = []
     D_s = []   
     k=0
-    print(f'Processing {len(eids_plus)} insertions')
+    print(f'Processing {len(gpids)} of {len(eids_plus)} insertions')
     for i in eids_plus:
         eid, probe, pid = i  
         if exclude_fails:
             if pid in ins:
                 continue
-            
+                
+        if pid not in gpids:
+            continue    
           
         time0 = time.perf_counter()
         try:
