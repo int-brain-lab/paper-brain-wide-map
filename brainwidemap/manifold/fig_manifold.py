@@ -718,7 +718,6 @@ def d_var_stacked(split, mapping='Beryl'):
             t0 = wsc[:,nobs * tr*2 :nobs * (tr*2 + 1)] 
             t1 = wsc[:,nobs * (tr*2 + 1):nobs * (tr*2 + 2)] # actual trajectories
             
-            # normalize by nclus?
             dists.append((sum((t0 - t1)**2)**0.5))
             
         euc[reg] = dists[0]
@@ -1245,13 +1244,21 @@ wspace=0.52)
  
 
 
-def plot_swanson_supp(mapping = 'Beryl'):
+def plot_swanson_supp(curve = 'd_var_m', mapping = 'Beryl'):
     
-    figs = plt.figure(figsize=(10, 9), constrained_layout=True) 
-    gs = GridSpec(3, 3, figure=figs)
-
-
+    figs = plt.figure(figsize=(10, 9), constrained_layout=True)
     nrows = 3
+    ncols = len(align) 
+    gs = GridSpec(nrows, ncols, figure=figs)
+
+
+    amp_curve = ('max-min/max+min' if curve == 'd_var_m' 
+                         else 'amp_euc')
+                         
+    p_type = 'p' if curve == 'd_var_m' else 'p_euc' 
+
+
+    
     axs = []
     k = 0
     '''
@@ -1267,20 +1274,23 @@ def plot_swanson_supp(mapping = 'Beryl'):
     max dist_split onto swanson flat maps
     (only regs with p < 0.01)
     '''
-
+    
+    c = 0
     for split in align:
     
-        axs.append(figs.add_subplot(gs[1,k-1]))   
- 
+        axs.append(figs.add_subplot(gs[1,c]))   
+        c += 1
         d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'         
                     f'curves_{split}_{mapping}.npy',
-                    allow_pickle=True).flat[0]['regs']
+                    allow_pickle=True).flat[0]
 
         # get significant regions only
         acronyms = [reg for reg in d
-                if d[reg][p_type] < 0.01]
+                if d[reg][p_type] < 0.05]
 
-        values = np.array([d[x][f'max-min/max+min'] for x in acronyms])
+        values = np.array([d[x][amp_curve] for x in acronyms])
+        
+        print(split, acronyms, values)
              
         plot_swanson(list(acronyms), list(values), cmap='Blues', 
                      ax=axs[k], br=br)#, orientation='portrait')
@@ -1294,33 +1304,34 @@ def plot_swanson_supp(mapping = 'Beryl'):
     (only regs with p < 0.01)
     '''
 
+    c = 0
     for split in align:
     
-        axs.append(figs.add_subplot(gs[2,k-4]))   
- 
+        axs.append(figs.add_subplot(gs[2,c]))   
+        c += 1
         d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'         
                     f'curves_{split}_{mapping}.npy',
-                    allow_pickle=True).flat[0]['regs']
+                    allow_pickle=True).flat[0]
                     
         # get significant regions only
         acronyms = [reg for reg in d
-                if d[reg][p_type] < 0.01]
+                if d[reg][p_type] < 0.05]
 
         #  compute latencies (inverted, shorter latency is darker)
         for x in acronyms:
            
-            if np.max(d[x]['d_var_m']) == np.inf:
-                loc = np.where(d[x]['d_var_m'] == np.inf)[0]  
+            if np.max(d[x][curve]) == np.inf:
+                loc = np.where(d[x][curve] == np.inf)[0]  
             else:
-                loc = np.where(d[x]['d_var_m'] > 
-                               np.min(d[x]['d_var_m']) + 
-                               0.7*(np.max(d[x]['d_var_m']) - 
-                               np.min(d[x]['d_var_m'])))[0]                 
+                loc = np.where(d[x][curve] > 
+                               np.min(d[x][curve]) + 
+                               0.7*(np.max(d[x][curve]) - 
+                               np.min(d[x][curve])))[0]                 
                                 
 
             xs = np.linspace(0, 
                              pre_post[split][0] + pre_post[split][1],
-                             len(d[x]['d_var_m']))            
+                             len(d[x][curve]))            
 
             d[x]['lat'] = xs[-1] - xs[loc[0]]
 
@@ -1351,24 +1362,29 @@ wspace=0.214)
     mpl.rc('font', **font)    
 
 
-def plot_cosmos_lines():
+def plot_cosmos_lines(curve = 'd_var_m'):
+
+    amp_curve = ('max-min/max+min' if curve == 'd_var_m' 
+                         else 'amp_euc')
+                         
+    p_type = 'p' if curve == 'd_var_m' else 'p_euc' 
 
     mapping = 'Beryl'
     df, palette = get_allen_info()
     fig = plt.figure(figsize=(20, 15), constrained_layout=True)
      
-    gs = GridSpec(3, 7, figure=fig)
+    gs = GridSpec(len(align), 7, figure=fig)
 
     sc = 0
-    for split in align:
+    for split in list(align):
     
         d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'
                     f'curves_{split}_{mapping}.npy',
-                    allow_pickle=True).flat[0]['regs']
+                    allow_pickle=True).flat[0]
                     
         # get significant regions only
         regsa = [reg for reg in d
-                if d[reg]['p'] < 0.01]
+                if d[reg][p_type] < 0.05]
                                 
         # get cosmos parent regions for Swanson acronyms 
         cosregs = [df[df['id'] == int(df[df['acronym']==reg]['structure_id_path']
@@ -1390,19 +1406,19 @@ def plot_cosmos_lines():
 
             texts = []
             for reg in regs:
-                if any(np.isinf(d[reg]['d_var_m'])):
+                if any(np.isinf(d[reg][curve])):
                     print(f'inf in d_var_m of {reg}')
                     continue
 
                 xx = np.linspace(-pre_post[split][0], 
-                                  pre_post[split][1], len(d[reg]['d_var_m']))        
+                                  pre_post[split][1], len(d[reg][curve]))        
 
-                axs[k].plot(xx,d[reg]['d_var_m'], linewidth = 2,
+                axs[k].plot(xx,d[reg][curve], linewidth = 2,
                               color=palette[reg], 
                               label=f"{reg}")# {d[reg]['nclus']}
                               
-                y = np.max(d[reg]['d_var_m'])
-                x = xx[np.argmax(d[reg]['d_var_m'])]
+                y = np.max(d[reg][curve])
+                x = xx[np.argmax(d[reg][curve])]
                 ss = f"{reg}"#  {d[reg]['nclus']}"
                 texts.append(axs[k].text(x, y, ss, 
                                          color = palette[reg],
