@@ -166,13 +166,14 @@ def compute_impostor_behavior():
         for eid in eids_plus: 
             try:  
                 
-                # discard trials were feedback - stim is outside that range [sec]
-                rs_range = [0.08, 2]
+
 
                 # Load in trials data
                 trials = one.load_object(eid, 'trials', collection='alf')
                    
                 # remove certain trials    
+                # discard trials were feedback - stim is outside that range [sec]
+                rs_range = [0.08, 2]
                 stim_diff = trials['feedback_times'] - trials['stimOn_times']     
        
                 rm_trials = np.bitwise_or.reduce([np.isnan(trials['stimOn_times']),
@@ -181,7 +182,8 @@ def compute_impostor_behavior():
                                            np.isnan(trials['probabilityLeft']),
                                            np.isnan(trials['firstMovement_times']),
                                            np.isnan(trials['feedbackType']),
-                                           stim_diff > toolong])
+                                           stim_diff > rs_range[-1],
+                                           stim_diff < rs_range[0]])
                        
                 trn = []
 
@@ -232,8 +234,6 @@ def get_d_vars(split, pid,
     cut into trials, compute d_var per region
     '''    
 
-
-    
     
     eid,probe = one.pid2eid(pid)
 #    # Load in spikesorting
@@ -246,12 +246,14 @@ def get_d_vars(split, pid,
 #    good_clusters = clusters_labeled[clusters_labeled['label']==1]
 #    good_clusters.reset_index(drop=True, inplace=True)
 #    clusters = good_clusters
+#    # Find spikes that are from the clusterIDs
+#    spike_idx = np.isin(spikes['clusters'], clusters['cluster_id'])
+
     
     # load in spikes
     spikes, clusters = load_good_units(one, pid)    
     
-#    # Find spikes that are from the clusterIDs
-#    spike_idx = np.isin(spikes['clusters'], clusters['cluster_id'])
+
 
     # Load in trials data
 
@@ -1767,16 +1769,4 @@ def load_brandon():
 
     df = pd.read_csv('/home/mic/paper-brain-wide-map/manifold_analysis'
                      '/10-09-2022_BWMmetaanalysis_decodeblock.csv')
-
-
-
-
-
-#7, load failures:
-#['05ec6af9-6c83-422d-91a3-ba815fa65e92', '7dcd74a9-fc7a-4c3c-85b9-769d869629ec', 'be76cfe3-b2bb-4358-956b-0fad07215972', '46630957-63fd-4d0d-a2ba-8766f0796db8', '06d42449-d6ac-4c35-8f85-24ecfbc08bc1', '54c8f5de-83d7-49b9-9b4c-67fe0f07289b', '8bf0f1a4-0d8c-4df3-a99e-f7c81c809652']
-#stim
-
-
-
-
 
