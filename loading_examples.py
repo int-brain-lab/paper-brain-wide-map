@@ -1,4 +1,4 @@
-from brainwidemap import bwm_query, load_good_units
+from brainwidemap import bwm_query, load_good_units, load_good_trials
 from one.api import ONE
 from brainbox.io.one import SessionLoader
 
@@ -21,13 +21,13 @@ for pid in bwm_df['pid']:
 # Load session data for all eids
 for eid in bwm_df['eid'].unique():
     print(f'Loading trials for {eid}')
-    sess_loader = SessionLoader(one, eid)
-    sess_loader.load_trials()
-    trials = sess_loader.trials
+    trials = load_good_trials(one, eid)
     # Again, if you are not just interested in downloading the data but want to use it at this stage, your
     # analysis code would go here
 
-    # You can also load other data such as wheel, pose (DLC), motion_energy and pupil
+# For other data types, such as wheel, pose (DLC), motion_energy and pupil just use the SessionLoader, e.g.
+for eid in bwm_df['eid'].unique():
+    sess_loader = SessionLoader(one, eid)
     sess_loader.load_wheel()
     wheel = sess_loader.wheel
 
