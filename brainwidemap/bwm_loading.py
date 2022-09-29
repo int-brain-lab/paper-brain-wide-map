@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from iblutil.numerical import ismember
 
-from brainbox.io.one import SpikeSortingLoader
+from brainbox.io.one import SpikeSortingLoader, SessionLoader
 
 
 def bwm_query(one, alignment_resolved=True, return_details=False):
@@ -25,7 +25,7 @@ def bwm_query(one, alignment_resolved=True, return_details=False):
     Returns
     -------
     bwm_df: pandas.DataFrame
-        Containing of BWM sessions to be included in analyses with columns
+        BWM sessions to be included in analyses with columns
         ['pid', 'eid', 'probe_name', 'session_number', 'date', 'subject', 'lab']
     """
 
@@ -93,7 +93,7 @@ def load_good_units(one, pid, **kwargs):
     Returns
     -------
     good_clusters: pandas.DataFrame
-        Dataframe containing information of clusters for this pid that pass all quality metrics
+        Information of clusters for this pid that pass all quality metrics
     good_spikes: dict
         Spike trains associated with good clusters. Dictionary with keys ['depths', 'times', 'clusters', 'amps']
     """
@@ -112,3 +112,54 @@ def load_good_units(one, pid, **kwargs):
     good_spikes['clusters'] = good_clusters.index[ib].astype(np.int32)
 
     return good_spikes, good_clusters
+
+
+def load_good_trials(one, eid, min_rt=0.08, max_rt=2., nan_drop='default'):
+    """
+    Function to load for a given session all trials that have a reaction time between min_rt and max_rt and
+    that don't have a NaN in specified events.
+
+    Parameters
+    ----------
+    one: one.api.ONE
+        Instance to be used to local or remote database
+    eid: str
+        A session UUID
+    min_rt: float
+        Minimum admissible reaction time in seconds for a trial to be included. Default is 0.08.
+    max_rt: float
+        Maximum admissible reaction time in seconds for a trial to be included. Default is 2.
+    nan_drop: list or 'default'
+        List of trial events for which if they are NaN, a trial should be removed. If set to 'default' the list is
+        ['stimOn_times','choice','feedback_times','probabilityLeft','firstMovement_times','feedbackType']
+
+    Returns
+    -------
+    good_trials: pandas.DataFrame
+        Trials table containing trials for this session that pass the specified criteria. If complete with columns:
+        ['stimOff_times','intervals_bpod_0','intervals_bpod_1','goCueTrigger_times','feedbackType','contrastLeft',
+        'contrastRight','rewardVolume','goCue_times','choice','feedback_times','stimOn_times','response_times',
+        'firstMovement_times','probabilityLeft', 'intervals_0', 'intervals_1']
+    """
+
+    if nan_drop == 'default':
+        nan_drop = [
+            'stimOn_times',
+            'choice',
+            'feedback_times',
+            'probabilityLeft',
+            'firstMovement_times',
+            'feedbackType'
+        ]
+
+    sess_loader = SessionLoader(one, eid)
+    sess_loader.load_trials()
+
+    # Remove trials that are outside the allowed reaction time range
+    query = f'(feedback_times - stimOn_times) < {min_rt} | (feedback_times - stimOn_times) > {max_rt}'
+    sess_loader.trials.drop(index=sess_loader.trials.query(query).index, inplace=True)
+
+    # Remove trials with nan in the specified events
+    sess_loader.trials.dropna(axis=0, subset=nan_drop, inplace=True)
+
+    return sess_loader.trials
