@@ -6,7 +6,7 @@ from iblutil.numerical import ismember
 from brainbox.io.one import SpikeSortingLoader, SessionLoader
 
 
-def bwm_query(one, alignment_resolved=True, return_details=False):
+def bwm_query(one, alignment_resolved=True, return_details=False, freeze=None):
     """
     Function to query for brainwide map sessions that pass the most important quality controls. Returns a dataframe
     with one row per insertions and columns ['pid', 'eid', 'probe_name', 'session_number', 'date', 'subject', 'lab']
@@ -20,7 +20,11 @@ def bwm_query(one, alignment_resolved=True, return_details=False):
         least one alignment
     return_details: bool
         Default is False. If True returns a second output a list containing the full insertion dictionary for all
-        insertions returned by the query. Only needed if you need information that is not contained in the output dataframe
+        insertions returned by the query. Only needed if you need information that is not contained in the bwm_df.
+    freeze: {None}
+        If None, the database is queried for the current set of pids satisfying the criteria. If a string is specified,
+        a fixed set of eids and pids is returned instead of querying the database. The string must be equivalent to the
+        name of an official freeze.
 
     Returns
     -------
@@ -28,6 +32,11 @@ def bwm_query(one, alignment_resolved=True, return_details=False):
         BWM sessions to be included in analyses with columns
         ['pid', 'eid', 'probe_name', 'session_number', 'date', 'subject', 'lab']
     """
+
+    # if freeze is not None:
+    #     try:
+    #     except
+    #         print(f'{freeze} does not seem to be a dataset freeze.')
 
     base_query = (
         'session__project__name__icontains,ibl_neuropixel_brainwide_01,'
@@ -114,10 +123,10 @@ def load_good_units(one, pid, **kwargs):
     return good_spikes, good_clusters
 
 
-def load_good_trials(one, eid, min_rt=0.08, max_rt=2., nan_drop='default'):
+def load_trials_and_mask(one, eid, min_rt=0.08, max_rt=2., nan_exclude='default'):
     """
-    Function to load for a given session all trials that have a reaction time between min_rt and max_rt and
-    that don't have a NaN in specified events.
+    Function to load all trials for a given session and create a mask to exclude all trials that have a reaction time
+    shorter than min_rt or longer than max_rt or that have NaN for one of the specified events.
 
     Parameters
     ----------
@@ -129,21 +138,24 @@ def load_good_trials(one, eid, min_rt=0.08, max_rt=2., nan_drop='default'):
         Minimum admissible reaction time in seconds for a trial to be included. Default is 0.08.
     max_rt: float
         Maximum admissible reaction time in seconds for a trial to be included. Default is 2.
-    nan_drop: list or 'default'
-        List of trial events for which if they are NaN, a trial should be removed. If set to 'default' the list is
+    nan_exclude: list or 'default'
+        List of trial events that cannot be NaN for a trial to be included. If set to 'default' the list is
         ['stimOn_times','choice','feedback_times','probabilityLeft','firstMovement_times','feedbackType']
 
     Returns
     -------
-    good_trials: pandas.DataFrame
-        Trials table containing trials for this session that pass the specified criteria. If complete with columns:
+    trials: pandas.DataFrame
+        Trials table containing all trials for this session. If complete with columns:
         ['stimOff_times','intervals_bpod_0','intervals_bpod_1','goCueTrigger_times','feedbackType','contrastLeft',
         'contrastRight','rewardVolume','goCue_times','choice','feedback_times','stimOn_times','response_times',
         'firstMovement_times','probabilityLeft', 'intervals_0', 'intervals_1']
+    mask: pandas.Series
+        Boolean Series to mask trials table for trials that pass specified criteria. True for all trials that should be
+        included, False for all trials that should be excluded.
     """
 
-    if nan_drop == 'default':
-        nan_drop = [
+    if nan_exclude == 'default':
+        nan_exclude = [
             'stimOn_times',
             'choice',
             'feedback_times',
@@ -155,11 +167,14 @@ def load_good_trials(one, eid, min_rt=0.08, max_rt=2., nan_drop='default'):
     sess_loader = SessionLoader(one, eid)
     sess_loader.load_trials()
 
+    # Create a mask for trials to exclude
     # Remove trials that are outside the allowed reaction time range
-    query = f'(feedback_times - stimOn_times) < {min_rt} | (feedback_times - stimOn_times) > {max_rt}'
-    sess_loader.trials.drop(index=sess_loader.trials.query(query).index, inplace=True)
+    query = f'(firstMovement_times - stimOn_times < {min_rt}) | (firstMovement_times - stimOn_times > {max_rt})'
+    # Remove trials with nan in specified events
+    for event in nan_exclude:
+        query += f' | {event}.isnull()'
 
-    # Remove trials with nan in the specified events
-    sess_loader.trials.dropna(axis=0, subset=nan_drop, inplace=True)
+    # Create mask
+    mask = ~sess_loader.trials.eval(query)
 
-    return sess_loader.trials
+    return sess_loader.trials, mask

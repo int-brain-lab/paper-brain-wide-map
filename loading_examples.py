@@ -1,4 +1,4 @@
-from brainwidemap import bwm_query, load_good_units, load_good_trials
+from brainwidemap import bwm_query, load_good_units, load_trials_and_mask
 from one.api import ONE
 from brainbox.io.one import SessionLoader
 
@@ -18,10 +18,10 @@ for pid in bwm_df['pid']:
     # If you want to not just download the data but actually use the loaded data, this is where you would
     # run your analysis code
 
-# Load session data for all eids
+# Load trials data and masks for all eids
 for eid in bwm_df['eid'].unique():
     print(f'Loading trials for {eid}')
-    trials = load_good_trials(one, eid)
+    trials, maks = load_trials_and_mask(one, eid)
     # Again, if you are not just interested in downloading the data but want to use it at this stage, your
     # analysis code would go here
 
