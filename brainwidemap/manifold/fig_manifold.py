@@ -37,6 +37,7 @@ from pdf2image import convert_from_path
 import fitz
 from PIL import Image
 import io
+import matplotlib.patches as mpatches
 
 import random
 from random import shuffle
@@ -71,14 +72,15 @@ def T_BIN(split, c=c):
         return c    
 
 # trial split types, see get_d_vars for details       
-align = {'block_stim_r':'stim on',
-         'block_stim_l':'stim on',
+align = {
          'block':'stim on',
          'stim':'stim on',
          'choice':'motion on',
-         'fback':'feedback'}         
-#         'action':'motion on',         
-
+         'fback':'feedback'}
+                  
+# 'action':'motion on',         
+#'block_stim_r':'stim on',
+#'block_stim_l':'stim on',
 
 # [pre_time, post_time]
 pre_post = {'choice':[0.15,0],'stim':[0,0.15],
@@ -264,7 +266,7 @@ def get_d_vars(split, pid,
        
     # remove certain trials     
     rs_range = [0.08, 2]  # discard [long/short] reaction time trials
-    stim_diff = trials['feedback_times'] - trials['stimOn_times']     
+    stim_diff = trials['firstMovement_times'] - trials['stimOn_times']     
     rm_trials = np.bitwise_or.reduce([np.isnan(trials['stimOn_times']),
                                np.isnan(trials['choice']),
                                np.isnan(trials['feedback_times']),
@@ -563,7 +565,7 @@ def get_BWM_region_pid_pairs():
 
 
 def get_all_d_vars(split, eids_plus = None, control = True, 
-                   mapping='Beryl', exclude_fails=False):
+                   mapping='Beryl'):
 
     '''
     for all BWM insertions, get the PSTHs and acronyms,
@@ -576,12 +578,6 @@ def get_all_d_vars(split, eids_plus = None, control = True,
     if eids_plus == None:
         df = bwm_query(one)
         eids_plus = df[['eid','probe_name', 'pid']].values
-        
-    if exclude_fails:
-        with open('/home/mic/load_failures.txt') as f:
-            lines = [line.rstrip() for line in f]    
-        ins = [x.split("'")[1] for x in lines]    
-
 
     # exclude pids that are not in csv list (min 10 and double ins)
     gpids = np.unique(pd.read_csv('/home/mic/paper-brain-wide-map/'
@@ -596,9 +592,6 @@ def get_all_d_vars(split, eids_plus = None, control = True,
     print(f'Processing {len(gpids)} of {len(eids_plus)} insertions')
     for i in eids_plus:
         eid, probe, pid = i  
-        if exclude_fails:
-            if pid in ins:
-                continue
                 
         if pid not in gpids:
             continue    
@@ -695,7 +688,7 @@ def d_var_stacked(split, mapping='Beryl'):
     regs = Counter(acs)
     stde = {}
     pcs = {}
-    euc = {}  # also compute Euclidean distance on PCA reduced trajectories
+    euc = {}  # also compute Euclidean distance on PCA-reduced trajectories
     p_euc = {}
     for reg in regs:         
                 
@@ -718,7 +711,7 @@ def d_var_stacked(split, mapping='Beryl'):
             t0 = wsc[:,nobs * tr*2 :nobs * (tr*2 + 1)] 
             t1 = wsc[:,nobs * (tr*2 + 1):nobs * (tr*2 + 2)] # actual trajectories
             
-            dists.append((sum((t0 - t1)**2)**0.5))
+            dists.append(sum((t0 - t1)**2)**0.5)
             
         euc[reg] = dists[0]
         
@@ -854,7 +847,8 @@ def put_panel_label(ax, k):
                         fontsize=16, va='top', ha='right', weight='bold')
 
 
-def plot_all(curve='d_var_m', amp_number=False, mapping='Beryl'):
+def plot_all(curve='euc', amp_number=False, 
+             mapping='Beryl', top_amps=False):
 
     '''
     main figure: show example trajectories,
@@ -867,8 +861,6 @@ def plot_all(curve='d_var_m', amp_number=False, mapping='Beryl'):
     
     nrows = 12
         
-    
-    
     fig = plt.figure(figsize=(10, 15))
     gs = fig.add_gridspec(nrows, len(align))
     
@@ -932,7 +924,7 @@ def plot_all(curve='d_var_m', amp_number=False, mapping='Beryl'):
         if imn == 'intro':
             axs.append(fig.add_subplot(gs[:3,0:2]))
         else:
-            axs.append(fig.add_subplot(gs[:3,-1]))            
+            axs.append(fig.add_subplot(gs[:3,-2:]))            
 
         data_path = '/home/mic/paper-brain-wide-map/manifold_analysis/'
         pdf = fitz.open(data_path + f'{imn}.pdf')
@@ -946,29 +938,34 @@ def plot_all(curve='d_var_m', amp_number=False, mapping='Beryl'):
 
 
     '''
-    plot for each split an example region PCA trajectory
+    example regions per split for embedded space and line plots
     '''
-
     
-    exs = {'stim': 'VISpm',
-           'choice': 'GRN',#'VII'
-           'fback': 'LDT',
-           'block': 'AVP',
-           'block_stim_l': 'CA1',
-           'block_stim_r': 'DMH'} #VPL 
+    exs = {'stim': ['VISp', 'VISpm', 'VISl', 'GRN', 'MOs'],
+           'choice': ['GRN', 'VISl', 'SSp-ul', 'SSs', 'IRN'],
+           'fback': ['AUDp', 'CA1', 'EPd', 'SPVI', 'SSp-ul'],
+           'block': ['ACAv', 'SPVI', 'IC', 'Eth', 'RSPagl']} 
+#           'block_stim_l': 'CA1',
+#           'block_stim_r': 'VPL'} #VPL 
                   
-    # pick max amp region as example
-    exs = {split: [tops[split][0][j] for j in range(len(tops[split][0]))
-                if tops[split][1][j] < 0.05][0] for split in align}
+    if top_amps:  # pick max amp region as example
+        exs = {split: [tops[split][0][j] for j in 
+               range(len(tops[split][0])) if 
+               tops[split][1][j] < 0.05][0] for split in align}   
 
-            
+    '''
+    Trajectories for example regions in PCA embedded 3d space
+    '''
+                     
     c = 0
     for split in align:
         d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'
                 f'curves_{split}_{mapping}.npy',
                 allow_pickle=True).flat[0]
 
-        reg = exs[split]
+        # pick example region
+        reg = exs[split][0]
+        
         axs.append(fig.add_subplot(gs[3:6,c],
                                    projection='3d'))           
 
@@ -1040,40 +1037,50 @@ def plot_all(curve='d_var_m', amp_number=False, mapping='Beryl'):
         draw coordinate system with pc1, pc2, pc3 labels
         '''
   
-        axs[k].legend(frameon=False).set_draggable(True)
+        
+        handles, labels =  axs[k].get_legend_handles_labels()
+        updated_handles = []
+        for handle in handles:
+            updated_handles.append(mpatches.Patch(
+                                   color=handle.get_markerfacecolor(),
+                                   label=handle.get_label()))
+                                   
+        by_label = dict(sorted(dict(zip(labels,
+                        updated_handles)).items()))
+                        
+        axs[k].legend(by_label.values(), by_label.keys(),
+                      frameon=False, fontsize=6).set_draggable(True)
+
+
         put_panel_label(axs[k], k)
 
         c += 1
         k += 1
       
     '''
-    line plot per top 5 regions per split
+    line plot per 5 example regions per split
     '''
     c = 0  # column index
 
 
     for split in align:
-        axs.append(fig.add_subplot(gs[6:8,c]))
+        if c == 0:
+            axs.append(fig.add_subplot(gs[6:8,c]))
+        else:  # to share y axis
+            axs.append(fig.add_subplot(gs[6:8,c],sharey=axs[len(align)+2]))    
+            
             
         f = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'
                     f'curves_{split}_{mapping}.npy',
                     allow_pickle=True).flat[0]
-                      
-
-        # line plots for top 5 regions only
-        regs = [tops[split][0][j] for j in range(len(tops[split][0]))
-                if tops[split][1][j] < 0.05][:5]
-        
-        #tops[split][0][:5]
-        
-#        
-#        if split == 'fback':
-#            regs = ['AUDp', 'LDT', 'PSV', 'BMAa', 'GU']
+                   
+        # example regions to illustrate line plots              
+        regs = exs[split]
         
         texts = []          
         for reg in regs:
-            if any(np.isinf(f[reg]['d_var_m'])):
-                print(f'inf in d_var_m of {reg}')
+            if any(np.isinf(f[reg][curve])):
+                print(f'inf in {curve} of {reg}')
                 continue
 
 
@@ -1133,22 +1140,22 @@ def plot_all(curve='d_var_m', amp_number=False, mapping='Beryl'):
         k += 1
 
     '''
-    scatter latency versus max for all significant regions
+    scatter latency versus max amplitude for significant regions
     '''   
-    c = 0
-    
-    if curve == 'euc':
-        fig.suptitle(f'distance metric: {curve}') 
-           
+
     if amp_number: 
         fig2 = plt.figure()
         axss = []
         if curve == 'euc':
             fig2.suptitle(f'distance metric: {curve}')
-          
+            
+    c = 0          
     for split in align:
-    
-        axs.append(fig.add_subplot(gs[8:,c]))
+        
+        if c == 0:
+            axs.append(fig.add_subplot(gs[8:,c]))
+        else:
+            axs.append(fig.add_subplot(gs[8:,c],sharey=axs[len(align)*2+2]))
         
         d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'         
                     f'curves_{split}_{mapping}.npy',
@@ -1156,9 +1163,6 @@ def plot_all(curve='d_var_m', amp_number=False, mapping='Beryl'):
 
         acronyms = [tops[split][0][j] for j in range(len(tops[split][0]))
                 if tops[split][1][j] < 0.05]
-                
-#        print(split)
-#        print(acronyms)        
                 
 
         if curve == 'euc':
@@ -1186,7 +1190,14 @@ def plot_all(curve='d_var_m', amp_number=False, mapping='Beryl'):
             axs[k].errorbar(lats, maxes, yerr=stdes, fmt='None', 
                             ecolor=cols, ls = 'None', elinewidth = 0.5)
                         
-        axs[k].scatter(lats, maxes, color=cols, marker='o',s=1)                 
+        axs[k].scatter(lats, maxes, color=cols, marker='o',s=1)
+        
+        # put extra marker for highlighted regions
+        exs_i = [i for i in range(len(acronyms)) 
+                 if acronyms[i] in exs[split]]
+                 
+        axs[k].scatter(np.array(lats)[exs_i], np.array(maxes)[exs_i], 
+                       color=np.array(cols)[exs_i], marker='x',s=25)                 
                
         axs[k].axhline(y=lower[split],linestyle='--',color='r')
         
@@ -1195,7 +1206,7 @@ def plot_all(curve='d_var_m', amp_number=False, mapping='Beryl'):
             if d[acronyms[i]][amp_curve] > lower[split]:
                 axs[k].annotate('  ' + reg, # f"{reg} {f[reg]['nclus']}" ,
                                 (lats[i], maxes[i]),
-                    fontsize=9,color=palette[acronyms[i]])            
+                    fontsize=6,color=palette[acronyms[i]])            
 
         axs[k].axvline(x=0, lw=0.5, linestyle='--', c='k')
         
@@ -1211,8 +1222,8 @@ def plot_all(curve='d_var_m', amp_number=False, mapping='Beryl'):
         axs[k].spines['top'].set_visible(False)
         axs[k].spines['right'].set_visible(False)        
         if c == 0:   
-            axs[k].set_ylabel('amplitude [a.u.]')#f'(max-min)/(max+min)'
-        axs[k].set_xlabel('latency [sec]')#(min+0.7*(max-min))
+            axs[k].set_ylabel('max amplitude [a.u.]')
+        axs[k].set_xlabel('latency [sec]')
         axs[k].set_title(f"{split}, {tops[split+'_s']} sig")
         put_panel_label(axs[k], k)
         c += 1     
@@ -1222,25 +1233,19 @@ def plot_all(curve='d_var_m', amp_number=False, mapping='Beryl'):
     fig.tight_layout()
     
     fig.subplots_adjust(top=0.98,
-bottom=0.051,
-left=0.1,
-right=0.971,
-hspace=1.3,
-wspace=0.52)
+                        bottom=0.051,
+                        left=0.1,
+                        right=0.971,
+                        hspace=1.3,
+                        wspace=0.52)
 
-  
-    
     fig.tight_layout()
-    
-    
+
     fig.savefig('/home/mic/paper-brain-wide-map/'
            f'overleaf_figs/manifold/'
            f'manifold.pdf', dpi=400)              
-#    fig.savefig('/home/mic/paper-brain-wide-map/'
-#               f'overleaf_figs/manifold/plots/'
-#               f'main.png',dpi=200)
-#    plt.close()
 
+    print(f'distance metric: {curve}') 
  
 
 
