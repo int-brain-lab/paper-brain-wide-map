@@ -1,9 +1,12 @@
 from dateutil import parser
 import numpy as np
 import pandas as pd
-from iblutil.numerical import ismember
+from pathlib import Path
 
+from iblutil.numerical import ismember
 from brainbox.io.one import SpikeSortingLoader, SessionLoader
+from ibllib.atlas.regions import BrainRegions
+from one.remote import aws
 
 
 def bwm_query(one, alignment_resolved=True, return_details=False, freeze=None):
@@ -14,7 +17,7 @@ def bwm_query(one, alignment_resolved=True, return_details=False, freeze=None):
     Parameters
     ----------
     one: one.api.ONE
-        Instance to be used to local or remote database
+        Instance to be used to connect to local or remote database
     alignment_resolved: bool
         Default is True. If True, only returns sessions with resolved alignment, if False returns all sessions with at
         least one alignment
@@ -95,7 +98,7 @@ def load_good_units(one, pid, **kwargs):
     Parameters
     ----------
     one: one.api.ONE
-        Instance to be used to local or remote database
+        Instance to be used to connect to local or remote database
     pid: str
         A probe insertion UUID
 
@@ -131,7 +134,7 @@ def load_trials_and_mask(one, eid, min_rt=0.08, max_rt=2., nan_exclude='default'
     Parameters
     ----------
     one: one.api.ONE
-        Instance to be used to local or remote database
+        Instance to be used to connect to local or remote database
     eid: str
         A session UUID
     min_rt: float
@@ -178,3 +181,41 @@ def load_trials_and_mask(one, eid, min_rt=0.08, max_rt=2., nan_exclude='default'
     mask = ~sess_loader.trials.eval(query)
 
     return sess_loader.trials, mask
+
+
+def download_clusters_table(one, local_path=None, tag='2022_Q4_IBL_et_al_BWM', overwrite=False):
+    """
+    Function to download the aggregated clusters information associated with the given data release tag from AWS.
+
+    Parameters
+    ----------
+    one: one.api.ONE
+        Instance to be used to connect to database (mode must be 'remote', 'refresh' or 'auto')
+    local_path: str or pathlib.Path
+        Directory to which clusters.pqt should be downloaded. If None, downloads to current working directory.
+    tag: str
+        Tag for which to download the clusters table. Default is '2022_Q4_IBL_et_al_BWM'.
+    overwrite : bool
+        If True, will re-download files even if file exists locally and file sizes match.
+
+    Returns
+    -------
+    clusters_path: pathlib.Path
+        Path to the downloaded clusters table
+    """
+
+    assert not one.offline, 'The one instance you passed is offline, you need an online instance for this function.'
+    local_path = Path.cwd() if local_path is None else Path(local_path)
+    assert local_path.exists(), 'The local_path you passed does not exist.'
+
+    clusters_path = local_path.joinpath('clusters.pqt')
+    s3, bucket_name = aws.get_s3_from_alyx(alyx=one.alyx)
+    aws.s3_download_file(f"aggregates/{tag}/clusters.pqt", clusters_path, s3=s3,
+                         bucket_name=bucket_name, overwrite=overwrite)
+
+    if clusters_path.exists():
+        print(f'Clusters table at to {clusters_path}')
+        return clusters_path
+    else:
+        print(f'Downloading of clusters table failed.')
+        return
