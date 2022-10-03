@@ -9,7 +9,7 @@ from ibllib.atlas.regions import BrainRegions
 from one.remote import aws
 
 
-def bwm_query(one, alignment_resolved=True, return_details=False, freeze=None):
+def bwm_query(one=None, alignment_resolved=True, return_details=False, freeze='2022_10_initial'):
     """
     Function to query for brainwide map sessions that pass the most important quality controls. Returns a dataframe
     with one row per insertions and columns ['pid', 'eid', 'probe_name', 'session_number', 'date', 'subject', 'lab']
@@ -17,39 +17,43 @@ def bwm_query(one, alignment_resolved=True, return_details=False, freeze=None):
     Parameters
     ----------
     one: one.api.ONE
-        Instance to be used to connect to local or remote database
+        Instance to be used to connect to local or remote database. Only required if freeze=None.
     alignment_resolved: bool
         Default is True. If True, only returns sessions with resolved alignment, if False returns all sessions with at
         least one alignment
     return_details: bool
         Default is False. If True returns a second output a list containing the full insertion dictionary for all
         insertions returned by the query. Only needed if you need information that is not contained in the bwm_df.
-    freeze: {None}
-        If None, the database is queried for the current set of pids satisfying the criteria. If a string is specified,
-        a fixed set of eids and pids is returned instead of querying the database. The string must be equivalent to the
-        name of an official freeze.
+    freeze: {None, 2022_10_initial}
+        Default is 2022_10_initial. If None, the database is queried for the current set of pids satisfying the
+        criteria. If a string is specified, a fixed set of eids and pids is returned instead of querying the database.
 
     Returns
     -------
     bwm_df: pandas.DataFrame
         BWM sessions to be included in analyses with columns
         ['pid', 'eid', 'probe_name', 'session_number', 'date', 'subject', 'lab']
+    insertions: list
+        Only returned if return_details=True. List of dictionaries with details for each insertions.
     """
-    if frozen:
+
+    # If a freeze is requested just try to load the respective file
+    if freeze is not None:
+        if return_details is True:
+            print('Cannot return details when using a data freeze. Returning only main dataframe.')
+
         fixtures_path = Path(__file__).parent.joinpath('fixtures')
-        bwm_df = pd.read_parquet(fixtures_path.joinpath('insertions.pqt'))
-        if return_details:
-            with open(fixtures_path.joinpath('insertions_details.json')) as fp:
-                insertions = json.load(fp)
-            return bwm_df, insertions
-        else:
-            return bwm_df
+        freeze_file = fixtures_path.joinpath(f'{freeze}.csv')
+        assert freeze_file.exists(), f'{freeze} does not seem to be a valid freeze.'
 
-    # if freeze is not None:
-    #     try:
-    #     except
-    #         print(f'{freeze} does not seem to be a dataset freeze.')
+        print(f'Loading from fixtures/{freeze}.csv')
+        bwm_df = pd.read_csv(freeze_file, index_col=0)
+        bwm_df['date'] = [parser.parse(i).date() for i in bwm_df['date']]
 
+        return bwm_df
+
+    # Else, query the database
+    assert one is not None, 'If freeze=None, you need to pass an instance of one.api.ONE'
     base_query = (
         'session__project__name__icontains,ibl_neuropixel_brainwide_01,'
         'session__json__IS_MOCK,False,'
