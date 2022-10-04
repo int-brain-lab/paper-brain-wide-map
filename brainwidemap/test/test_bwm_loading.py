@@ -51,3 +51,20 @@ def test_filter_regions():
 
     # Remove the table
     clusters_table.unlink()
+
+
+def test_filter_trials():
+    one = ONE()
+    bwm_df = bwm_loading.bwm_query(freeze='2022_10_initial')
+
+    # Test with downloading clusters table first
+    trials_table = bwm_loading.download_aggregate_tables(one, type='trials')
+    assert trials_table.exists()
+
+    eids = bwm_loading.filter_trials(bwm_df['eid'], trials_table=trials_table)
+    assert eids.shape == (155,)
+
+    eids = bwm_loading.filter_trials(bwm_df['eid'], one=one, min_trials=None)
+    assert eids.shape == (350,)
+
+    trials_table.unlink()
