@@ -242,6 +242,7 @@ def filter_regions(pids, clusters_table=None, one=None, mapping='Beryl',
     ----------
     pids: list or pandas.Series
         Probe insertion ids to map to regions. Typically, the 'pid' column of the bwm_df returned by bwm_query.
+        Note that these pids must be represented in clusters_table to be considered for the filter.
     clusters_table: str or pathlib.Path
         Absolute path to clusters table to be used for filtering. If None, requires to provide one.api.ONE instance
         to download the latest version.
@@ -278,9 +279,9 @@ def filter_regions(pids, clusters_table=None, one=None, mapping='Beryl',
             clusters_table = download_aggregate_tables(one, type='clusters')
     clus_df = pd.read_parquet(clusters_table)
 
-    # Only consider pids in bwm_df
-    clus_df = clus_df.loc[clus_df['pid'].isin(bwm_df['pid'])]
-    diff = set(bwm_df['pid']).difference(set(clus_df['pid']))
+    # Only consider given
+    clus_df = clus_df.loc[clus_df['pid'].isin(pids)]
+    diff = set(pids).difference(set(clus_df['pid']))
     if len(diff) != 0:
         print('WARNING: Not all pids in bwm_df are found in cluster table.')
 
@@ -311,3 +312,105 @@ def filter_regions(pids, clusters_table=None, one=None, mapping='Beryl',
     regions_df.reset_index(inplace=True, drop=True)
 
     return regions_df
+
+
+
+def bwm_filter(bwm_df, min_trials=200, min_qc=1., min_units_region=10, min_probes_region=2, mapping='Beryl',
+               clusters_table=None, trials_table=None, one=None):
+    """
+
+    Parameters
+    ----------
+    bwm_df: pandas.DataFrame
+        Dataframe with at least columns 'eid' and 'pid'. Typically output of bwm_query()
+    min_trials: int or None
+        Minimum number of trials that pass default criteria (see load_trials_and_mask()) for a session to be retained.
+        Default is 200. If None, criterion is not applied
+    min_qc: float or None
+        Minimum QC label for a spike sorted unit to be retained. Default is 1. If None, criterion is not applied.
+    min_units_region: int or None
+        Minimum number of (qc passing) units per region for a region to be retained. Default is 10. If None, criterion
+        is not applied
+    min_probes_region: int or None
+        Minimum number of probes (with qc passing units) per region for a region to be retained. Default is 2. If None,
+        criterion is not applied.
+    mapping: str
+        Mapping from atlas id to brain region acronym to be applied. Default is 'Beryl'.
+    clusters_table: str or pathlib.Path
+        Absolute path to clusters table to be used for filtering. If None, requires to provide one.api.ONE instance
+        to download the latest version. Required when using min_qc, min_units_region or min_probes_region.
+    trials_table: str or pathlib.Path
+        Absolute path to trials table to be used for filtering. If None, requires to provide one.api.ONE instance
+        to download the latest version. Required when using min_trials.
+    one: one.api.ONE
+        Instance to be used to connect to download clusters or trials table if these are not explicitly provided.
+
+    Returns
+    -------
+    bwm_df: pandas.DataFrame
+        Input dataframe filtered according to chosen criteria, and re-indexed.
+    """
+
+    # Filter based on trials
+    if min_trials:
+        if trials_table is None:
+            if one is None:
+                print(f'Requested filter requires trials_table. You either need to provide a path to trials_table '
+                      f'or an instance of one.api.ONE to download trials_table.')
+                return
+            else:
+                trials_table = download_aggregate_tables(one, type='trials')
+        trials_df = pd.read_parquet(trials_table)
+
+        pass_trials = trials_df.groupby('eid').aggregate(n_trials=pd.NamedAgg(column='bwm_include', aggfunc='sum'))
+        pass_trials.reset_index(inplace=True)
+        keep_eids = pass_trials.loc[pass_trials['n_trials'] >= min_trials]['eid']
+
+        bwm_df = bwm_df.loc[bwm_df['eid'].isin(keep_eids)]
+        bwm_df.reset_index(inplace=True, drop=True)
+
+    # These require the clusters table
+    if any([min_qc, min_units_region, min_probes_region]):
+        if clusters_table is None:
+            if one is None:
+                print(f'Requested filter requires clusters_table. You either need to provide a path to clusters_table '
+                      f'or an instance of one.api.ONE to download clusters_table.')
+                return
+            else:
+                clusters_table = download_aggregate_tables(one, type='clusters')
+        clus_df = pd.read_parquet(clusters_table)
+
+        # Only consider pids in bwm_df
+        clus_df = clus_df.loc[clus_df['pid'].isin(bwm_df['pid'])]
+        diff = set(bwm_df['pid']).difference(set(clus_df['pid']))
+        if len(diff) != 0:
+            print('WARNING: Not all pids in bwm_df are found in cluster table.')
+
+        # Only consider units that pass min_qc
+        if min_qc:
+            clus_df = clus_df.loc[clus_df['label'] >= min_qc]
+
+        # Add region acronyms column and remove root and void regions
+        if min_units_region or min_probes_region:
+            br = BrainRegions()
+            clus_df[f'{mapping}'] = br.id2acronym(clus_df['atlas_id'], mapping=f'{mapping}')
+            clus_df = clus_df.loc[~clus_df[f'{mapping}'].isin(['void', 'root'])]
+
+            # Count units and probes per region
+            regions_df = clus_df.groupby(f'{mapping}').aggregate(
+                n_probes=pd.NamedAgg(column='pid', aggfunc='nunique'),
+                n_units=pd.NamedAgg(column='cluster_id', aggfunc='count')
+            )
+            regions_df.reset_index(inplace=True)
+
+            clus_df = pd.merge(clus_df, regions_df, how='left', on=f'{mapping}')
+            if min_units_region:
+                clus_df = clus_df[clus_df.eval(f'n_units >= {min_units_region}')]
+            if min_probes_region:
+                clus_df = clus_df[clus_df.eval(f'n_probes >= {min_probes_region}')]
+
+        keep_pid = clus_df['pid'].unique()
+        bwm_df = bwm_df[bwm_df['pid'].isin(keep_pid)]
+        bwm_df.reset_index(inplace=True, drop=True)
+
+    return bwm_df
