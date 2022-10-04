@@ -35,6 +35,15 @@ def bwm_query(one, alignment_resolved=True, return_details=False, freeze=None):
         BWM sessions to be included in analyses with columns
         ['pid', 'eid', 'probe_name', 'session_number', 'date', 'subject', 'lab']
     """
+    if frozen:
+        fixtures_path = Path(__file__).parent.joinpath('fixtures')
+        bwm_df = pd.read_parquet(fixtures_path.joinpath('insertions.pqt'))
+        if return_details:
+            with open(fixtures_path.joinpath('insertions_details.json')) as fp:
+                insertions = json.load(fp)
+            return bwm_df, insertions
+        else:
+            return bwm_df
 
     # if freeze is not None:
     #     try:
