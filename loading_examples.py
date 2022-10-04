@@ -14,7 +14,7 @@ bwm_df = bwm_query(one)
 # Load cluster information and spike trains for all good units
 # The first time you run this, it will take a long time because it needs to download all data
 for pid in bwm_df['pid']:
-    spikes, clusters = load_good_units(one, pid)
+    spikes, clusters = load_good_units(one, pid, compute_metrics=True)
     # If you want to not just download the data but actually use the loaded data, this is where you would
     # run your analysis code
 

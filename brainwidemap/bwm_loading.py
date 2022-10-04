@@ -104,7 +104,7 @@ def bwm_query(one=None, alignment_resolved=True, return_details=False, freeze='2
         return bwm_df
 
 
-def load_good_units(one, pid, **kwargs):
+def load_good_units(one, pid, compute_metrics=False, **kwargs):
     """
     Function to load the cluster information and spike trains for clusters that pass all quality metrics.
 
@@ -126,7 +126,8 @@ def load_good_units(one, pid, **kwargs):
     pname = kwargs.pop('pname', '')
     spike_loader = SpikeSortingLoader(pid=pid, one=one, eid=eid, pname=pname)
     spikes, clusters, channels = spike_loader.load_spike_sorting()
-    clusters_labeled = SpikeSortingLoader.merge_clusters(spikes, clusters, channels).to_df()
+    clusters_labeled = SpikeSortingLoader.merge_clusters(
+        spikes, clusters, channels, compute_metrics=compute_metrics).to_df()
     iok = clusters_labeled['label'] == 1
     good_clusters = clusters_labeled[iok]
 
