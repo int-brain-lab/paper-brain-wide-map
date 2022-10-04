@@ -314,7 +314,7 @@ def filter_regions(pids, clusters_table=None, one=None, mapping='Beryl',
     return regions_df
 
 
-def filter_trials(eids, trials_table=None, one=None, min_trials=200):
+def filter_sessions(eids, trials_table=None, one=None, min_trials=200):
     """
     Filters eids for those that have fulfill certain criteria.
 

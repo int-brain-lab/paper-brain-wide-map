@@ -61,10 +61,10 @@ def test_filter_trials():
     trials_table = bwm_loading.download_aggregate_tables(one, type='trials')
     assert trials_table.exists()
 
-    eids = bwm_loading.filter_trials(bwm_df['eid'], trials_table=trials_table)
+    eids = bwm_loading.filter_sessions(bwm_df['eid'], trials_table=trials_table)
     assert eids.shape == (155,)
 
-    eids = bwm_loading.filter_trials(bwm_df['eid'], one=one, min_trials=None)
+    eids = bwm_loading.filter_sessions(bwm_df['eid'], one=one, min_trials=None)
     assert eids.shape == (350,)
 
     trials_table.unlink()
