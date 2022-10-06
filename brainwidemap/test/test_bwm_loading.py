@@ -30,24 +30,24 @@ def test_filter_regions():
 
     regions_df = bwm_loading.filter_regions(bwm_df['pid'], clusters_table=clusters_table)
     assert set(regions_df.keys()) == set(['Beryl', 'pid', 'n_units', 'n_probes'])
-    assert regions_df.shape == (2324, 4)
+    assert regions_df.shape == (2465, 4)
 
     # Test without passing clusters table
     regions_df = bwm_loading.filter_regions(bwm_df['pid'], one=one)
-    assert regions_df.shape == (2324, 4)
+    assert regions_df.shape == (2465, 4)
 
     # Test QC filter only
     regions_df = bwm_loading.filter_regions(bwm_df['pid'], clusters_table=clusters_table, min_qc=1,
                                             min_units_region=None, min_probes_region=None)
-    assert regions_df.shape == (2431, 4)
+    assert regions_df.shape == (2574, 4)
     # Test units filter only
     regions_df = bwm_loading.filter_regions(bwm_df['pid'], clusters_table=clusters_table, min_qc=None,
                                             min_units_region=10, min_probes_region=None)
-    assert regions_df.shape == (2938, 4)
+    assert regions_df.shape == (3105, 4)
     # Test probes filter onl
     regions_df = bwm_loading.filter_regions(bwm_df['pid'], clusters_table=clusters_table, min_qc=None,
                                             min_units_region=None, min_probes_region=2)
-    assert regions_df.shape == (2929, 4)
+    assert regions_df.shape == (3100, 4)
 
     # Remove the table
     clusters_table.unlink()
