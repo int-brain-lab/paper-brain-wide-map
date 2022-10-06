@@ -8,7 +8,7 @@ from brainwidemap import bwm_query, load_good_units, load_trials_and_mask, filte
 
 # Specify a path to download the cluster and trials tables
 local_path = Path.home().joinpath('bwm_examples')
-local_path.mkdir()
+local_path.mkdir(exist_ok=True)
 
 """
 Instantiate ONE
