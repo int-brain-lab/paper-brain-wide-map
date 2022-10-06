@@ -29,8 +29,8 @@ except:
     pass
 
 # Load the list of probe insertions and select probe (not sure about this, why not just index directly)
-one = ONE()
-bwm_df = bwm_query(one)
+one = ONE(mode='local')
+bwm_df = bwm_query()
 
 pid_idx = index % bwm_df.index.size
 job_id = index // bwm_df.index.size
@@ -49,7 +49,7 @@ sess_loader.trials['trial_end'] = sess_loader.trials['stimOn_times'] + T_AFT
 
 # Load spike sorting data and put it in a dictionary for now
 spikes, clusters = load_good_units(one, bwm_df.iloc[pid_idx]['pid'], eid=bwm_df.iloc[pid_idx]['eid'],
-                                   pname=bwm_df.iloc[pid_idx]['probe_name'])
+                                   pname=bwm_df.iloc[pid_idx]['probe_name'], compute_metrics=True)
 
 neural_dict = {
     'spk_times': spikes['times'],
