@@ -1,17 +1,23 @@
+from datetime import date
 import pandas as pd
+from pathlib import Path
+
 from one.api import ONE
 from brainwidemap import bwm_query
 from brainbox.io.one import SessionLoader
 
-local_path = '/home/julia/data/2022_Q4_IBL_et_al_BWM/trials.pqt'
 
-one = ONE(mode='local')
+year_week = date.today().isocalendar()[:2]
+STAGING_PATH = Path('/mnt/s0/aggregates/2022_Q4_IBL_et_al_BWM').joinpath(f'{year_week[0]}_W{year_week[1]:02}_bwm')
+
+one = ONE(base_url='https://alyx.internationalbrainlab.org')
 bwm_df = bwm_query()
 
 all_trials = []
 err = []
-for eid in bwm_df['eid'].unique():
+for i, eid in enumerate(bwm_df['eid'].unique()):
     try:
+        print(f'Session {i}/{len(bwm_df["eid"].unique())}')
         sl = SessionLoader(one, eid)
         sl.load_trials()
         sl.trials.insert(0, 'eid', eid)
@@ -39,7 +45,12 @@ for event in nan_exclude:
 df_trials['bwm_include'] = df_trials.eval(query)
 
 # Save to file
-df_trials.to_parquet(local_path)
+df_trials.to_parquet(STAGING_PATH.joinpath('trials.pqt'))
 
 # Upload to s3
-print(f'aws s3 sync "{local_path}" s3://ibl-brain-wide-map-private/aggregates/2022_Q4_IBL_et_al_BWM/trials.pqt')
+week_file = STAGING_PATH.joinpath('trials.pqt')
+root_file = STAGING_PATH.parent.joinpath('trials.pqt')
+week = STAGING_PATH.name
+print(f"cp {week_file} {root_file}")
+print(f'aws s3 sync "{week_file}" s3://ibl-brain-wide-map-private/aggregates/2022_Q4_IBL_et_al_BWM/trials.pqt')
+print(f'aws s3 sync "{week_file}" s3://ibl-brain-wide-map-private/aggregates/2022_Q4_IBL_et_al_BWM/{week}/trials.pqt')
