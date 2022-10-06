@@ -59,7 +59,7 @@ red_right = [0.66080672, 0.21526712, 0.23069468]
 c = 0.0125  # 0.005 sec for a static bin size, or None for single bin
 sts = 0.002  # stride size in s for overlapping bins 
 ntravis = 30  # number of trajectories for visualisation, first 2 real
-nrand = 200  # 100, takes 10 h number of random trial splits for control
+nrand = 150  # 
 min_reg = 100  # 100, minimum number of neurons in pooled region
 
 
@@ -72,11 +72,10 @@ def T_BIN(split, c=c):
         return c    
 
 # trial split types, see get_d_vars for details       
-align = {
-         'block':'stim on',
-         'stim':'stim on',
+align = {'stim':'stim on',
          'choice':'motion on',
-         'fback':'feedback'}
+         'fback':'feedback',
+         'block':'stim on'}
                   
 # 'action':'motion on',         
 #'block_stim_r':'stim on',
@@ -253,7 +252,7 @@ def get_d_vars(split, pid,
 
     
     # load in spikes
-    spikes, clusters = load_good_units(one, pid)    
+    spikes, clusters = load_good_units(one, pid, compute_metrics=True)    
     
 
 
@@ -290,7 +289,8 @@ def get_d_vars(split, pid,
         for side in ['Left', 'Right']:
             events.append(trials['stimOn_times'][np.bitwise_and.reduce([
                 ~rm_trials,~np.isnan(trials[f'contrast{side}'])])])
-            trn.append(np.arange(len(trials['stimOn_times']))[np.bitwise_and.reduce([ 
+            trn.append(np.arange(len(trials['stimOn_times']))
+            [np.bitwise_and.reduce([ 
             ~rm_trials,~np.isnan(trials[f'contrast{side}'])])])
        
     elif split == 'fback':    
@@ -387,19 +387,14 @@ def get_d_vars(split, pid,
     bins2 = [x[:,goodcells,:] for x in bins]
     bins = bins2    
 
-    # discard cells if not in csv list (at least 10 clus & at least 2 recs)
-    gregs = set(np.unique(pd.read_csv('/home/mic/paper-brain-wide-map/'
-                                      'manifold_analysis/'
-                                      'bwm_sess_regions.csv')['Beryl']))
-    acs_ = set(np.unique(acs)).intersection(gregs)
-    goodcells = np.bitwise_or.reduce([acs == reg for reg in acs_])
+    # remove ill-defined regions
+    goodcells = ~np.bitwise_or.reduce([acs == reg for 
+                                       reg in ['void','root']])
     
     acs = acs[goodcells]
     b = b[:,goodcells,:]
     bins2 = [x[:,goodcells,:] for x in bins]
     bins = bins2
-    
-    # return trials, trn, ntr
 
     if control:
         # get mean and var across trials
@@ -477,7 +472,7 @@ def get_d_vars(split, pid,
     D_ = {}
     D_['acs'] = acs
     D_['d_vars'] = d_var
-    D_['ws'] = ws[:ntravis]
+    D_['ws'] = ws
 
     if not control:
         return D_
@@ -578,23 +573,16 @@ def get_all_d_vars(split, eids_plus = None, control = True,
     if eids_plus == None:
         df = bwm_query(one)
         eids_plus = df[['eid','probe_name', 'pid']].values
-
-    # exclude pids that are not in csv list (min 10 and double ins)
-    gpids = np.unique(pd.read_csv('/home/mic/paper-brain-wide-map/'
-                                  'manifold_analysis/'
-                                  'bwm_sess_regions.csv')['pid'])    
+ 
 
     Fs = []
     eid_probe = []
     Ds = []
     D_s = []   
     k=0
-    print(f'Processing {len(gpids)} of {len(eids_plus)} insertions')
+    print(f'Processing {len(eids_plus)} insertions')
     for i in eids_plus:
         eid, probe, pid = i  
-                
-        if pid not in gpids:
-            continue    
           
         time0 = time.perf_counter()
         try:
@@ -664,65 +652,77 @@ def d_var_stacked(split, mapping='Beryl'):
 
     # get stderror across cells for max-min/max+min
     # pool data for illustrative PCA
-    maxes = []
+    ampsv = []
+    ampsv2 = []
     acs = []
     ws = []
     for D_ in R['D_s']:
-        ma = np.nanmax(D_['d_vars'],axis=1)    
-        mi = np.nanmin(D_['d_vars'],axis=1)  
-        maxes.append((ma-mi)/(ma+mi))
+        ma = np.nanmax(D_['d_vars'],axis=1)
+        mi = np.nanmin(D_['d_vars'],axis=1)   
+        ampsv.append((ma-mi)/(ma + mi))
+        ampsv2.append(ma-mi)
         acs.append(D_['acs'])
         ws.append(D_['ws'])
         
-    maxes = np.concatenate(maxes)
+    ampsv = np.concatenate(ampsv)
+    ampsv2 = np.concatenate(ampsv2)
     acs = np.concatenate(acs)
     ws = np.concatenate(ws, axis=1)           
 
     # remove all cells that have a nan max
-    keep = ~np.isnan(maxes)
-    acs = acs[keep]
-    maxes = maxes[keep]
-    ws = ws[:,keep,:]
+    keep = ~np.isnan(ampsv)
+    if sum(keep) != len(ampsv):
+        acs = acs[keep]
+        ampsv = ampsv[keep]
+        ampsv2 = ampsv2[keep]
+        ws = ws[:,keep,:]
        
     # for each region get standard error
     regs = Counter(acs)
-    stde = {}
+    stde = {}  # ma-mi/ma+mi
+    stde2 = {}  # for ma-mi
     pcs = {}
     euc = {}  # also compute Euclidean distance on PCA-reduced trajectories
     p_euc = {}
+    p_euc2 = {}
+    
     for reg in regs:         
                 
         if (reg in ['root', 'void']) or (regs[reg] < min_reg):
             continue
-            
-        stde[reg] = np.std(maxes[acs == reg])/np.sqrt(regs[reg])
-
+   
+        stde[reg] = np.std(ampsv[acs == reg])/np.sqrt(regs[reg])
+        stde2[reg] = np.std(ampsv2[acs == reg])/np.sqrt(regs[reg])
+  
         dat = ws[:,acs == reg,:]
         pca = PCA(n_components = 30)
         wsc = pca.fit_transform(np.concatenate(dat,axis=1).T).T
         pcs[reg] = wsc[:3]
         
-        nclus = sum(acs == reg)
-        
-        nobs = wsc.shape[1] // ntravis
+        ntr, nclus, nobs = dat.shape
         
         dists = []
-        for tr in range(ntravis // 2):
+        for tr in range(ntr // 2):
             t0 = wsc[:,nobs * tr*2 :nobs * (tr*2 + 1)] 
             t1 = wsc[:,nobs * (tr*2 + 1):nobs * (tr*2 + 2)] # actual trajectories
             
             dists.append(sum((t0 - t1)**2)**0.5)
             
         euc[reg] = dists[0]
-        
+       
         # get p-value for pca based Euclidean distance
-        amps = [((np.max(x) - np.min(x))/
-                (np.max(x) + np.min(x))) for x in dists]
+        maxes = [(np.max(x) - np.min(x))/(np.max(x) + np.min(x)) for x in dists]
                           
         p_euc[reg] = 1 - (0.01 * 
-                     percentileofscore(amps[1:],amps[0],kind='weak'))
-        
-        
+                     percentileofscore(maxes[1:],maxes[0],kind='weak'))
+                     
+         # get p-value for pca based Euclidean distance
+        maxes2 = [np.max(x) - np.min(x) for x in dists]
+                          
+        p_euc2[reg] = (1 - (0.01 *percentileofscore(
+                           maxes2[1:],maxes2[0],kind='weak')))
+    
+    print('PCA done, next group d_var results')    
     # getting d_vars params for controls (extra file for storage)    
     R = np.load('/mnt/8cfe1683-d974-40f3-a20b-b217cad4722a/manifold/'
                 f'd_vars_{split}_{mapping}.npy', allow_pickle=True).flat[0]
@@ -758,9 +758,11 @@ def d_var_stacked(split, mapping='Beryl'):
         # nclus
         res['nclus'] = nclus[reg]
         res['stde'] = stde[reg]
+        res['stde2'] = stde2[reg]
         res['pcs'] = pcs[reg]
         res['euc'] = euc[reg]
         res['p_euc'] = p_euc[reg]
+        res['p_euc2'] = p_euc2[reg]
         
         # full curve
         d_var_m = regd[reg][0]
@@ -769,12 +771,22 @@ def d_var_stacked(split, mapping='Beryl'):
         # amplitudes
         amps = [((np.max(x) - np.min(x))/
                  (np.max(x) + np.min(x)))  for x in regd[reg]]
+                 
         res['max-min/max+min'] = amps[0]
+        
+        amps2 = [np.max(x) - np.min(x) for x in regd[reg]]        
+        
+        res['max-min'] = amps2[0]
         
         # p value
         null_d = amps[1:]
         p = 1 - (0.01 * percentileofscore(null_d,amps[0],kind='weak'))
         res['p'] = p
+        
+        null_d2 = amps2[1:]
+        p2 = 1 - (0.01 * percentileofscore(null_d2,amps2[0],kind='weak'))
+        res['p2'] = p2        
+        
         
         # latency  
         if np.max(d_var_m) == np.inf:
@@ -791,7 +803,9 @@ def d_var_stacked(split, mapping='Beryl'):
         # amplitude and latitude for Euclidean distance also; no p                
         res['amp_euc'] = ((np.max(euc[reg]) - np.min(euc[reg]))/
                           (np.max(euc[reg]) + np.min(euc[reg])))
-        
+                         
+        res['amp_euc2'] = np.max(euc[reg]) - np.min(euc[reg])
+                                  
         loc = np.where(euc[reg] > 
                np.min(euc[reg]) + 0.7*(np.max(euc[reg]) - 
                np.min(euc[reg])))[0]
@@ -848,12 +862,14 @@ def put_panel_label(ax, k):
 
 
 def plot_all(curve='euc', amp_number=False, 
-             mapping='Beryl', top_amps=False):
+             mapping='Beryl', sigl=0.05, amp_type = ''):
 
     '''
     main figure: show example trajectories,
     d_var_m for select regions and scatter all sigificant regions
     Instead of d_var_m there is also euc
+    sigl: significance level, default 0.05
+    amp_type: if max-min/max+min (type '') or max-min (type 2)
     '''
 
     plt.rcParams['font.size'] = '11'
@@ -861,7 +877,7 @@ def plot_all(curve='euc', amp_number=False,
     
     nrows = 12
         
-    fig = plt.figure(figsize=(10, 15))
+    fig = plt.figure(figsize=(20, 15))  #10, 15
     gs = fig.add_gridspec(nrows, len(align))
     
     _, palette = get_allen_info()
@@ -870,17 +886,19 @@ def plot_all(curve='euc', amp_number=False,
     axs = []
     k = 0
     
-    amp_curve = ('max-min/max+min' if curve == 'd_var_m' 
-                         else 'amp_euc')
+    md = {'':'max-min/max+min','2':'max-min'}
+    # choose distance amplitude type
+    amp_curve = (md[amp_type] if curve == 'd_var_m' 
+                         else f'amp_euc{amp_type}')
                          
-    p_type = 'p' if curve == 'd_var_m' else 'p_euc'         
+    p_type = f'p{amp_type}' if curve == 'd_var_m' else f'p_euc{amp_type}'         
     
     
     '''
     get significant regions and high pass threshold for amp
     '''           
     tops = {}
-    lower = {}
+
     for split in align: 
     
         d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'         
@@ -898,21 +916,15 @@ def plot_all(curve='euc', amp_number=False,
 
             
         maxs = np.array([d[reg][amp_curve] for reg in acronyms
-                         if d[reg][p_type] < 0.05])
+                         if d[reg][p_type] < sigl])
                          
         maxsf = [v for v in maxs if not (math.isinf(v) or math.isnan(v))] 
-               
-               
-        if maxsf == []:
-            lower[split] = 0
-        else:        
-            lower[split] = np.percentile(maxsf, 25)          
+
         print(split, curve)
-        print('25 percentile: ',np.round(lower[split],3))
         print(f'{len(maxsf)}/{len(d)} are significant')
         tops[split+'_s'] = f'{len(maxsf)} of {len(d)}'
         print([tops[split][0][j] for j in range(len(tops[split][0]))
-                if tops[split][1][j] < 0.05])
+                if tops[split][1][j] < sigl])
         
     
     '''
@@ -941,18 +953,23 @@ def plot_all(curve='euc', amp_number=False,
     example regions per split for embedded space and line plots
     '''
     
-    exs = {'stim': ['VISp', 'VISpm', 'VISl', 'GRN', 'MOs'],
-           'choice': ['GRN', 'VISl', 'SSp-ul', 'SSs', 'IRN'],
+    exs0 = {'stim': ['VISpm', 'VISp', 'GRN', 'MOs', 'LGd','PAG'],
+           'choice': ['GRN', 'VISpm', 'SSp-ul', 'SSs', 'IRN'],
            'fback': ['AUDp', 'CA1', 'EPd', 'SPVI', 'SSp-ul'],
            'block': ['ACAv', 'SPVI', 'IC', 'Eth', 'RSPagl']} 
-#           'block_stim_l': 'CA1',
-#           'block_stim_r': 'VPL'} #VPL 
-                  
-    if top_amps:  # pick max amp region as example
-        exs = {split: [tops[split][0][j] for j in 
-               range(len(tops[split][0])) if 
-               tops[split][1][j] < 0.05][0] for split in align}   
 
+    tops_p = {split: [tops[split][0][j] for j in range(len(tops[split][0]))
+                if tops[split][1][j] < sigl] for split in align}
+          
+    exs = {split: list(set(exs0[split]
+                  ).intersection(set(tops_p[split]))) for split in align}           
+
+                
+    exs = {'stim': ['VISpm', 'VISp', 'MOs', 'PAG', 'LGd', 'GRN'],
+         'choice': ['GRN', 'SSs', 'SSp-ul', 'IRN', 'VISpm'],
+          'fback': ['AUDp', 'SSp-ul', 'CA1','PoT','VISa'],
+          'block': ['Eth', 'IC','TEa', 'LGd', 'LD']}
+       
     '''
     Trajectories for example regions in PCA embedded 3d space
     '''
@@ -969,8 +986,8 @@ def plot_all(curve='euc', amp_number=False,
         axs.append(fig.add_subplot(gs[3:6,c],
                                    projection='3d'))           
 
-        npcs, nobs = d[reg]['pcs'].shape
-        nobs = nobs // ntravis
+        npcs, allnobs = d[reg]['pcs'].shape
+        nobs = allnobs // (2*(nrand +1))
 
         for j in range(ntravis):
         
@@ -1088,8 +1105,11 @@ def plot_all(curve='euc', amp_number=False,
                               pre_post[split][1], len(f[reg][curve]))
                                     
             # normalize curve
-            yy = ((f[reg][curve] - min(f[reg][curve]))/
-                  (max(f[reg][curve]) + min(f[reg][curve])))
+            if amp_type == '2':
+                yy = f[reg][curve] - min(f[reg][curve])         
+            else:
+                yy = ((f[reg][curve] - min(f[reg][curve]))/
+                      (max(f[reg][curve]) + min(f[reg][curve])))
             
             #yy = f[reg][curve]
             
@@ -1100,8 +1120,8 @@ def plot_all(curve='euc', amp_number=False,
             if curve == 'd_var_m':
                 # plot stderror bars on lines
                 axs[k].fill_between(xx,    
-                                 yy + f[reg]['stde'],
-                                 yy - f[reg]['stde'],
+                                 yy + f[reg][f'stde{amp_type}'],
+                                 yy - f[reg][f'stde{amp_type}'],
                                  color=palette[reg],
                                  alpha = 0.2)
                              
@@ -1118,20 +1138,21 @@ def plot_all(curve='euc', amp_number=False,
 
         axs[k].axvline(x=0, lw=0.5, linestyle='--', c='k')
         
-        if split == 'block':
-            ha = 'right'
+        if split in ['block', 'choice']:
+            ha = 'left'
         else:
-            ha = 'left'    
+            ha = 'right'    
         
         axs[k].text(0, 0.01, align[split],
                       transform=axs[k].get_xaxis_transform(),
-                      horizontalalignment = ha)           
+                      horizontalalignment = ha, rotation=90,
+                      fontsize = 10)           
         
 
         axs[k].spines['top'].set_visible(False)
         axs[k].spines['right'].set_visible(False)
         if c == 0:        
-            axs[k].set_ylabel('amplitude \n [a.u.]')
+            axs[k].set_ylabel(f'{md[amp_type]} \n [a.u.]')
         axs[k].set_xlabel('time [sec]')
         axs[k].set_title(f'{split}')
         put_panel_label(axs[k], k)
@@ -1146,8 +1167,7 @@ def plot_all(curve='euc', amp_number=False,
     if amp_number: 
         fig2 = plt.figure()
         axss = []
-        if curve == 'euc':
-            fig2.suptitle(f'distance metric: {curve}')
+        fig2.suptitle(f'distance metric: {curve}, amplitude type: {md[amp_type]}')
             
     c = 0          
     for split in align:
@@ -1162,18 +1182,18 @@ def plot_all(curve='euc', amp_number=False,
                     allow_pickle=True).flat[0]
 
         acronyms = [tops[split][0][j] for j in range(len(tops[split][0]))
-                if tops[split][1][j] < 0.05]
+                if tops[split][1][j] < sigl]
                 
 
         if curve == 'euc':
-            maxes = np.array([d[x][f'amp_euc'] for x in acronyms])
+            maxes = np.array([d[x][f'amp_euc{amp_type}'] for x in acronyms])
             lats = np.array([d[x]['lat_euc'] for x in acronyms])        
         else:
-            maxes = np.array([d[x][f'max-min/max+min'] for x in acronyms])
+            maxes = np.array([d[x][md[amp_type]] for x in acronyms])
             lats = np.array([d[x]['lat'] for x in acronyms])
 
         cols = [palette[reg] for reg in acronyms]
-        stdes = np.array([d[x]['stde'] for x in acronyms])
+        stdes = np.array([d[x][f'stde{amp_type}'] for x in acronyms])
         
 
         if amp_number:
@@ -1199,30 +1219,29 @@ def plot_all(curve='euc', amp_number=False,
         axs[k].scatter(np.array(lats)[exs_i], np.array(maxes)[exs_i], 
                        color=np.array(cols)[exs_i], marker='x',s=25)                 
                
-        axs[k].axhline(y=lower[split],linestyle='--',color='r')
         
         for i in range(len(acronyms)):
             reg = acronyms[i]
-            if d[acronyms[i]][amp_curve] > lower[split]:
-                axs[k].annotate('  ' + reg, # f"{reg} {f[reg]['nclus']}" ,
-                                (lats[i], maxes[i]),
-                    fontsize=6,color=palette[acronyms[i]])            
+            axs[k].annotate('  ' + reg, # f"{reg} {f[reg]['nclus']}" ,
+                            (lats[i], maxes[i]),
+                fontsize=6,color=palette[acronyms[i]])            
 
         axs[k].axvline(x=0, lw=0.5, linestyle='--', c='k')
         
-        if split == 'block':
-            ha = 'right'
+        if split in ['block', 'choice']:
+            ha = 'left'
         else:
-            ha = 'left'    
+            ha = 'right'   
         
         axs[k].text(0, 0.01, align[split],
                       transform=axs[k].get_xaxis_transform(),
-                      horizontalalignment = ha)
+                      horizontalalignment = ha, rotation=90,
+                      fontsize = 10)
                                 
         axs[k].spines['top'].set_visible(False)
         axs[k].spines['right'].set_visible(False)        
         if c == 0:   
-            axs[k].set_ylabel('max amplitude [a.u.]')
+            axs[k].set_ylabel(f'{md[amp_type]} [a.u.]')
         axs[k].set_xlabel('latency [sec]')
         axs[k].set_title(f"{split}, {tops[split+'_s']} sig")
         put_panel_label(axs[k], k)
@@ -1241,12 +1260,20 @@ def plot_all(curve='euc', amp_number=False,
 
     fig.tight_layout()
 
+#    fig.savefig('/home/mic/paper-brain-wide-map/'
+#           f'overleaf_figs/manifold/'
+#           f'manifold.pdf', dpi=400)              
+
+    fig.suptitle(f'distance metric: {curve}, amplitude type: {md[amp_type]}')
+    
     fig.savefig('/home/mic/paper-brain-wide-map/'
            f'overleaf_figs/manifold/'
-           f'manifold.pdf', dpi=400)              
-
-    print(f'distance metric: {curve}') 
+           f'manifold_{curve}_{amp_type}.png', dpi=300) 
  
+    if amp_number:
+        fig2.savefig('/home/mic/paper-brain-wide-map/'
+               f'overleaf_figs/manifold/'
+               f'amp_n_clus_{curve}_{amp_type}.png', dpi=300)  
 
 
 def plot_swanson_supp(curve = 'd_var_m', mapping = 'Beryl'):
@@ -1618,7 +1645,7 @@ def plot_all_3d(reg, split, mapping = 'Beryl'):
         fig = plt.figure(figsize=(3,3))                   
         ax = fig.add_subplot(1, 1, 1, projection='3d')
         npcs, nobs = d[reg][ins].shape
-        nobs = nobs // ntravis
+        nobs = nobs // nrand
 
 
         for j in range(ntravis):
