@@ -9,7 +9,7 @@ from ibllib.atlas.regions import BrainRegions
 from one.remote import aws
 
 
-def bwm_query(one, alignment_resolved=True, return_details=False, freeze=None):
+def bwm_query(one=None, alignment_resolved=True, return_details=False, freeze='2022_10_initial'):
     """
     Function to query for brainwide map sessions that pass the most important quality controls. Returns a dataframe
     with one row per insertions and columns ['pid', 'eid', 'probe_name', 'session_number', 'date', 'subject', 'lab']
@@ -17,30 +17,43 @@ def bwm_query(one, alignment_resolved=True, return_details=False, freeze=None):
     Parameters
     ----------
     one: one.api.ONE
-        Instance to be used to connect to local or remote database
+        Instance to be used to connect to local or remote database. Only required if freeze=None.
     alignment_resolved: bool
         Default is True. If True, only returns sessions with resolved alignment, if False returns all sessions with at
         least one alignment
     return_details: bool
         Default is False. If True returns a second output a list containing the full insertion dictionary for all
         insertions returned by the query. Only needed if you need information that is not contained in the bwm_df.
-    freeze: {None}
-        If None, the database is queried for the current set of pids satisfying the criteria. If a string is specified,
-        a fixed set of eids and pids is returned instead of querying the database. The string must be equivalent to the
-        name of an official freeze.
+    freeze: {None, 2022_10_initial}
+        Default is 2022_10_initial. If None, the database is queried for the current set of pids satisfying the
+        criteria. If a string is specified, a fixed set of eids and pids is returned instead of querying the database.
 
     Returns
     -------
     bwm_df: pandas.DataFrame
         BWM sessions to be included in analyses with columns
         ['pid', 'eid', 'probe_name', 'session_number', 'date', 'subject', 'lab']
+    insertions: list
+        Only returned if return_details=True. List of dictionaries with details for each insertions.
     """
 
-    # if freeze is not None:
-    #     try:
-    #     except
-    #         print(f'{freeze} does not seem to be a dataset freeze.')
+    # If a freeze is requested just try to load the respective file
+    if freeze is not None:
+        if return_details is True:
+            print('Cannot return details when using a data freeze. Returning only main dataframe.')
 
+        fixtures_path = Path(__file__).parent.joinpath('fixtures')
+        freeze_file = fixtures_path.joinpath(f'{freeze}.csv')
+        assert freeze_file.exists(), f'{freeze} does not seem to be a valid freeze.'
+
+        print(f'Loading from fixtures/{freeze}.csv')
+        bwm_df = pd.read_csv(freeze_file, index_col=0)
+        bwm_df['date'] = [parser.parse(i).date() for i in bwm_df['date']]
+
+        return bwm_df
+
+    # Else, query the database
+    assert one is not None, 'If freeze=None, you need to pass an instance of one.api.ONE'
     base_query = (
         'session__project__name__icontains,ibl_neuropixel_brainwide_01,'
         'session__json__IS_MOCK,False,'
@@ -91,7 +104,7 @@ def bwm_query(one, alignment_resolved=True, return_details=False, freeze=None):
         return bwm_df
 
 
-def load_good_units(one, pid, **kwargs):
+def load_good_units(one, pid, compute_metrics=False, **kwargs):
     """
     Function to load the cluster information and spike trains for clusters that pass all quality metrics.
 
@@ -113,7 +126,8 @@ def load_good_units(one, pid, **kwargs):
     pname = kwargs.pop('pname', '')
     spike_loader = SpikeSortingLoader(pid=pid, one=one, eid=eid, pname=pname)
     spikes, clusters, channels = spike_loader.load_spike_sorting()
-    clusters_labeled = SpikeSortingLoader.merge_clusters(spikes, clusters, channels).to_df()
+    clusters_labeled = SpikeSortingLoader.merge_clusters(
+        spikes, clusters, channels, compute_metrics=compute_metrics).to_df()
     iok = clusters_labeled['label'] == 1
     good_clusters = clusters_labeled[iok]
 
@@ -183,16 +197,18 @@ def load_trials_and_mask(one, eid, min_rt=0.08, max_rt=2., nan_exclude='default'
     return sess_loader.trials, mask
 
 
-def download_clusters_table(one, local_path=None, tag='2022_Q4_IBL_et_al_BWM', overwrite=False):
+def download_aggregate_tables(one, local_path=None, type='clusters', tag='2022_Q4_IBL_et_al_BWM', overwrite=False):
     """
     Function to download the aggregated clusters information associated with the given data release tag from AWS.
 
     Parameters
     ----------
     one: one.api.ONE
-        Instance to be used to connect to database (mode must be 'remote', 'refresh' or 'auto')
+        Instance to be used to connect to database.
     local_path: str or pathlib.Path
         Directory to which clusters.pqt should be downloaded. If None, downloads to current working directory.
+    type: {'clusters', 'trials'}
+        Which type of aggregate table to load, clusters or trials table.
     tag: str
         Tag for which to download the clusters table. Default is '2022_Q4_IBL_et_al_BWM'.
     overwrite : bool
@@ -200,22 +216,147 @@ def download_clusters_table(one, local_path=None, tag='2022_Q4_IBL_et_al_BWM', o
 
     Returns
     -------
-    clusters_path: pathlib.Path
-        Path to the downloaded clusters table
+    agg_path: pathlib.Path
+        Path to the downloaded aggregate
     """
 
-    assert not one.offline, 'The one instance you passed is offline, you need an online instance for this function.'
     local_path = Path.cwd() if local_path is None else Path(local_path)
     assert local_path.exists(), 'The local_path you passed does not exist.'
 
-    clusters_path = local_path.joinpath('clusters.pqt')
+    agg_path = local_path.joinpath(f'{type}.pqt')
     s3, bucket_name = aws.get_s3_from_alyx(alyx=one.alyx)
-    aws.s3_download_file(f"aggregates/{tag}/clusters.pqt", clusters_path, s3=s3,
+    aws.s3_download_file(f"aggregates/{tag}/{type}.pqt", agg_path, s3=s3,
                          bucket_name=bucket_name, overwrite=overwrite)
 
-    if clusters_path.exists():
-        print(f'Clusters table at to {clusters_path}')
-        return clusters_path
-    else:
-        print(f'Downloading of clusters table failed.')
+    if not agg_path.exists():
+        print(f'Downloading of {type} table failed.')
         return
+    return agg_path
+
+
+def filter_regions(pids, clusters_table=None, one=None, mapping='Beryl',
+                   min_qc=1., min_units_region=10, min_probes_region=2):
+    """
+    Maps probes to regions and filters to retain only probe-regions pairs that satisfy certain criteria.
+
+    Parameters
+    ----------
+    pids: list or pandas.Series
+        Probe insertion ids to map to regions. Typically, the 'pid' column of the bwm_df returned by bwm_query.
+        Note that these pids must be represented in clusters_table to be considered for the filter.
+    clusters_table: str or pathlib.Path
+        Absolute path to clusters table to be used for filtering. If None, requires to provide one.api.ONE instance
+        to download the latest version.
+    mapping: str
+        Mapping from atlas id to brain region acronym to be applied. Default is 'Beryl'.
+    one: one.api.ONE
+        Instance to be used to connect to download clusters_table if this is not explicitly provided.
+    min_qc: float or None
+        Minimum QC label for a spike sorted unit to be retained.
+        Default is 1. If None, criterion is not applied.
+    min_units_region: int or None
+        Minimum number of units per region for a region to be retained.
+        Default is 10. If None, criterion is not applied
+    min_probes_region: int or None
+        Minimum number of probes per region for a region to be retained.
+        Default is 2. If None, criterion is not applied.
+
+    Returns
+    -------
+    regions_df: pandas.DataFrame
+        Dataframe of unique region-probe pairs, with columns ['{mapping}', 'pid', 'n_units', 'n_probes']
+    """
+
+    if not any([min_qc, min_units_region, min_probes_region]):
+        print('No criteria selected. Aborting.')
+        return
+
+    if clusters_table is None:
+        if one is None:
+            print(f'You either need to provide a path to clusters_table or an instance of one.api.ONE to '
+                  f'download clusters_table.')
+            return
+        else:
+            clusters_table = download_aggregate_tables(one, type='clusters')
+    clus_df = pd.read_parquet(clusters_table)
+
+    # Only consider given
+    clus_df = clus_df.loc[clus_df['pid'].isin(pids)]
+    diff = set(pids).difference(set(clus_df['pid']))
+    if len(diff) != 0:
+        print('WARNING: Not all pids in bwm_df are found in cluster table.')
+
+    # Only consider units that pass min_qc
+    if min_qc:
+        clus_df = clus_df.loc[clus_df['label'] >= min_qc]
+
+    # Add region acronyms column and remove root and void regions
+    br = BrainRegions()
+    clus_df[f'{mapping}'] = br.id2acronym(clus_df['atlas_id'], mapping=f'{mapping}')
+    clus_df = clus_df.loc[~clus_df[f'{mapping}'].isin(['void', 'root'])]
+
+    # Count units and probes per region
+    regions_count = clus_df.groupby(f'{mapping}').aggregate(
+        n_probes=pd.NamedAgg(column='pid', aggfunc='nunique'),
+        n_units=pd.NamedAgg(column='cluster_id', aggfunc='count')
+    )
+    regions_count.reset_index(inplace=True)
+
+    clus_df = pd.merge(clus_df, regions_count, how='left', on=f'{mapping}')
+    if min_units_region:
+        clus_df = clus_df[clus_df.eval(f'n_units >= {min_units_region}')]
+    if min_probes_region:
+        clus_df = clus_df[clus_df.eval(f'n_probes >= {min_probes_region}')]
+
+    regions_df = clus_df.filter([f'{mapping}', 'pid', 'n_units', 'n_probes'])
+    regions_df.drop_duplicates(inplace=True)
+    regions_df.reset_index(inplace=True, drop=True)
+
+    return regions_df
+
+
+def filter_sessions(eids, trials_table=None, one=None, min_trials=200):
+    """
+    Filters eids for those that have fulfill certain criteria.
+
+    Parameters
+    ----------
+    eids: list or pandas.Series
+        Session ids to map to regions. Typically, the 'eid' column of the bwm_df returned by bwm_query.
+        Note that these eids must be represented in clusters_table to be considered for the filter.
+    trials_table: str or pathlib.Path
+        Absolute path to trials table to be used for filtering. If None, requires to provide one.api.ONE instance
+        to download the latest version. Required when using min_trials.
+    one: one.api.ONE
+        Instance to be used to connect to download clusters or trials table if these are not explicitly provided.
+    min_trials: int or None
+        Minimum number of trials that pass default criteria (see load_trials_and_mask()) for a session to be retained.
+        Default is 200. If None, criterion is not applied
+
+    Returns
+    -------
+    eids: pandas.Series
+        Session ids that pass the criteria
+    """
+
+    if trials_table is None:
+        if one is None:
+            print(f'You either need to provide a path to trials_table or an instance of one.api.ONE to '
+                  f'download trials_table.')
+            return
+        else:
+            trials_table = download_aggregate_tables(one, type='trials')
+    trials_df = pd.read_parquet(trials_table)
+
+    # Keep only eids
+    trials_df = trials_df.loc[trials_df['eid'].isin(eids)]
+
+    # Count trials that pass bwm_qc
+    pass_trials = trials_df.groupby('eid').aggregate(n_trials=pd.NamedAgg(column='bwm_include', aggfunc='sum'))
+    pass_trials.reset_index(inplace=True)
+    if min_trials:
+        keep_eids = pass_trials.loc[pass_trials['n_trials'] >= min_trials]['eid'].unique()
+    else:
+        keep_eids = pass_trials['eid'].unique()
+
+    return keep_eids
