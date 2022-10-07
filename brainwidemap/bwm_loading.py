@@ -197,7 +197,7 @@ def load_trials_and_mask(one, eid, min_rt=0.08, max_rt=2., nan_exclude='default'
     return sess_loader.trials, mask
 
 
-def download_aggregate_tables(one, local_path=None, type='clusters', tag='2022_Q4_IBL_et_al_BWM', overwrite=False):
+def download_aggregate_tables(one, target_path=None, type='clusters', tag='2022_Q4_IBL_et_al_BWM', overwrite=False):
     """
     Function to download the aggregated clusters information associated with the given data release tag from AWS.
 
@@ -205,8 +205,8 @@ def download_aggregate_tables(one, local_path=None, type='clusters', tag='2022_Q
     ----------
     one: one.api.ONE
         Instance to be used to connect to database.
-    local_path: str or pathlib.Path
-        Directory to which clusters.pqt should be downloaded. If None, downloads to current working directory.
+    target_path: str or pathlib.Path
+        Directory to which clusters.pqt should be downloaded. If None, downloads to one.cache_dir
     type: {'clusters', 'trials'}
         Which type of aggregate table to load, clusters or trials table.
     tag: str
@@ -220,10 +220,10 @@ def download_aggregate_tables(one, local_path=None, type='clusters', tag='2022_Q
         Path to the downloaded aggregate
     """
 
-    local_path = Path.cwd() if local_path is None else Path(local_path)
-    assert local_path.exists(), 'The local_path you passed does not exist.'
+    target_path = one.cache_dir if target_path is None else Path(target_path)
+    assert target_path.exists(), f'The target_path {target_path} does not exist.'
 
-    agg_path = local_path.joinpath(f'{type}.pqt')
+    agg_path = target_path.joinpath(f'{type}.pqt')
     s3, bucket_name = aws.get_s3_from_alyx(alyx=one.alyx)
     aws.s3_download_file(f"aggregates/{tag}/{type}.pqt", agg_path, s3=s3,
                          bucket_name=bucket_name, overwrite=overwrite)
