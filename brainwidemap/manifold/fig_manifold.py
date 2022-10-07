@@ -252,7 +252,7 @@ def get_d_vars(split, pid,
 
     
     # load in spikes
-    spikes, clusters = load_good_units(one, pid, compute_metrics=True)    
+    spikes, clusters = load_good_units(one, pid, compute_metrics=False)    
     
 
 
@@ -852,6 +852,8 @@ def get_allen_info():
                                 
     palette = dict(zip(dfa.acronym, dfa.color_hex_triplet))
     
+    
+    
     return dfa, palette           
 
 
@@ -862,7 +864,7 @@ def put_panel_label(ax, k):
 
 
 def plot_all(curve='euc', amp_number=False, 
-             mapping='Beryl', sigl=0.05, amp_type = ''):
+             mapping='Beryl', sigl=0.05, amp_type = '2'):
 
     '''
     main figure: show example trajectories,
@@ -877,10 +879,10 @@ def plot_all(curve='euc', amp_number=False,
     
     nrows = 12
         
-    fig = plt.figure(figsize=(20, 15))  #10, 15
+    fig = plt.figure(figsize=(10, 15))  #10, 15
     gs = fig.add_gridspec(nrows, len(align))
     
-    _, palette = get_allen_info()
+    dfa, palette = get_allen_info()
                    
 
     axs = []
@@ -898,6 +900,8 @@ def plot_all(curve='euc', amp_number=False,
     get significant regions and high pass threshold for amp
     '''           
     tops = {}
+
+    regsa = []
 
     for split in align: 
     
@@ -923,9 +927,22 @@ def plot_all(curve='euc', amp_number=False,
         print(split, curve)
         print(f'{len(maxsf)}/{len(d)} are significant')
         tops[split+'_s'] = f'{len(maxsf)} of {len(d)}'
-        print([tops[split][0][j] for j in range(len(tops[split][0]))
-                if tops[split][1][j] < sigl])
+        regs_a = [tops[split][0][j] for j in range(len(tops[split][0]))
+                if tops[split][1][j] < sigl]
         
+        
+        regsa.append(regs_a)
+        print(regs_a)
+        
+
+    #  get Cosmos parent region for yellow color adjustment
+    regsa = np.unique(np.concatenate(regsa))
+    cosregs_ = [dfa[dfa['id'] == int(dfa[dfa['acronym']==reg]['structure_id_path']
+           .values[0].split('/')[4])]['acronym']
+           .values[0] for reg in regsa]
+    
+    cosregs = dict(zip(regsa,cosregs_)) 
+
     
     '''
     load schematic intro and contrast trajectory plot (convert from svg)
@@ -965,9 +982,11 @@ def plot_all(curve='euc', amp_number=False,
                   ).intersection(set(tops_p[split]))) for split in align}           
 
                 
-    exs = {'stim': ['VISpm', 'VISp', 'MOs', 'PAG', 'LGd', 'GRN'],
-         'choice': ['GRN', 'SSs', 'SSp-ul', 'IRN', 'VISpm'],
-          'fback': ['AUDp', 'SSp-ul', 'CA1','PoT','VISa'],
+    exs = {'stim': ['VISp', 'MRN', 'MOs', 'PAG', 'LGd', 'GRN','ZI', 'SCm'],
+         'choice': ['APN', 'PRNr', 'LP', 'SCm', 'CP', 
+                    'SIM', 'CUL4 5'],
+          'fback': ['CA1', 'AUDp', 'PRNr', 'IRN', 'CP', 
+                    'SIM', 'CUL4 5', 'GRN', 'CENT3', 'SSp-ul'],
           'block': ['Eth', 'IC','TEa', 'LGd', 'LD']}
        
     '''
@@ -1129,12 +1148,21 @@ def plot_all(curve='euc', amp_number=False,
             y = np.max(yy)
             x = xx[np.argmax(yy)]
             ss = f"{reg} {f[reg]['nclus']}" 
-            
+
+            if cosregs[reg] in ['CBX', 'CBN']:  # darken yellow
+                texts.append(axs[k].text(x, y, ss, 
+                                         color = 'k',
+                                         fontsize=10))             
+                
+                       
             texts.append(axs[k].text(x, y, ss, 
                                      color = palette[reg],
                                      fontsize=9))                 
+             
+             
+             
                               
-        adjust_text(texts)                      
+        #adjust_text(texts)                      
 
         axs[k].axvline(x=0, lw=0.5, linestyle='--', c='k')
         
@@ -1222,9 +1250,18 @@ def plot_all(curve='euc', amp_number=False,
         
         for i in range(len(acronyms)):
             reg = acronyms[i]
+            
+            if cosregs[reg] in ['CBX', 'CBN']:
+                axs[k].annotate('  ' + reg, # f"{reg} {f[reg]['nclus']}" ,
+                                (lats[i], maxes[i]),
+                    fontsize=7,color='k')            
+            
             axs[k].annotate('  ' + reg, # f"{reg} {f[reg]['nclus']}" ,
                             (lats[i], maxes[i]),
-                fontsize=6,color=palette[acronyms[i]])            
+                fontsize=6,color=palette[acronyms[i]])
+                
+                
+                           
 
         axs[k].axvline(x=0, lw=0.5, linestyle='--', c='k')
         
@@ -1394,18 +1431,22 @@ wspace=0.214)
     mpl.rc('font', **font)    
 
 
-def plot_cosmos_lines(curve = 'd_var_m'):
+def plot_cosmos_lines(curve = 'euc', amp_type='2'):
 
-    amp_curve = ('max-min/max+min' if curve == 'd_var_m' 
-                         else 'amp_euc')
+    md = {'':'max-min/max+min','2':'max-min'}
+    # choose distance amplitude type
+    amp_curve = (md[amp_type] if curve == 'd_var_m' 
+                         else f'amp_euc{amp_type}')
                          
-    p_type = 'p' if curve == 'd_var_m' else 'p_euc' 
+    p_type = f'p{amp_type}' if curve == 'd_var_m' else f'p_euc{amp_type}'  
 
     mapping = 'Beryl'
     df, palette = get_allen_info()
     fig = plt.figure(figsize=(20, 15), constrained_layout=True)
      
     gs = GridSpec(len(align), 7, figure=fig)
+
+
 
     sc = 0
     for split in list(align):
@@ -1441,20 +1482,33 @@ def plot_cosmos_lines(curve = 'd_var_m'):
                 if any(np.isinf(d[reg][curve])):
                     print(f'inf in d_var_m of {reg}')
                     continue
-
+                    
+                # normalize curve
+                if amp_type == '2':
+                    yy = d[reg][curve] - min(d[reg][curve])         
+                else:
+                    yy = ((d[reg][curve] - min(d[reg][curve]))/
+                          (max(d[reg][curve]) + min(d[reg][curve])))
+                      
                 xx = np.linspace(-pre_post[split][0], 
                                   pre_post[split][1], len(d[reg][curve]))        
 
-                axs[k].plot(xx,d[reg][curve], linewidth = 2,
+                axs[k].plot(xx,yy, linewidth = 2,
                               color=palette[reg], 
                               label=f"{reg}")# {d[reg]['nclus']}
                               
                 y = np.max(d[reg][curve])
                 x = xx[np.argmax(d[reg][curve])]
                 ss = f"{reg}"#  {d[reg]['nclus']}"
-                texts.append(axs[k].text(x, y, ss, 
-                                         color = palette[reg],
-                                         fontsize=9))                             
+                
+                if cos in ['CBX', 'CBN']:  # darken yellow
+                    texts.append(axs[k].text(x, y, ss, 
+                                             color = 'k',
+                                             fontsize=10))                
+                
+                    texts.append(axs[k].text(x, y, ss, 
+                                             color = palette[reg],
+                                             fontsize=9))                             
 
             #adjust_text(texts)
             
