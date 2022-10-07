@@ -28,8 +28,8 @@ from brainwidemap.decoding.functions.nulldistributions import generate_null_dist
 from brainwidemap.decoding.functions.process_targets import check_bhv_fit_exists
 from brainwidemap.decoding.functions.process_targets import optimal_Bayesian
 from brainwidemap.decoding.functions.neurometric import get_neurometric_parameters
+from brainwidemap.decoding.functions.utils import derivative
 
-from braindelphi.decoding.functions.utils import derivative
 
 def fit_eid(neural_dict, trials_df, metadata, dlc_dict=None, pseudo_ids=[-1], **kwargs):
     """High-level function to decode a given target variable from brain regions for a single eid.
@@ -97,6 +97,9 @@ def fit_eid(neural_dict, trials_df, metadata, dlc_dict=None, pseudo_ids=[-1], **
 
     print(f'Working on eid : %s' % metadata['eid'])
     filenames = []  # this will contain paths to saved decoding results for this eid
+
+    if kwargs['decode_prev_contrast']:
+        trials_df = trials_df.shift(1)
 
     if kwargs['use_imposter_session'] and not kwargs['stitching_for_imposter_session']:
         trials_df = trials_df[:int(kwargs['max_number_trials_when_no_stitching_for_imposter_session'])]

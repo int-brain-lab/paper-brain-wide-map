@@ -21,8 +21,6 @@ imposter_file = Path('/full/path/to/imposter.pqt')
 
 kwargs['add_to_saving_path'] = f"_binsize={1000 * kwargs['binsize']}_lags={kwargs['n_bins_lag']}_" \
                                f"mergedProbes_{kwargs['merge_probes']}"
-T_BEF = 0.6
-T_AFT = 0.6
 
 # Take the argument given to this script and create index by subtracting 1
 try:
@@ -54,13 +52,11 @@ metadata = {
     'probe_name': bwm_df.iloc[pid_idx]['probe_name']
 }
 
-# Load trials df and add start and end times (for now)
+# Load trials df
 sess_loader = SessionLoader(one, metadata['eid'])
 sess_loader.load_trials()
-sess_loader.trials['trial_start'] = sess_loader.trials['stimOn_times'] - T_BEF
-sess_loader.trials['trial_end'] = sess_loader.trials['stimOn_times'] + T_AFT
 
-# Load target data if necesssary (will probably put htis into a function eventually)
+# Load target data if necessary (will probably put this into a function eventually)
 if kwargs['target'] in ['wheel-vel', 'l-whisker-me', 'r-whisker-me']:
     try:
         if kwargs['target'] == 'wheel-vel':

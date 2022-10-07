@@ -88,7 +88,7 @@ def compute_mask(trials_df, align_time, time_window, min_len, max_len, no_unbias
         mask = mask & ((start_diffs > min_len).values & (start_diffs < max_len).values)
 
         # get rid of trials with decoding windows that overlap following trial
-        tmp = (trials_df[align_time].values[:-1] + time_window[1]) < trials_df.trial_start.values[1:]
+        tmp = (trials_df[align_time].values[:-1] + time_window[1]) < trials_df['intervals_0'].values[1:]
         tmp = np.concatenate([tmp, [True]])  # include final trial, no following trials
         mask = mask & tmp
 
