@@ -337,7 +337,8 @@ def get_target_data_per_trial_wrapper(
     return target_times_list, target_val_list, good_trials
 
 
-def get_target_variable_in_df(one, eid, target, align_time, time_window, binsize, **kwargs):
+def get_target_variable_in_df(
+        one, eid, target, align_time, time_window, binsize, trials_df=None, **kwargs):
     """Return a trials dataframe with additional behavioral data as one array per trial.
 
     Parameters
@@ -356,8 +357,13 @@ def get_target_variable_in_df(one, eid, target, align_time, time_window, binsize
     """
 
     # load trial data
-    import brainbox.io.one as bbone
-    trials_df = bbone.load_trials_df(eid, one=one, addtl_types=['firstMovement_times'])
+    if trials_df is None:
+        from brainbox.io.one import SessionLoader
+        sess_loader = SessionLoader(eid)
+        sess_loader.load_trials()
+        trials_df = sess_loader.trials
+        # import brainbox.io.one as bbone
+        # trials_df = bbone.load_trials_df(eid, one=one, addtl_types=['firstMovement_times'])
 
     # load behavior data
     beh_dict = load_behavior(eid=eid, target=target, one=one)

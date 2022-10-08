@@ -15,21 +15,17 @@ import yaml
 
 from one.api import ONE
 from brainbox.io.one import SessionLoader
-from brainwidemap import bwm_query, load_good_units, load_trials_and_mask
 
-from braindelphi.utils_root import load_pickle_data
-from braindelphi.params import FIT_PATH, IMPOSTER_SESSION_PATH
-from braindelphi.decoding.functions.decoding import fit_eid
-from braindelphi.decoding.functions.utils import check_settings
+from brainwidemap.bwm_loading import bwm_query, load_good_units, load_trials_and_mask
+from brainwidemap.decoding.paths import FIT_PATH, IMPOSTER_SESSION_PATH
+from brainwidemap.decoding.settings import kwargs
+from brainwidemap.decoding.functions.decoding import fit_eid
+
 
 # Determines below and above which sessions should not be decoded
-IMIN = 10
-IMAX = 1000
+IMIN = 0
+IMAX = 1
 
-# load settings as a dict
-SETTINGS_PATH = Path('/home/julia/workspace/int-brain-lab/paper-brain-wide-map/brainwidemap/decoding/settings_default.yaml')
-settings = yaml.safe_load(open(SETTINGS_PATH))
-kwargs = check_settings(settings)
 # add path info
 kwargs['add_to_saving_path'] = '_binsize=%i_lags=%i_mergedProbes_%i' % (
     1000 * kwargs['binsize'], kwargs['n_bins_lag'], kwargs['merge_probes'],

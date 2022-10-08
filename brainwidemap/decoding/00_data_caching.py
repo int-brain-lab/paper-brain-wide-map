@@ -2,8 +2,9 @@ from pathlib import Path
 
 from one.api import ONE
 from brainbox.io.one import SessionLoader
-from brainwidemap import bwm_query, load_good_units, load_trials_and_mask, filter_regions, filter_sessions, \
-    download_aggregate_tables
+from brainwidemap import (
+    bwm_query, load_good_units, load_trials_and_mask, filter_regions, filter_sessions,
+    download_aggregate_tables)
 
 # For caching, we use an online instance. You can choose the cache directory if you want
 one = ONE()
