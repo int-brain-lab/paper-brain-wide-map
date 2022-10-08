@@ -13,16 +13,9 @@ from brainbox.task.closed_loop import generate_pseudo_session
 # from braindelphi.params import braindelphi_PATH, SETTINGS_PATH, FIT_PATH
 from brainwidemap import bwm_query
 from brainwidemap.decoding.functions.process_targets import get_target_variable_in_df
-
-
-# load settings as a dict (using yaml)
-# import yaml
-# from braindelphi.decoding.functions.utils import check_settings
-# settings = yaml.safe_load(open(SETTINGS_PATH))
-# kwargs = check_settings(settings)
-
-# load settings as a dict (using py file)
+from brainwidemap.decoding.paths import IMPOSTER_SESSION_PATH
 from brainwidemap.decoding.settings import kwargs
+
 
 if kwargs['imposter_generate_from_ephys']:
     # ephys sessions from from one of 12 templates
@@ -104,8 +97,6 @@ for i, eid in enumerate(eids):
 all_trialsdf = pd.concat(all_trialsdf)
 
 # save imposter sessions
-PATH = Path('/media/mattw/ibl')
-
 ephys_str = '_beforeRecording' if not kwargs['imposter_generate_from_ephys'] else ''
 filename = 'imposterSessions_%s%s.pqt' % (kwargs['target'], ephys_str)
-all_trialsdf[columns].to_parquet(PATH.joinpath('decoding', filename))
+all_trialsdf[columns].to_parquet(IMPOSTER_SESSION_PATH.joinpath(filename))

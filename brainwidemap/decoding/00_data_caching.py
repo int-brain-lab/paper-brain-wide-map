@@ -2,12 +2,12 @@ from pathlib import Path
 
 from one.api import ONE
 from brainbox.io.one import SessionLoader
-from brainwidemap import bwm_query, load_good_units, load_trials_and_mask, filter_regions, filter_sessions, \
-    download_aggregate_tables
+from brainwidemap import (
+    bwm_query, load_good_units, load_trials_and_mask, filter_regions, filter_sessions,
+    download_aggregate_tables)
 
 # For caching, we use an online instance. You can choose the cache directory if you want
-cache_dir = Path('/full/path/to/cache')
-one = ONE(cache_dir=cache_dir, base_url='https://alyx.internationalbrainlab.org', mode='remote')
+one = ONE(base_url='https://alyx.internationalbrainlab.org', mode='remote')
 
 # Get the dataframe of all included sessions and probe insertions, use frozen query
 bwm_df = bwm_query(freeze='2022_10_initial')

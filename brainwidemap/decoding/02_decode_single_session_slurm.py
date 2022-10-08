@@ -9,15 +9,13 @@ from brainbox.io.one import SessionLoader
 from brainwidemap.bwm_loading import bwm_query, load_good_units
 from brainwidemap.decoding.settings import kwargs
 from brainwidemap.decoding.functions.decoding import fit_eid
+from brainwidemap.decoding.paths import BEH_MOD_PATH, FIT_PATH, IMPOSTER_SESSION_PATH
 
 # user settings
-cache_dir = Path('/full/path/to/cache')
 results_dir = Path('/full/path/to/results')
 
-n_pseudo = 200
-n_pseudo_per_job = 10
-pseudo_id = [-1] #TODO:??????????
-imposter_file = Path('/full/path/to/imposter.pqt')
+n_pseudo = kwargs['n_pseudo']
+n_pseudo_per_job = kwargs['n_pseudo_per_job']
 
 kwargs['add_to_saving_path'] = f"_binsize={1000 * kwargs['binsize']}_lags={kwargs['n_bins_lag']}_" \
                                f"mergedProbes_{kwargs['merge_probes']}"
@@ -29,17 +27,14 @@ except:
     index = 32
     pass
 
-# Load imposter sessions
-kwargs['imposter_df'] = pd.read_parquet(imposter_file) if n_pseudo > 0 else None
-
 # Create the directories
-kwargs['behfit_path'] = results_dir.joinpath('behavioral')
-kwargs['neuralfit_path'] = results_dir.joinpath('neural')
+kwargs['behfit_path'] = BEH_MOD_PATH
+kwargs['neuralfit_path'] = FIT_PATH
 kwargs['behfit_path'].mkdir(parents=True, exist_ok=True)
 kwargs['neuralfit_path'].mkdir(parents=True, exist_ok=True)
 
 # Load the list of probe insertions and select probe
-one = ONE(cache_dir=cache_dir, mode='local')
+one = ONE(mode='local')
 bwm_df = bwm_query()
 
 # Not sure why we do this
@@ -58,6 +53,8 @@ sess_loader.load_trials()
 
 # Load target data if necessary (will probably put this into a function eventually)
 if kwargs['target'] in ['wheel-vel', 'l-whisker-me', 'r-whisker-me']:
+
+    # load target data
     try:
         if kwargs['target'] == 'wheel-vel':
             sess_loader.load_wheel()
@@ -76,12 +73,25 @@ if kwargs['target'] in ['wheel-vel', 'l-whisker-me', 'r-whisker-me']:
         dlc_dict['skip': False]
     except BaseException as e:
         dlc_dict = {'times': None, 'values': None, 'skip': True}
+
+    # Load imposter sessions
+    ephys_str = '_beforeRecording' if not kwargs['imposter_generate_from_ephys'] else ''
+    filename = 'imposterSessions_%s%s.pqt' % (kwargs['target'], ephys_str)
+    imposter_file = IMPOSTER_SESSION_PATH.joinpath(filename)
+    kwargs['imposter_df'] = pd.read_parquet(imposter_file) if n_pseudo > 0 else None
+
 else:
     dlc_dict = None
+    kwargs['imposter_df'] = None
 
 # Load spike sorting data and put it in a dictionary for now
-spikes, clusters = load_good_units(one, bwm_df.iloc[pid_idx]['pid'], eid=bwm_df.iloc[pid_idx]['eid'],
-                                   pname=bwm_df.iloc[pid_idx]['probe_name'], compute_metrics=True)
+spikes, clusters = load_good_units(
+    one,
+    bwm_df.iloc[pid_idx]['pid'],
+    eid=bwm_df.iloc[pid_idx]['eid'],
+    pname=bwm_df.iloc[pid_idx]['probe_name'],
+    compute_metrics=True
+)
 
 neural_dict = {
     'spk_times': spikes['times'],
