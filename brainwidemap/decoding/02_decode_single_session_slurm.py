@@ -11,8 +11,6 @@ from brainwidemap.decoding.settings import kwargs
 from brainwidemap.decoding.functions.decoding import fit_eid
 from brainwidemap.decoding.paths import BEH_MOD_PATH, FIT_PATH, IMPOSTER_SESSION_PATH
 
-# user settings
-results_dir = Path('/full/path/to/results')
 
 n_pseudo = kwargs['n_pseudo']
 n_pseudo_per_job = kwargs['n_pseudo_per_job']
