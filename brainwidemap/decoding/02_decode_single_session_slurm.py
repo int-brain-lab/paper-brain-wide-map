@@ -6,31 +6,29 @@ from pathlib import Path
 from one.api import ONE
 from brainbox.io.one import SessionLoader
 
-from brainwidemap.bwm_loading import bwm_query, load_good_units
+from brainwidemap.bwm_loading import bwm_query, load_good_units, filter_regions, filter_sessions
 from brainwidemap.decoding.settings import kwargs
 from brainwidemap.decoding.functions.decoding import fit_eid
 
+one = ONE(mode='local')
+
 # user settings
-cache_dir = Path('/full/path/to/cache')
-results_dir = Path('/full/path/to/results')
+cache_dir = Path(one.cache_dir) #Path('/full/path/to/cache')
+results_dir = Path('/scratch/users/bensonb/international-brain-lab/paper-brain-wide-map/results') # Path('/full/path/to/results')
 
 n_pseudo = 200
-n_pseudo_per_job = 10
-pseudo_id = [-1] #TODO:??????????
-imposter_file = Path('/full/path/to/imposter.pqt')
+n_pseudo_per_job = 100
+#pseudo_id = [-1] #TODO:??????????
+#imposter_file = Path('/full/path/to/imposter.pqt')
 
-kwargs['add_to_saving_path'] = f"_binsize={1000 * kwargs['binsize']}_lags={kwargs['n_bins_lag']}_" \
-                               f"mergedProbes_{kwargs['merge_probes']}"
+# kwargs['add_to_saving_path'] = f"_binsize={1000 * kwargs['binsize']}_lags={kwargs['n_bins_lag']}_" \
+#                               f"mergedProbes_{kwargs['merge_probes']}"
 
 # Take the argument given to this script and create index by subtracting 1
-try:
-    index = int(sys.argv[1]) - 1
-except:
-    index = 32
-    pass
+index = int(sys.argv[1]) - 1
 
 # Load imposter sessions
-kwargs['imposter_df'] = pd.read_parquet(imposter_file) if n_pseudo > 0 else None
+#kwargs['imposter_df'] = pd.read_parquet(imposter_file) if n_pseudo > 0 else None
 
 # Create the directories
 kwargs['behfit_path'] = results_dir.joinpath('behavioral')
@@ -39,8 +37,22 @@ kwargs['behfit_path'].mkdir(parents=True, exist_ok=True)
 kwargs['neuralfit_path'].mkdir(parents=True, exist_ok=True)
 
 # Load the list of probe insertions and select probe
-one = ONE(cache_dir=cache_dir, mode='local')
+# one = ONE(cache_dir=cache_dir, mode='local')
 bwm_df = bwm_query()
+
+# Download the latest clusters table, we use the same cache as above
+clusters_table = cache_dir.joinpath('clusters.pqt') #download_aggregate_tables(one, type='clusters', target_path=cache_dir)
+# Map probes to regions (here: Beryl mapping) and filter according to QC, number of units and probes per region
+region_df = filter_regions(bwm_df['pid'], clusters_table=clusters_table, mapping='Beryl', min_qc=1,
+                           min_units_region=10, min_probes_region=2)
+
+# Download the latest trials table and filter for sessions that have at least 200 trials fulfilling BWM criteria
+trials_table = cache_dir.joinpath('trials.pqt') #download_aggregate_tables(one, type='trials', target_path=cache_dir)
+eids = filter_sessions(bwm_df['eid'], trials_table=trials_table, min_trials=200)
+
+# Remove probes and sessions based on those filters
+bwm_df = bwm_df[bwm_df['pid'].isin(region_df['pid'].unique())]
+bwm_df = bwm_df[bwm_df['eid'].isin(eids)]
 
 # Not sure why we do this
 pid_idx = index % bwm_df.index.size
@@ -81,7 +93,7 @@ else:
 
 # Load spike sorting data and put it in a dictionary for now
 spikes, clusters = load_good_units(one, bwm_df.iloc[pid_idx]['pid'], eid=bwm_df.iloc[pid_idx]['eid'],
-                                   pname=bwm_df.iloc[pid_idx]['probe_name'], compute_metrics=True)
+                                   pname=bwm_df.iloc[pid_idx]['probe_name'], compute_metrics=False)
 
 neural_dict = {
     'spk_times': spikes['times'],

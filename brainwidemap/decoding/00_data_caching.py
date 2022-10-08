@@ -6,8 +6,9 @@ from brainwidemap import bwm_query, load_good_units, load_trials_and_mask, filte
     download_aggregate_tables
 
 # For caching, we use an online instance. You can choose the cache directory if you want
-cache_dir = Path('/full/path/to/cache')
-one = ONE(cache_dir=cache_dir, base_url='https://alyx.internationalbrainlab.org', mode='remote')
+one = ONE()
+cache_dir = one.cache_dir #Path('/full/path/to/cache')
+#one = ONE(base_url='https://alyx.internationalbrainlab.org', mode='remote')
 
 # Get the dataframe of all included sessions and probe insertions, use frozen query
 bwm_df = bwm_query(freeze='2022_10_initial')
@@ -27,34 +28,38 @@ bwm_df = bwm_df[bwm_df['pid'].isin(region_df['pid'].unique())]
 bwm_df = bwm_df[bwm_df['eid'].isin(eids)]
 
 # Download cluster information and spike trains for all good units.
-for pid in bwm_df['pid']:
-    print(f"Downloading spike sorting data for {pid}")
-    spikes, clusters = load_good_units(one, pid, compute_metrics=True)
+#for pid in bwm_df['pid']:
+#    print(f"Downloading spike sorting data for {pid}")
+#    spikes, clusters = load_good_units(one, pid, compute_metrics=False)
 
 # Download trials for all sessions
-for eid in bwm_df['eid']:
-    print(f"Downloading trials data for {eid}")
-    sess_loader = SessionLoader(one, eid)
-    sess_loader.load_trials()
+#for eid in bwm_df['eid']:
+#    print(f"Downloading trials data for {eid}")
+#    sess_loader = SessionLoader(one, eid)
+#    sess_loader.load_trials()
 
 # Download wheel data for all sessions (there is currently one error so skipt that session, should be fixed tomorrow)
-for eid in bwm_df['eid']:
-    if eid == 'cc45c568-c3b9-4f74-836e-c87762e898c8':
-        continue
-    else:
-        print(f"Downloading wheel data for {eid}")
-        sess_loader = SessionLoader(one, eid)
-        sess_loader.load_wheel()
+#for eid in bwm_df['eid']:
+#    if eid == 'cc45c568-c3b9-4f74-836e-c87762e898c8':
+#        continue
+#    else:
+#        print(f"Downloading wheel data for {eid}")
+#        sess_loader = SessionLoader(one, eid)
+#        sess_loader.load_wheel()
 
 # Download whisker data for all sessions
 me_err = []
+starttrying = True
 for eid in bwm_df['eid']:
-    try:
-        print(f"Downloading motion energy data for {eid}")
-        sess_loader = SessionLoader(one, eid)
-        sess_loader.load_motion_energy(views=['left', 'right'])
-    except BaseException as e:
-        print(eid, e)
-        me_err.append((eid, e))
+    if starttrying:
+        try:
+            print(f"Downloading motion energy data for {eid}")
+            sess_loader = SessionLoader(one, eid)
+            sess_loader.load_motion_energy(views=['left', 'right'])
+        except BaseException as e:
+            print(eid, e)
+            me_err.append((eid, e))
+    if eid[:8] == 'c7bd79c9':
+        starttrying = True
 
 
