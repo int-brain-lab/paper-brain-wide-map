@@ -6,7 +6,11 @@ from pathlib import Path
 from one.api import ONE
 from brainbox.io.one import SessionLoader
 
-from brainwidemap.bwm_loading import bwm_query, load_good_units, filter_regions, filter_sessions
+from brainwidemap.bwm_loading import (
+    bwm_query, load_good_units, load_trials_and_mask, filter_regions, filter_sessions,
+    download_aggregate_tables)
+#(
+#                    bwm_query, load_good_units, filter_regions, filter_sessions)
 from brainwidemap.decoding.settings import kwargs
 from brainwidemap.decoding.functions.decoding import fit_eid
 from brainwidemap.decoding.paths import BEH_MOD_PATH, FIT_PATH, IMPOSTER_SESSION_PATH
@@ -29,15 +33,16 @@ kwargs['neuralfit_path'].mkdir(parents=True, exist_ok=True)
 # Load the list of probe insertions and select probe
 one = ONE(mode='local')
 bwm_df = bwm_query()
+cache_dir = one.cache_dir
 
 # Download the latest clusters table, we use the same cache as above
-clusters_table = cache_dir.joinpath('clusters.pqt') #download_aggregate_tables(one, type='clusters', target_path=cache_dir)
+clusters_table = download_aggregate_tables(one, type='clusters', target_path=cache_dir)#cache_dir.joinpath('clusters.pqt') #download_aggregate_tables(one, type='clusters', target_path=cache_dir)
 # Map probes to regions (here: Beryl mapping) and filter according to QC, number of units and probes per region
 region_df = filter_regions(bwm_df['pid'], clusters_table=clusters_table, mapping='Beryl', min_qc=1,
                            min_units_region=10, min_probes_region=2)
 
 # Download the latest trials table and filter for sessions that have at least 200 trials fulfilling BWM criteria
-trials_table = cache_dir.joinpath('trials.pqt') #download_aggregate_tables(one, type='trials', target_path=cache_dir)
+trials_table = download_aggregate_tables(one, type='trials', target_path=cache_dir)#cache_dir.joinpath('trials.pqt') #download_aggregate_tables(one, type='trials', target_path=cache_dir)
 eids = filter_sessions(bwm_df['eid'], trials_table=trials_table, min_trials=200)
 
 # Remove probes and sessions based on those filters
@@ -59,7 +64,7 @@ sess_loader = SessionLoader(one, metadata['eid'])
 sess_loader.load_trials()
 
 # Load target data if necessary (will probably put this into a function eventually)
-if kwargs['target'] in ['wheel-vel', 'l-whisker-me', 'r-whisker-me']:
+if kwargs['target'] in ['wheel-vel', 'wheel-speed', 'l-whisker-me', 'r-whisker-me']:
 
     # load target data
     try:

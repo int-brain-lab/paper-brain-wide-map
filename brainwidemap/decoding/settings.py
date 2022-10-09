@@ -90,7 +90,7 @@ TARGET = 'wheel-speed'
 # - optBay
 # - oracle (experimenter-defined 0.2/0.8)
 # - absolute path; this will be the interindividual results
-MODEL = 'expSmoothing_prevAction'
+MODEL = None #'expSmoothing_prevAction'
 
 # add DLC data as additional regressors to neural activity
 MOTOR_REGRESSORS = False
@@ -129,7 +129,7 @@ N_BINS_LAG = 10
 # - lasso (linear + L1)
 # - ridge (linear + L2)
 # - logistic
-ESTIMATOR = 'ridge'
+ESTIMATOR = 'lasso'
 
 # default args for decoder
 ESTIMATOR_KWARGS = {'tol': 0.0001, 'max_iter': 20000, 'fit_intercept': True}
@@ -138,16 +138,16 @@ ESTIMATOR_KWARGS = {'tol': 0.0001, 'max_iter': 20000, 'fit_intercept': True}
 if ESTIMATOR == 'logistic':
     HPARAM_GRID = {'C': np.array([0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 10])}
 else:
-    HPARAM_GRID = {'alpha': np.array([0.001, 0.01, 0.1])}
+    HPARAM_GRID = {'alpha': np.array([0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 10])}
 
 # number of pseudo/imposter sessions to fit per session
-N_PSEUDO = 200
+N_PSEUDO = 50
 
 # number of pseudo/imposter sessions to assign per cluster job
-N_PSEUDO_PER_JOB = 10
+N_PSEUDO_PER_JOB = 25
 
 # number of times to repeat full nested xv with different folds
-N_RUNS = 10
+N_RUNS = 2
 
 # true for interleaved xv, false for contiguous
 SHUFFLE = True
@@ -187,11 +187,11 @@ MERGED_PROBES = False
 SESS_CRITERION = 'resolved-behavior'
 
 # minimum number of behavioral trials completed by subject
-MIN_BEHAV_TRIAS = 150 if NEURAL_DTYPE == 'ephys' else 150  # default BWM setting is 400. 200 must remain after filtering
+MIN_BEHAV_TRIAS = 200 if NEURAL_DTYPE == 'ephys' else 200  # default BWM setting is 400. 200 must remain after filtering
 
 # remove trials with reaction times below/above these values (seconds)
 MIN_RT = 0.08  # 0.08  # Float (s) or None
-MAX_RT = None
+MAX_RT = 2.0
 
 # min/max length of trials (seconds) (can be null)
 MIN_LEN = None  # min length of trial
@@ -254,12 +254,12 @@ BINARIZATION_VALUE = None
 COMPUTE_NEURO_ON_EACH_FOLD = False
 
 # if TRUE, decoding is launched in a quasi-random, reproducible way => it sets the seed
-QUASI_RANDOM = True
+QUASI_RANDOM = False
 
 
 # NEUROMETRIC PARAMS
 # --------------------------------------------------
-BORDER_QUANTILES_NEUROMETRIC = [.3, .7]  # [.3, .4, .5, .6, .7]
+BORDER_QUANTILES_NEUROMETRIC = [] #[.3, .7]  # [.3, .4, .5, .6, .7]
 COMPUTE_NEUROMETRIC = False
 FORCE_POSITIVE_NEURO_SLOPES = False
 

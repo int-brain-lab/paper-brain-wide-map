@@ -24,7 +24,7 @@ if kwargs['imposter_generate_from_ephys']:
     eids = bwm_df['eid'].unique()
 else:
     # no template, no neural activity
-    one = ONE(mode='remote')
+    one = ONE(mode='local')
     eids = one.search(project='ibl_neuropixel_brainwide_01', task_protocol='biasedChoiceWorld')
 
 # basic columns that we want to keep
@@ -53,7 +53,8 @@ if (kwargs['target'] != 'pLeft') \
 
 all_trialsdf = []
 for i, eid in enumerate(eids):
-
+    if (i%10) > 0:
+        continue
     det = one.get_details(eid, full=True)
     print('%i: %s' % (i, eid))
     try:
