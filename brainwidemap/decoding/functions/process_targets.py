@@ -225,7 +225,6 @@ def get_target_data_per_trial(
 
     from scipy.interpolate import interp1d
 
-    # n_bins = int((interval_ends[0] - interval_begs[0]) / binsize) + 1
     if np.all(np.isnan(interval_begs)) or np.all(np.isnan(interval_ends)):
         print('bad trial data')
         good_trial = np.nan * np.ones(interval_begs.shape[0])
@@ -233,7 +232,13 @@ def get_target_data_per_trial(
         target_data_list = []
         return target_times_list, target_data_list, good_trial
 
-    n_bins = int((np.nanmedian(interval_ends - interval_begs)) / binsize) + 1
+    # infer single interval range from all examples; need round because sometimes small errors
+    # can accumulate
+    interval_len = np.round(np.nanmedian(interval_ends - interval_begs), 3)
+    # np.ceil because we want to make sure our bins contain all data
+    n_bins = int(np.ceil(interval_len / binsize))
+
+    # split data into trials
     idxs_beg = np.searchsorted(target_times, interval_begs, side='right')
     idxs_end = np.searchsorted(target_times, interval_ends, side='left')
     target_times_og_list = [target_times[ib:ie] for ib, ie in zip(idxs_beg, idxs_end)]
@@ -276,7 +281,7 @@ def get_target_data_per_trial(
             target_data_list.append(None)
             continue
 
-        # x_interp = np.arange(target_time[0], target_time[-1] + binsize / 2, binsize)
+        # resample signal in desired bins
         x_interp = np.linspace(target_time[0], target_time[-1], n_bins)
         if len(target_vals.shape) > 1 and target_vals.shape[1] > 1:
             n_dims = target_vals.shape[1]

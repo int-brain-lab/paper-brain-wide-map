@@ -243,7 +243,6 @@ def fit_eid(neural_dict, trials_df, metadata, dlc_dict=None, pseudo_ids=[-1], **
                     controlsess_df = generate_null_distribution_session(trials_df, metadata, **kwargs)
                     controltarget_vals_list = compute_beh_target(controlsess_df, metadata, **kwargs)
                 else:
-                    print(len(target_vals_list))
                     imposter_df = kwargs['imposter_df'].copy()
                     # remove current eid from imposter sessions
                     df_clean = imposter_df[imposter_df.eid != metadata['eid']].reset_index()
@@ -254,11 +253,6 @@ def fit_eid(neural_dict, trials_df, metadata, dlc_dict=None, pseudo_ids=[-1], **
                     controlsess_df = df_clean.iloc[idx_beg:idx_beg + n_trials]
                     # grab target values from this dataframe
                     controltarget_vals_list = list(controlsess_df[kwargs['target']].to_numpy())
-                    mask_target = np.ones(n_trials,)
-                    print(len(controltarget_vals_list))
-
-                if kwargs['use_imposter_session']:
-                    mask = compute_mask(controlsess_df, **kwargs) & mask_target
 
                 save_predictions = kwargs.get('save_predictions_pseudo', kwargs['save_predictions'])
             else:
@@ -286,9 +280,15 @@ def fit_eid(neural_dict, trials_df, metadata, dlc_dict=None, pseudo_ids=[-1], **
                 else:
                     rng_seed = None
 
+                if pseudo_id == -1:
+                    # original session
+                    ys = [target_vals_list[m] for m in np.squeeze(np.where(mask))]
+                else:
+                    # session for null dist
+                    ys = [controltarget_vals_list[m] for m in np.squeeze(np.where(mask))]
+
                 fit_result = decode_cv(
-                    ys=([target_vals_list[m] for m in np.squeeze(np.where(mask))] if pseudo_id == -1
-                        else [controltarget_vals_list[m] for m in np.squeeze(np.where(mask))]),
+                    ys=ys,
                     Xs=[Xs[m] for m in np.squeeze(np.where(mask))],                    
                     estimator=kwargs['estimator'],
                     use_openturns=kwargs['use_openturns'],

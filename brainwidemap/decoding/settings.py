@@ -141,13 +141,13 @@ else:
     HPARAM_GRID = {'alpha': np.array([0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 10])}
 
 # number of pseudo/imposter sessions to fit per session
-N_PSEUDO = 200
+N_PSEUDO = 1
 
 # number of pseudo/imposter sessions to assign per cluster job
-N_PSEUDO_PER_JOB = 10
+N_PSEUDO_PER_JOB = 1
 
 # number of times to repeat full nested xv with different folds
-N_RUNS = 10
+N_RUNS = 5
 
 # true for interleaved xv, false for contiguous
 SHUFFLE = True
