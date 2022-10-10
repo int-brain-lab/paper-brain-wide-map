@@ -8,8 +8,7 @@ from brainbox.io.one import SessionLoader
 
 
 year_week = date.today().isocalendar()[:2]
-#STAGING_PATH = Path('/mnt/s0/aggregates/2022_Q4_IBL_et_al_BWM').joinpath(f'{year_week[0]}_W{year_week[1]:02}_bwm')
-STAGING_PATH = Path('/home/julia/data/bwm_aggregates')
+STAGING_PATH = Path('/mnt/s0/aggregates/2022_Q4_IBL_et_al_BWM').joinpath(f'{year_week[0]}_W{year_week[1]:02}_bwm')
 
 one = ONE(base_url='https://alyx.internationalbrainlab.org')
 bwm_df = bwm_query()
