@@ -11,7 +11,7 @@ import pandas as pd
 from tqdm import tqdm
 
 # IBL libraries
-from brainbox.io.one import SessionLoader, SpikeSortingLoader
+from brainbox.io.one import SessionLoader
 from ibllib.atlas import BrainRegions
 from iblutil.numerical import ismember
 from one.api import ONE
