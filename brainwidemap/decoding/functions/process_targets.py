@@ -197,7 +197,8 @@ def compute_beh_target(trials_df, metadata, remove_old=False, **kwargs):
 
 
 def get_target_data_per_trial(
-        target_times, target_data, interval_begs, interval_ends, binsize, allow_nans=False):
+        target_times, target_data, interval_begs, interval_ends, interval_len, binsize,
+        allow_nans=False):
     """Select wheel data for specified interval on each trial.
 
     Parameters
@@ -210,6 +211,7 @@ def get_target_data_per_trial(
         beginning of each interval in seconds
     interval_ends : array-like
         end of each interval in seconds
+    interval_len : float
     binsize : float
         width of each bin in seconds
     allow_nans : bool, optional
@@ -233,9 +235,6 @@ def get_target_data_per_trial(
         target_data_list = []
         return target_times_list, target_data_list, good_trial
 
-    # infer single interval range from all examples; need round because sometimes small errors
-    # can accumulate
-    interval_len = np.round(np.nanmedian(interval_ends - interval_begs), 3)
     # np.ceil because we want to make sure our bins contain all data
     n_bins = int(np.ceil(interval_len / binsize))
 
@@ -335,10 +334,12 @@ def get_target_data_per_trial_wrapper(
     align_times = trials_df[align_event].values
     interval_beg_times = align_times + align_interval[0]
     interval_end_times = align_times + align_interval[1]
+    interval_len = align_interval[1] - align_interval[0]
 
     # split data by trial
     target_times_list, target_val_list, good_trials = get_target_data_per_trial(
-        target_times, target_vals, interval_beg_times, interval_end_times, binsize)
+        target_times, target_vals, interval_beg_times, interval_end_times,
+        interval_len, binsize)
 
     return target_times_list, target_val_list, good_trials
 

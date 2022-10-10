@@ -41,6 +41,11 @@ def preprocess_ephys(reg_clu_ids, neural_df, trials_df, **kwargs):
         trials_df[kwargs['align_time']] + kwargs['time_window'][1]
     ]).T
 
+    # compute interval length
+    interval_len = (
+            kwargs['time_window'][1] - kwargs['time_window'][0]
+            + kwargs['n_bins_lag'] * kwargs['binsize'])
+
     # subselect spikes for this region
     spikemask = np.isin(neural_df['spk_clu'], reg_clu_ids)
     regspikes = neural_df['spk_times'][spikemask]
@@ -61,13 +66,14 @@ def preprocess_ephys(reg_clu_ids, neural_df, trials_df, **kwargs):
             regspikes, regclu,
             interval_begs=intervals[:, 0] - kwargs['n_bins_lag'] * kwargs['binsize'],
             interval_ends=intervals[:, 1],
+            interval_len=interval_len,
             binsize=kwargs['binsize'])
         binned_list = [x.T for x in binned_array]
 
     return binned_list
 
 
-def get_spike_data_per_trial(times, clusters, interval_begs, interval_ends, binsize):
+def get_spike_data_per_trial(times, clusters, interval_begs, interval_ends, interval_len, binsize):
     """Select spiking data for specified interval on each trial.
 
     Parameters
@@ -93,9 +99,6 @@ def get_spike_data_per_trial(times, clusters, interval_begs, interval_ends, bins
 
     n_trials = len(interval_begs)
 
-    # infer single interval range from all examples; need round because sometimes small errors
-    # can accumulate
-    interval_len = np.round(np.nanmedian(interval_ends - interval_begs), 3)
     # np.ceil because we want to make sure our bins contain all data
     n_bins = int(np.ceil(interval_len / binsize))
 
