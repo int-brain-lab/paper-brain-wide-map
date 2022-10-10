@@ -18,78 +18,94 @@ from dask_jobqueue import SLURMCluster
 import brainbox.io.one as bbone
 import brainbox.metrics.single_units as bbqc
 from one.api import ONE
-from brainwide.params import GLM_CACHE
+from brainwidemap.encoding.params import GLM_CACHE
+from brainwidemap.encoding.utils import load_trials_df
+from brainwidemap.bwm_loading import load_good_units, load_trials_and_mask
 
 # Brainwide repo imports
-from brainwide.utils import query_sessions, get_impostor_df
+from brainwidemap.encoding.utils import query_sessions, get_impostor_df
 
 _logger = logging.getLogger('brainwide')
 
 
 def load_regressors(session_id,
-                    probes,
-                    max_len=2.,
+                    pid,
                     t_before=0.,
                     t_after=0.,
                     binwidth=0.02,
                     abswheel=False,
                     ret_qc=False,
+                    clu_criteria='bwm',
                     one=None):
+    """
+    Load in regressors for given session and probe. Returns a dictionary with the following keys:
+
+    Parameters
+    ----------
+    session_id : str
+        EID of the session to load
+    pid : str
+        Probe ID to load associated with the session
+    t_before : float, optional
+        Time before stimulus onset to include in output trial_start column of df, by default 0.
+    t_after : float, optional
+        Time after feedback to include in output trial_end column of df, by default 0.
+    binwidth : float, optional
+        Binwidth for wheel signal. Needs to match that of GLM, by default 0.02
+    abswheel : bool, optional
+        Load in wheel speed instead of velocity, by default False
+    ret_qc : bool, optional
+        Whether to recompute cluster metrics and return a full dataframe of the result,
+        by default False
+    clu_criteria : str, optional
+        Criteria for saving clusters, 'all' for all units, 'bwm' for criteria matching that of
+        brain-wide map (all metrics passing). No others supported for now., by default 'bwm'
+    one : ONE, optional
+        Instance of ONE, by default None
+
+    Returns
+    -------
+    trialsdf, spk_times, spk_clu, clu_regions, clu_qc, clu_df, clu_qc (optional)
+        Output regressors for GLM
+    """
     one = ONE() if one is None else one
 
-    trialsdf = bbone.load_trials_df(session_id,
-                                    maxlen=max_len,
-                                    t_before=t_before,
-                                    t_after=t_after,
-                                    wheel_binsize=binwidth,
-                                    ret_abswheel=abswheel,
-                                    ret_wheel=not abswheel,
-                                    addtl_types=['firstMovement_times'],
-                                    one=one)
+    _, mask = load_trials_and_mask(one=one, eid=eid)
+    trialsdf = load_trials_df(session_id,
+                              t_before=t_before,
+                              t_after=t_after,
+                              wheel_binsize=binwidth,
+                              ret_abswheel=abswheel,
+                              ret_wheel=not abswheel,
+                              addtl_types=['firstMovement_times'],
+                              one=one,
+                              trials_mask=mask,
+                              )
 
-    spikes, clusters, cludfs = {}, {}, []
-    clumax = 0
-    for pid in probes:
-        ssl = bbone.SpikeSortingLoader(one=one, pid=pid)
-        spikes[pid], tmpclu, channels = ssl.load_spike_sorting()
-        if 'metrics' not in tmpclu:
-            tmpclu['metrics'] = np.ones(tmpclu['channels'].size)
-        clusters[pid] = ssl.merge_clusters(spikes[pid], tmpclu, channels)
-        clusters_df = pd.DataFrame(clusters[pid]).set_index(['cluster_id'])
-        clusters_df.index += clumax
-        clusters_df['pid'] = pid
-        cludfs.append(clusters_df)
-        clumax = clusters_df.index.max()
-    allcludf = pd.concat(cludfs)
+    clusters = {}
+    ssl = bbone.SpikeSortingLoader(one=one, pid=pid)
+    spikes, tmpclu, channels = ssl.load_spike_sorting()
+    if 'metrics' not in tmpclu:
+        tmpclu['metrics'] = np.ones(tmpclu['channels'].size)
+    clusters[pid] = ssl.merge_clusters(spikes, tmpclu, channels)
+    clu_df = pd.DataFrame(clusters[pid]).set_index(['cluster_id'])
+    clu_df['pid'] = pid
 
-    allspikes, allclu, allreg, allamps, alldepths = [], [], [], [], []
-    clumax = 0
-    for pid in probes:
-        allspikes.append(spikes[pid].times)
-        allclu.append(spikes[pid].clusters + clumax)
-        allreg.append(clusters[pid].acronym)
-        allamps.append(spikes[pid].amps)
-        alldepths.append(spikes[pid].depths)
-        clumax += np.max(spikes[pid].clusters) + 1
-
-    allspikes, allclu, allamps, alldepths = [
-        np.hstack(x) for x in (allspikes, allclu, allamps, alldepths)
-    ]
-    sortinds = np.argsort(allspikes)
-    spk_times = allspikes[sortinds]
-    spk_clu = allclu[sortinds]
-    spk_amps = allamps[sortinds]
-    spk_depths = alldepths[sortinds]
-    clu_regions = np.hstack(allreg)
+    sortinds = np.argsort(spikes.times)
+    spk_times = spikes.times[sortinds]
+    spk_clu = spikes.clusters[sortinds]
+    spk_amps = spikes.amps[sortinds]
+    spk_depths = spikes.depths[sortinds]
+    clu_regions = clusters[pid].acronym
     if not ret_qc:
-        return trialsdf, spk_times, spk_clu, clu_regions, allcludf
+        return trialsdf, spk_times, spk_clu, clu_regions, clu_df
 
     clu_qc = bbqc.quick_unit_metrics(spk_clu,
                                      spk_times,
                                      spk_amps,
                                      spk_depths,
                                      cluster_ids=np.arange(clu_regions.size))
-    return trialsdf, spk_times, spk_clu, clu_regions, clu_qc, allcludf
+    return trialsdf, spk_times, spk_clu, clu_regions, clu_df, clu_qc
 
 
 def cache_regressors(subject, session_id, probes, regressor_params, trialsdf, spk_times, spk_clu,
