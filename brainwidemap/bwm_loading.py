@@ -287,7 +287,7 @@ def filter_regions(pids, clusters_table=None, one=None, mapping='Beryl',
             clusters_table = download_aggregate_tables(one, type='clusters')
     clus_df = pd.read_parquet(clusters_table)
 
-    # Only consider given
+    # Only consider given pids
     clus_df = clus_df.loc[clus_df['pid'].isin(pids)]
     diff = set(pids).difference(set(clus_df['pid']))
     if len(diff) != 0:
@@ -308,6 +308,8 @@ def filter_regions(pids, clusters_table=None, one=None, mapping='Beryl',
         n_units=pd.NamedAgg(column='cluster_id', aggfunc='count'),
         n_sessions=pd.NamedAgg(column='eid', aggfunc='nunique')
     )
+
+    # Reset index
     regions_count.reset_index(inplace=True)
 
     clus_df = pd.merge(clus_df, regions_count, how='left', on=f'{mapping}')
