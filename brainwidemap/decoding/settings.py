@@ -11,8 +11,269 @@ logger = logging.getLogger('ibllib')
 logger.disabled = True
 
 
-# DEFINE SOME OPTION LISTS
+# DOCS: DECODING TARGET
 # --------------------------------------------------
+# TARGET: str
+# decoding target
+# single-bin targets: pLeft | signcont | choice | feedback
+# multi-bin targets: wheel-vel | wheel-speed | pupil | l-paw-pos | l-paw-vel | l-paw-speed |
+#    l-whisker-me | r-paw-pos | r-paw-vel | r-paw-speed | r-whisker-me
+
+# MODEL: mixed
+# behavioral model used for pLeft
+# - expSmoothing_prevAction (not string)
+# - expSmoothing_stimside (not string)
+# - optBay  (not string)
+# - oracle (experimenter-defined 0.2/0.8)
+# - absolute path; this will be the interindividual results
+
+# BEH_MOUSELEVEL_TRAINING: bool
+# if true, trains the behavioral model session-wise else mouse-wise
+
+
+# DOCS: TIME WINDOW PARAMS
+# --------------------------------------------------
+# ALIGN_TIME: str
+# event on which windows are aligned
+# - firstMovement_times
+# - goCue_times
+# - stimOn_times
+# - feedback_times
+
+# TIME_WINDOW: tuple
+# start and end of decoding window, relative to ALIGN_TIME (seconds)
+
+# BINSIZE: float
+# size of individual bins within time window (seconds)
+
+# N_BINS_LAG: int
+# number of bins to use for prediction
+
+
+# DOCS: DECODER PARAMS
+# --------------------------------------------------
+# ESTIMATOR: str
+# - linear
+# - lasso (linear + L1)
+# - ridge (linear + L2)
+# - logistic
+
+# ESTIMATOR_KWARGS: dict
+# default args for decoder
+
+# HPARAM_GRID: dict
+# hyperparameter values to search over
+
+# N_PSEUDO: int
+# number of pseudo/imposter sessions to fit per session
+
+# N_PSEUDO_PER_JOB: int
+# number of pseudo/imposter sessions to assign per cluster job
+
+# N_RUNS: int
+# number of times to repeat full nested xv with different folds
+
+# SHUFFLE: bool
+# true for interleaved xv, false for contiguous
+
+# QUASI_RANDOM: bool
+# if TRUE, decoding is launched in a quasi-random, reproducible way => it sets the seed
+
+# BALANCED_WEIGHT: bool
+# seems to work better with BALANCED_WEIGHT=False, but putting True is important
+
+# BALANCED_CONTINUOUS_TARGET: bool
+# is target continuous or discrete FOR BALANCED WEIGHTING
+
+
+# DOCS: CLUSTER/UNIT PARAMS
+# --------------------------------------------------
+# MIN_UNITS: int
+# regions with units below this threshold are skipped
+
+# QC_CRITERIA: float
+# fraction of qc criteria each unit needs to pass for inclusion
+
+# SINGLE_REGION: bool
+# perform decoding on region-wise or whole-brain decoding
+
+# MERGED_PROBES: bool
+# merge probes before performing analysis
+
+
+# DOCS: SESSION/BEHAVIOR PARAMS
+# --------------------------------------------------
+# MIN_BEHAV_TRIAS: int
+# minimum number of behavioral trials completed by subject
+
+# MIN_RT/MAX_RT: float
+# remove trials with reaction times below/above these values (seconds)
+
+# MIN_LEN/MAX_LEN: float
+# remove trials with durations below/above these values (seconds)
+
+# NO_UNBIAS: bool
+# true to take out unbiased block at beginning of session
+
+# N_TRIALS_TAKEOUT_END: int
+# number of trials to remove from the end of the session
+
+
+# DOCS: NULL DISTRIBUTION PARAMS
+# --------------------------------------------------
+# USE_IMPOSTER_SESSION: bool
+# false will use pseudo-sessions to create null distributions
+
+# IMPOSTER_GENERATE_FROM_EPHYS: bool
+# true to just use ephys sessions, false to use training sessions (more templates)
+
+# CONSTRAIN_NULL_SESSION_WITH_BEH: bool
+# TODO
+
+# STITCHING_FOR_IMPOSTER_SESSION: bool
+# if true, stitches sessions to create imposters
+
+# USE_IMPOSTER_SESSION_FOR_BALANCING: bool
+# if false, simulate the model (should be false)
+
+# IMPOSTER_GENERATE_FAKE: bool
+# testing purposes?
+
+# FILTER_PSEUDOSESSIONS_ON_MUTUALINFORMATION: bool
+# TODO
+
+# MAX_NUMBER_TRIALS_WHEN_NO_STITCHING_FOR_IMPOSTER_SESSION: int
+# this is a constraint on the number of trials of a session to insure that there will more
+# potential imposter sessions to use in the null distribution
+
+
+# DOCS: MISC PARAMS
+# --------------------------------------------------
+# USE_OPENTURNS: bool
+# BIN_SIZE_KDE: float
+# uses openturns to perform kernel density estimation
+
+# SAVE_PREDICTIONS: bool
+# save model predictions in output file
+
+# SAVE_PREDICTIONS_PSEUDO: bool
+# save model predictions in output file from pseudo/imposter/synthetic sessions
+
+# SAVE_BINNED: bool
+# save binned neural predictors in output file (causes large files)
+
+# BINARIZATION_VALUE
+# to binarize the target -> could be useful with logistic regression estimator
+
+# MOTOR_REGRESSORS: bool
+# add DLC data as additional regressors to neural activity
+
+# MOTOR_REGRESSORS_ONLY: bool
+# *only* use motor regressors, no neural activity
+
+
+# SELECT PARAMS
+# --------------------------------------------------
+DATE = '08-10-2022'
+TARGET = 'wheel-speed'
+
+if TARGET == 'pLeft':
+    MODEL = None
+    ALIGN_TIME = 'stimOn_times'
+    TIME_WINDOW = (-0.4, -0.1)
+    BINSIZE = 0.3
+    N_BINS_LAG = None
+    USE_IMPOSTER_SESSION = False
+elif TARGET == 'signcont':
+    MODEL = None
+    ALIGN_TIME = 'stimOn_times'
+    TIME_WINDOW = (0.0, 0.1)
+    BINSIZE = 0.1
+    N_BINS_LAG = None
+    USE_IMPOSTER_SESSION = False
+    raise NotImplementedError
+elif TARGET == 'choice':
+    MODEL = None
+    ALIGN_TIME = 'firstMovement_times'
+    TIME_WINDOW = (-0.1, 0.0)
+    BINSIZE = 0.1
+    N_BINS_LAG = None
+    USE_IMPOSTER_SESSION = False
+    raise NotImplementedError
+elif TARGET == 'feedback':
+    MODEL = None
+    ALIGN_TIME = 'feedback_times'
+    TIME_WINDOW = (0.0, 0.2)
+    BINSIZE = 0.2
+    N_BINS_LAG = None
+    USE_IMPOSTER_SESSION = False
+    raise NotImplementedError
+elif TARGET in ['wheel-vel', 'wheel-speed', 'l-whisker-me', 'r-whisker-me']:
+    MODEL = None
+    ALIGN_TIME = 'firstMovement_times'
+    TIME_WINDOW = (-0.2, 1.0)
+    BINSIZE = 0.02
+    N_BINS_LAG = 10
+    USE_IMPOSTER_SESSION = True
+else:
+    raise NotImplementedError
+
+
+BEH_MOUSELEVEL_TRAINING = False
+
+# DECODER PARAMS
+ESTIMATOR = 'lasso'
+ESTIMATOR_KWARGS = {'tol': 0.0001, 'max_iter': 20000, 'fit_intercept': True}
+if ESTIMATOR == 'logistic':
+    HPARAM_GRID = {'C': np.array([0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 10])}
+else:
+    HPARAM_GRID = {'alpha': np.array([0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 10])}
+N_PSEUDO = 1
+N_PSEUDO_PER_JOB = 1
+N_RUNS = 5
+SHUFFLE = True
+QUASI_RANDOM = True
+BALANCED_WEIGHT = False
+BALANCED_CONTINUOUS_TARGET = True
+
+# CLUSTER/UNIT PARAMS
+MIN_UNITS = 10
+QC_CRITERIA = 3 / 3
+SINGLE_REGION = True
+MERGED_PROBES = False
+
+# SESSION/BEHAVIOR PARAMS
+MIN_BEHAV_TRIAS = 200
+MIN_RT = 0.08  # 0.08  # Float (s) or None
+MAX_RT = None
+MIN_LEN = None
+MAX_LEN = None
+NO_UNBIAS = False
+N_TRIALS_TAKEOUT_END = 0
+
+# NULL DISTRIBUTION PARAMS
+IMPOSTER_GENERATE_FROM_EPHYS = False
+CONSTRAIN_NULL_SESSION_WITH_BEH = False
+STITCHING_FOR_IMPOSTER_SESSION = True
+USE_IMPOSTER_SESSION_FOR_BALANCING = False
+IMPOSTER_GENERATE_FAKE = False
+FILTER_PSEUDOSESSIONS_ON_MUTUALINFORMATION = False
+MAX_NUMBER_TRIALS_WHEN_NO_STITCHING_FOR_IMPOSTER_SESSION = 700
+
+# MISC PARAMS
+USE_OPENTURNS = False
+BIN_SIZE_KDE = 0.05
+SAVE_PREDICTIONS = True
+SAVE_PREDICTIONS_PSEUDO = False
+SAVE_BINNED = False
+BINARIZATION_VALUE = None
+MOTOR_REGRESSORS = False
+MOTOR_REGRESSORS_ONLY = False  # only use motor regressors
+
+
+# RUN CHECKS
+# --------------------------------------------------
+
 # decoding targets
 target_options_singlebin = [
     'pLeft',  # some estimate of the block prior
@@ -57,185 +318,6 @@ decoder_options = {
     'ridge': sklm.Ridge,
     'logistic': sklm.LogisticRegression
 }
-
-
-DATE = '08-10-2022'
-
-
-# SELECT DECODING TARGET
-# --------------------------------------------------
-# single-bin targets
-# - pLeft
-# - signcont
-# - choice
-# - feedback
-#
-# multi-bin targets
-# - wheel-vel
-# - wheel-speed
-# - pupil
-# - l-paw-pos
-# - l-paw-vel
-# - l-paw-speed
-# - l-whisker-me
-# - r-paw-pos
-# - r-paw-vel
-# - r-paw-speed
-# - r-whisker-me
-TARGET = 'wheel-speed'
-
-# model of prior
-# - expSmoothing_prevAction
-# - expSmoothing_stimside
-# - optBay
-# - oracle (experimenter-defined 0.2/0.8)
-# - absolute path; this will be the interindividual results
-MODEL = None
-
-# if true, trains the behavioral model session-wise else mouse-wise
-BEH_MOUSELEVEL_TRAINING = False
-
-
-# TIME WINDOW PARAMS
-# --------------------------------------------------
-# event on which windows are aligned
-# - firstMovement_times
-# - goCue_times
-# - stimOn_times
-# - feedback_times
-ALIGN_TIME = 'firstMovement_times'
-
-# start and end of decoding window, relative to ALIGN_TIME (seconds)
-TIME_WINDOW = (-0.2, 1.0)
-
-# size of individual bins within time window (seconds)
-BINSIZE = 0.02
-
-# number of bins to use for prediction
-N_BINS_LAG = 10
-
-
-# DECODER PARAMS
-# --------------------------------------------------
-# sklearn model
-# - linear
-# - lasso (linear + L1)
-# - ridge (linear + L2)
-# - logistic
-ESTIMATOR = 'lasso'
-
-# default args for decoder
-ESTIMATOR_KWARGS = {'tol': 0.0001, 'max_iter': 20000, 'fit_intercept': True}
-
-# hyperparameter values to search over
-if ESTIMATOR == 'logistic':
-    HPARAM_GRID = {'C': np.array([0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 10])}
-else:
-    HPARAM_GRID = {'alpha': np.array([0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 10])}
-
-# number of pseudo/imposter sessions to fit per session
-N_PSEUDO = 1
-
-# number of pseudo/imposter sessions to assign per cluster job
-N_PSEUDO_PER_JOB = 1
-
-# number of times to repeat full nested xv with different folds
-N_RUNS = 5
-
-# true for interleaved xv, false for contiguous
-SHUFFLE = True
-
-# if TRUE, decoding is launched in a quasi-random, reproducible way => it sets the seed
-QUASI_RANDOM = True
-
-# seems to work better with BALANCED_WEIGHT=False, but putting True is important
-BALANCED_WEIGHT = False
-BALANCED_CONTINUOUS_TARGET = True  # is target continuous or discrete FOR BALANCED WEIGHTING
-
-
-# CLUSTER/UNIT PARAMS
-# --------------------------------------------------
-# regions with units below this threshold are skipped
-MIN_UNITS = 10
-
-# fraction of qc criteria each unit needs to pass for inclusion
-QC_CRITERIA = 3 / 3
-
-# perform decoding on region-wise or whole-brain decoding
-SINGLE_REGION = True
-
-# merge probes before performing analysis
-MERGED_PROBES = False
-
-
-# SESSION/BEHAVIOR PARAMS
-# --------------------------------------------------
-# minimum number of behavioral trials completed by subject
-MIN_BEHAV_TRIAS = 200
-
-# remove trials with reaction times below/above these values (seconds)
-MIN_RT = 0.08  # 0.08  # Float (s) or None
-MAX_RT = None
-
-# remove trials with durations below/above these values (seconds)
-MIN_LEN = None
-MAX_LEN = None
-
-# true to take out unbiased block at beginning of session
-NO_UNBIAS = False
-
-# number of trials to remove from the end of the session
-N_TRIALS_TAKEOUT_END = 0
-
-
-# NULL DISTRIBUTION PARAMS
-# --------------------------------------------------
-# false will use pseudo-sessions to create null distributions
-USE_IMPOSTER_SESSION = True
-
-# true to just use ephys sessions, false to use training sessions (more templates)
-IMPOSTER_GENERATE_FROM_EPHYS = False
-
-# TODO
-CONSTRAIN_NULL_SESSION_WITH_BEH = False
-
-# if true, stitches sessions to create imposters
-STITCHING_FOR_IMPOSTER_SESSION = True
-
-# if false, simulate the model (should be false)
-USE_IMPOSTER_SESSION_FOR_BALANCING = False
-
-# testing purposes?
-IMPOSTER_GENERATE_FAKE = False
-
-FILTER_PSEUDOSESSIONS_ON_MUTUALINFORMATION = False
-
-# this is a constraint on the number of trials of a session to insure that there will be at least
-# 1000 unstitched imposter sessions. IMPORTANT, with this number, you can not generate more than
-# 1000 control imposter sessions
-MAX_NUMBER_TRIALS_WHEN_NO_STITCHING_FOR_IMPOSTER_SESSION = 700
-
-
-# MISC PARAMS
-# --------------------------------------------------
-# uses openturns to perform kernel density estimation
-USE_OPENTURNS = False
-BIN_SIZE_KDE = 0.05
-
-SAVE_PREDICTIONS = True
-SAVE_PREDICTIONS_PSEUDO = False
-SAVE_BINNED = False
-
-# to binarize the target -> could be useful with logistic regression estimator
-BINARIZATION_VALUE = None
-
-# add DLC data as additional regressors to neural activity
-MOTOR_REGRESSORS = False
-MOTOR_REGRESSORS_ONLY = False  # only use motor regressors
-
-
-# RUN CHECKS
-# --------------------------------------------------
 
 N_JOBS_PER_SESSION = N_PSEUDO // N_PSEUDO_PER_JOB
 
