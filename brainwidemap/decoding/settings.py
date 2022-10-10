@@ -59,7 +59,7 @@ decoder_options = {
 }
 
 
-DATE = '08-10-2022'
+DATE = '10-10-2022'
 
 
 # SELECT DECODING TARGET
@@ -90,17 +90,10 @@ TARGET = 'wheel-speed'
 # - optBay
 # - oracle (experimenter-defined 0.2/0.8)
 # - absolute path; this will be the interindividual results
-MODEL = None #'expSmoothing_prevAction'
+MODEL = None
 
-# add DLC data as additional regressors to neural activity
-MOTOR_REGRESSORS = False
-MOTOR_REGRESSORS_ONLY = False  # only use motor regressors
-
-# do we want to decode the previous contrast? (FOR DEBUGGING)
-DECODE_PREV_CONTRAST = False
-
-# decode the derivative of the target signal
-DECODE_DERIVATIVE = False
+# if true, trains the behavioral model session-wise else mouse-wise
+BEH_MOUSELEVEL_TRAINING = False
 
 
 # TIME WINDOW PARAMS
@@ -141,10 +134,10 @@ else:
     HPARAM_GRID = {'alpha': np.array([0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 10])}
 
 # number of pseudo/imposter sessions to fit per session
-N_PSEUDO = 50
+N_PSEUDO = 4
 
 # number of pseudo/imposter sessions to assign per cluster job
-N_PSEUDO_PER_JOB = 25
+N_PSEUDO_PER_JOB = 2
 
 # number of times to repeat full nested xv with different folds
 N_RUNS = 2
@@ -152,21 +145,16 @@ N_RUNS = 2
 # true for interleaved xv, false for contiguous
 SHUFFLE = True
 
-# data normalization
-NORMALIZE_INPUT = False  # take out mean of the neural activity per unit across trials
-NORMALIZE_OUTPUT = False  # take out mean of output to predict
+# if TRUE, decoding is launched in a quasi-random, reproducible way => it sets the seed
+QUASI_RANDOM = False
 
-BALANCED_WEIGHT = False  # seems to work better with BALANCED_WEIGHT=False, but putting True is important
+# seems to work better with BALANCED_WEIGHT=False, but putting True is important
+BALANCED_WEIGHT = False
 BALANCED_CONTINUOUS_TARGET = True  # is target continuous or discrete FOR BALANCED WEIGHTING
 
 
 # CLUSTER/UNIT PARAMS
 # --------------------------------------------------
-# type of neural data
-# - ephys
-# - widefield
-NEURAL_DTYPE = 'ephys'
-
 # regions with units below this threshold are skipped
 MIN_UNITS = 10
 
@@ -182,26 +170,22 @@ MERGED_PROBES = False
 
 # SESSION/BEHAVIOR PARAMS
 # --------------------------------------------------
-# aligned -> histology was performed by one experimenter
-# resolved -> histology was performed by 2-3 experiments
-SESS_CRITERION = 'resolved-behavior'
-
 # minimum number of behavioral trials completed by subject
-MIN_BEHAV_TRIAS = 200 if NEURAL_DTYPE == 'ephys' else 200  # default BWM setting is 400. 200 must remain after filtering
+MIN_BEHAV_TRIAS = 200
 
 # remove trials with reaction times below/above these values (seconds)
 MIN_RT = 0.08  # 0.08  # Float (s) or None
 MAX_RT = 2.0
 
-# min/max length of trials (seconds) (can be null)
-MIN_LEN = None  # min length of trial
-MAX_LEN = None  # max length of trial
+# remove trials with durations below/above these values (seconds)
+MIN_LEN = None
+MAX_LEN = None
 
 # true to take out unbiased block at beginning of session
 NO_UNBIAS = False
 
 # number of trials to remove from the end of the session
-NB_TRIALS_TAKEOUT_END = 0
+N_TRIALS_TAKEOUT_END = 0
 
 
 # NULL DISTRIBUTION PARAMS
@@ -234,8 +218,6 @@ MAX_NUMBER_TRIALS_WHEN_NO_STITCHING_FOR_IMPOSTER_SESSION = 700
 
 # MISC PARAMS
 # --------------------------------------------------
-SIMULATE_NEURAL_DATA = False
-
 # uses openturns to perform kernel density estimation
 USE_OPENTURNS = False
 BIN_SIZE_KDE = 0.05
@@ -244,32 +226,12 @@ SAVE_PREDICTIONS = True
 SAVE_PREDICTIONS_PSEUDO = False
 SAVE_BINNED = False
 
-# if true, trains the behavioral model session-wise else mouse-wise
-BEH_MOUSELEVEL_TRAINING = False
-
 # to binarize the target -> could be useful with logistic regression estimator
 BINARIZATION_VALUE = None
 
-# if True, expect a script that is 5 times slower
-COMPUTE_NEURO_ON_EACH_FOLD = False
-
-# if TRUE, decoding is launched in a quasi-random, reproducible way => it sets the seed
-QUASI_RANDOM = False
-
-
-# NEUROMETRIC PARAMS
-# --------------------------------------------------
-BORDER_QUANTILES_NEUROMETRIC = [] #[.3, .7]  # [.3, .4, .5, .6, .7]
-COMPUTE_NEUROMETRIC = False
-FORCE_POSITIVE_NEURO_SLOPES = False
-
-
-# WIDEFIELD PARAMS
-# --------------------------------------------------
-WFI_HEMISPHERES = ['left', 'right']  # 'left' and/or 'right'
-WFI_NB_FRAMES_START = -2  # left signed number of frames from ALIGN_TIME (frame included)
-WFI_NB_FRAMES_END = -2  # right signed number of frames from ALIGN_TIME (frame included). If 0, the align time frame is included
-WFI_AVERAGE_OVER_FRAMES = False
+# DLC
+MOTOR_REGRESSORS = False
+MOTOR_REGRESSORS_ONLY = False  # only use motor regressors
 
 
 # RUN CHECKS
@@ -304,20 +266,11 @@ if ESTIMATOR not in decoder_options.keys():
 else:
     ESTIMATOR = decoder_options[ESTIMATOR]
 
-if NORMALIZE_INPUT or NORMALIZE_OUTPUT:
-    warnings.warn('This feature has not been tested')
-
 # ValueErrors and NotImplementedErrors
-if NEURAL_DTYPE == 'widefield' and WFI_NB_FRAMES_START > WFI_NB_FRAMES_END:
-    raise ValueError('there is a problem in the specification of the timing of the widefield')
-
 if TARGET in ['choice', 'feedback'] and (MODEL != expSmoothing_prevAction or USE_IMPOSTER_SESSION):
     raise ValueError(
         f'if you want to decode choice or feedback, you must use the actionKernel model and '
         f'frankenstein sessions')
-
-if USE_IMPOSTER_SESSION and COMPUTE_NEUROMETRIC:
-    raise ValueError('you can not use imposter sessions if you want to to compute the neurometric')
 
 if USE_IMPOSTER_SESSION_FOR_BALANCING:
     raise ValueError(
@@ -330,85 +283,67 @@ if ESTIMATOR == sklm.LogisticRegression and BALANCED_CONTINUOUS_TARGET:
 if not SINGLE_REGION and not MERGED_PROBES:
     raise ValueError('full probes analysis can only be done with merged probes')
 
-if COMPUTE_NEUROMETRIC and TARGET != 'signcont':
-    raise ValueError('the target should be signcont to compute neurometric curves')
-
-if len(BORDER_QUANTILES_NEUROMETRIC) == 0 and MODEL is not None:
-    raise ValueError('BORDER_QUANTILES_NEUROMETRIC must be at least of 1 when MODEL is specified')
-
-if len(BORDER_QUANTILES_NEUROMETRIC) != 0 and MODEL is None:
-    raise ValueError(
-        f'BORDER_QUANTILES_NEUROMETRIC must be empty when MODEL is not specified '
-        f'- oracle pLeft used'
-    )
 
 ADD_TO_SAVING_PATH = (
-    'imposterSess_%i_balancedWeight_%i_RegionLevel_%i_mergedProbes_%i_behMouseLevelTraining_%i_simulated_%i_constrainNullSess_%i'
+    'imposterSess_%i_balancedWeight_%i_RegionLevel_%i_mergedProbes_%i_behMouseLevelTraining_%i_constrainNullSess_%i'
     % (USE_IMPOSTER_SESSION, BALANCED_WEIGHT, SINGLE_REGION, MERGED_PROBES,
-       BEH_MOUSELEVEL_TRAINING, SIMULATE_NEURAL_DATA, CONSTRAIN_NULL_SESSION_WITH_BEH))
+       BEH_MOUSELEVEL_TRAINING, CONSTRAIN_NULL_SESSION_WITH_BEH))
 
 
 kwargs = {
     'date': DATE,
-    'nb_runs': N_RUNS,
-    'single_region': SINGLE_REGION,
-    'merged_probes': MERGED_PROBES,
-    'modeldispatcher': modeldispatcher,
-    'estimator_kwargs': ESTIMATOR_KWARGS,
-    'hyperparam_grid': HPARAM_GRID,
-    'shuffle': SHUFFLE,
-    'balanced_weight': BALANCED_WEIGHT,
-    'normalize_input': NORMALIZE_INPUT,
-    'normalize_output': NORMALIZE_OUTPUT,
-    'compute_on_each_fold': COMPUTE_NEURO_ON_EACH_FOLD,
-    'balanced_continuous_target': BALANCED_CONTINUOUS_TARGET,
-    'force_positive_neuro_slopes': FORCE_POSITIVE_NEURO_SLOPES,
-    'estimator': ESTIMATOR,
+    # TARGET
     'target': TARGET,
     'model': MODEL,
+    'modeldispatcher': modeldispatcher,
+    'beh_mouseLevel_training': BEH_MOUSELEVEL_TRAINING,
+    # TIME WINDOW
+    'align_time': ALIGN_TIME,
+    'time_window': TIME_WINDOW,
     'binsize': BINSIZE,
     'n_bins_lag': N_BINS_LAG,
-    'align_time': ALIGN_TIME,
-    'no_unbias': NO_UNBIAS,
+    # DECODER
+    'estimator': ESTIMATOR,
+    'estimator_kwargs': ESTIMATOR_KWARGS,
+    'hyperparam_grid': HPARAM_GRID,
+    'n_pseudo': N_PSEUDO,
+    'n_pseudo_per_job': N_PSEUDO_PER_JOB,
+    'n_runs': N_RUNS,
+    'shuffle': SHUFFLE,
+    'quasi_random': QUASI_RANDOM,
+    'balanced_weight': BALANCED_WEIGHT,
+    'balanced_continuous_target': BALANCED_CONTINUOUS_TARGET,
+    # CLUSTER/UNIT
+    'min_units': MIN_UNITS,
+    'qc_criteria': QC_CRITERIA,
+    'single_region': SINGLE_REGION,
+    'merged_probes': MERGED_PROBES,
+    # SESSION/BEHAVIOR
+    'min_behav_trials': MIN_BEHAV_TRIAS,
     'min_rt': MIN_RT,
     'max_rt': MAX_RT,
-    'min_behav_trials': MIN_BEHAV_TRIAS,
-    'qc_criteria': QC_CRITERIA,
-    'min_units': MIN_UNITS,
-    'time_window': TIME_WINDOW,
-    'use_imposter_session': USE_IMPOSTER_SESSION,
-    'compute_neurometric': COMPUTE_NEUROMETRIC,
-    'border_quantiles_neurometric': BORDER_QUANTILES_NEUROMETRIC,
-    'add_to_saving_path': ADD_TO_SAVING_PATH,
-    'use_openturns': USE_OPENTURNS,
-    'bin_size_kde': BIN_SIZE_KDE,
-    'neural_dtype': NEURAL_DTYPE,
-    'wfi_hemispheres': WFI_HEMISPHERES,
-    'use_imposter_session_for_balancing': USE_IMPOSTER_SESSION_FOR_BALANCING,
-    'beh_mouseLevel_training': BEH_MOUSELEVEL_TRAINING,
-    'binarization_value': BINARIZATION_VALUE,
-    'simulate_neural_data': SIMULATE_NEURAL_DATA,
-    'constrain_null_session_with_beh': CONSTRAIN_NULL_SESSION_WITH_BEH,
     'min_len': MIN_LEN,
     'max_len': MAX_LEN,
+    'no_unbias': NO_UNBIAS,
+    'n_trials_takeout_end': N_TRIALS_TAKEOUT_END,
+    # NULL DISTRIBUTION
+    'use_imposter_session': USE_IMPOSTER_SESSION,
+    'imposter_generate_from_ephys': IMPOSTER_GENERATE_FROM_EPHYS,
+    'constrain_null_session_with_beh': CONSTRAIN_NULL_SESSION_WITH_BEH,
+    'stitching_for_imposter_session': STITCHING_FOR_IMPOSTER_SESSION,
+    'use_imposter_session_for_balancing': USE_IMPOSTER_SESSION_FOR_BALANCING,
+    'imposter_generate_fake': IMPOSTER_GENERATE_FAKE,
+    'filter_pseudosessions_on_mutualInformation': FILTER_PSEUDOSESSIONS_ON_MUTUALINFORMATION,
+    'max_number_trials_when_no_stitching_for_imposter_session': MAX_NUMBER_TRIALS_WHEN_NO_STITCHING_FOR_IMPOSTER_SESSION,
+    # MISC
+    'use_openturns': USE_OPENTURNS,
+    'bin_size_kde': BIN_SIZE_KDE,
     'save_predictions': SAVE_PREDICTIONS,
     'save_predictions_pseudo': SAVE_PREDICTIONS_PSEUDO,
     'save_binned': SAVE_BINNED,
-    'wfi_nb_frames_start': WFI_NB_FRAMES_START,
-    'wfi_nb_frames_end': WFI_NB_FRAMES_END,
-    'quasi_random': QUASI_RANDOM,
-    'nb_trials_takeout_end': NB_TRIALS_TAKEOUT_END,
-    'stitching_for_imposter_session': STITCHING_FOR_IMPOSTER_SESSION,
-    'max_number_trials_when_no_stitching_for_imposter_session': MAX_NUMBER_TRIALS_WHEN_NO_STITCHING_FOR_IMPOSTER_SESSION,
-    'filter_pseudosessions_on_mutualInformation': FILTER_PSEUDOSESSIONS_ON_MUTUALINFORMATION,
+    'binarization_value': BINARIZATION_VALUE,
+    'add_to_saving_path': ADD_TO_SAVING_PATH,
     'motor_regressors': MOTOR_REGRESSORS,
     'motor_regressors_only': MOTOR_REGRESSORS_ONLY,
-    'decode_prev_contrast': DECODE_PREV_CONTRAST,
-    'decode_derivative': DECODE_DERIVATIVE,
-    'wfi_average_over_frames': WFI_AVERAGE_OVER_FRAMES,
     'imposterdf': None,
-    'imposter_generate_from_ephys': IMPOSTER_GENERATE_FROM_EPHYS,
-    'imposter_generate_fake': IMPOSTER_GENERATE_FAKE,
-    'n_pseudo': N_PSEUDO,
-    'n_pseudo_per_job': N_PSEUDO_PER_JOB,
 }

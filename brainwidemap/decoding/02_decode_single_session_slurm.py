@@ -18,8 +18,8 @@ from brainwidemap.decoding.paths import BEH_MOD_PATH, FIT_PATH, IMPOSTER_SESSION
 n_pseudo = kwargs['n_pseudo']
 n_pseudo_per_job = kwargs['n_pseudo_per_job']
 
-# kwargs['add_to_saving_path'] = f"_binsize={1000 * kwargs['binsize']}_lags={kwargs['n_bins_lag']}_" \
-#                               f"mergedProbes_{kwargs['merge_probes']}"
+kwargs['add_to_saving_path'] = f"_binsize={1000 * kwargs['binsize']}_lags={kwargs['n_bins_lag']}_" \
+                              f"mergedProbes_{kwargs['merged_probes']}"
 
 # Take the argument given to this script and create index by subtracting 1
 index = int(sys.argv[1]) - 1
@@ -53,6 +53,10 @@ bwm_df = bwm_df[bwm_df['eid'].isin(eids)]
 pid_idx = index % bwm_df.index.size
 job_id = index // bwm_df.index.size
 
+#n_jobs_per_eid = N_PSEUDO/N_PSEUDO_PER_JOB
+#pid_idx = index // n_jobs_per_eid
+#job_id = index % n_jobs_per_eid
+
 metadata = {
     'subject': bwm_df.iloc[pid_idx]['subject'],
     'eid': bwm_df.iloc[pid_idx]['eid'],
@@ -70,20 +74,32 @@ if kwargs['target'] in ['wheel-vel', 'wheel-speed', 'l-whisker-me', 'r-whisker-m
     try:
         if kwargs['target'] == 'wheel-vel':
             sess_loader.load_wheel()
-            dlc_dict = {'times': sess_loader.wheel['times'], 'values': sess_loader.wheel['velocity']}
+            dlc_dict = {
+                'times': sess_loader.wheel['times'].to_numpy(),
+                'values': sess_loader.wheel['velocity'].to_numpy()
+            }
         elif kwargs['target'] == 'wheel-speed':
             sess_loader.load_wheel()
-            dlc_dict = {'times': sess_loader.wheel['times'], 'values': np.abs(sess_loader.wheel['velocity'])}
+            dlc_dict = {
+                'times': sess_loader.wheel['times'].to_numpy(),
+                'values': np.abs(sess_loader.wheel['velocity'].to_numpy())
+            }
         elif kwargs['target'] == 'l-whisker-me':
             sess_loader.load_motion_energy(views=['left'])
-            dlc_dict = {'times': sess_loader.motion_energy['leftCamera']['times'],
-                        'values': sess_loader.motion_energy['leftCamera']['whiskerMotionEnergy']}
+            dlc_dict = {
+                'times': sess_loader.motion_energy['leftCamera']['times'].to_numpy(),
+                'values': sess_loader.motion_energy['leftCamera']['whiskerMotionEnergy'].to_numpy()
+            }
         elif kwargs['target'] == 'r-whisker-me':
             sess_loader.load_motion_energy(views=['right'])
-            dlc_dict = {'times': sess_loader.motion_energy['rightCamera']['times'],
-                        'values': sess_loader.motion_energy['rightCamera']['whiskerMotionEnergy']}
-        dlc_dict['skip': False]
+            dlc_dict = {
+                'times': sess_loader.motion_energy['rightCamera']['times'].to_numpy(),
+                'values': sess_loader.motion_energy['rightCamera']['whiskerMotionEnergy'].to_numpy()
+            }
+        dlc_dict['skip'] = False
     except BaseException as e:
+        print('error loading %s data' % kwargs['target'])
+        print(e)
         dlc_dict = {'times': None, 'values': None, 'skip': True}
 
     # Load imposter sessions
@@ -114,6 +130,7 @@ neural_dict = {
     'clu_df': clusters
 }
 
+#TODO change to loop how desired
 if (job_id + 1) * n_pseudo_per_job <= n_pseudo:
     print(f"pid_id: {pid_idx}")
     pseudo_ids = np.arange(job_id * n_pseudo_per_job, (job_id + 1) * n_pseudo_per_job) + 1

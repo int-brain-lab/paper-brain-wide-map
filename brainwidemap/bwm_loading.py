@@ -235,7 +235,7 @@ def download_aggregate_tables(one, target_path=None, type='clusters', tag='2022_
 
 
 def filter_regions(pids, clusters_table=None, one=None, mapping='Beryl',
-                   min_qc=1., min_units_region=10, min_probes_region=2):
+                   min_qc=1., min_units_region=10, min_probes_region=2, min_sessions_region=None):
     """
     Maps probes to regions and filters to retain only probe-regions pairs that satisfy certain criteria.
 
@@ -258,17 +258,24 @@ def filter_regions(pids, clusters_table=None, one=None, mapping='Beryl',
         Minimum number of units per region for a region to be retained.
         Default is 10. If None, criterion is not applied
     min_probes_region: int or None
-        Minimum number of probes per region for a region to be retained.
+        Minimum number of probes per region for a region to be retained. Mutually exclusive with min_sessions_region.
         Default is 2. If None, criterion is not applied.
+    min_sessions_region: int or None
+        Minimum number of sessions per region for a region to be retained. Mutually exclusive with min_probes_region.
+        Default is None, i.e. not applied
 
     Returns
     -------
     regions_df: pandas.DataFrame
-        Dataframe of unique region-probe pairs, with columns ['{mapping}', 'pid', 'n_units', 'n_probes']
+        Dataframe of unique region-probe pairs, with columns ['{mapping}', 'pid', 'n_units', 'n_probes', 'n_sessions']
     """
 
-    if not any([min_qc, min_units_region, min_probes_region]):
+    if not any([min_qc, min_units_region, min_probes_region, min_sessions_region]):
         print('No criteria selected. Aborting.')
+        return
+
+    if all([min_probes_region, min_sessions_region]):
+        print('Only one of min_probes_region and min_session_region can be applied, the other must be None.')
         return
 
     if clusters_table is None:
@@ -280,7 +287,7 @@ def filter_regions(pids, clusters_table=None, one=None, mapping='Beryl',
             clusters_table = download_aggregate_tables(one, type='clusters')
     clus_df = pd.read_parquet(clusters_table)
 
-    # Only consider given
+    # Only consider given pids
     clus_df = clus_df.loc[clus_df['pid'].isin(pids)]
     diff = set(pids).difference(set(clus_df['pid']))
     if len(diff) != 0:
@@ -295,11 +302,14 @@ def filter_regions(pids, clusters_table=None, one=None, mapping='Beryl',
     clus_df[f'{mapping}'] = br.id2acronym(clus_df['atlas_id'], mapping=f'{mapping}')
     clus_df = clus_df.loc[~clus_df[f'{mapping}'].isin(['void', 'root'])]
 
-    # Count units and probes per region
+    # Count units, probes and sessions per region
     regions_count = clus_df.groupby(f'{mapping}').aggregate(
         n_probes=pd.NamedAgg(column='pid', aggfunc='nunique'),
-        n_units=pd.NamedAgg(column='cluster_id', aggfunc='count')
+        n_units=pd.NamedAgg(column='cluster_id', aggfunc='count'),
+        n_sessions=pd.NamedAgg(column='eid', aggfunc='nunique')
     )
+
+    # Reset index
     regions_count.reset_index(inplace=True)
 
     clus_df = pd.merge(clus_df, regions_count, how='left', on=f'{mapping}')
@@ -307,8 +317,10 @@ def filter_regions(pids, clusters_table=None, one=None, mapping='Beryl',
         clus_df = clus_df[clus_df.eval(f'n_units >= {min_units_region}')]
     if min_probes_region:
         clus_df = clus_df[clus_df.eval(f'n_probes >= {min_probes_region}')]
+    if min_sessions_region:
+        clus_df = clus_df[clus_df.eval(f'n_sessions >= {min_sessions_region}')]
 
-    regions_df = clus_df.filter([f'{mapping}', 'pid', 'n_units', 'n_probes'])
+    regions_df = clus_df.filter([f'{mapping}', 'pid', 'n_units', 'n_probes', 'n_sessions'])
     regions_df.drop_duplicates(inplace=True)
     regions_df.reset_index(inplace=True, drop=True)
 

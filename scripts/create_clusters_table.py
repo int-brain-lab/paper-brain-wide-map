@@ -75,6 +75,7 @@ for i, pid in enumerate(pids):
     ldf_channels.append(df_ch)
     df_clu = pd.DataFrame(clusters)
     df_clu['pid'] = pid
+    df_clu['eid'] = eid
     ldf_clusters.append(df_clu)
     # aggregate spike features per depth
     df_spikes = pd.DataFrame(spikes)

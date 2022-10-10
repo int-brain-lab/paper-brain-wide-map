@@ -1,17 +1,20 @@
 import numpy as np
 import openturns
-from sklearn.utils.class_weight import compute_sample_weight
-from brainwidemap.decoding.functions.process_targets import optimal_Bayesian, check_bhv_fit_exists
-import pickle
 import pandas as pd
+import pickle
+from sklearn.utils.class_weight import compute_sample_weight
+import torch
+
 from brainbox.task.closed_loop import generate_pseudo_blocks, _draw_position, _draw_contrast
-from brainwidemap.decoding.functions.nulldistributions import generate_imposter_session
+
 from behavior_models.models.utils import format_data as format_data_mut
 from behavior_models.models.utils import format_input as format_input_mut
-import torch
-from brainwidemap.decoding.settings import modeldispatcher
 from behavior_models.models.expSmoothing_prevAction import expSmoothing_prevAction
 from behavior_models.models.expSmoothing_stimside import expSmoothing_stimside
+
+from brainwidemap.decoding.functions.process_targets import optimal_Bayesian, check_bhv_fit_exists
+from brainwidemap.decoding.functions.nulldistributions import generate_imposter_session
+from brainwidemap.decoding.settings import modeldispatcher
 
 
 def pdf_from_histogram(x, out):
@@ -19,12 +22,6 @@ def pdf_from_histogram(x, out):
     # out = np.histogram(np.array([0.9, 0.9]), bins=target_distribution[-1], density=True)
     # out[0][(np.array([0.9])[:, None] > out[1][None]).sum(axis=-1) - 1]
     return out[0][(x[:, None] > out[1][None]).sum(axis=-1) - 1]
-
-
-def test_df_from_histogram(target_distribution):
-    v = 0.9
-    out = np.histogram(np.array([v, v]), bins=target_distribution[-1], density=True)
-    assert (pdf_from_histogram(np.array([v]), out) > 0)
 
 
 def balanced_weighting(vec, continuous, use_openturns, bin_size_kde, target_distribution):

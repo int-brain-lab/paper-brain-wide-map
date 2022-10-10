@@ -152,53 +152,9 @@ def build_predictor_matrix(array, n_lags, return_valid=True):
     return mat
 
 
-def preprocess_widefield_imaging(neural_dict, reg_mask, **kwargs):
-    frames_idx = np.sort(
-        neural_dict['timings'][kwargs['align_time']].values[:, None] +
-        np.arange(kwargs['wfi_nb_frames_start'], kwargs['wfi_nb_frames_end'] + 1),
-        axis=1,
-    )
-    binned = np.take(neural_dict['activity'], # [:, reg_mask]
-                     frames_idx,
-                     axis=0)
-    binned = binned[:, :, reg_mask]
-    if kwargs['wfi_average_over_frames']:
-        binned = binned.mean(axis=1, keepdims=True)
-    binned = list(binned.reshape(binned.shape[0], -1)[:, None])
-    return binned
-
-
 def select_ephys_regions(regressors, beryl_reg, region, **kwargs):
     """Select units based on QC criteria and brain region."""
     qc_pass = (regressors['clu_qc']['label'] >= kwargs['qc_criteria'])
     reg_mask = np.isin(beryl_reg, region)
     reg_clu_ids = np.argwhere(reg_mask & qc_pass).flatten()
     return reg_clu_ids
-
-
-def get_bery_reg_wfi(neural_dict, **kwargs):
-    uniq_regions = np.unique(neural_dict['regions'])
-    if 'left' in kwargs['wfi_hemispheres'] and 'right' in kwargs['wfi_hemispheres']:
-        return neural_dict['atlas'].acronym[np.array([k in np.abs(uniq_regions)
-                                                      for k in neural_dict['atlas'].label])]
-    elif 'left' in kwargs['wfi_hemispheres']:
-        return neural_dict['atlas'].acronym[np.array([k in np.abs(uniq_regions[uniq_regions > 0])
-                                                      for k in neural_dict['atlas'].label])]
-    elif 'right' in kwargs['wfi_hemispheres']:
-        return neural_dict['atlas'].acronym[np.array([k in np.abs(uniq_regions[uniq_regions < 0])
-                                                      for k in neural_dict['atlas'].label])]
-    else:
-        raise ValueError('there is a problem in the wfi_hemispheres argument')
-
-
-def select_widefield_imaging_regions(neural_dict, region, **kwargs):
-    """Select pixels based on brain region."""
-    region_labels = []
-    reg_lab = neural_dict['atlas'][neural_dict['atlas'].acronym.isin(region).values].label.values
-    if 'left' in kwargs['wfi_hemispheres']:
-        region_labels.extend(reg_lab)
-    if 'right' in kwargs['wfi_hemispheres']:
-        region_labels.extend(-reg_lab)
-
-    reg_mask = np.isin(neural_dict['regions'], region_labels)
-    return reg_mask

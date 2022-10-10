@@ -24,8 +24,36 @@ if kwargs['imposter_generate_from_ephys']:
     eids = bwm_df['eid'].unique()
 else:
     # no template, no neural activity
+<<<<<<< HEAD
     one = ONE(mode='local')
     eids = one.search(project='ibl_neuropixel_brainwide_01', task_protocol='biasedChoiceWorld')
+=======
+    one = ONE(mode='remote')
+    # eids = one.search(project='ibl_neuropixel_brainwide_01', task_protocol='biasedChoiceWorld')
+    qc_pass = (
+        '~session__extended_qc___task_stimOn_goCue_delays__lt,0.9,'
+        '~session__extended_qc___task_response_feedback_delays__lt,0.9,'
+        '~session__extended_qc___task_wheel_move_before_feedback__lt,0.9,'
+        '~session__extended_qc___task_wheel_freeze_during_quiescence__lt,0.9,'
+        '~session__extended_qc___task_error_trial_event_sequence__lt,0.9,'
+        '~session__extended_qc___task_correct_trial_event_sequence__lt,0.9,'
+        '~session__extended_qc___task_reward_volumes__lt,0.9,'
+        '~session__extended_qc___task_reward_volume_set__lt,0.9,'
+        '~session__extended_qc___task_stimulus_move_before_goCue__lt,0.9,'
+        '~session__extended_qc___task_audio_pre_trial__lt,0.9,'
+        '~session__extended_qc___task_wheel_integrity__lt,1.0,'
+        'n_trials__gte,400'
+    )
+    sessions = list(one.alyx.rest(
+        'sessions', 'list',
+        task_protocol='biasedChoiceWorld',
+        project='ibl_neuropixel_brainwide_01',
+        dataset_types=['wheel.position'],
+        performance_gte=70,
+        django=qc_pass,
+    ))
+    eids = [s['id'] for s in sessions]
+>>>>>>> 6eb42ee39d656d87baab7735da97a89bdd6aac68
 
 # basic columns that we want to keep
 columns = [
