@@ -61,7 +61,7 @@ def compute_mask(trials_df, align_time, time_window, min_len, max_len, no_unbias
 
     # define reaction times
     if 'react_times' not in trials_df.keys():
-        trials_df['react_times'] = trials_df.firstMovement_times - trials_df.stimOn_times
+        trials_df.loc[:, 'react_times'] = trials_df.firstMovement_times - trials_df.stimOn_times
 
     # successively build a mask that defines which trials we want to keep
 

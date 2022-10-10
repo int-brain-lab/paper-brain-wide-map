@@ -90,7 +90,7 @@ TARGET = 'wheel-speed'
 # - optBay
 # - oracle (experimenter-defined 0.2/0.8)
 # - absolute path; this will be the interindividual results
-MODEL = 'expSmoothing_prevAction'
+MODEL = None
 
 # add DLC data as additional regressors to neural activity
 MOTOR_REGRESSORS = False
@@ -129,7 +129,7 @@ N_BINS_LAG = 10
 # - lasso (linear + L1)
 # - ridge (linear + L2)
 # - logistic
-ESTIMATOR = 'ridge'
+ESTIMATOR = 'lasso'
 
 # default args for decoder
 ESTIMATOR_KWARGS = {'tol': 0.0001, 'max_iter': 20000, 'fit_intercept': True}
@@ -138,7 +138,7 @@ ESTIMATOR_KWARGS = {'tol': 0.0001, 'max_iter': 20000, 'fit_intercept': True}
 if ESTIMATOR == 'logistic':
     HPARAM_GRID = {'C': np.array([0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 10])}
 else:
-    HPARAM_GRID = {'alpha': np.array([0.001, 0.01, 0.1])}
+    HPARAM_GRID = {'alpha': np.array([0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 10])}
 
 # number of pseudo/imposter sessions to fit per session
 N_PSEUDO = 200
@@ -259,7 +259,7 @@ QUASI_RANDOM = True
 
 # NEUROMETRIC PARAMS
 # --------------------------------------------------
-BORDER_QUANTILES_NEUROMETRIC = [.3, .7]  # [.3, .4, .5, .6, .7]
+BORDER_QUANTILES_NEUROMETRIC = []  # [.3, .7]  # [.3, .4, .5, .6, .7]
 COMPUTE_NEUROMETRIC = False
 FORCE_POSITIVE_NEURO_SLOPES = False
 

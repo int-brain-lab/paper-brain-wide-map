@@ -16,14 +16,13 @@ n_pseudo = kwargs['n_pseudo']
 n_pseudo_per_job = kwargs['n_pseudo_per_job']
 
 kwargs['add_to_saving_path'] = f"_binsize={1000 * kwargs['binsize']}_lags={kwargs['n_bins_lag']}_" \
-                               f"mergedProbes_{kwargs['merge_probes']}"
+                               f"mergedProbes_{kwargs['merged_probes']}"
 
 # Take the argument given to this script and create index by subtracting 1
 try:
     index = int(sys.argv[1]) - 1
 except:
-    index = 32
-    pass
+    index = 32  # random value, lets us debug this script on a single session
 
 # Create the directories
 kwargs['behfit_path'] = BEH_MOD_PATH
@@ -50,26 +49,38 @@ sess_loader = SessionLoader(one, metadata['eid'])
 sess_loader.load_trials()
 
 # Load target data if necessary (will probably put this into a function eventually)
-if kwargs['target'] in ['wheel-vel', 'l-whisker-me', 'r-whisker-me']:
+if kwargs['target'] in ['wheel-vel', 'wheel-speed', 'l-whisker-me', 'r-whisker-me']:
 
     # load target data
     try:
         if kwargs['target'] == 'wheel-vel':
             sess_loader.load_wheel()
-            dlc_dict = {'times': sess_loader.wheel['times'], 'values': sess_loader.wheel['velocity']}
+            dlc_dict = {
+                'times': sess_loader.wheel['times'].to_numpy(),
+                'values': sess_loader.wheel['velocity'].to_numpy()
+            }
         elif kwargs['target'] == 'wheel-speed':
             sess_loader.load_wheel()
-            dlc_dict = {'times': sess_loader.wheel['times'], 'values': np.abs(sess_loader.wheel['velocity'])}
+            dlc_dict = {
+                'times': sess_loader.wheel['times'].to_numpy(),
+                'values': np.abs(sess_loader.wheel['velocity'].to_numpy())
+            }
         elif kwargs['target'] == 'l-whisker-me':
             sess_loader.load_motion_energy(views=['left'])
-            dlc_dict = {'times': sess_loader.motion_energy['leftCamera']['times'],
-                        'values': sess_loader.motion_energy['leftCamera']['whiskerMotionEnergy']}
+            dlc_dict = {
+                'times': sess_loader.motion_energy['leftCamera']['times'].to_numpy(),
+                'values': sess_loader.motion_energy['leftCamera']['whiskerMotionEnergy'].to_numpy()
+            }
         elif kwargs['target'] == 'r-whisker-me':
             sess_loader.load_motion_energy(views=['right'])
-            dlc_dict = {'times': sess_loader.motion_energy['rightCamera']['times'],
-                        'values': sess_loader.motion_energy['rightCamera']['whiskerMotionEnergy']}
-        dlc_dict['skip': False]
+            dlc_dict = {
+                'times': sess_loader.motion_energy['rightCamera']['times'].to_numpy(),
+                'values': sess_loader.motion_energy['rightCamera']['whiskerMotionEnergy'].to_numpy()
+            }
+        dlc_dict['skip'] = False
     except BaseException as e:
+        print('error loading %s data' % kwargs['target'])
+        print(e)
         dlc_dict = {'times': None, 'values': None, 'skip': True}
 
     # Load imposter sessions

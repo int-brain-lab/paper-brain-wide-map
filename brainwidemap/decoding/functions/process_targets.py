@@ -226,7 +226,7 @@ def get_target_data_per_trial(
     from scipy.interpolate import interp1d
 
     # n_bins = int((interval_ends[0] - interval_begs[0]) / binsize) + 1
-    if np.all(np.isnan(interval_ends)) or np.all(np.isnan(interval_ends)):
+    if np.all(np.isnan(interval_begs)) or np.all(np.isnan(interval_ends)):
         print('bad trial data')
         good_trial = np.nan * np.ones(interval_begs.shape[0])
         target_times_list = []

@@ -159,9 +159,15 @@ def fit_eid(neural_dict, trials_df, metadata, dlc_dict=None, pseudo_ids=[-1], **
         target_vals_list = compute_beh_target(trials_df, metadata, **kwargs)
         mask_target = np.ones(len(target_vals_list), dtype=bool)
     else:
+        if dlc_dict is None or dlc_dict['times'] is None or dlc_dict['values'] is None:
+            raise ValueError('dlc_dict does not contain any data')
         _, target_vals_list, mask_target = get_target_data_per_trial_wrapper(
-            dlc_dict['times'], dlc_dict['values'], trials_df, kwargs['align_time'],
-            kwargs['time_window'], kwargs['binsize'])
+            target_times=dlc_dict['times'],
+            target_vals=dlc_dict['values'],
+            trials_df=trials_df,
+            align_event=kwargs['align_time'],
+            align_interval=kwargs['time_window'],
+            binsize=kwargs['binsize'])
 
     mask = compute_mask(trials_df, **kwargs) & mask_target
 
@@ -207,20 +213,18 @@ def fit_eid(neural_dict, trials_df, metadata, dlc_dict=None, pseudo_ids=[-1], **
         if kwargs['simulate_neural_data']:
             raise NotImplementedError
 
-
-        ##### motor signal regressors #####
-        
+        # #### motor signal regressors #####
         if kwargs.get('motor_regressors', None):
             print('motor regressors')
             from braindelphi.decoding.functions.process_motors import preprocess_motors
-            motor_binned = preprocess_motors(metadata['eid'],kwargs) # size (nb_trials,nb_motor_regressors) => one bin per trial
+            # size (nb_trials, nb_motor_regressors) => one bin per trial
+            motor_binned = preprocess_motors(metadata['eid'], kwargs)
             
             if kwargs['motor_regressors_only']:
                 msub_binned = motor_binned
-            else :
-                msub_binned = np.concatenate([msub_binned,motor_binned],axis=2)
-
-        ##################################
+            else:
+                msub_binned = np.concatenate([msub_binned, motor_binned], axis=2)
+        # #################################
 
         # make design matrix
         bins_per_trial = msub_binned[0].shape[0]
@@ -266,9 +270,9 @@ def fit_eid(neural_dict, trials_df, metadata, dlc_dict=None, pseudo_ids=[-1], **
 
             ### derivative of target signal before mask application ###
             if kwargs['decode_derivative']:
-                if pseudo_id == -1 :
+                if pseudo_id == -1:
                     target_vals_list = derivative(target_vals_list)
-                else :
+                else:
                     controltarget_vals_list = derivative(controltarget_vals_list)
 
             # run decoders
