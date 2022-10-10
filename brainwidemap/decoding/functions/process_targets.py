@@ -354,6 +354,7 @@ def get_target_variable_in_df(
     align_time : str
     time_window : array-like
     binsize : float
+    trials_df : pandas.DataFrame
 
     Returns
     -------
