@@ -42,7 +42,7 @@ nan_exclude = [
 query = f'(firstMovement_times - stimOn_times < {min_rt}) | (firstMovement_times - stimOn_times > {max_rt})'
 for event in nan_exclude:
     query += f' | {event}.isnull()'
-df_trials['bwm_include'] = df_trials.eval(query)
+df_trials['bwm_include'] = ~df_trials.eval(query)
 
 # Save to file
 df_trials.to_parquet(STAGING_PATH.joinpath('trials.pqt'))
