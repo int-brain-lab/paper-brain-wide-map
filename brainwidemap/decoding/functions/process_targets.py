@@ -8,7 +8,8 @@ from behavior_models.models.utils import format_data as format_data_mut
 from behavior_models.models.utils import format_input as format_input_mut
 from behavior_models.models.utils import build_path as build_path_mut
 
-from brainwidemap.decoding.functions.utils_common_pipelines import load_behavior
+from brainbox.io.one import SessionLoader
+
 from brainwidemap.decoding.functions.utils import compute_mask
 
 
@@ -342,6 +343,61 @@ def get_target_data_per_trial_wrapper(
     return target_times_list, target_val_list, good_trials
 
 
+def load_behavior(target, sess_loader):
+    """
+
+    Parameters
+    ----------
+    target : str
+        'wheel-vel' | 'wheel-speed' | 'l-whisker-me' | 'r-whisker-me'
+    sess_loader : from brainbox.io.one.SessionLoader
+
+    Returns
+    -------
+    dict
+        'times': timestamps for behavior signal
+        'values': associated values
+        'skip': bool, True if there was an error loading data
+
+    """
+    try:
+        if target == 'wheel-vel':
+            sess_loader.load_wheel()
+            beh_dict = {
+                'times': sess_loader.wheel['times'].to_numpy(),
+                'values': sess_loader.wheel['velocity'].to_numpy()
+            }
+        elif target == 'wheel-speed':
+            sess_loader.load_wheel()
+            beh_dict = {
+                'times': sess_loader.wheel['times'].to_numpy(),
+                'values': np.abs(sess_loader.wheel['velocity'].to_numpy())
+            }
+        elif target == 'l-whisker-me':
+            sess_loader.load_motion_energy(views=['left'])
+            beh_dict = {
+                'times': sess_loader.motion_energy['leftCamera']['times'].to_numpy(),
+                'values': sess_loader.motion_energy['leftCamera']['whiskerMotionEnergy'].to_numpy()
+            }
+        elif target == 'r-whisker-me':
+            sess_loader.load_motion_energy(views=['right'])
+            beh_dict = {
+                'times': sess_loader.motion_energy['rightCamera']['times'].to_numpy(),
+                'values': sess_loader.motion_energy['rightCamera']['whiskerMotionEnergy'].to_numpy()
+            }
+        else:
+            raise NotImplementedError
+
+        beh_dict['skip'] = False
+
+    except BaseException as e:
+        print('error loading %s data' % target)
+        print(e)
+        beh_dict = {'times': None, 'values': None, 'skip': True}
+
+    return beh_dict
+
+
 def get_target_variable_in_df(
         one, eid, target, align_time, time_window, binsize, trials_df=None, **kwargs):
     """Return a trials dataframe with additional behavioral data as one array per trial.
@@ -362,17 +418,15 @@ def get_target_variable_in_df(
 
     """
 
+    sess_loader = SessionLoader(one, eid)
+
     # load trial data
     if trials_df is None:
-        from brainbox.io.one import SessionLoader
-        sess_loader = SessionLoader(eid)
         sess_loader.load_trials()
         trials_df = sess_loader.trials
-        # import brainbox.io.one as bbone
-        # trials_df = bbone.load_trials_df(eid, one=one, addtl_types=['firstMovement_times'])
 
     # load behavior data
-    beh_dict = load_behavior(eid=eid, target=target, one=one)
+    beh_dict = load_behavior(target=target, sess_loader=sess_loader)
     if beh_dict['skip']:
         raise Exception("Error loading %s data" % target)
 

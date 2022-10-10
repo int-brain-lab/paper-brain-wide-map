@@ -92,7 +92,13 @@ def get_spike_data_per_trial(times, clusters, interval_begs, interval_ends, bins
     """
 
     n_trials = len(interval_begs)
-    n_bins = int((interval_ends[0] - interval_begs[0]) / binsize) + 1
+
+    # infer single interval range from all examples; need round because sometimes small errors
+    # can accumulate
+    interval_len = np.round(np.nanmedian(interval_ends - interval_begs), 3)
+    # np.ceil because we want to make sure our bins contain all data
+    n_bins = int(np.ceil(interval_len / binsize))
+
     cluster_ids = np.unique(clusters)
     n_clusters_in_region = len(cluster_ids)
 

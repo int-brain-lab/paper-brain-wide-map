@@ -9,10 +9,9 @@ from brainbox.io.one import SessionLoader
 from brainwidemap.bwm_loading import (
     bwm_query, load_good_units, load_trials_and_mask, filter_regions, filter_sessions,
     download_aggregate_tables)
-#(
-#                    bwm_query, load_good_units, filter_regions, filter_sessions)
 from brainwidemap.decoding.settings import kwargs
 from brainwidemap.decoding.functions.decoding import fit_eid
+from brainwidemap.decoding.functions.process_targets import load_behavior
 from brainwidemap.decoding.paths import BEH_MOD_PATH, FIT_PATH, IMPOSTER_SESSION_PATH
 
 n_pseudo = kwargs['n_pseudo']
@@ -24,25 +23,28 @@ kwargs['add_to_saving_path'] = f"_binsize={1000 * kwargs['binsize']}_lags={kwarg
 # Take the argument given to this script and create index by subtracting 1
 index = int(sys.argv[1]) - 1
 
-# Create the directories
+# create the directories
 kwargs['behfit_path'] = BEH_MOD_PATH
 kwargs['neuralfit_path'] = FIT_PATH
 kwargs['behfit_path'].mkdir(parents=True, exist_ok=True)
 kwargs['neuralfit_path'].mkdir(parents=True, exist_ok=True)
 
-# Load the list of probe insertions and select probe
+# load the list of probe insertions and select probe
 one = ONE(mode='local')
 bwm_df = bwm_query()
 cache_dir = one.cache_dir
 
 # Download the latest clusters table, we use the same cache as above
-clusters_table = download_aggregate_tables(one, type='clusters', target_path=cache_dir)#cache_dir.joinpath('clusters.pqt') #download_aggregate_tables(one, type='clusters', target_path=cache_dir)
-# Map probes to regions (here: Beryl mapping) and filter according to QC, number of units and probes per region
-region_df = filter_regions(bwm_df['pid'], clusters_table=clusters_table, mapping='Beryl', min_qc=1,
-                           min_units_region=10, min_probes_region=2)
+clusters_table = download_aggregate_tables(one, type='clusters', target_path=cache_dir)
+# Map probes to regions (here: Beryl mapping) and filter according to QC, number of units and
+# probes per region
+region_df = filter_regions(
+    bwm_df['pid'], clusters_table=clusters_table, mapping='Beryl', min_qc=1, min_units_region=10,
+    min_probes_region=2)
 
-# Download the latest trials table and filter for sessions that have at least 200 trials fulfilling BWM criteria
-trials_table = download_aggregate_tables(one, type='trials', target_path=cache_dir)#cache_dir.joinpath('trials.pqt') #download_aggregate_tables(one, type='trials', target_path=cache_dir)
+# Download the latest trials table and filter for sessions that have at least 200 trials fulfilling
+# BWM criteria
+trials_table = download_aggregate_tables(one, type='trials', target_path=cache_dir)
 eids = filter_sessions(bwm_df['eid'], trials_table=trials_table, min_trials=200)
 
 # Remove probes and sessions based on those filters
@@ -50,8 +52,12 @@ bwm_df = bwm_df[bwm_df['pid'].isin(region_df['pid'].unique())]
 bwm_df = bwm_df[bwm_df['eid'].isin(eids)]
 
 # Not sure why we do this
+# TODO: brandon wants to update
 pid_idx = index % bwm_df.index.size
 job_id = index // bwm_df.index.size
+# n_jobs_per_eid = N_PSEUDO/N_PSEUDO_PER_JOB
+# pid_idx = index // n_jobs_per_eid
+# job_id = index % n_jobs_per_eid
 
 #n_jobs_per_eid = N_PSEUDO/N_PSEUDO_PER_JOB
 #pid_idx = index // n_jobs_per_eid
@@ -63,46 +69,17 @@ metadata = {
     'probe_name': bwm_df.iloc[pid_idx]['probe_name']
 }
 
-# Load trials df
+# load trials df
 sess_loader = SessionLoader(one, metadata['eid'])
 sess_loader.load_trials()
 
-# Load target data if necessary (will probably put this into a function eventually)
+# load target data if necessary (will probably put this into a function eventually)
 if kwargs['target'] in ['wheel-vel', 'wheel-speed', 'l-whisker-me', 'r-whisker-me']:
 
     # load target data
-    try:
-        if kwargs['target'] == 'wheel-vel':
-            sess_loader.load_wheel()
-            dlc_dict = {
-                'times': sess_loader.wheel['times'].to_numpy(),
-                'values': sess_loader.wheel['velocity'].to_numpy()
-            }
-        elif kwargs['target'] == 'wheel-speed':
-            sess_loader.load_wheel()
-            dlc_dict = {
-                'times': sess_loader.wheel['times'].to_numpy(),
-                'values': np.abs(sess_loader.wheel['velocity'].to_numpy())
-            }
-        elif kwargs['target'] == 'l-whisker-me':
-            sess_loader.load_motion_energy(views=['left'])
-            dlc_dict = {
-                'times': sess_loader.motion_energy['leftCamera']['times'].to_numpy(),
-                'values': sess_loader.motion_energy['leftCamera']['whiskerMotionEnergy'].to_numpy()
-            }
-        elif kwargs['target'] == 'r-whisker-me':
-            sess_loader.load_motion_energy(views=['right'])
-            dlc_dict = {
-                'times': sess_loader.motion_energy['rightCamera']['times'].to_numpy(),
-                'values': sess_loader.motion_energy['rightCamera']['whiskerMotionEnergy'].to_numpy()
-            }
-        dlc_dict['skip'] = False
-    except BaseException as e:
-        print('error loading %s data' % kwargs['target'])
-        print(e)
-        dlc_dict = {'times': None, 'values': None, 'skip': True}
+    dlc_dict = load_behavior(kwargs['target'], sess_loader)
 
-    # Load imposter sessions
+    # load imposter sessions
     ephys_str = '_beforeRecording' if not kwargs['imposter_generate_from_ephys'] else ''
     filename = 'imposterSessions_%s%s.pqt' % (kwargs['target'], ephys_str)
     imposter_file = IMPOSTER_SESSION_PATH.joinpath(filename)
@@ -113,7 +90,6 @@ else:
     kwargs['imposter_df'] = None
 
 # Load spike sorting data and put it in a dictionary for now
-
 spikes, clusters = load_good_units(
     one,
     bwm_df.iloc[pid_idx]['pid'],
@@ -143,4 +119,5 @@ if (job_id + 1) * n_pseudo_per_job <= n_pseudo:
         pseudo_ids=pseudo_ids,
         dlc_dict=dlc_dict,
         **kwargs)
+
 print('Slurm job successful')
