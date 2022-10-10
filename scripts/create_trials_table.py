@@ -8,7 +8,8 @@ from brainbox.io.one import SessionLoader
 
 
 year_week = date.today().isocalendar()[:2]
-STAGING_PATH = Path('/mnt/s0/aggregates/2022_Q4_IBL_et_al_BWM').joinpath(f'{year_week[0]}_W{year_week[1]:02}_bwm')
+#STAGING_PATH = Path('/mnt/s0/aggregates/2022_Q4_IBL_et_al_BWM').joinpath(f'{year_week[0]}_W{year_week[1]:02}_bwm')
+STAGING_PATH = Path('/home/julia/data/bwm_aggregates')
 
 one = ONE(base_url='https://alyx.internationalbrainlab.org')
 bwm_df = bwm_query()
@@ -42,7 +43,7 @@ nan_exclude = [
 query = f'(firstMovement_times - stimOn_times < {min_rt}) | (firstMovement_times - stimOn_times > {max_rt})'
 for event in nan_exclude:
     query += f' | {event}.isnull()'
-df_trials['bwm_include'] = df_trials.eval(query)
+df_trials['bwm_include'] = ~df_trials.eval(query)
 
 # Save to file
 df_trials.to_parquet(STAGING_PATH.joinpath('trials.pqt'))
