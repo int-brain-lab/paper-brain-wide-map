@@ -1,5 +1,5 @@
 """
-Utility functions for the prior-localization repository
+Utility functions for the paper-brain-wide-map repository
 """
 # Standard library
 import logging
@@ -15,7 +15,7 @@ from brainbox.io.one import SessionLoader, SpikeSortingLoader
 from ibllib.atlas import BrainRegions
 from iblutil.numerical import ismember
 from one.api import ONE
-from timeseries import TimeSeries, sync
+from brainwidemap.encoding.timeseries import TimeSeries, sync
 
 _logger = logging.getLogger("brainwide")
 
@@ -245,15 +245,13 @@ def make_batch_slurm(
 def load_trials_df(
     eid,
     one=None,
-    maxlen=None,
     t_before=0.0,
     t_after=0.2,
     ret_wheel=False,
     ret_abswheel=False,
     wheel_binsize=0.02,
     addtl_types=[],
-    align_event="stimOn_times",
-    keeptrials=None,
+    trials_mask=None,
 ):
     """
     Generate a pandas dataframe of per-trial timing information about a given session.
@@ -272,9 +270,6 @@ def load_trials_df(
         details dict or Path
     one : one.api.OneAlyx, optional
         one object to use for loading. Will generate internal one if not used, by default None
-    maxlen : float, optional
-        Maximum trial length for inclusion in df. Trials where feedback - response is longer
-        than this value will not be included in the dataframe, by default None
     t_before : float, optional
         Time before stimulus onset to include for a given trial, as defined by the trial_start
         column of the dataframe. If zero, trial_start will be identical to stimOn, by default 0.
@@ -290,6 +285,8 @@ def load_trials_df(
     addtl_types : list, optional
         List of additional types from an ONE trials object to include in the dataframe. Must be
         valid keys to the dict produced by one.load_object(eid, 'trials'), by default empty.
+    trials_mask : list, optional
+        List of trial indices to include in the dataframe. If None, all trials will be included.
 
     Returns
     -------
@@ -319,25 +316,18 @@ def load_trials_df(
     trialstypes.extend(addtl_types)
 
     loader = SessionLoader(one=one, eid=eid)
-    loader.load_session_data(pose=False, motion_energy=False, pupil=False)
+    loader.load_session_data(pose=False, motion_energy=False, pupil=False, wheel=False)
+    if ret_wheel or ret_abswheel:
+        loader.load_wheel(smooth_size=0.001)
 
     trials = loader.trials
     starttimes = trials.stimOn_times
     endtimes = trials.feedback_times
-    tmp = {key: value for key, value in trials.items() if key in trialstypes}
-
-    if keeptrials is None:
-        if maxlen is not None:
-            with np.errstate(invalid="ignore"):
-                keeptrials = (endtimes - starttimes) <= maxlen
-        else:
-            keeptrials = range(len(starttimes))
-    trialdata = {x: tmp[x][keeptrials] for x in trialstypes}
-    trialsdf = pd.DataFrame(trialdata)
-    if maxlen is not None:
-        trialsdf.set_index(np.nonzero(keeptrials)[0], inplace=True)
-    trialsdf["trial_start"] = trialsdf[align_event] - t_before
-    trialsdf["trial_end"] = trialsdf[align_event] + t_after
+    trialsdf = trials[trialstypes]
+    if trials_mask is not None:
+        trialsdf = trialsdf.loc[trials_mask]
+    trialsdf["trial_start"] = trialsdf['stimOn_times'] - t_before
+    trialsdf["trial_end"] = trialsdf['feedback_times'] + t_after
     tdiffs = trialsdf["trial_end"] - np.roll(trialsdf["trial_start"], -1)
     if np.any(tdiffs[:-1] > 0):
         logging.warning(
@@ -348,7 +338,7 @@ def load_trials_df(
         return trialsdf
 
     wheel = loader.wheel
-    whlpos, whlt, whlv = wheel.position, wheel.times, wheel.velocity
+    whlt, whlv = wheel.times, wheel.velocity
     starttimes = trialsdf["trial_start"]
     endtimes = trialsdf["trial_end"]
     wh_endlast = 0
@@ -358,7 +348,6 @@ def load_trials_df(
         wh_endind = np.searchsorted(whlt[wh_endlast:], end, side="right") + wh_endlast + 4
         wh_endlast = wh_endind
         tr_whlvel = whlv[wh_startind:wh_endind]
-        tr_whlpos = whlpos[wh_startind : wh_endind]
         tr_whlt = whlt[wh_startind : wh_endind] - start
         whlseries = TimeSeries(tr_whlt, tr_whlvel, columns=["whlvel"])
         whlsync = sync(wheel_binsize, timeseries=whlseries, interp="previous")
