@@ -24,6 +24,10 @@ if kwargs['imposter_generate_from_ephys']:
     eids = bwm_df['eid'].unique()
 else:
     # no template, no neural activity
+<<<<<<< HEAD
+    one = ONE(mode='local')
+    eids = one.search(project='ibl_neuropixel_brainwide_01', task_protocol='biasedChoiceWorld')
+=======
     one = ONE(mode='remote')
     # eids = one.search(project='ibl_neuropixel_brainwide_01', task_protocol='biasedChoiceWorld')
     qc_pass = (
@@ -49,6 +53,7 @@ else:
         django=qc_pass,
     ))
     eids = [s['id'] for s in sessions]
+>>>>>>> 6eb42ee39d656d87baab7735da97a89bdd6aac68
 
 # basic columns that we want to keep
 columns = [
@@ -76,7 +81,8 @@ if (kwargs['target'] != 'pLeft') \
 
 all_trialsdf = []
 for i, eid in enumerate(eids):
-
+    if (i%10) > 0:
+        continue
     det = one.get_details(eid, full=True)
     print('%i: %s' % (i, eid))
     try:

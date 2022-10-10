@@ -13,7 +13,7 @@ elif username == 'csmfindling':
 elif username == 'hubertf':
     out_dir = Path('/home/users/h/hubertf/scratch/')
 elif username == 'bensonb':
-    out_dir = Path('/scratch/users/bensonb/international-brain-lab/paper-brain-wide-map/results')
+    out_dir = Path('/scratch/users/bensonb/international-brain-lab/paper-brain-wide-map')
 
 # store neural decoding models
 FIT_PATH = out_dir.joinpath('decoding', 'results', 'neural')

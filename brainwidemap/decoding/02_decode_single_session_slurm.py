@@ -14,14 +14,13 @@ from brainwidemap.decoding.functions.decoding import fit_eid
 from brainwidemap.decoding.functions.process_targets import load_behavior
 from brainwidemap.decoding.paths import BEH_MOD_PATH, FIT_PATH, IMPOSTER_SESSION_PATH
 
-
 n_pseudo = kwargs['n_pseudo']
 n_pseudo_per_job = kwargs['n_pseudo_per_job']
 
 kwargs['add_to_saving_path'] = f"_binsize={1000 * kwargs['binsize']}_lags={kwargs['n_bins_lag']}_" \
-                               f"mergedProbes_{kwargs['merged_probes']}"
+                              f"mergedProbes_{kwargs['merged_probes']}"
 
-# take the argument given to this script and create index by subtracting 1
+# Take the argument given to this script and create index by subtracting 1
 index = int(sys.argv[1]) - 1
 
 # create the directories
@@ -52,12 +51,17 @@ eids = filter_sessions(bwm_df['eid'], trials_table=trials_table, min_trials=200)
 bwm_df = bwm_df[bwm_df['pid'].isin(region_df['pid'].unique())]
 bwm_df = bwm_df[bwm_df['eid'].isin(eids)]
 
+# Not sure why we do this
 # TODO: brandon wants to update
 pid_idx = index % bwm_df.index.size
 job_id = index // bwm_df.index.size
 # n_jobs_per_eid = N_PSEUDO/N_PSEUDO_PER_JOB
 # pid_idx = index // n_jobs_per_eid
 # job_id = index % n_jobs_per_eid
+
+#n_jobs_per_eid = N_PSEUDO/N_PSEUDO_PER_JOB
+#pid_idx = index // n_jobs_per_eid
+#job_id = index % n_jobs_per_eid
 
 metadata = {
     'subject': bwm_df.iloc[pid_idx]['subject'],
@@ -85,7 +89,7 @@ else:
     dlc_dict = None
     kwargs['imposter_df'] = None
 
-# load spike sorting data and put it in a dictionary for now
+# Load spike sorting data and put it in a dictionary for now
 spikes, clusters = load_good_units(
     one,
     bwm_df.iloc[pid_idx]['pid'],
@@ -102,6 +106,7 @@ neural_dict = {
     'clu_df': clusters
 }
 
+#TODO change to loop how desired
 if (job_id + 1) * n_pseudo_per_job <= n_pseudo:
     print(f"pid_id: {pid_idx}")
     pseudo_ids = np.arange(job_id * n_pseudo_per_job, (job_id + 1) * n_pseudo_per_job) + 1
