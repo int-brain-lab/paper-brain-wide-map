@@ -275,7 +275,7 @@ def fit_eid(neural_dict, trials_df, metadata, dlc_dict=None, pseudo_ids=[-1], **
             # save out decoding results
             save_path = get_save_path(
                 pseudo_id, metadata['subject'], metadata['eid'], 'ephys',
-                probe=probe,
+                probe=metadata['probe_name'],
                 region=str(np.squeeze(region)) if kwargs['single_region'] else 'allRegions',
                 output_path=kwargs['neuralfit_path'],
                 time_window=kwargs['time_window'],

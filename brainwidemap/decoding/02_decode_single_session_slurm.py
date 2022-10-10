@@ -9,6 +9,7 @@ from brainbox.io.one import SessionLoader
 from brainwidemap.bwm_loading import bwm_query, load_good_units
 from brainwidemap.decoding.settings import kwargs
 from brainwidemap.decoding.functions.decoding import fit_eid
+from brainwidemap.decoding.functions.process_targets import load_behavior
 from brainwidemap.decoding.paths import BEH_MOD_PATH, FIT_PATH, IMPOSTER_SESSION_PATH
 
 
@@ -52,38 +53,9 @@ sess_loader.load_trials()
 if kwargs['target'] in ['wheel-vel', 'wheel-speed', 'l-whisker-me', 'r-whisker-me']:
 
     # load target data
-    try:
-        if kwargs['target'] == 'wheel-vel':
-            sess_loader.load_wheel()
-            dlc_dict = {
-                'times': sess_loader.wheel['times'].to_numpy(),
-                'values': sess_loader.wheel['velocity'].to_numpy()
-            }
-        elif kwargs['target'] == 'wheel-speed':
-            sess_loader.load_wheel()
-            dlc_dict = {
-                'times': sess_loader.wheel['times'].to_numpy(),
-                'values': np.abs(sess_loader.wheel['velocity'].to_numpy())
-            }
-        elif kwargs['target'] == 'l-whisker-me':
-            sess_loader.load_motion_energy(views=['left'])
-            dlc_dict = {
-                'times': sess_loader.motion_energy['leftCamera']['times'].to_numpy(),
-                'values': sess_loader.motion_energy['leftCamera']['whiskerMotionEnergy'].to_numpy()
-            }
-        elif kwargs['target'] == 'r-whisker-me':
-            sess_loader.load_motion_energy(views=['right'])
-            dlc_dict = {
-                'times': sess_loader.motion_energy['rightCamera']['times'].to_numpy(),
-                'values': sess_loader.motion_energy['rightCamera']['whiskerMotionEnergy'].to_numpy()
-            }
-        dlc_dict['skip'] = False
-    except BaseException as e:
-        print('error loading %s data' % kwargs['target'])
-        print(e)
-        dlc_dict = {'times': None, 'values': None, 'skip': True}
+    dlc_dict = load_behavior(kwargs['target'], sess_loader)
 
-    # Load imposter sessions
+    # load imposter sessions
     ephys_str = '_beforeRecording' if not kwargs['imposter_generate_from_ephys'] else ''
     filename = 'imposterSessions_%s%s.pqt' % (kwargs['target'], ephys_str)
     imposter_file = IMPOSTER_SESSION_PATH.joinpath(filename)
