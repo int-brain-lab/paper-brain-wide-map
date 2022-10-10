@@ -15,13 +15,6 @@ elif username == 'hubertf':
 elif username == 'bensonb':
     out_dir = Path('/scratch/users/bensonb/international-brain-lab/paper-brain-wide-map/results')
 
-
-# path to user-specific settings file
-# SETTINGS_PATH = out_dir.joinpath('decoding', 'settings.yaml')
-
-# store cached data for simpler loading
-CACHE_PATH = out_dir.joinpath('cache')
-
 # store neural decoding models
 FIT_PATH = out_dir.joinpath('decoding', 'results', 'neural')
 

@@ -6,7 +6,9 @@ from pathlib import Path
 from one.api import ONE
 from brainbox.io.one import SessionLoader
 
-from brainwidemap.bwm_loading import bwm_query, load_good_units
+from brainwidemap.bwm_loading import (
+    bwm_query, load_good_units, load_trials_and_mask, filter_regions, filter_sessions,
+    download_aggregate_tables)
 from brainwidemap.decoding.settings import kwargs
 from brainwidemap.decoding.functions.decoding import fit_eid
 from brainwidemap.decoding.functions.process_targets import load_behavior
@@ -19,25 +21,43 @@ n_pseudo_per_job = kwargs['n_pseudo_per_job']
 kwargs['add_to_saving_path'] = f"_binsize={1000 * kwargs['binsize']}_lags={kwargs['n_bins_lag']}_" \
                                f"mergedProbes_{kwargs['merged_probes']}"
 
-# Take the argument given to this script and create index by subtracting 1
-try:
-    index = int(sys.argv[1]) - 1
-except:
-    index = 32  # random value, lets us debug this script on a single session
+# take the argument given to this script and create index by subtracting 1
+index = int(sys.argv[1]) - 1
 
-# Create the directories
+# create the directories
 kwargs['behfit_path'] = BEH_MOD_PATH
 kwargs['neuralfit_path'] = FIT_PATH
 kwargs['behfit_path'].mkdir(parents=True, exist_ok=True)
 kwargs['neuralfit_path'].mkdir(parents=True, exist_ok=True)
 
-# Load the list of probe insertions and select probe
+# load the list of probe insertions and select probe
 one = ONE(mode='local')
 bwm_df = bwm_query()
+cache_dir = one.cache_dir
 
-# Not sure why we do this
+# Download the latest clusters table, we use the same cache as above
+clusters_table = download_aggregate_tables(one, type='clusters', target_path=cache_dir)
+# Map probes to regions (here: Beryl mapping) and filter according to QC, number of units and
+# probes per region
+region_df = filter_regions(
+    bwm_df['pid'], clusters_table=clusters_table, mapping='Beryl', min_qc=1, min_units_region=10,
+    min_probes_region=2)
+
+# Download the latest trials table and filter for sessions that have at least 200 trials fulfilling
+# BWM criteria
+trials_table = download_aggregate_tables(one, type='trials', target_path=cache_dir)
+eids = filter_sessions(bwm_df['eid'], trials_table=trials_table, min_trials=200)
+
+# Remove probes and sessions based on those filters
+bwm_df = bwm_df[bwm_df['pid'].isin(region_df['pid'].unique())]
+bwm_df = bwm_df[bwm_df['eid'].isin(eids)]
+
+# TODO: brandon wants to update
 pid_idx = index % bwm_df.index.size
 job_id = index // bwm_df.index.size
+# n_jobs_per_eid = N_PSEUDO/N_PSEUDO_PER_JOB
+# pid_idx = index // n_jobs_per_eid
+# job_id = index % n_jobs_per_eid
 
 metadata = {
     'subject': bwm_df.iloc[pid_idx]['subject'],
@@ -45,11 +65,11 @@ metadata = {
     'probe_name': bwm_df.iloc[pid_idx]['probe_name']
 }
 
-# Load trials df
+# load trials df
 sess_loader = SessionLoader(one, metadata['eid'])
 sess_loader.load_trials()
 
-# Load target data if necessary (will probably put this into a function eventually)
+# load target data if necessary (will probably put this into a function eventually)
 if kwargs['target'] in ['wheel-vel', 'wheel-speed', 'l-whisker-me', 'r-whisker-me']:
 
     # load target data
@@ -65,7 +85,7 @@ else:
     dlc_dict = None
     kwargs['imposter_df'] = None
 
-# Load spike sorting data and put it in a dictionary for now
+# load spike sorting data and put it in a dictionary for now
 spikes, clusters = load_good_units(
     one,
     bwm_df.iloc[pid_idx]['pid'],
@@ -94,4 +114,5 @@ if (job_id + 1) * n_pseudo_per_job <= n_pseudo:
         pseudo_ids=pseudo_ids,
         dlc_dict=dlc_dict,
         **kwargs)
+
 print('Slurm job successful')
