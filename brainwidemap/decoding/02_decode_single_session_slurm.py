@@ -73,6 +73,13 @@ metadata = {
 sess_loader = SessionLoader(one, metadata['eid'])
 sess_loader.load_trials()
 
+# create mask
+trials_df, trials_mask = load_trials_and_mask(
+    one=one, eid=metadata['eid'], sess_loader=sess_loader,
+    min_rt=kwargs['min_rt'], max_rt=kwargs['max_rt'],
+    min_trial_len=kwargs['min_len'], max_trial_len=kwargs['max_len'],
+    exclude_nochoice_trials=True, exclude_unbiased_trials=kwargs['exclude_unbiased_trials'])
+
 # load target data if necessary (will probably put this into a function eventually)
 if kwargs['target'] in ['wheel-vel', 'wheel-speed', 'l-whisker-me', 'r-whisker-me']:
 
@@ -114,7 +121,8 @@ if (job_id + 1) * n_pseudo_per_job <= n_pseudo:
         pseudo_ids = np.concatenate((-np.ones(1), pseudo_ids)).astype('int64')
     results_fit_eid = fit_eid(
         neural_dict=neural_dict,
-        trials_df=sess_loader.trials,
+        trials_df=trials_df,
+        trials_mask=trials_mask,
         metadata=metadata,
         pseudo_ids=pseudo_ids,
         dlc_dict=dlc_dict,

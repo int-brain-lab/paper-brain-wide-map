@@ -72,12 +72,8 @@ for i, eid in enumerate(eids):
             and ((trialsdf.probabilityLeft == 0.5).sum() == 90) \
             and (trialsdf.probabilityLeft.values[0] == 0.5):
         try:
-            if kwargs['imposter_generate_fake']:
-                trialsdf = generate_pseudo_session(trialsdf)
             if add_behavior_col:
-                if kwargs['imposter_generate_fake']:
-                    raise NotImplementedError
-                trialsdf = get_target_variable_in_df(one, eid, trials_df=trialsdf, **kwargs)
+                trialsdf = get_target_variable_in_df(one, eid, sess_loader=sess_loader, **kwargs)
             if trialsdf is None:
                 continue
             else:

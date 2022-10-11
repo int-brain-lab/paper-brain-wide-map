@@ -112,11 +112,8 @@ logger.disabled = True
 # MIN_LEN/MAX_LEN: float
 # remove trials with durations below/above these values (seconds)
 
-# NO_UNBIAS: bool
+# EXCLUDE_UNBIASED_TRIALS: bool
 # true to take out unbiased block at beginning of session
-
-# N_TRIALS_TAKEOUT_END: int
-# number of trials to remove from the end of the session
 
 
 # DOCS: NULL DISTRIBUTION PARAMS
@@ -135,9 +132,6 @@ logger.disabled = True
 
 # USE_IMPOSTER_SESSION_FOR_BALANCING: bool
 # if false, simulate the model (should be false)
-
-# IMPOSTER_GENERATE_FAKE: bool
-# testing purposes?
 
 # FILTER_PSEUDOSESSIONS_ON_MUTUALINFORMATION: bool
 # TODO
@@ -245,17 +239,16 @@ MERGED_PROBES = False
 # SESSION/BEHAVIOR PARAMS
 MIN_BEHAV_TRIAS = 200
 MIN_RT = 0.08  # 0.08  # Float (s) or None
-MAX_RT = None
-MIN_LEN = None
-MAX_LEN = None
-NO_UNBIAS = False
+MAX_RT = 2.0
+MIN_LEN = 0.0
+MAX_LEN = 5.0
+EXCLUDE_UNBIASED_TRIALS = False
 
 # NULL DISTRIBUTION PARAMS
 IMPOSTER_GENERATE_FROM_EPHYS = False
 CONSTRAIN_NULL_SESSION_WITH_BEH = False
 STITCHING_FOR_IMPOSTER_SESSION = True
 USE_IMPOSTER_SESSION_FOR_BALANCING = False
-IMPOSTER_GENERATE_FAKE = False
 FILTER_PSEUDOSESSIONS_ON_MUTUALINFORMATION = False
 MAX_NUMBER_TRIALS_WHEN_NO_STITCHING_FOR_IMPOSTER_SESSION = 700
 
@@ -405,14 +398,13 @@ kwargs = {
     'max_rt': MAX_RT,
     'min_len': MIN_LEN,
     'max_len': MAX_LEN,
-    'no_unbias': NO_UNBIAS,
+    'exclude_unbiased_trials': EXCLUDE_UNBIASED_TRIALS,
     # NULL DISTRIBUTION
     'use_imposter_session': USE_IMPOSTER_SESSION,
     'imposter_generate_from_ephys': IMPOSTER_GENERATE_FROM_EPHYS,
     'constrain_null_session_with_beh': CONSTRAIN_NULL_SESSION_WITH_BEH,
     'stitching_for_imposter_session': STITCHING_FOR_IMPOSTER_SESSION,
     'use_imposter_session_for_balancing': USE_IMPOSTER_SESSION_FOR_BALANCING,
-    'imposter_generate_fake': IMPOSTER_GENERATE_FAKE,
     'filter_pseudosessions_on_mutualInformation': FILTER_PSEUDOSESSIONS_ON_MUTUALINFORMATION,
     'max_number_trials_when_no_stitching_for_imposter_session': MAX_NUMBER_TRIALS_WHEN_NO_STITCHING_FOR_IMPOSTER_SESSION,
     # MISC
