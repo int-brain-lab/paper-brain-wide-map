@@ -11,7 +11,7 @@ from datetime import datetime
 import yaml
 
 
-def compute_mask(trials_df, align_time, time_window, min_len, max_len, no_unbias, min_rt, max_rt, **kwargs):
+def compute_mask(trials_df, align_time, time_window, min_len, max_len, no_unbias, min_rt, max_rt):
     """Create a mask that denotes "good" trials which will be used for further analysis.
 
     Parameters
@@ -31,7 +31,6 @@ def compute_mask(trials_df, align_time, time_window, min_len, max_len, no_unbias
         True to remove unbiased block trials, False to keep them
     min_rt : float
         minimum reaction time; trials with fast reactions will be removed
-    kwargs
 
     Returns
     -------
@@ -74,9 +73,6 @@ def compute_mask(trials_df, align_time, time_window, min_len, max_len, no_unbias
 
     # get rid of trials where animal does not respond
     mask = mask & (trials_df.choice != 0)
-
-    if kwargs['n_trials_takeout_end'] > 0:
-        mask[-int(kwargs['n_trials_takeout_end']):] = False
 
     return mask
 

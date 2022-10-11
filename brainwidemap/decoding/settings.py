@@ -249,7 +249,6 @@ MAX_RT = None
 MIN_LEN = None
 MAX_LEN = None
 NO_UNBIAS = False
-N_TRIALS_TAKEOUT_END = 0
 
 # NULL DISTRIBUTION PARAMS
 IMPOSTER_GENERATE_FROM_EPHYS = False
@@ -407,7 +406,6 @@ kwargs = {
     'min_len': MIN_LEN,
     'max_len': MAX_LEN,
     'no_unbias': NO_UNBIAS,
-    'n_trials_takeout_end': N_TRIALS_TAKEOUT_END,
     # NULL DISTRIBUTION
     'use_imposter_session': USE_IMPOSTER_SESSION,
     'imposter_generate_from_ephys': IMPOSTER_GENERATE_FROM_EPHYS,
