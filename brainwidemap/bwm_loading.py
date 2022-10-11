@@ -141,8 +141,8 @@ def load_good_units(one, pid, compute_metrics=False, **kwargs):
 
 
 def load_trials_and_mask(
-        one, eid, min_rt=0.08, max_rt=2., nan_exclude='default', min_trial_len=0.,
-        max_trial_len=100., exclude_unbiased_trials=False, exclude_nochoice_trials=False,
+        one, eid, min_rt=0.08, max_rt=2., nan_exclude='default', min_trial_len=None,
+        max_trial_len=None, exclude_unbiased_trials=False, exclude_nochoice_trials=False,
         sess_loader=None):
     """
     Function to load all trials for a given session and create a mask to exclude all trials that have a reaction time
@@ -163,10 +163,10 @@ def load_trials_and_mask(
         ['stimOn_times','choice','feedback_times','probabilityLeft','firstMovement_times','feedbackType']
     min_trial_len: float
         Minimum admissible trial length measured by goCue_time (start) and feedback_time (end).
-        Default is 0.
+        Default is None.
     max_trial_len: float
         Maximum admissible trial length measured by goCue_time (start) and feedback_time (end).
-        Default is 100.
+        Default is None.
     exclude_unbiased_trials: bool
         True to exclude trials that fall within the unbiased block at the beginning of session.
         Default is False.
@@ -207,7 +207,10 @@ def load_trials_and_mask(
     # Remove trials that are outside the allowed reaction time range
     query = f'(firstMovement_times - stimOn_times < {min_rt}) | (firstMovement_times - stimOn_times > {max_rt})'
     # Remove trials that are outside the allowed trial duration range
-    query += f' | (feedback_times - goCue_times < {min_trial_len}) | (feedback_times - goCue_times > {max_trial_len})'
+    if min_trial_len is not None:
+        query += f' | (feedback_times - goCue_times < {min_trial_len})'
+    if max_trial_len is not None:
+        query += f' | (feedback_times - goCue_times > {max_trial_len})'
     # Remove trials with nan in specified events
     for event in nan_exclude:
         query += f' | {event}.isnull()'
