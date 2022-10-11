@@ -10,50 +10,21 @@ from one.api import ONE
 from brainbox.io.one import SessionLoader
 from brainbox.task.closed_loop import generate_pseudo_session
 
-# from braindelphi.params import braindelphi_PATH, SETTINGS_PATH, FIT_PATH
 from brainwidemap import bwm_query
 from brainwidemap.decoding.functions.process_targets import get_target_variable_in_df
 from brainwidemap.decoding.paths import IMPOSTER_SESSION_PATH
 from brainwidemap.decoding.settings import kwargs
 
 
+one = ONE(mode='local')
+
 if kwargs['imposter_generate_from_ephys']:
-    # ephys sessions from from one of 12 templates
-    one = ONE(mode='local')
+    # ephys sessions from one of 12 templates
     bwm_df = bwm_query()
     eids = bwm_df['eid'].unique()
 else:
     # no template, no neural activity
-<<<<<<< HEAD
-    one = ONE(mode='local')
-    eids = one.search(project='ibl_neuropixel_brainwide_01', task_protocol='biasedChoiceWorld')
-=======
-    one = ONE(mode='remote')
-    # eids = one.search(project='ibl_neuropixel_brainwide_01', task_protocol='biasedChoiceWorld')
-    qc_pass = (
-        '~session__extended_qc___task_stimOn_goCue_delays__lt,0.9,'
-        '~session__extended_qc___task_response_feedback_delays__lt,0.9,'
-        '~session__extended_qc___task_wheel_move_before_feedback__lt,0.9,'
-        '~session__extended_qc___task_wheel_freeze_during_quiescence__lt,0.9,'
-        '~session__extended_qc___task_error_trial_event_sequence__lt,0.9,'
-        '~session__extended_qc___task_correct_trial_event_sequence__lt,0.9,'
-        '~session__extended_qc___task_reward_volumes__lt,0.9,'
-        '~session__extended_qc___task_reward_volume_set__lt,0.9,'
-        '~session__extended_qc___task_stimulus_move_before_goCue__lt,0.9,'
-        '~session__extended_qc___task_audio_pre_trial__lt,0.9,'
-        '~session__extended_qc___task_wheel_integrity__lt,1.0,'
-        'n_trials__gte,400'
-    )
-    sessions = list(one.alyx.rest(
-        'sessions', 'list',
-        task_protocol='biasedChoiceWorld',
-        project='ibl_neuropixel_brainwide_01',
-        dataset_types=['wheel.position'],
-        performance_gte=70,
-        django=qc_pass,
-    ))
-    eids = [s['id'] for s in sessions]
->>>>>>> 6eb42ee39d656d87baab7735da97a89bdd6aac68
+    eids = pd.read_parquet(Path(__file__).resolve().parent.joinpath('imposter_behavior_sessions.pqt'))['eid']
 
 # basic columns that we want to keep
 columns = [
@@ -72,18 +43,14 @@ columns = [
 
 # add additional columns if necessary
 add_behavior_col = False
-if (kwargs['target'] != 'pLeft') \
-        and (kwargs['target'] != 'signcont') \
-        and (kwargs['target'] != 'feedback') \
-        and (kwargs['target'] != 'choice'):
+if kwargs['target'] not in ['pLeft', 'signcont', 'feedback', 'choice']:
     add_behavior_col = True
     columns += [kwargs['target']]
 
 all_trialsdf = []
 for i, eid in enumerate(eids):
-    if (i%10) > 0:
+    if (i % 10) > 0:
         continue
-    det = one.get_details(eid, full=True)
     print('%i: %s' % (i, eid))
     try:
         sess_loader = SessionLoader(one=one, eid=eid)
