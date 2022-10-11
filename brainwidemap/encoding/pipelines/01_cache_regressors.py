@@ -17,13 +17,12 @@ from dask_jobqueue import SLURMCluster
 # IBL libraries
 import brainbox.io.one as bbone
 import brainbox.metrics.single_units as bbqc
+from iblutil.util import Bunch
 from one.api import ONE
 from brainwidemap.encoding.params import GLM_CACHE
 from brainwidemap.encoding.utils import load_trials_df
-from brainwidemap.bwm_loading import load_good_units, load_trials_and_mask
-
-# Brainwide repo imports
-from brainwidemap.encoding.utils import query_sessions, get_impostor_df
+from brainwidemap.bwm_loading import load_trials_and_mask, bwm_query
+from brainwidemap.encoding.utils import get_impostor_df
 
 _logger = logging.getLogger('brainwide')
 
@@ -84,13 +83,23 @@ def load_regressors(session_id,
 
     clusters = {}
     ssl = bbone.SpikeSortingLoader(one=one, pid=pid)
-    spikes, tmpclu, channels = ssl.load_spike_sorting()
+    origspikes, tmpclu, channels = ssl.load_spike_sorting()
     if 'metrics' not in tmpclu:
         tmpclu['metrics'] = np.ones(tmpclu['channels'].size)
-    clusters[pid] = ssl.merge_clusters(spikes, tmpclu, channels)
+    clusters[pid] = ssl.merge_clusters(origspikes, tmpclu, channels)
     clu_df = pd.DataFrame(clusters[pid]).set_index(['cluster_id'])
     clu_df['pid'] = pid
 
+    if clu_criteria == 'bwm':
+        keepclu = clu_df.index[clu_df.label == 1]
+    elif clu_criteria == 'all':
+        keepclu = clu_df.index
+    else:
+        raise ValueError("clu_criteria must be 'bwm' or 'all'")
+
+    clu_df = clu_df.loc[keepclu]
+    keepmask = np.isin(origspikes.clusters, keepclu)
+    spikes = Bunch({k: v[keepmask] for k, v in origspikes.items()})
     sortinds = np.argsort(spikes.times)
     spk_times = spikes.times[sortinds]
     spk_clu = spikes.clusters[sortinds]
@@ -108,7 +117,7 @@ def load_regressors(session_id,
     return trialsdf, spk_times, spk_clu, clu_regions, clu_df, clu_qc
 
 
-def cache_regressors(subject, session_id, probes, regressor_params, trialsdf, spk_times, spk_clu,
+def cache_regressors(subject, session_id, pid, regressor_params, trialsdf, spk_times, spk_clu,
                      clu_regions, clu_qc, clu_df):
     """
     Take outputs of load_regressors() and cache them to disk in the folder defined in the params.py
@@ -141,7 +150,7 @@ def cache_regressors(subject, session_id, probes, regressor_params, trialsdf, sp
     metadata = {
         'subject': subject,
         'session_id': session_id,
-        'probes': probes,
+        'pid': pid,
         'regressor_hash': reghash,
         **regressor_params
     }
@@ -186,26 +195,25 @@ def _hash_dict(d):
 
 
 @dask.delayed
-def delayed_load(session_id, probes, params, force_load=False):
+def delayed_load(session_id, pid, params, force_load=False):
     try:
-        return load_regressors(session_id, probes, **params)
+        return load_regressors(session_id, pid, **params)
     except KeyError as e:
         if force_load:
             params['resolved_alignment'] = False
-            return load_regressors(session_id, probes, **params)
+            return load_regressors(session_id, pid, **params)
         else:
             raise e
 
 
 @dask.delayed(pure=False, traverse=False)
-def delayed_save(subject, session_id, probes, params, outputs):
-    return cache_regressors(subject, session_id, probes, params, *outputs)
+def delayed_save(subject, session_id, pid, params, outputs):
+    return cache_regressors(subject, session_id, pid, params, *outputs)
 
 
 # Parameters
 SESS_CRITERION = 'resolved-behavior'
 DATE = str(dt.today())
-MAX_LEN = 2.
 T_BEF = 0.6
 T_AFT = 0.6
 BINWIDTH = 0.02
@@ -217,7 +225,6 @@ FORCE = True  # If load_spike_sorting_fast doesn't return _channels, use _channe
 
 # Construct params dict from above
 params = {
-    'max_len': MAX_LEN,
     't_before': T_BEF,
     't_after': T_AFT,
     'binwidth': BINWIDTH,
@@ -229,15 +236,14 @@ params = {
 one = ONE()
 dataset_futures = []
 
-sessdf = query_sessions(SESS_CRITERION).set_index(['subject', 'eid'])
+sessdf = bwm_query(freeze="2022_10_initial").set_index("pid")
 
-for eid in sessdf.index.unique(level='eid'):
-    xsdf = sessdf.xs(eid, level='eid')
-    subject = xsdf.index[0]
-    probes = xsdf.pid.to_list()
-    load_outputs = delayed_load(eid, probes, params, force_load=FORCE)
-    save_future = delayed_save(subject, eid, probes, params, load_outputs)
-    dataset_futures.append([subject, eid, probes, save_future])
+for pid, rec in sessdf.iterrows():
+    subject = rec.subject
+    eid = rec.eid
+    load_outputs = delayed_load(eid, pid, params, force_load=FORCE)
+    save_future = delayed_save(subject, eid, pid, params, load_outputs)
+    dataset_futures.append([subject, eid, pid, save_future])
 
 N_CORES = 4
 cluster = SLURMCluster(cores=N_CORES,
