@@ -199,7 +199,7 @@ def load_trials_and_mask(
     if sess_loader is None:
         sess_loader = SessionLoader(one, eid)
 
-    if sess_loader.trials.shape[0] == 0:
+    if sess_loader.trials.empty:
         sess_loader.load_trials()
 
     # Create a mask for trials to exclude
