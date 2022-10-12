@@ -140,7 +140,9 @@ def load_good_units(one, pid, compute_metrics=False, **kwargs):
     return good_spikes, good_clusters
 
 
-def load_trials_and_mask(one, eid, min_rt=0.08, max_rt=2., nan_exclude='default'):
+def load_trials_and_mask(
+        one, eid, min_rt=0.08, max_rt=2., nan_exclude='default', min_trial_len=None,
+        max_trial_len=None, exclude_unbiased=False, exclude_nochoice=False, sess_loader=None):
     """
     Function to load all trials for a given session and create a mask to exclude all trials that have a reaction time
     shorter than min_rt or longer than max_rt or that have NaN for one of the specified events.
@@ -158,14 +160,27 @@ def load_trials_and_mask(one, eid, min_rt=0.08, max_rt=2., nan_exclude='default'
     nan_exclude: list or 'default'
         List of trial events that cannot be NaN for a trial to be included. If set to 'default' the list is
         ['stimOn_times','choice','feedback_times','probabilityLeft','firstMovement_times','feedbackType']
+    min_trial_len: float
+        Minimum admissible trial length measured by goCue_time (start) and feedback_time (end).
+        Default is None.
+    max_trial_len: float
+        Maximum admissible trial length measured by goCue_time (start) and feedback_time (end).
+        Default is None.
+    exclude_unbiased: bool
+        True to exclude trials that fall within the unbiased block at the beginning of session.
+        Default is False.
+    exclude_nochoice: bool
+        True to exclude trials where the animal does not respond. Default is False.
+    sess_loader: brainbox.io.one.SessionLoader or NoneType
+        Optional SessionLoader object; if None, this object will be created internally
 
     Returns
     -------
     trials: pandas.DataFrame
         Trials table containing all trials for this session. If complete with columns:
-        ['stimOff_times','intervals_bpod_0','intervals_bpod_1','goCueTrigger_times','feedbackType','contrastLeft',
-        'contrastRight','rewardVolume','goCue_times','choice','feedback_times','stimOn_times','response_times',
-        'firstMovement_times','probabilityLeft', 'intervals_0', 'intervals_1']
+        ['stimOff_times','goCueTrigger_times','feedbackType','contrastLeft','contrastRight','rewardVolume',
+        'goCue_times','choice','feedback_times','stimOn_times','response_times','firstMovement_times',
+        'probabilityLeft', 'intervals_0', 'intervals_1']
     mask: pandas.Series
         Boolean Series to mask trials table for trials that pass specified criteria. True for all trials that should be
         included, False for all trials that should be excluded.
@@ -181,15 +196,29 @@ def load_trials_and_mask(one, eid, min_rt=0.08, max_rt=2., nan_exclude='default'
             'feedbackType'
         ]
 
-    sess_loader = SessionLoader(one, eid)
-    sess_loader.load_trials()
+    if sess_loader is None:
+        sess_loader = SessionLoader(one, eid)
+
+    if sess_loader.trials.empty:
+        sess_loader.load_trials()
 
     # Create a mask for trials to exclude
     # Remove trials that are outside the allowed reaction time range
     query = f'(firstMovement_times - stimOn_times < {min_rt}) | (firstMovement_times - stimOn_times > {max_rt})'
+    # Remove trials that are outside the allowed trial duration range
+    if min_trial_len is not None:
+        query += f' | (feedback_times - goCue_times < {min_trial_len})'
+    if max_trial_len is not None:
+        query += f' | (feedback_times - goCue_times > {max_trial_len})'
     # Remove trials with nan in specified events
     for event in nan_exclude:
         query += f' | {event}.isnull()'
+    # Remove trials in unbiased block at beginning
+    if exclude_unbiased:
+        query += ' | (probabilityLeft == 0.5)'
+    # Remove trials where animal does not respond
+    if exclude_nochoice:
+        query += ' | (choice == 0)'
 
     # Create mask
     mask = ~sess_loader.trials.eval(query)
