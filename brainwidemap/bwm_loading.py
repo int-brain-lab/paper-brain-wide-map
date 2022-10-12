@@ -46,7 +46,7 @@ def bwm_query(one=None, alignment_resolved=True, return_details=False, freeze='2
         freeze_file = fixtures_path.joinpath(f'{freeze}.csv')
         assert freeze_file.exists(), f'{freeze} does not seem to be a valid freeze.'
 
-        print(f'Loading from fixtures/{freeze}.csv')
+        print(f'Loading bwm_query results from fixtures/{freeze}.csv')
         bwm_df = pd.read_csv(freeze_file, index_col=0)
         bwm_df['date'] = [parser.parse(i).date() for i in bwm_df['date']]
 
@@ -235,7 +235,7 @@ def download_aggregate_tables(one, local_path=None, type='clusters', tag='2022_Q
     one: one.api.ONE
         Instance to be used to connect to database.
     local_path: str or pathlib.Path
-        Directory to which clusters.pqt should be downloaded. If None, downloads to current working directory.
+        Directory to which clusters.pqt should be downloaded. If None, downloads to one.cache_dir/bwm_tables
     type: {'clusters', 'trials'}
         Which type of aggregate table to load, clusters or trials table.
     tag: str
@@ -249,8 +249,11 @@ def download_aggregate_tables(one, local_path=None, type='clusters', tag='2022_Q
         Path to the downloaded aggregate
     """
 
-    local_path = Path.cwd() if local_path is None else Path(local_path)
-    assert local_path.exists(), 'The local_path you passed does not exist.'
+    if local_path is None:
+        local_path = Path(one.cache_dir).joinpath('bwm_tables')
+        local_path.mkdir(exist_ok=True)
+    else:
+        assert local_path.exists(), 'The local_path you passed does not exist.'
 
     agg_path = local_path.joinpath(f'{type}.pqt')
     s3, bucket_name = aws.get_s3_from_alyx(alyx=one.alyx)
