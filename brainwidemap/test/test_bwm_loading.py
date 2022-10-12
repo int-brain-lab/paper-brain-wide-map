@@ -75,3 +75,14 @@ def test_filter_trials():
     assert eids.shape == (350,)
 
     trials_table.unlink()
+
+
+def test_trials_and_mask():
+    one = ONE()
+    bwm_df = bwm_loading.bwm_query(freeze='2022_10_initial')
+
+    trials, mask = bwm_loading.load_trials_and_mask(one, bwm_df['eid'][10])
+    assert mask.sum() == 513
+
+    trials, mask = bwm_loading.load_trials_and_mask(one, bwm_df['eid'][99])
+    assert mask.sum() == 438
