@@ -17,4 +17,4 @@ export PYTHONPATH="$PWD":$PYTHONPATH
 
 echo
 # change to conda  => which python
-python 02_decode_single_session_slurm.py $SLURM_ARRAY_TASK_ID
+python 03_decode_single_session.py $SLURM_ARRAY_TASK_ID
