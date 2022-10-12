@@ -142,8 +142,7 @@ def load_good_units(one, pid, compute_metrics=False, **kwargs):
 
 def load_trials_and_mask(
         one, eid, min_rt=0.08, max_rt=2., nan_exclude='default', min_trial_len=None,
-        max_trial_len=None, exclude_unbiased_trials=False, exclude_nochoice_trials=False,
-        sess_loader=None):
+        max_trial_len=None, exclude_unbiased=False, exclude_nochoice=False, sess_loader=None):
     """
     Function to load all trials for a given session and create a mask to exclude all trials that have a reaction time
     shorter than min_rt or longer than max_rt or that have NaN for one of the specified events.
@@ -167,10 +166,10 @@ def load_trials_and_mask(
     max_trial_len: float
         Maximum admissible trial length measured by goCue_time (start) and feedback_time (end).
         Default is None.
-    exclude_unbiased_trials: bool
+    exclude_unbiased: bool
         True to exclude trials that fall within the unbiased block at the beginning of session.
         Default is False.
-    exclude_nochoice_trials: bool
+    exclude_nochoice: bool
         True to exclude trials where the animal does not respond. Default is False.
     sess_loader: brainbox.io.one.SessionLoader or NoneType
         Optional SessionLoader object; if None, this object will be created internally
@@ -179,9 +178,9 @@ def load_trials_and_mask(
     -------
     trials: pandas.DataFrame
         Trials table containing all trials for this session. If complete with columns:
-        ['stimOff_times','intervals_bpod_0','intervals_bpod_1','goCueTrigger_times','feedbackType','contrastLeft',
-        'contrastRight','rewardVolume','goCue_times','choice','feedback_times','stimOn_times','response_times',
-        'firstMovement_times','probabilityLeft', 'intervals_0', 'intervals_1']
+        ['stimOff_times','goCueTrigger_times','feedbackType','contrastLeft','contrastRight','rewardVolume',
+        'goCue_times','choice','feedback_times','stimOn_times','response_times','firstMovement_times',
+        'probabilityLeft', 'intervals_0', 'intervals_1']
     mask: pandas.Series
         Boolean Series to mask trials table for trials that pass specified criteria. True for all trials that should be
         included, False for all trials that should be excluded.
@@ -215,10 +214,10 @@ def load_trials_and_mask(
     for event in nan_exclude:
         query += f' | {event}.isnull()'
     # Remove trials in unbiased block at beginning
-    if exclude_unbiased_trials:
+    if exclude_unbiased:
         query += ' | (probabilityLeft == 0.5)'
     # Remove trials where animal does not respond
-    if exclude_nochoice_trials:
+    if exclude_nochoice:
         query += ' | (choice == 0)'
 
     # Create mask

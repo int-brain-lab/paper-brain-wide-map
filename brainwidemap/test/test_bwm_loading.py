@@ -80,9 +80,15 @@ def test_filter_trials():
 def test_trials_and_mask():
     one = ONE()
     bwm_df = bwm_loading.bwm_query(freeze='2022_10_initial')
-
+    # Test two different sessions with default settings
     trials, mask = bwm_loading.load_trials_and_mask(one, bwm_df['eid'][10])
     assert mask.sum() == 513
-
     trials, mask = bwm_loading.load_trials_and_mask(one, bwm_df['eid'][99])
     assert mask.sum() == 438
+    # Test them with additional setting
+    trials, mask = bwm_loading.load_trials_and_mask(one, bwm_df['eid'][10], min_trial_len=0, max_trial_len=100,
+                                                    exclude_nochoice=True, exclude_unbiased=True)
+    assert mask.sum() == 455
+    trials, mask = bwm_loading.load_trials_and_mask(one, bwm_df['eid'][99], min_trial_len=0, max_trial_len=100,
+                                                    exclude_nochoice=True, exclude_unbiased=True)
+    assert mask.sum() == 395
