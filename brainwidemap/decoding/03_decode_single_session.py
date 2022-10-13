@@ -78,7 +78,7 @@ trials_df, trials_mask = load_trials_and_mask(
     one=one, eid=metadata['eid'], sess_loader=sess_loader,
     min_rt=kwargs['min_rt'], max_rt=kwargs['max_rt'],
     min_trial_len=kwargs['min_len'], max_trial_len=kwargs['max_len'],
-    exclude_nochoice_trials=True, exclude_unbiased_trials=kwargs['exclude_unbiased_trials'])
+    exclude_nochoice=True, exclude_unbiased=kwargs['exclude_unbiased_trials'])
 
 # load target data if necessary (will probably put this into a function eventually)
 if kwargs['target'] in ['wheel-vel', 'wheel-speed', 'l-whisker-me', 'r-whisker-me']:

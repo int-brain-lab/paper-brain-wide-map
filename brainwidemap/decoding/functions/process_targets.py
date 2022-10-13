@@ -424,7 +424,7 @@ def get_target_variable_in_df(
         one=one, eid=eid, sess_loader=sess_loader,
         min_rt=kwargs['min_rt'], max_rt=kwargs['max_rt'],
         min_trial_len=kwargs['min_len'], max_trial_len=kwargs['max_len'],
-        exclude_nochoice_trials=True, exclude_unbiased_trials=kwargs['exclude_unbiased_trials'])
+        exclude_nochoice=True, exclude_unbiased=kwargs['exclude_unbiased_trials'])
 
     # load behavior data
     beh_dict = load_behavior(target=target, sess_loader=sess_loader)
