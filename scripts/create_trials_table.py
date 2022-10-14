@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import dateq
 import pandas as pd
 from pathlib import Path
 
@@ -7,8 +7,8 @@ from brainwidemap import bwm_query, load_trials_and_mask
 
 
 year_week = date.today().isocalendar()[:2]
-#STAGING_PATH = Path('/mnt/s0/aggregates/2022_Q4_IBL_et_al_BWM').joinpath(f'{year_week[0]}_W{year_week[1]:02}_bwm')
-STAGING_PATH = Path('/home/julia/data/')
+STAGING_PATH = Path('/mnt/s0/aggregates/2022_Q4_IBL_et_al_BWM').joinpath(f'{year_week[0]}_W{year_week[1]:02}_bwm')
+
 one = ONE(base_url='https://alyx.internationalbrainlab.org')
 bwm_df = bwm_query()
 
@@ -33,7 +33,5 @@ df_trials.to_parquet(STAGING_PATH.joinpath('trials.pqt'))
 # Upload to s3
 week_file = STAGING_PATH.joinpath('trials.pqt')
 root_file = STAGING_PATH.parent.joinpath('trials.pqt')
-week = STAGING_PATH.name
 print(f"cp {week_file} {root_file}")
-print(f'aws s3 sync "{week_file}" s3://ibl-brain-wide-map-private/aggregates/2022_Q4_IBL_et_al_BWM/trials.pqt')
-print(f'aws s3 sync "{week_file}" s3://ibl-brain-wide-map-private/aggregates/2022_Q4_IBL_et_al_BWM/{week}/trials.pqt')
+print(f'aws s3 sync "{STAGING_PATH.parent}" s3://ibl-brain-wide-map-private/aggregates/2022_Q4_IBL_et_al_BWM/')
