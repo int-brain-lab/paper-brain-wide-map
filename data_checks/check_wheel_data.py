@@ -18,7 +18,7 @@ for i, eid in enumerate(bwm_df['eid'].unique()):
     wheel_checks = [eid]
     sess_loader = SessionLoader(one, eid)
     try:
-        sess_loader.load_wheel(sampling_rate=1000, smooth_size=0.03)
+        sess_loader.load_wheel()
         wheel_checks.append(True)  # Exists
         wheel_checks.append(True)  # Timestamps match
         wheel_checks.append(not sess_loader.wheel.empty)  # Not emtpy
@@ -34,5 +34,7 @@ for i, eid in enumerate(bwm_df['eid'].unique()):
 
     all_wheel.append(wheel_checks)
 
+print(errors)
+print(f'Saving csv to {out_file}')
 wheel_df = pd.DataFrame(all_wheel, columns=['eid', 'exists', 'times_match', 'not_empty', 'all_columns', 'not_nan'])
 wheel_df.to_csv(out_file)
