@@ -9,25 +9,25 @@ from brainbox.io.one import SessionLoader
 from brainwidemap.bwm_loading import (
     bwm_query, load_good_units, load_trials_and_mask, filter_regions, filter_sessions,
     download_aggregate_tables)
-from brainwidemap.decoding.settings import kwargs
+from brainwidemap.decoding.settings import params
 from brainwidemap.decoding.functions.decoding import fit_eid
 from brainwidemap.decoding.functions.process_targets import load_behavior
 from brainwidemap.decoding.paths import BEH_MOD_PATH, FIT_PATH, IMPOSTER_SESSION_PATH
 
-n_pseudo = kwargs['n_pseudo']
-n_pseudo_per_job = kwargs['n_pseudo_per_job']
+n_pseudo = params['n_pseudo']
+n_pseudo_per_job = params['n_pseudo_per_job']
 
-kwargs['add_to_saving_path'] = f"_binsize={1000 * kwargs['binsize']}_lags={kwargs['n_bins_lag']}_" \
-                              f"mergedProbes_{kwargs['merged_probes']}"
+params['add_to_saving_path'] = f"_binsize={1000 * params['binsize']}_lags={params['n_bins_lag']}_" \
+                              f"mergedProbes_{params['merged_probes']}"
 
 # Take the argument given to this script and create index by subtracting 1
 index = int(sys.argv[1]) - 1
 
 # create the directories
-kwargs['behfit_path'] = BEH_MOD_PATH
-kwargs['neuralfit_path'] = FIT_PATH
-kwargs['behfit_path'].mkdir(parents=True, exist_ok=True)
-kwargs['neuralfit_path'].mkdir(parents=True, exist_ok=True)
+params['behfit_path'] = BEH_MOD_PATH
+params['neuralfit_path'] = FIT_PATH
+params['behfit_path'].mkdir(parents=True, exist_ok=True)
+params['neuralfit_path'].mkdir(parents=True, exist_ok=True)
 
 # load the list of probe insertions and select probe
 one = ONE(mode='local')
@@ -76,25 +76,25 @@ sess_loader.load_trials()
 # create mask
 trials_df, trials_mask = load_trials_and_mask(
     one=one, eid=metadata['eid'], sess_loader=sess_loader,
-    min_rt=kwargs['min_rt'], max_rt=kwargs['max_rt'],
-    min_trial_len=kwargs['min_len'], max_trial_len=kwargs['max_len'],
-    exclude_nochoice=True, exclude_unbiased=kwargs['exclude_unbiased_trials'])
+    min_rt=params['min_rt'], max_rt=params['max_rt'],
+    min_trial_len=params['min_len'], max_trial_len=params['max_len'],
+    exclude_nochoice=True, exclude_unbiased=params['exclude_unbiased_trials'])
 
 # load target data if necessary (will probably put this into a function eventually)
-if kwargs['target'] in ['wheel-vel', 'wheel-speed', 'l-whisker-me', 'r-whisker-me']:
+if params['target'] in ['wheel-vel', 'wheel-speed', 'l-whisker-me', 'r-whisker-me']:
 
     # load target data
-    dlc_dict = load_behavior(kwargs['target'], sess_loader)
+    dlc_dict = load_behavior(params['target'], sess_loader)
 
     # load imposter sessions
-    ephys_str = '_beforeRecording' if not kwargs['imposter_generate_from_ephys'] else ''
-    filename = 'imposterSessions_%s%s.pqt' % (kwargs['target'], ephys_str)
+    ephys_str = '_beforeRecording' if not params['imposter_generate_from_ephys'] else ''
+    filename = 'imposterSessions_%s%s.pqt' % (params['target'], ephys_str)
     imposter_file = IMPOSTER_SESSION_PATH.joinpath(filename)
-    kwargs['imposter_df'] = pd.read_parquet(imposter_file) if n_pseudo > 0 else None
+    params['imposter_df'] = pd.read_parquet(imposter_file) if n_pseudo > 0 else None
 
 else:
     dlc_dict = None
-    kwargs['imposter_df'] = None
+    params['imposter_df'] = None
 
 # Load spike sorting data and put it in a dictionary for now
 spikes, clusters = load_good_units(
@@ -126,6 +126,6 @@ if (job_id + 1) * n_pseudo_per_job <= n_pseudo:
         metadata=metadata,
         pseudo_ids=pseudo_ids,
         dlc_dict=dlc_dict,
-        **kwargs)
+        **params)
 
 print('Slurm job successful')

@@ -13,12 +13,12 @@ from brainbox.task.closed_loop import generate_pseudo_session
 from brainwidemap import bwm_query
 from brainwidemap.decoding.functions.process_targets import get_target_variable_in_df
 from brainwidemap.decoding.paths import IMPOSTER_SESSION_PATH
-from brainwidemap.decoding.settings import kwargs
+from brainwidemap.decoding.settings import params
 
 
 one = ONE(mode='local')
 
-if kwargs['imposter_generate_from_ephys']:
+if params['imposter_generate_from_ephys']:
     # ephys sessions from one of 12 templates
     bwm_df = bwm_query()
     eids = bwm_df['eid'].unique()
@@ -43,9 +43,9 @@ columns = [
 
 # add additional columns if necessary
 add_behavior_col = False
-if kwargs['target'] not in ['pLeft', 'signcont', 'feedback', 'choice']:
+if params['target'] not in ['pLeft', 'signcont', 'feedback', 'choice']:
     add_behavior_col = True
-    columns += [kwargs['target']]
+    columns += [params['target']]
 
 all_trialsdf = []
 for i, eid in enumerate(eids):
@@ -73,7 +73,7 @@ for i, eid in enumerate(eids):
             and (trialsdf.probabilityLeft.values[0] == 0.5):
         try:
             if add_behavior_col:
-                trialsdf = get_target_variable_in_df(one, eid, sess_loader=sess_loader, **kwargs)
+                trialsdf = get_target_variable_in_df(one, eid, sess_loader=sess_loader, **params)
             if trialsdf is None:
                 continue
             else:
@@ -89,6 +89,6 @@ for i, eid in enumerate(eids):
 all_trialsdf = pd.concat(all_trialsdf)
 
 # save imposter sessions
-ephys_str = '_beforeRecording' if not kwargs['imposter_generate_from_ephys'] else ''
-filename = 'imposterSessions_%s%s.pqt' % (kwargs['target'], ephys_str)
+ephys_str = '_beforeRecording' if not params['imposter_generate_from_ephys'] else ''
+filename = 'imposterSessions_%s%s.pqt' % (params['target'], ephys_str)
 all_trialsdf[columns].to_parquet(IMPOSTER_SESSION_PATH.joinpath(filename))

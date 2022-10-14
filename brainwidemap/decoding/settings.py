@@ -364,7 +364,7 @@ ADD_TO_SAVING_PATH = (
        BEH_MOUSELEVEL_TRAINING, CONSTRAIN_NULL_SESSION_WITH_BEH))
 
 
-kwargs = {
+params = {
     'date': DATE,
     # TARGET
     'target': TARGET,
