@@ -53,14 +53,14 @@ if trials_filter:
 
 # Download cluster information and spike trains for all good units.
 for pid in bwm_df['pid']:
-   print(f"Downloading spike sorting data for {pid}")
-   spikes, clusters = load_good_units(one, pid, compute_metrics=False)
+    print(f"Downloading spike sorting data for {pid}")
+    spikes, clusters = load_good_units(one, pid, compute_metrics=False)
 
 # Download trials for all sessions
 for eid in bwm_df['eid']:
-   print(f"Downloading trials data for {eid}")
-   sess_loader = SessionLoader(one, eid)
-   sess_loader.load_trials()
+    print(f"Downloading trials data for {eid}")
+    sess_loader = SessionLoader(one, eid)
+    sess_loader.load_trials()
 
 # Download wheel data for all sessions
 if wheel_data:
