@@ -11,7 +11,7 @@ from sklearn import linear_model as lm
 ADAPT AT LEAST THESE IN YOUR COPY OF SETTINGS.PY
 ------------------------------------------------
 """
-RESULTS_DIR = Path('')
+RESULTS_DIR = Path().home()
 # Directory to which to save all outputs, including models. Will be created if it doesn't exist.
 
 DATE = '08-10-2022'
