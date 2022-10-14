@@ -8,16 +8,23 @@ from pathlib import Path
 
 from one.api import ONE
 from brainbox.io.one import SessionLoader
-from brainbox.task.closed_loop import generate_pseudo_session
 
 from brainwidemap import bwm_query
 from brainwidemap.decoding.functions.process_targets import get_target_variable_in_df
-from brainwidemap.decoding.paths import IMPOSTER_SESSION_PATH
 from brainwidemap.decoding.settings import params
+from brainwidemap.decoding.settings import RESULTS_DIR
 
+# Prepare where to store imposter sessions
+decoding_dir = RESULTS_DIR.joinpath('decoding')
+decoding_dir.mkdir(exist_ok=True, parents=True)
 
+ephys_str = '_beforeRecording' if not params['imposter_generate_from_ephys'] else ''
+filename = decoding_dir.joinpath(f"imposterSessions_{params['target']}{ephys_str}.pqt")
+
+# Initiate ONE
 one = ONE(mode='local')
 
+# Decide which eids to use
 if params['imposter_generate_from_ephys']:
     # ephys sessions from one of 12 templates
     bwm_df = bwm_query()
@@ -89,6 +96,4 @@ for i, eid in enumerate(eids):
 all_trialsdf = pd.concat(all_trialsdf)
 
 # save imposter sessions
-ephys_str = '_beforeRecording' if not params['imposter_generate_from_ephys'] else ''
-filename = 'imposterSessions_%s%s.pqt' % (params['target'], ephys_str)
-all_trialsdf[columns].to_parquet(IMPOSTER_SESSION_PATH.joinpath(filename))
+all_trialsdf[columns].to_parquet(filename)

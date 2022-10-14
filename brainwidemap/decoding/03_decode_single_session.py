@@ -1,7 +1,6 @@
 import sys
 import numpy as np
 import pandas as pd
-from pathlib import Path
 
 from one.api import ONE
 from brainbox.io.one import SessionLoader
@@ -9,42 +8,42 @@ from brainbox.io.one import SessionLoader
 from brainwidemap.bwm_loading import (
     bwm_query, load_good_units, load_trials_and_mask, filter_regions, filter_sessions,
     download_aggregate_tables)
-from brainwidemap.decoding.settings import params
 from brainwidemap.decoding.functions.decoding import fit_eid
 from brainwidemap.decoding.functions.process_targets import load_behavior
-from brainwidemap.decoding.paths import BEH_MOD_PATH, FIT_PATH, IMPOSTER_SESSION_PATH
+from brainwidemap.decoding.settings import params
+from brainwidemap.decoding.settings import RESULTS_DIR
 
-n_pseudo = params['n_pseudo']
-n_pseudo_per_job = params['n_pseudo_per_job']
 
-params['add_to_saving_path'] = f"_binsize={1000 * params['binsize']}_lags={params['n_bins_lag']}_" \
-                              f"mergedProbes_{params['merged_probes']}"
+# Establish paths and filenames
+params['behfit_path'] = RESULTS_DIR.joinpath('decoding', 'results', 'behavioral')
+params['behfit_path'].mkdir(parents=True, exist_ok=True)
+params['neuralfit_path'] = RESULTS_DIR.joinpath('decoding', 'results', 'neural')
+params['neuralfit_path'].mkdir(parents=True, exist_ok=True)
+
+ephys_str = '_beforeRecording' if not params['imposter_generate_from_ephys'] else ''
+imposter_file = RESULTS_DIR.joinpath('decoding', f"imposterSessions_{params['target']}{ephys_str}.pqt")
+
+params['add_to_saving_path'] = (f"_binsize={1000 * params['binsize']}_lags={params['n_bins_lag']}_"
+                                f"mergedProbes_{params['merged_probes']}")
 
 # Take the argument given to this script and create index by subtracting 1
 index = int(sys.argv[1]) - 1
 
-# create the directories
-params['behfit_path'] = BEH_MOD_PATH
-params['neuralfit_path'] = FIT_PATH
-params['behfit_path'].mkdir(parents=True, exist_ok=True)
-params['neuralfit_path'].mkdir(parents=True, exist_ok=True)
-
 # load the list of probe insertions and select probe
 one = ONE(mode='local')
 bwm_df = bwm_query()
-cache_dir = one.cache_dir
 
 # Download the latest clusters table, we use the same cache as above
-clusters_table = download_aggregate_tables(one, type='clusters', target_path=cache_dir)
+clusters_table = download_aggregate_tables(one, type='clusters')
 # Map probes to regions (here: Beryl mapping) and filter according to QC, number of units and
 # probes per region
 region_df = filter_regions(
-    bwm_df['pid'], clusters_table=clusters_table, mapping='Beryl', min_qc=1, min_units_region=10,
-    min_probes_region=2)
+    bwm_df['pid'], clusters_table=clusters_table, mapping='Beryl',
+    min_qc=1, min_units_region=10, min_probes_region=2)
 
 # Download the latest trials table and filter for sessions that have at least 200 trials fulfilling
 # BWM criteria
-trials_table = download_aggregate_tables(one, type='trials', target_path=cache_dir)
+trials_table = download_aggregate_tables(one, type='trials',)
 eids = filter_sessions(bwm_df['eid'], trials_table=trials_table, min_trials=200)
 
 # Remove probes and sessions based on those filters
@@ -82,16 +81,10 @@ trials_df, trials_mask = load_trials_and_mask(
 
 # load target data if necessary (will probably put this into a function eventually)
 if params['target'] in ['wheel-vel', 'wheel-speed', 'l-whisker-me', 'r-whisker-me']:
-
     # load target data
     dlc_dict = load_behavior(params['target'], sess_loader)
-
     # load imposter sessions
-    ephys_str = '_beforeRecording' if not params['imposter_generate_from_ephys'] else ''
-    filename = 'imposterSessions_%s%s.pqt' % (params['target'], ephys_str)
-    imposter_file = IMPOSTER_SESSION_PATH.joinpath(filename)
-    params['imposter_df'] = pd.read_parquet(imposter_file) if n_pseudo > 0 else None
-
+    params['imposter_df'] = pd.read_parquet(imposter_file) if params['n_pseudo'] > 0 else None
 else:
     dlc_dict = None
     params['imposter_df'] = None
@@ -114,9 +107,9 @@ neural_dict = {
 }
 
 #TODO change to loop how desired
-if (job_id + 1) * n_pseudo_per_job <= n_pseudo:
+if (job_id + 1) * params['n_pseudo_per_job'] <= params['n_pseudo']:
     print(f"pid_id: {pid_idx}")
-    pseudo_ids = np.arange(job_id * n_pseudo_per_job, (job_id + 1) * n_pseudo_per_job) + 1
+    pseudo_ids = np.arange(job_id * params['n_pseudo_per_job'], (job_id + 1) * params['n_pseudo_per_job']) + 1
     if 1 in pseudo_ids:
         pseudo_ids = np.concatenate((-np.ones(1), pseudo_ids)).astype('int64')
     results_fit_eid = fit_eid(

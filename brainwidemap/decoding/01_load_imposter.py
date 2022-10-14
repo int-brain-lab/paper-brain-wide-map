@@ -8,12 +8,8 @@ from pathlib import Path
 
 from one.api import ONE
 from brainbox.io.one import SessionLoader
-from brainbox.task.closed_loop import generate_pseudo_session
 
-# from braindelphi.params import braindelphi_PATH, SETTINGS_PATH, FIT_PATH
 from brainwidemap import bwm_query
-from brainwidemap.decoding.functions.process_targets import get_target_variable_in_df
-from brainwidemap.decoding.paths import IMPOSTER_SESSION_PATH
 from brainwidemap.decoding.settings import params
 
 N_PARA = 500
