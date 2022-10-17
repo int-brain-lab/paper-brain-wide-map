@@ -15,9 +15,9 @@ import numpy as np
 import pandas as pd
 
 # Brainwide repo imports
-from brainwide.encoding.design import generate_design
-from brainwide.encoding.fit import fit_stepwise, fit_impostor
-from brainwide.params import GLM_FIT_PATH
+from brainwidemap.encoding.design import generate_design
+from brainwidemap.encoding.fit import fit_stepwise, fit_impostor
+from brainwidemap.encoding.params import GLM_FIT_PATH
 
 
 def filter_nan(trialsdf):

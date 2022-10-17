@@ -14,8 +14,8 @@ import neurencoding.linear as lm
 import neurencoding.utils as mut
 
 # Brainwide repo imports
-from brainwide.params import GLM_CACHE, GLM_FIT_PATH
-from brainwide.utils import make_batch_slurm
+from brainwidemap.encoding.params import GLM_CACHE, GLM_FIT_PATH
+from brainwidemap.encoding.utils import make_batch_slurm
 
 # SLURM params
 BATCHFILE = '/home/gercek/bwm_impostor_glm.sh'
@@ -43,7 +43,7 @@ params = {
     'wheel_offset': -0.3,
     'contnorm': 5.,
     'reduce_wheel_dim': True,
-    'dataset_fn': '2022-01-19_dataset_metadata.pkl',
+    'dataset_fn': '2022-10-17_dataset_metadata.pkl',
     'impostor_fn': '2022-01-19_impostor_df.pkl',
     'model': lm.LinearGLM,
     'alpha_grid': {
