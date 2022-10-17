@@ -15,10 +15,9 @@ import numpy as np
 import pandas as pd
 
 # Brainwide repo imports
-from brainwide.decoding.functions.utils import compute_target
 from brainwide.encoding.design import generate_design
 from brainwide.encoding.fit import fit_stepwise, fit_impostor
-from brainwide.params import BEH_MOD_PATH, GLM_FIT_PATH
+from brainwide.params import GLM_FIT_PATH
 
 
 def filter_nan(trialsdf):
@@ -92,11 +91,7 @@ def fit_save_inputs(
 ):
     stdf, sspkt, sspkclu, sclureg, scluqc = get_cached_regressors(eidfn)
     stdf_nona = filter_nan(stdf)
-    if prior_estimate:
-        sessfullprior = compute_target('pLeft', subject, subjeids, eid, Path(BEH_MOD_PATH))
-        sessprior = sessfullprior[stdf_nona.index]
-    else:
-        sessprior = stdf_nona['probabilityLeft']
+    sessprior = stdf_nona['probabilityLeft']
     sessdesign = generate_design(stdf_nona, sessprior, t_before, **params)
     if not impostors:
         sessfit = fit_stepwise(sessdesign, sspkt, sspkclu, **params)

@@ -21,7 +21,6 @@ from one.api import ONE
 from brainwidemap.encoding.params import GLM_CACHE
 from brainwidemap.encoding.utils import load_trials_df
 from brainwidemap.bwm_loading import load_trials_and_mask, bwm_query
-from brainwidemap.encoding.utils import get_impostor_df
 
 _logger = logging.getLogger('brainwide')
 
@@ -67,17 +66,19 @@ def load_regressors(session_id,
     """
     one = ONE() if one is None else one
 
-    _, mask = load_trials_and_mask(one=one, eid=eid)
-    trialsdf = load_trials_df(session_id,
-                              t_before=t_before,
-                              t_after=t_after,
-                              wheel_binsize=binwidth,
-                              ret_abswheel=abswheel,
-                              ret_wheel=not abswheel,
-                              addtl_types=['firstMovement_times'],
-                              one=one,
-                              trials_mask=mask,
-                              )
+    _, mask = load_trials_and_mask(one=one, eid=session_id)
+    mask = mask.index[np.nonzero(mask.values)]
+    trialsdf = load_trials_df(
+        session_id,
+        t_before=t_before,
+        t_after=t_after,
+        wheel_binsize=binwidth,
+        ret_abswheel=abswheel,
+        ret_wheel=not abswheel,
+        addtl_types=['firstMovement_times'],
+        one=one,
+        trials_mask=mask,
+    )
 
     clusters = {}
     ssl = bbone.SpikeSortingLoader(one=one, pid=pid)
@@ -106,7 +107,7 @@ def load_regressors(session_id,
 
 
 def cache_regressors(subject, session_id, pid, regressor_params, trialsdf, spk_times, spk_clu,
-                     clu_regions, clu_qc, clu_df):
+                     clu_regions, clu_df):
     """
     Take outputs of load_regressors() and cache them to disk in the folder defined in the params.py
     file in this repository, using a nested subject -> session folder structure.
@@ -131,7 +132,6 @@ def cache_regressors(subject, session_id, pid, regressor_params, trialsdf, spk_t
         'spk_times': spk_times,
         'spk_clu': spk_clu,
         'clu_regions': clu_regions,
-        'clu_qc': clu_qc,
         'clu_df': clu_df,
     }
     reghash = _hash_dict(regressors)
@@ -183,19 +183,8 @@ def _hash_dict(d):
 
 
 @dask.delayed
-def delayed_load(session_id, pid, params, force_load=False):
-    try:
-        return load_regressors(session_id, pid, **params)
-    except KeyError as e:
-        if force_load:
-            params['resolved_alignment'] = False
-            return load_regressors(session_id, pid, **params)
-        else:
-            raise e
-
-
-@dask.delayed(pure=False, traverse=False)
-def delayed_save(subject, session_id, pid, params, outputs):
+def delayed_loadsave(subject, session_id, pid, params):
+    outputs = load_regressors(session_id, pid, **params)
     return cache_regressors(subject, session_id, pid, params, *outputs)
 
 
@@ -208,7 +197,7 @@ BINWIDTH = 0.02
 ABSWHEEL = True
 QC = True
 EPHYS_IMPOSTOR = False
-FORCE = True  # If load_spike_sorting_fast doesn't return _channels, use _channels function
+CLU_CRITERIA = 'bwm'
 # End parameters
 
 # Construct params dict from above
@@ -217,6 +206,7 @@ params = {
     't_after': T_AFT,
     'binwidth': BINWIDTH,
     'abswheel': ABSWHEEL,
+    'clu_criteria': CLU_CRITERIA,
 }
 
 one = ONE()
@@ -227,11 +217,10 @@ sessdf = bwm_query(freeze="2022_10_initial").set_index("pid")
 for pid, rec in sessdf.iterrows():
     subject = rec.subject
     eid = rec.eid
-    load_outputs = delayed_load(eid, pid, params)
-    save_future = delayed_save(subject, eid, pid, params, load_outputs)
+    save_future = delayed_loadsave(subject, eid, pid, params)
     dataset_futures.append([subject, eid, pid, save_future])
 
-N_CORES = 4
+N_CORES = 2
 cluster = SLURMCluster(cores=N_CORES,
                        memory='32GB',
                        processes=1,
@@ -239,14 +228,14 @@ cluster = SLURMCluster(cores=N_CORES,
                        walltime="01:15:00",
                        log_directory='/home/gercek/dask-worker-logs',
                        interface='ib0',
-                       extra=["--lifetime", "60m", "--lifetime-stagger", "10m"],
+                       worker_extra_args=["--lifetime", "60m", "--lifetime-stagger", "10m"],
                        job_cpu=N_CORES,
-                       env_extra=[
+                       job_script_prologue=[
                            f'export OMP_NUM_THREADS={N_CORES}',
                            f'export MKL_NUM_THREADS={N_CORES}',
                            f'export OPENBLAS_NUM_THREADS={N_CORES}'
                        ])
-cluster.scale(20)
+cluster.scale(40)
 client = Client(cluster)
 
 tmp_futures = [client.compute(future[3]) for future in dataset_futures]
