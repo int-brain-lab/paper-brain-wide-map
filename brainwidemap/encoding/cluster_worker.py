@@ -29,7 +29,7 @@ def filter_nan(trialsdf):
 def get_cached_regressors(fpath):
     with open(fpath, 'rb') as fo:
         d = pickle.load(fo)
-    return d['trialsdf'], d['spk_times'], d['spk_clu'], d['clu_regions'], d['clu_qc']
+    return d['trialsdf'], d['spk_times'], d['spk_clu'], d['clu_regions'], d['clu_df']
 
 
 def _create_sub_sess_path(parent, subject, session):
@@ -42,7 +42,7 @@ def _create_sub_sess_path(parent, subject, session):
     return sesspath
 
 
-def save_stepwise(subject, session_id, fitout, params, probes, input_fn, clu_reg, clu_qc, fitdate):
+def save_stepwise(subject, session_id, fitout, params, probes, input_fn, clu_reg, clu_df, fitdate):
     sesspath = _create_sub_sess_path(GLM_FIT_PATH, subject, session_id)
     fn = sesspath.joinpath(f'{fitdate}_stepwise_regression.pkl')
     outdict = {
@@ -50,7 +50,7 @@ def save_stepwise(subject, session_id, fitout, params, probes, input_fn, clu_reg
         'probes': probes,
         'model_input_fn': input_fn,
         'clu_regions': clu_reg,
-        'clu_qc': clu_qc,
+        'clu_df': clu_df,
     }
     outdict.update(fitout)
     with open(fn, 'wb') as fw:
@@ -59,7 +59,7 @@ def save_stepwise(subject, session_id, fitout, params, probes, input_fn, clu_reg
 
 
 def save_impostor(subject, session_id, sessfit, nullfits, params, probes, input_fn, clu_reg,
-                  clu_qc, fitdate):
+                  clu_df, fitdate):
     sesspath = _create_sub_sess_path(GLM_FIT_PATH, subject, session_id)
     fn = sesspath.joinpath(f'{fitdate}_impostor_regression.pkl')
     outdict = {
@@ -67,7 +67,7 @@ def save_impostor(subject, session_id, sessfit, nullfits, params, probes, input_
         'probes': probes,
         'model_input_fn': input_fn,
         'clu_regions': clu_reg,
-        'clu_qc': clu_qc,
+        'clu_df': clu_df,
         'fitdata': sessfit,
         'nullfits': nullfits,
     }
@@ -81,13 +81,11 @@ def fit_save_inputs(
     eid,
     probes,
     eidfn,
-    subjeids,
     params,
     t_before,
     fitdate,
     impostors,
     impostor_path=None,
-    prior_estimate=False,
 ):
     stdf, sspkt, sspkclu, sclureg, scluqc = get_cached_regressors(eidfn)
     stdf_nona = filter_nan(stdf)
@@ -133,18 +131,15 @@ if __name__ == '__main__':
     dataset_fns = dataset['dataset_filenames']
 
     subject, eid, probes, metafn, eidfn = dataset_fns.loc[args.index]
-    subjeids = list(dataset_fns[dataset_fns.subject == subject].eid.unique())
 
     outputfn = fit_save_inputs(subject,
                                eid,
                                probes,
                                eidfn,
-                               subjeids,
                                params,
                                t_before,
                                args.fitdate,
                                params['impostor'],
-                               impostor_path=args.impostor_path,
-                               prior_estimate=params['prior_estimate'])
+                               impostor_path=args.impostor_path)
     print('Fitting completed successfully!')
     print(outputfn)
