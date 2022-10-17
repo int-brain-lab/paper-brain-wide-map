@@ -10,7 +10,7 @@
 #SBATCH --time=24:00:00
 
 #extracting settings from $SLURM_ARRAY_TASK_ID
-echo index $SLURM_ARRAY_TASK_ID
+echo slurm_task $SLURM_ARRAY_TASK_ID
 
 export PYTHONPATH="$PWD":$PYTHONPATH
 # calling script
