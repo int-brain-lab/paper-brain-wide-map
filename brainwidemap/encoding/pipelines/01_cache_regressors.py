@@ -16,7 +16,6 @@ from dask_jobqueue import SLURMCluster
 
 # IBL libraries
 import brainbox.io.one as bbone
-import brainbox.metrics.single_units as bbqc
 from iblutil.util import Bunch
 from one.api import ONE
 from brainwidemap.encoding.params import GLM_CACHE
@@ -33,7 +32,6 @@ def load_regressors(session_id,
                     t_after=0.,
                     binwidth=0.02,
                     abswheel=False,
-                    ret_qc=False,
                     clu_criteria='bwm',
                     one=None):
     """
@@ -103,18 +101,8 @@ def load_regressors(session_id,
     sortinds = np.argsort(spikes.times)
     spk_times = spikes.times[sortinds]
     spk_clu = spikes.clusters[sortinds]
-    spk_amps = spikes.amps[sortinds]
-    spk_depths = spikes.depths[sortinds]
     clu_regions = clusters[pid].acronym
-    if not ret_qc:
-        return trialsdf, spk_times, spk_clu, clu_regions, clu_df
-
-    clu_qc = bbqc.quick_unit_metrics(spk_clu,
-                                     spk_times,
-                                     spk_amps,
-                                     spk_depths,
-                                     cluster_ids=np.arange(clu_regions.size))
-    return trialsdf, spk_times, spk_clu, clu_regions, clu_df, clu_qc
+    return trialsdf, spk_times, spk_clu, clu_regions, clu_df
 
 
 def cache_regressors(subject, session_id, pid, regressor_params, trialsdf, spk_times, spk_clu,
@@ -229,8 +217,6 @@ params = {
     't_after': T_AFT,
     'binwidth': BINWIDTH,
     'abswheel': ABSWHEEL,
-    'resolved_alignment': True if re.match('resolved.*', SESS_CRITERION) else False,
-    'ret_qc': QC
 }
 
 one = ONE()
@@ -241,7 +227,7 @@ sessdf = bwm_query(freeze="2022_10_initial").set_index("pid")
 for pid, rec in sessdf.iterrows():
     subject = rec.subject
     eid = rec.eid
-    load_outputs = delayed_load(eid, pid, params, force_load=FORCE)
+    load_outputs = delayed_load(eid, pid, params)
     save_future = delayed_save(subject, eid, pid, params, load_outputs)
     dataset_futures.append([subject, eid, pid, save_future])
 
@@ -266,12 +252,12 @@ client = Client(cluster)
 tmp_futures = [client.compute(future[3]) for future in dataset_futures]
 params['maxlen'] = params['max_len']
 params.pop('max_len')
-impostor_df = get_impostor_df(
-    '',
-    one,
-    ephys=EPHYS_IMPOSTOR,
-    tdf_kwargs={k: v for k, v in params.items() if k not in ['resolved_alignment', 'ret_qc']},
-    ret_template=True)
+# impostor_df = get_impostor_df(
+#     '',
+#     one,
+#     ephys=EPHYS_IMPOSTOR,
+#     tdf_kwargs={k: v for k, v in params.items() if k not in ['resolved_alignment', 'ret_qc']},
+#     ret_template=True)
 
 # Run below code AFTER futures have finished!
 dataset = [{

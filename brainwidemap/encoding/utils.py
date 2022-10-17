@@ -244,9 +244,7 @@ def load_trials_df(
     trialstypes.extend(addtl_types)
 
     loader = SessionLoader(one=one, eid=eid)
-    loader.load_session_data(pose=False, motion_energy=False, pupil=False, wheel=False)
-    if ret_wheel or ret_abswheel:
-        loader.load_wheel(smooth_size=0.001)
+    loader.load_session_data(pose=False, motion_energy=False, pupil=False, wheel=True)
 
     trials = loader.trials
     starttimes = trials.stimOn_times
