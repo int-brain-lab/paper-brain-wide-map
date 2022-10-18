@@ -114,13 +114,18 @@ def load_good_units(one, pid, compute_metrics=False, **kwargs):
         Instance to be used to connect to local or remote database
     pid: str
         A probe insertion UUID
+    compute_metrics: bool
+        If True, force SpikeSortingLoader.merge_clusters to recompute the cluster metrics. Default is False
+    kwargs:
+        Keyword arguments passed to SpikeSortingLoader upon initiation. Specifically, if one instance offline,
+        you need to pass 'eid' and 'pname' here as they cannot be inferred from pid in offline mode.
 
     Returns
     -------
-    good_clusters: pandas.DataFrame
-        Information of clusters for this pid that pass all quality metrics
     good_spikes: dict
         Spike trains associated with good clusters. Dictionary with keys ['depths', 'times', 'clusters', 'amps']
+    good_clusters: pandas.DataFrame
+        Information of clusters for this pid that pass all quality metrics
     """
     eid = kwargs.pop('eid', '')
     pname = kwargs.pop('pname', '')
@@ -138,6 +143,52 @@ def load_good_units(one, pid, compute_metrics=False, **kwargs):
     good_spikes['clusters'] = good_clusters.index[ib].astype(np.int32)
 
     return good_spikes, good_clusters
+
+
+def merge_probes(spikes_list, clusters_list):
+    """
+    Merge spikes and clusters information from several probes as if they were recorded from the same probe.
+    This can be used to account for the fact that data from the probes recorded in the same session are not
+    statistically independent as they have the same underlying behaviour.
+
+    NOTE: The clusters dataframe will be re-indexed to avoid duplicated indices. Accordingly, spikes['clusters']
+    will be updated. To unambiguously identify clusters use the column 'uuids'
+
+    Parameters
+    ----------
+    spikes_list: list of dicts
+        List of spike dictionaries as loaded by SpikeSortingLoader or brainwidemap.load_good_units
+    clusters_list: list of pandas.DataFrames
+        List of cluster dataframes as loaded by SpikeSortingLoader.merge_clusters or brainwidemap.load_good_units
+
+    Returns
+    -------
+    merged_spikes: dict
+        Merged and time-sorted spikes in single dictionary, where 'clusters' is adjusted to index into merged_clusters
+    merged_clusters: pandas.DataFrame
+        Merged clusters in single dataframe, re-indexed to avoid duplicate indices.
+        To unambiguously identify clusters use the column 'uuids'
+    """
+
+    assert (len(clusters_list) == len(spikes_list)), 'clusters_list and spikes_list must have the same length'
+    assert all([isinstance(s, dict) for s in spikes_list]), 'spikes_list must contain only dictionaries'
+    assert all([isinstance(c, pd.DataFrame) for c in clusters_list]), 'clusters_list must contain only pd.DataFrames'
+
+    merged_spikes = []
+    merged_clusters = []
+    cluster_max = 0
+    for clusters, spikes in zip(clusters_list, spikes_list):
+        spikes['clusters'] += cluster_max
+        cluster_max = clusters.index.max() + 1
+        merged_spikes.append(spikes)
+        merged_clusters.append(clusters)
+    merged_clusters = pd.concat(merged_clusters, ignore_index=True)
+    merged_spikes = {k: np.concatenate([s[k] for s in merged_spikes]) for k in merged_spikes[0].keys()}
+    # Sort spikes by spike time
+    sort_idx = np.argsort(merged_spikes['times'], kind='stable')
+    merged_spikes = {k: v[sort_idx] for k, v in merged_spikes.items()}
+
+    return merged_spikes, merged_clusters
 
 
 def load_trials_and_mask(
