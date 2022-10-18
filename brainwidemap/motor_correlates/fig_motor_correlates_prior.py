@@ -270,8 +270,10 @@ def cut_behavior(eid, duration =0.4, lag = -0.6,
             
     kk = 0     
 
-    for tr in range(1,len(trials[mask]) - 1):
-    
+    for tr in range(1,len(trials) - 1):
+        
+        if not mask[tr]:
+            continue
         # skip block boundary trials
         if trials['probabilityLeft'][tr] != trials['probabilityLeft'][tr+1]:
             continue
