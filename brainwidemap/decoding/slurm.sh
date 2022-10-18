@@ -3,7 +3,7 @@
 #SBATCH --output=/scratch/users/bensonb/international-brain-lab/paper-brain-wide-map/brainwidemap/logs/slurm/decoding.%A.%a.out
 #SBATCH --error=/scratch/users/bensonb/international-brain-lab/paper-brain-wide-map/brainwidemap/logs/slurm/decoding.%A.%a.err
 #SBATCH --partition=normal
-#SBATCH --array=1-800
+#SBATCH --array=1-600
 #SBATCH --mem=8G
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=bensonb@stanford.edu

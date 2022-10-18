@@ -174,7 +174,7 @@ logger.disabled = True
 
 # SELECT PARAMS
 # --------------------------------------------------
-DATE = '08-10-2022'
+DATE = '10-10-2022'
 TARGET = 'wheel-speed'
 
 if TARGET == 'pLeft':
@@ -228,11 +228,11 @@ if ESTIMATOR == 'logistic':
     HPARAM_GRID = {'C': np.array([0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 10])}
 else:
     HPARAM_GRID = {'alpha': np.array([0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 10])}
-N_PSEUDO = 1
-N_PSEUDO_PER_JOB = 1
-N_RUNS = 5
+N_PSEUDO = 100
+N_PSEUDO_PER_JOB = 100
+N_RUNS = 2
 SHUFFLE = True
-QUASI_RANDOM = True
+QUASI_RANDOM = False
 BALANCED_WEIGHT = False
 BALANCED_CONTINUOUS_TARGET = True
 
@@ -245,7 +245,7 @@ MERGED_PROBES = False
 # SESSION/BEHAVIOR PARAMS
 MIN_BEHAV_TRIAS = 200
 MIN_RT = 0.08  # 0.08  # Float (s) or None
-MAX_RT = None
+MAX_RT = 2.0
 MIN_LEN = None
 MAX_LEN = None
 NO_UNBIAS = False

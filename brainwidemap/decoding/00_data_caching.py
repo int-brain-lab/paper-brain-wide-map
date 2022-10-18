@@ -15,8 +15,8 @@ USER INPUTS
 regions_filter = True
 trials_filter = True
 # Whether to download wheel and whisker data as well
-wheel_data = True
-whisker_data = True
+wheel_data = False
+whisker_data = False
 # You can choose the cache directory if you want it to be different from the default
 cache_dir = None # Path('/full/path/to/cache')
 
@@ -52,12 +52,12 @@ if trials_filter:
     bwm_df = bwm_df[bwm_df['eid'].isin(eids)]
 
 # Download cluster information and spike trains for all good units.
-#for pid in bwm_df['pid']:
-#    print(f"Downloading spike sorting data for {pid}")
-#    spikes, clusters = load_good_units(one, pid, compute_metrics=False)
+for pid in bwm_df['pid']:
+    print(f"Downloading spike sorting data for {pid}")
+    spikes, clusters = load_good_units(one, pid, compute_metrics=False)
 
 # Download trials for all sessions
-#for eid in bwm_df['eid']:
+# for eid in bwm_df['eid']:
 #    print(f"Downloading trials data for {eid}")
 #    sess_loader = SessionLoader(one, eid)
 #    sess_loader.load_trials()

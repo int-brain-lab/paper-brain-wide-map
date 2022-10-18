@@ -16,6 +16,7 @@ from brainwidemap.decoding.functions.process_targets import get_target_variable_
 from brainwidemap.decoding.paths import IMPOSTER_SESSION_PATH
 from brainwidemap.decoding.settings import kwargs
 
+print('got through imports')
 
 if kwargs['imposter_generate_from_ephys']:
     # ephys sessions from from one of 12 templates
@@ -24,11 +25,7 @@ if kwargs['imposter_generate_from_ephys']:
     eids = bwm_df['eid'].unique()
 else:
     # no template, no neural activity
-<<<<<<< HEAD
     one = ONE(mode='local')
-    eids = one.search(project='ibl_neuropixel_brainwide_01', task_protocol='biasedChoiceWorld')
-=======
-    one = ONE(mode='remote')
     # eids = one.search(project='ibl_neuropixel_brainwide_01', task_protocol='biasedChoiceWorld')
     qc_pass = (
         '~session__extended_qc___task_stimOn_goCue_delays__lt,0.9,'
@@ -53,7 +50,8 @@ else:
         django=qc_pass,
     ))
     eids = [s['id'] for s in sessions]
->>>>>>> 6eb42ee39d656d87baab7735da97a89bdd6aac68
+
+print('got through if else')
 
 # basic columns that we want to keep
 columns = [
@@ -79,12 +77,14 @@ if (kwargs['target'] != 'pLeft') \
     add_behavior_col = True
     columns += [kwargs['target']]
 
+print('starting for loop')
 all_trialsdf = []
+ntotal = len(eids)
 for i, eid in enumerate(eids):
     if (i%10) > 0:
         continue
-    det = one.get_details(eid, full=True)
-    print('%i: %s' % (i, eid))
+#     det = one.get_details(eid, full=True)
+    print('%i / %i: %s' % (i, ntotal, eid))
     try:
         sess_loader = SessionLoader(one=one, eid=eid)
         sess_loader.load_trials()
