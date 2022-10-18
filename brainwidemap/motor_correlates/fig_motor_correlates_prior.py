@@ -348,13 +348,13 @@ def get_PSTHs_7behaviors(lag = -0.4):
     R = {}
     plt.ioff()
     for eid in eids:
-       
-        # only let sessions pass that have dlc passed for both side cams
-        qc = one.get_details(eid, True)['extended_qc']
-        if not (qc['dlcLeft'] == 'PASS' and qc['dlcRight'] == 'PASS'):
-            continue
-    
+
         try:
+            # only let sessions pass that have dlc passed for both side cams
+            qc = one.get_details(eid, True)['extended_qc']
+            if not (qc['dlcLeft'] == 'PASS' and qc['dlcRight'] == 'PASS'):
+                continue        
+                
             R[eid] = PSTH_pseudo(eid,lag = lag, duration = 0.4)    
         except:
             print(f'something off with {eid}')
