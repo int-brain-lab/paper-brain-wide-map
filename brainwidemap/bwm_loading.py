@@ -46,7 +46,7 @@ def bwm_query(one=None, alignment_resolved=True, return_details=False, freeze='2
         freeze_file = fixtures_path.joinpath(f'{freeze}.csv')
         assert freeze_file.exists(), f'{freeze} does not seem to be a valid freeze.'
 
-        print(f'Loading from fixtures/{freeze}.csv')
+        print(f'Loading bwm_query results from fixtures/{freeze}.csv')
         bwm_df = pd.read_csv(freeze_file, index_col=0)
         bwm_df['date'] = [parser.parse(i).date() for i in bwm_df['date']]
 
@@ -114,13 +114,18 @@ def load_good_units(one, pid, compute_metrics=False, **kwargs):
         Instance to be used to connect to local or remote database
     pid: str
         A probe insertion UUID
+    compute_metrics: bool
+        If True, force SpikeSortingLoader.merge_clusters to recompute the cluster metrics. Default is False
+    kwargs:
+        Keyword arguments passed to SpikeSortingLoader upon initiation. Specifically, if one instance offline,
+        you need to pass 'eid' and 'pname' here as they cannot be inferred from pid in offline mode.
 
     Returns
     -------
-    good_clusters: pandas.DataFrame
-        Information of clusters for this pid that pass all quality metrics
     good_spikes: dict
         Spike trains associated with good clusters. Dictionary with keys ['depths', 'times', 'clusters', 'amps']
+    good_clusters: pandas.DataFrame
+        Information of clusters for this pid that pass all quality metrics
     """
     eid = kwargs.pop('eid', '')
     pname = kwargs.pop('pname', '')
@@ -140,7 +145,55 @@ def load_good_units(one, pid, compute_metrics=False, **kwargs):
     return good_spikes, good_clusters
 
 
-def load_trials_and_mask(one, eid, min_rt=0.08, max_rt=2., nan_exclude='default'):
+def merge_probes(spikes_list, clusters_list):
+    """
+    Merge spikes and clusters information from several probes as if they were recorded from the same probe.
+    This can be used to account for the fact that data from the probes recorded in the same session are not
+    statistically independent as they have the same underlying behaviour.
+
+    NOTE: The clusters dataframe will be re-indexed to avoid duplicated indices. Accordingly, spikes['clusters']
+    will be updated. To unambiguously identify clusters use the column 'uuids'
+
+    Parameters
+    ----------
+    spikes_list: list of dicts
+        List of spike dictionaries as loaded by SpikeSortingLoader or brainwidemap.load_good_units
+    clusters_list: list of pandas.DataFrames
+        List of cluster dataframes as loaded by SpikeSortingLoader.merge_clusters or brainwidemap.load_good_units
+
+    Returns
+    -------
+    merged_spikes: dict
+        Merged and time-sorted spikes in single dictionary, where 'clusters' is adjusted to index into merged_clusters
+    merged_clusters: pandas.DataFrame
+        Merged clusters in single dataframe, re-indexed to avoid duplicate indices.
+        To unambiguously identify clusters use the column 'uuids'
+    """
+
+    assert (len(clusters_list) == len(spikes_list)), 'clusters_list and spikes_list must have the same length'
+    assert all([isinstance(s, dict) for s in spikes_list]), 'spikes_list must contain only dictionaries'
+    assert all([isinstance(c, pd.DataFrame) for c in clusters_list]), 'clusters_list must contain only pd.DataFrames'
+
+    merged_spikes = []
+    merged_clusters = []
+    cluster_max = 0
+    for clusters, spikes in zip(clusters_list, spikes_list):
+        spikes['clusters'] += cluster_max
+        cluster_max = clusters.index.max() + 1
+        merged_spikes.append(spikes)
+        merged_clusters.append(clusters)
+    merged_clusters = pd.concat(merged_clusters, ignore_index=True)
+    merged_spikes = {k: np.concatenate([s[k] for s in merged_spikes]) for k in merged_spikes[0].keys()}
+    # Sort spikes by spike time
+    sort_idx = np.argsort(merged_spikes['times'], kind='stable')
+    merged_spikes = {k: v[sort_idx] for k, v in merged_spikes.items()}
+
+    return merged_spikes, merged_clusters
+
+
+def load_trials_and_mask(
+        one, eid, min_rt=0.08, max_rt=2., nan_exclude='default', min_trial_len=None,
+        max_trial_len=None, exclude_unbiased=False, exclude_nochoice=False, sess_loader=None):
     """
     Function to load all trials for a given session and create a mask to exclude all trials that have a reaction time
     shorter than min_rt or longer than max_rt or that have NaN for one of the specified events.
@@ -158,14 +211,27 @@ def load_trials_and_mask(one, eid, min_rt=0.08, max_rt=2., nan_exclude='default'
     nan_exclude: list or 'default'
         List of trial events that cannot be NaN for a trial to be included. If set to 'default' the list is
         ['stimOn_times','choice','feedback_times','probabilityLeft','firstMovement_times','feedbackType']
+    min_trial_len: float
+        Minimum admissible trial length measured by goCue_time (start) and feedback_time (end).
+        Default is None.
+    max_trial_len: float
+        Maximum admissible trial length measured by goCue_time (start) and feedback_time (end).
+        Default is None.
+    exclude_unbiased: bool
+        True to exclude trials that fall within the unbiased block at the beginning of session.
+        Default is False.
+    exclude_nochoice: bool
+        True to exclude trials where the animal does not respond. Default is False.
+    sess_loader: brainbox.io.one.SessionLoader or NoneType
+        Optional SessionLoader object; if None, this object will be created internally
 
     Returns
     -------
     trials: pandas.DataFrame
         Trials table containing all trials for this session. If complete with columns:
-        ['stimOff_times','intervals_bpod_0','intervals_bpod_1','goCueTrigger_times','feedbackType','contrastLeft',
-        'contrastRight','rewardVolume','goCue_times','choice','feedback_times','stimOn_times','response_times',
-        'firstMovement_times','probabilityLeft', 'intervals_0', 'intervals_1']
+        ['stimOff_times','goCueTrigger_times','feedbackType','contrastLeft','contrastRight','rewardVolume',
+        'goCue_times','choice','feedback_times','stimOn_times','response_times','firstMovement_times',
+        'probabilityLeft', 'intervals_0', 'intervals_1']
     mask: pandas.Series
         Boolean Series to mask trials table for trials that pass specified criteria. True for all trials that should be
         included, False for all trials that should be excluded.
@@ -181,15 +247,29 @@ def load_trials_and_mask(one, eid, min_rt=0.08, max_rt=2., nan_exclude='default'
             'feedbackType'
         ]
 
-    sess_loader = SessionLoader(one, eid)
-    sess_loader.load_trials()
+    if sess_loader is None:
+        sess_loader = SessionLoader(one, eid)
+
+    if sess_loader.trials.empty:
+        sess_loader.load_trials()
 
     # Create a mask for trials to exclude
     # Remove trials that are outside the allowed reaction time range
     query = f'(firstMovement_times - stimOn_times < {min_rt}) | (firstMovement_times - stimOn_times > {max_rt})'
+    # Remove trials that are outside the allowed trial duration range
+    if min_trial_len is not None:
+        query += f' | (feedback_times - goCue_times < {min_trial_len})'
+    if max_trial_len is not None:
+        query += f' | (feedback_times - goCue_times > {max_trial_len})'
     # Remove trials with nan in specified events
     for event in nan_exclude:
         query += f' | {event}.isnull()'
+    # Remove trials in unbiased block at beginning
+    if exclude_unbiased:
+        query += ' | (probabilityLeft == 0.5)'
+    # Remove trials where animal does not respond
+    if exclude_nochoice:
+        query += ' | (choice == 0)'
 
     # Create mask
     mask = ~sess_loader.trials.eval(query)
@@ -206,7 +286,7 @@ def download_aggregate_tables(one, target_path=None, type='clusters', tag='2022_
     one: one.api.ONE
         Instance to be used to connect to database.
     target_path: str or pathlib.Path
-        Directory to which clusters.pqt should be downloaded. If None, downloads to one.cache_dir
+        Directory to which clusters.pqt should be downloaded. If None, downloads to one.cache_dir/bwm_tables
     type: {'clusters', 'trials'}
         Which type of aggregate table to load, clusters or trials table.
     tag: str
@@ -220,8 +300,11 @@ def download_aggregate_tables(one, target_path=None, type='clusters', tag='2022_
         Path to the downloaded aggregate
     """
 
-    target_path = one.cache_dir if target_path is None else Path(target_path)
-    assert target_path.exists(), f'The target_path {target_path} does not exist.'
+    if target_path is None:
+        target_path = Path(one.cache_dir).joinpath('bwm_tables')
+        target_path.mkdir(exist_ok=True)
+    else:
+        assert target_path.exists(), 'The target_path you passed does not exist.'
 
     agg_path = target_path.joinpath(f'{type}.pqt')
     s3, bucket_name = aws.get_s3_from_alyx(alyx=one.alyx)

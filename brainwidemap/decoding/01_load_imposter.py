@@ -8,18 +8,14 @@ from pathlib import Path
 
 from one.api import ONE
 from brainbox.io.one import SessionLoader
-from brainbox.task.closed_loop import generate_pseudo_session
 
-# from braindelphi.params import braindelphi_PATH, SETTINGS_PATH, FIT_PATH
 from brainwidemap import bwm_query
-from brainwidemap.decoding.functions.process_targets import get_target_variable_in_df
-from brainwidemap.decoding.paths import IMPOSTER_SESSION_PATH
-from brainwidemap.decoding.settings import kwargs
+from brainwidemap.decoding.settings import params
 
 N_PARA = 500
 PARAINDEX = int(sys.argv[1])-1
 
-if kwargs['imposter_generate_from_ephys']:
+if params['imposter_generate_from_ephys']:
     # ephys sessions from from one of 12 templates
     one = ONE(mode='local')
     bwm_df = bwm_query()
@@ -69,12 +65,12 @@ columns = [
 
 # add additional columns if necessary
 add_behavior_col = False
-if (kwargs['target'] != 'pLeft') \
-        and (kwargs['target'] != 'signcont') \
-        and (kwargs['target'] != 'feedback') \
-        and (kwargs['target'] != 'choice'):
+if (params['target'] != 'pLeft') \
+        and (params['target'] != 'signcont') \
+        and (params['target'] != 'feedback') \
+        and (params['target'] != 'choice'):
     add_behavior_col = True
-    columns += [kwargs['target']]
+    columns += [params['target']]
 
 all_trialsdf = []
 for i, eid in enumerate(eids):

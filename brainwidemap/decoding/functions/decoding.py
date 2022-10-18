@@ -18,7 +18,6 @@ from brainwidemap.decoding.functions.process_inputs import select_ephys_regions
 from brainwidemap.decoding.functions.process_inputs import preprocess_ephys
 from brainwidemap.decoding.functions.process_targets import compute_beh_target
 from brainwidemap.decoding.functions.process_targets import get_target_data_per_trial_wrapper
-from brainwidemap.decoding.functions.utils import compute_mask
 from brainwidemap.decoding.functions.utils import save_region_results
 from brainwidemap.decoding.functions.utils import get_save_path
 from brainwidemap.decoding.functions.nulldistributions import generate_null_distribution_session
@@ -26,16 +25,18 @@ from brainwidemap.decoding.functions.process_targets import check_bhv_fit_exists
 from brainwidemap.decoding.functions.process_targets import optimal_Bayesian
 
 
-def fit_eid(neural_dict, trials_df, metadata, dlc_dict=None, pseudo_ids=[-1], **kwargs):
+def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo_ids=[-1], **kwargs):
     """High-level function to decode a given target variable from brain regions for a single eid.
 
     Parameters
     ----------
     neural_dict : dict
         keys: 'spk_times', 'spk_clu', 'clu_regions', 'clu_qc', 'clu_df'
-    trials_df : dict
+    trials_df : pd.DataFrame
         columns: 'choice', 'feedback', 'pLeft', 'firstMovement_times', 'stimOn_times',
         'feedback_times'
+    trials_mask: pd.Series
+        Boolean mask indicating good trials
     metadata : dict
         'eid', 'eid_train', 'subject', 'probes'
     dlc_dict: dict, optional
@@ -149,11 +150,11 @@ def fit_eid(neural_dict, trials_df, metadata, dlc_dict=None, pseudo_ids=[-1], **
     # get target values
     if kwargs['target'] in ['pLeft', 'signcont', 'strengthcont', 'choice', 'feedback']:
         target_vals_list = compute_beh_target(trials_df, metadata, **kwargs)
-        mask_target = np.ones(len(target_vals_list), dtype=bool)
+        target_mask = np.ones(len(target_vals_list), dtype=bool)
     else:
         if dlc_dict is None or dlc_dict['times'] is None or dlc_dict['values'] is None:
             raise ValueError('dlc_dict does not contain any data')
-        _, target_vals_list, mask_target = get_target_data_per_trial_wrapper(
+        _, target_vals_list, target_mask = get_target_data_per_trial_wrapper(
             target_times=dlc_dict['times'],
             target_vals=dlc_dict['values'],
             trials_df=trials_df,
@@ -161,7 +162,7 @@ def fit_eid(neural_dict, trials_df, metadata, dlc_dict=None, pseudo_ids=[-1], **
             align_interval=kwargs['time_window'],
             binsize=kwargs['binsize'])
 
-    mask = compute_mask(trials_df, **kwargs) & mask_target
+    mask = trials_mask & target_mask
 
     if sum(mask) <= kwargs['min_behav_trials']:
         msg = 'session contains %i trials, below the threshold of %i' % (

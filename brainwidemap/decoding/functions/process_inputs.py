@@ -86,6 +86,7 @@ def get_spike_data_per_trial(times, clusters, interval_begs, interval_ends, inte
         beginning of each interval in seconds
     interval_ends : array-like
         end of each interval in seconds
+    interval_len : float
     binsize : float
         width of each bin in seconds
 

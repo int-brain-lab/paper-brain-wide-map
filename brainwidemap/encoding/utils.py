@@ -20,78 +20,6 @@ from brainwidemap.encoding.timeseries import TimeSeries, sync
 _logger = logging.getLogger("brainwide")
 
 
-def query_sessions(selection="all", one=None):
-    """
-    Filters sessions on some canonical filters
-    returns dataframe with index being EID, so indexing results in subject name and probe
-    identities in that EID.
-    """
-    one = one or ONE()
-    if selection == "all":
-        # Query all ephysChoiceWorld sessions
-        ins = one.alyx.rest(
-            "insertions",
-            "list",
-            django="session__project__name__icontains,ibl_neuropixel_brainwide_01,"
-            "session__qc__lt,50",
-        )
-    elif selection == "aligned":
-        # Query all sessions with at least one alignment
-        ins = one.alyx.rest(
-            "insertions",
-            "list",
-            django="session__project__name__icontains,ibl_neuropixel_brainwide_01,"
-            "session__qc__lt,50,"
-            "json__extended_qc__alignment_count__gt,0",
-        )
-    elif selection == "resolved":
-        # Query all sessions with resolved alignment
-        ins = one.alyx.rest(
-            "insertions",
-            "list",
-            django="session__project__name__icontains,ibl_neuropixel_brainwide_01,"
-            "session__qc__lt,50,"
-            "json__extended_qc__alignment_resolved,True",
-        )
-    elif selection == "aligned-behavior":
-        # Query sessions with at least one alignment and that meet behavior criterion
-        ins = one.alyx.rest(
-            "insertions",
-            "list",
-            django="session__project__name__icontains,ibl_neuropixel_brainwide_01,"
-            "session__qc__lt,50,"
-            "json__extended_qc__alignment_count__gt,0,"
-            "session__extended_qc__behavior,1",
-        )
-    elif selection == "resolved-behavior":
-        # Query sessions with resolved alignment and that meet behavior criterion
-        ins = one.alyx.rest(
-            "insertions",
-            "list",
-            django="session__project__name__icontains,ibl_neuropixel_brainwide_01,"
-            "session__qc__lt,50,"
-            "json__extended_qc__alignment_resolved,True,"
-            "session__extended_qc__behavior,1",
-        )
-    else:
-        raise ValueError(
-            "Invalid selection was passed."
-            "Must be in ['all', 'aligned', 'resolved', 'aligned-behavior',"
-            " 'resolved-behavior']"
-        )
-
-    #  Get list of eids and probes
-    all_eids = np.array([i["session"] for i in ins])
-    all_probes = np.array([i["name"] for i in ins])
-    all_subjects = np.array([i["session_info"]["subject"] for i in ins])
-    all_pids = np.array([i["id"] for i in ins])
-    retdf = pd.DataFrame(
-        {"subject": all_subjects, "eid": all_eids, "probe": all_probes, "pid": all_pids}
-    )
-    retdf.sort_values("subject", inplace=True)
-    return retdf
-
-
 def get_impostor_df(
     subject, one, ephys=False, tdf_kwargs={}, progress=False, ret_template=False, max_sess=10000
 ):
@@ -316,9 +244,7 @@ def load_trials_df(
     trialstypes.extend(addtl_types)
 
     loader = SessionLoader(one=one, eid=eid)
-    loader.load_session_data(pose=False, motion_energy=False, pupil=False, wheel=False)
-    if ret_wheel or ret_abswheel:
-        loader.load_wheel(smooth_size=0.001)
+    loader.load_session_data(pose=False, motion_energy=False, pupil=False, wheel=True)
 
     trials = loader.trials
     starttimes = trials.stimOn_times

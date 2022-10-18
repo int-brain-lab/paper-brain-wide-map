@@ -16,14 +16,11 @@ from dask_jobqueue import SLURMCluster
 
 # IBL libraries
 import brainbox.io.one as bbone
-import brainbox.metrics.single_units as bbqc
+from iblutil.util import Bunch
 from one.api import ONE
 from brainwidemap.encoding.params import GLM_CACHE
 from brainwidemap.encoding.utils import load_trials_df
-from brainwidemap.bwm_loading import load_good_units, load_trials_and_mask
-
-# Brainwide repo imports
-from brainwidemap.encoding.utils import query_sessions, get_impostor_df
+from brainwidemap.bwm_loading import load_trials_and_mask, bwm_query
 
 _logger = logging.getLogger('brainwide')
 
@@ -34,7 +31,6 @@ def load_regressors(session_id,
                     t_after=0.,
                     binwidth=0.02,
                     abswheel=False,
-                    ret_qc=False,
                     clu_criteria='bwm',
                     one=None):
     """
@@ -70,46 +66,48 @@ def load_regressors(session_id,
     """
     one = ONE() if one is None else one
 
-    _, mask = load_trials_and_mask(one=one, eid=eid)
-    trialsdf = load_trials_df(session_id,
-                              t_before=t_before,
-                              t_after=t_after,
-                              wheel_binsize=binwidth,
-                              ret_abswheel=abswheel,
-                              ret_wheel=not abswheel,
-                              addtl_types=['firstMovement_times'],
-                              one=one,
-                              trials_mask=mask,
-                              )
+    _, mask = load_trials_and_mask(one=one, eid=session_id)
+    mask = mask.index[np.nonzero(mask.values)]
+    trialsdf = load_trials_df(
+        session_id,
+        t_before=t_before,
+        t_after=t_after,
+        wheel_binsize=binwidth,
+        ret_abswheel=abswheel,
+        ret_wheel=not abswheel,
+        addtl_types=['firstMovement_times'],
+        one=one,
+        trials_mask=mask,
+    )
 
     clusters = {}
     ssl = bbone.SpikeSortingLoader(one=one, pid=pid)
-    spikes, tmpclu, channels = ssl.load_spike_sorting()
+    origspikes, tmpclu, channels = ssl.load_spike_sorting()
     if 'metrics' not in tmpclu:
         tmpclu['metrics'] = np.ones(tmpclu['channels'].size)
-    clusters[pid] = ssl.merge_clusters(spikes, tmpclu, channels)
+    clusters[pid] = ssl.merge_clusters(origspikes, tmpclu, channels)
     clu_df = pd.DataFrame(clusters[pid]).set_index(['cluster_id'])
     clu_df['pid'] = pid
 
+    if clu_criteria == 'bwm':
+        keepclu = clu_df.index[clu_df.label == 1]
+    elif clu_criteria == 'all':
+        keepclu = clu_df.index
+    else:
+        raise ValueError("clu_criteria must be 'bwm' or 'all'")
+
+    clu_df = clu_df.loc[keepclu]
+    keepmask = np.isin(origspikes.clusters, keepclu)
+    spikes = Bunch({k: v[keepmask] for k, v in origspikes.items()})
     sortinds = np.argsort(spikes.times)
     spk_times = spikes.times[sortinds]
     spk_clu = spikes.clusters[sortinds]
-    spk_amps = spikes.amps[sortinds]
-    spk_depths = spikes.depths[sortinds]
     clu_regions = clusters[pid].acronym
-    if not ret_qc:
-        return trialsdf, spk_times, spk_clu, clu_regions, clu_df
-
-    clu_qc = bbqc.quick_unit_metrics(spk_clu,
-                                     spk_times,
-                                     spk_amps,
-                                     spk_depths,
-                                     cluster_ids=np.arange(clu_regions.size))
-    return trialsdf, spk_times, spk_clu, clu_regions, clu_df, clu_qc
+    return trialsdf, spk_times, spk_clu, clu_regions, clu_df
 
 
-def cache_regressors(subject, session_id, probes, regressor_params, trialsdf, spk_times, spk_clu,
-                     clu_regions, clu_qc, clu_df):
+def cache_regressors(subject, session_id, pid, regressor_params, trialsdf, spk_times, spk_clu,
+                     clu_regions, clu_df):
     """
     Take outputs of load_regressors() and cache them to disk in the folder defined in the params.py
     file in this repository, using a nested subject -> session folder structure.
@@ -134,14 +132,13 @@ def cache_regressors(subject, session_id, probes, regressor_params, trialsdf, sp
         'spk_times': spk_times,
         'spk_clu': spk_clu,
         'clu_regions': clu_regions,
-        'clu_qc': clu_qc,
         'clu_df': clu_df,
     }
     reghash = _hash_dict(regressors)
     metadata = {
         'subject': subject,
         'session_id': session_id,
-        'probes': probes,
+        'pid': pid,
         'regressor_hash': reghash,
         **regressor_params
     }
@@ -186,60 +183,44 @@ def _hash_dict(d):
 
 
 @dask.delayed
-def delayed_load(session_id, probes, params, force_load=False):
-    try:
-        return load_regressors(session_id, probes, **params)
-    except KeyError as e:
-        if force_load:
-            params['resolved_alignment'] = False
-            return load_regressors(session_id, probes, **params)
-        else:
-            raise e
-
-
-@dask.delayed(pure=False, traverse=False)
-def delayed_save(subject, session_id, probes, params, outputs):
-    return cache_regressors(subject, session_id, probes, params, *outputs)
+def delayed_loadsave(subject, session_id, pid, params):
+    outputs = load_regressors(session_id, pid, **params)
+    return cache_regressors(subject, session_id, pid, params, *outputs)
 
 
 # Parameters
 SESS_CRITERION = 'resolved-behavior'
 DATE = str(dt.today())
-MAX_LEN = 2.
 T_BEF = 0.6
 T_AFT = 0.6
 BINWIDTH = 0.02
 ABSWHEEL = True
 QC = True
 EPHYS_IMPOSTOR = False
-FORCE = True  # If load_spike_sorting_fast doesn't return _channels, use _channels function
+CLU_CRITERIA = 'bwm'
 # End parameters
 
 # Construct params dict from above
 params = {
-    'max_len': MAX_LEN,
     't_before': T_BEF,
     't_after': T_AFT,
     'binwidth': BINWIDTH,
     'abswheel': ABSWHEEL,
-    'resolved_alignment': True if re.match('resolved.*', SESS_CRITERION) else False,
-    'ret_qc': QC
+    'clu_criteria': CLU_CRITERIA,
 }
 
 one = ONE()
 dataset_futures = []
 
-sessdf = query_sessions(SESS_CRITERION).set_index(['subject', 'eid'])
+sessdf = bwm_query(freeze="2022_10_initial").set_index("pid")
 
-for eid in sessdf.index.unique(level='eid'):
-    xsdf = sessdf.xs(eid, level='eid')
-    subject = xsdf.index[0]
-    probes = xsdf.pid.to_list()
-    load_outputs = delayed_load(eid, probes, params, force_load=FORCE)
-    save_future = delayed_save(subject, eid, probes, params, load_outputs)
-    dataset_futures.append([subject, eid, probes, save_future])
+for pid, rec in sessdf.iterrows():
+    subject = rec.subject
+    eid = rec.eid
+    save_future = delayed_loadsave(subject, eid, pid, params)
+    dataset_futures.append([subject, eid, pid, save_future])
 
-N_CORES = 4
+N_CORES = 2
 cluster = SLURMCluster(cores=N_CORES,
                        memory='32GB',
                        processes=1,
@@ -247,25 +228,25 @@ cluster = SLURMCluster(cores=N_CORES,
                        walltime="01:15:00",
                        log_directory='/home/gercek/dask-worker-logs',
                        interface='ib0',
-                       extra=["--lifetime", "60m", "--lifetime-stagger", "10m"],
+                       worker_extra_args=["--lifetime", "60m", "--lifetime-stagger", "10m"],
                        job_cpu=N_CORES,
-                       env_extra=[
+                       job_script_prologue=[
                            f'export OMP_NUM_THREADS={N_CORES}',
                            f'export MKL_NUM_THREADS={N_CORES}',
                            f'export OPENBLAS_NUM_THREADS={N_CORES}'
                        ])
-cluster.scale(20)
+cluster.scale(40)
 client = Client(cluster)
 
 tmp_futures = [client.compute(future[3]) for future in dataset_futures]
 params['maxlen'] = params['max_len']
 params.pop('max_len')
-impostor_df = get_impostor_df(
-    '',
-    one,
-    ephys=EPHYS_IMPOSTOR,
-    tdf_kwargs={k: v for k, v in params.items() if k not in ['resolved_alignment', 'ret_qc']},
-    ret_template=True)
+# impostor_df = get_impostor_df(
+#     '',
+#     one,
+#     ephys=EPHYS_IMPOSTOR,
+#     tdf_kwargs={k: v for k, v in params.items() if k not in ['resolved_alignment', 'ret_qc']},
+#     ret_template=True)
 
 # Run below code AFTER futures have finished!
 dataset = [{

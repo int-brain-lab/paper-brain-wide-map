@@ -10,7 +10,7 @@ from behavior_models.models.utils import build_path as build_path_mut
 
 from brainbox.io.one import SessionLoader
 
-from brainwidemap.decoding.functions.utils import compute_mask
+from brainwidemap.bwm_loading import load_trials_and_mask
 
 
 def optimal_Bayesian(act, side):
@@ -400,7 +400,7 @@ def load_behavior(target, sess_loader):
 
 
 def get_target_variable_in_df(
-        one, eid, target, align_time, time_window, binsize, trials_df=None, **kwargs):
+        one, eid, target, align_time, time_window, binsize, sess_loader, **kwargs):
     """Return a trials dataframe with additional behavioral data as one array per trial.
 
     Parameters
@@ -411,7 +411,7 @@ def get_target_variable_in_df(
     align_time : str
     time_window : array-like
     binsize : float
-    trials_df : pandas.DataFrame
+    sess_loader : brainbox.io.one.SessionLoader object
 
     Returns
     -------
@@ -419,12 +419,12 @@ def get_target_variable_in_df(
 
     """
 
-    sess_loader = SessionLoader(one, eid)
-
     # load trial data
-    if trials_df is None:
-        sess_loader.load_trials()
-        trials_df = sess_loader.trials
+    trials_df, trials_mask = load_trials_and_mask(
+        one=one, eid=eid, sess_loader=sess_loader,
+        min_rt=kwargs['min_rt'], max_rt=kwargs['max_rt'],
+        min_trial_len=kwargs['min_len'], max_trial_len=kwargs['max_len'],
+        exclude_nochoice=True, exclude_unbiased=kwargs['exclude_unbiased_trials'])
 
     # load behavior data
     beh_dict = load_behavior(target=target, sess_loader=sess_loader)
@@ -432,7 +432,7 @@ def get_target_variable_in_df(
         raise Exception("Error loading %s data" % target)
 
     # split behavior data into trials
-    _, target_vals_list, mask_target = get_target_data_per_trial_wrapper(
+    _, target_vals_list, target_mask = get_target_data_per_trial_wrapper(
             beh_dict['times'], beh_dict['values'], trials_df, align_time, time_window, binsize)
 
     if len(target_vals_list) == 0:
@@ -440,7 +440,7 @@ def get_target_variable_in_df(
     else:
         trials_df[target] = target_vals_list
         # return only "good" trials
-        mask = compute_mask(trials_df, align_time, time_window, **kwargs) & mask_target
+        mask = trials_mask & target_mask
         return trials_df[mask]
 
 
