@@ -7,7 +7,7 @@ from brainbox.io.one import SessionLoader
 
 from brainwidemap.bwm_loading import (
     bwm_query, load_good_units, load_trials_and_mask, filter_regions, filter_sessions,
-    download_aggregate_tables)
+    download_aggregate_tables, merge_probes)
 from brainwidemap.decoding.functions.decoding import fit_eid
 from brainwidemap.decoding.functions.process_targets import load_behavior
 from brainwidemap.decoding.settings import params
@@ -108,20 +108,14 @@ else:
 
 # Load spike sorting data
 if params['merged_probes']:
-    # If probes are to be merged, loop over the probes of this session, combine to one spikes dict and one clusters df
-    # Make sure to reindex the clusters as otherwise two clusters from different probes will have teh same index
-    spikes = []
-    clusters = []
-    clust_max = 0
+    clusters_list = []
+    spikes_list = []
     for pid, probe_name in zip(pids, probe_names):
-        tmp_spikes, tmp_clusters = load_good_units(one, pid, eid=eid, pname=probe_name, compute_metrics=False)
+        tmp_spikes, tmp_clusters = load_good_units(one, pid, eid=eid, pname=probe_name, compute_metrics=True)
         tmp_clusters['pid'] = pid
-        tmp_spikes['clusters'] += clust_max
-        clust_max = tmp_clusters.index.max() + 1
-        spikes.append(tmp_spikes)
-        clusters.append(tmp_clusters)
-    clusters = pd.concat(clusters, ignore_index=True)
-    spikes = {k: np.concatenate([s[k] for s in spikes]) for k in spikes[0].keys()}
+        spikes_list.append(tmp_spikes)
+        clusters_list.append(tmp_clusters)
+    spikes, clusters = merge_probes(spikes_list, clusters_list)
 else:
     spikes, clusters = load_good_units(one, pid, eid=eid, pname=probe_name, compute_metrics=True)
 
