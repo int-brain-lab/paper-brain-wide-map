@@ -20,6 +20,45 @@ def test_data_freeze():
     assert df_bwm.shape[0] == 552
 
 
+def test_spike_load_and_merge_probes():
+    one = ONE()
+    df_bwm = bwm_loading.bwm_query()
+    eid = df_bwm['eid'].iloc[99]
+    tmp_df = df_bwm.set_index(['eid', 'subject']).xs(eid, level='eid')
+    pids = tmp_df['pid'].to_list()
+    probe_names = tmp_df['probe_name'].to_list()
+
+    spikes_list = []
+    clusters_list = []
+    for pid, probe_name in zip(pids, probe_names):
+        spikes, clusters = bwm_loading.load_good_units(one, pid, eid=eid, pname=probe_name)
+        assert len(spikes['times']) == len(spikes['amps']) == len(spikes['clusters'] == len(spikes['depths']))
+
+        spikes_list.append(spikes)
+        clusters_list.append(clusters)
+
+    merged_spikes, merged_clusters = bwm_loading.merge_probes(spikes_list, clusters_list)
+    # Check that the spike arrays contain all individual arrays
+    assert all([set(merged_spikes[k]) == set(np.concatenate([s[k] for s in spikes_list]))
+                for k in merged_spikes.keys()])
+    # Check that the times are sorted in ascending order
+    assert np.sum(np.diff(merged_spikes['times']) < 0) == 0
+    # check that we have only good clusters
+    assert np.all(merged_clusters['label'] == 1)
+    # check that clusters were re-indexed and spikes['clusters'] updated accordingly
+    assert np.sum(np.diff(merged_clusters.index) <= 0) == 0
+    assert set(merged_spikes['clusters']).issubset(set(merged_clusters.index))
+    assert merged_clusters.iloc[:len(clusters_list[0])].compare(clusters_list[0]).empty
+    assert merged_clusters.iloc[len(clusters_list[0]):].reset_index(drop=True).compare(
+        clusters_list[1][merged_clusters.columns]).empty
+    idx = np.random.randint(0, merged_clusters.shape[0] - 1)
+    if idx < clusters_list[0].shape[0]:
+        assert merged_clusters.iloc[idx].compare(clusters_list[0].iloc[idx]).empty
+    else:
+        assert merged_clusters.iloc[idx].compare(
+            clusters_list[1].iloc[idx - clusters_list[0].shape[0]][merged_clusters.columns]).empty
+
+
 def test_filter_regions():
     one = ONE()
     bwm_df = bwm_loading.bwm_query(freeze='2022_10_initial')

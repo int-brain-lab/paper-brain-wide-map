@@ -8,7 +8,6 @@ import neurencoding.utils as mut
 
 # Brainwide repo imports
 from .design import generate_design, sample_impostor
-from brainwide.decoding.functions.utils import compute_target
 
 
 def fit(design, spk_t, spk_clu, binwidth, model, estimator, n_folds=5, contiguous=False, **kwargs):
@@ -74,7 +73,6 @@ def fit_impostor(design,
                  n_impostors=100,
                  n_folds=5,
                  contiguous=False,
-                 prior_estimate=False,
                  **kwargs):
     data_fit = fit(design, spk_t, spk_clu, binwidth, model, estimator, n_folds, contiguous)
 
@@ -82,10 +80,7 @@ def fit_impostor(design,
     null_fits = []
     while len(null_fits) < n_impostors:
         sampledf = sample_impostor(impdf, target_length, **kwargs)
-        if prior_estimate:
-            prior = compute_target('pLeft', beh_data=sampledf, **kwargs)
-        else:
-            prior = sampledf['probabilityLeft']
+        prior = sampledf['probabilityLeft']
         try:
             pdesign = generate_design(sampledf, prior, t_before, **kwargs)
         except IndexError:
