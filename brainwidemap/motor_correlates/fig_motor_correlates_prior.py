@@ -8,8 +8,11 @@ import ibllib.atlas as atlas
 from ibllib.atlas import AllenAtlas
 from ibllib.atlas.regions import BrainRegions
 from brainbox.io.one import SpikeSortingLoader
-from brainwidemap import bwm_query
-
+from brainbox.io.one import SessionLoader
+from brainwidemap import bwm_query, load_good_units, \
+    load_trials_and_mask, filter_regions, filter_sessions, \
+    download_aggregate_tables
+    
 import numpy as np
 from pathlib import Path
 from collections import Counter
@@ -124,7 +127,7 @@ def find_nearest(array,value):
         return idx
  
  
-def get_licks(XYs):
+def get_licks(dlc):
 
     '''
     define a frame as a lick frame if
@@ -134,7 +137,8 @@ def get_licks(XYs):
     
     licks = []
     for point in ['tongue_end_l', 'tongue_end_r']:
-        for c in XYs[point]:
+        for co in ['x', 'y']:
+           c = dlc[point+'_'+co]
            thr = np.nanstd(np.diff(c))/4
            licks.append(set(np.where(abs(np.diff(c))>thr)[0]))
     return sorted(list(set.union(*licks)))         
@@ -179,6 +183,7 @@ def get_dlc_XYs(eid, video_type, query_type='remote'):
 def cut_behavior(eid, duration =0.4, lag = -0.6, 
                  align='stimOn_times', stim_to_stim=False, 
                  endTrial=False, query_type='remote',pawex=False):
+                 
     '''
     cut segments of behavioral time series for PSTHs
     
@@ -187,47 +192,41 @@ def cut_behavior(eid, duration =0.4, lag = -0.6,
     param: lag: time in sec wrt to align time to start segment
     param: duration: length of cut segment in sec 
     '''
+    sess_loader = SessionLoader(one, eid)
 
-    # get wheel speed    
-    wheel = one.load_object(eid, 'wheel', query_type=query_type)
-    pos, times_w = wh.interpolate_position(wheel.timestamps,
-                                           wheel.position, freq=1/T_BIN)
-    v = np.append(np.diff(pos),np.diff(pos)[-1]) 
-    v = abs(v) 
-    v = v/max(v)  # else the units are very small
+    # get wheel speed
+    sess_loader.load_wheel()    
+    wheel = sess_loader.wheel 
     
     # load whisker motion energy, separate for both cams
-    times_me_l, whisking_l0 = get_ME(eid, 'left', query_type=query_type)
-    times_me_r, whisking_r0 = get_ME(eid, 'right', query_type=query_type)    
+    sess_loader.load_motion_energy(views=['left', 'right'])
+    left_whisker = sess_loader.motion_energy['leftCamera']
+    right_whisker = sess_loader.motion_energy['rightCamera']
     
-    times_l, XYs_l = get_dlc_XYs(eid, 'left')
-    times_r, XYs_r = get_dlc_XYs(eid, 'right')    
-    
-    DLC = {'left':[times_l, XYs_l], 'right':[times_r, XYs_r]}
+    # load DLC
+    sess_loader.load_pose(views=['left', 'right'])
+    dlc_left = sess_loader.pose['leftCamera']
+    dlc_right = sess_loader.pose['rightCamera']
     
     # get licks using both cameras    
     lick_times = []
-    for video_type in ['right','left']:
-        times, XYs = DLC[video_type]
-        r = get_licks(XYs)
-        idx = np.where(np.array(r)<len(times))[0][-1]            
-        lick_times.append(times[r[:idx]])
+    for dlc in [dlc_left, dlc_right]:
+        r = get_licks(dlc)           
+        lick_times.append(dlc['times'][r])
     
+    # combine left/right video licks and bin
     lick_times = sorted(np.concatenate(lick_times))
     R, times_lick, _ = bincount2D(lick_times, np.ones(len(lick_times)), T_BIN)
     lcs = R[0]    
 
     # get paw position, for each cam separate
-    
     if pawex:
-        paw_pos_r0 = XYs_r['paw_r']
-        paw_pos_l0 = XYs_l['paw_r']    
+        paw_pos_r0 = list(zip(dlc_right['paw_r_x'],dlc_right['paw_r_y']))
+        paw_pos_l0 = list(zip(dlc_left['paw_r_x'],dlc_left['paw_r_y'])) 
     else:
-        paw_pos_r0 = (XYs_r['paw_r'][0]**2 + XYs_r['paw_r'][1]**2)**0.5
-        paw_pos_l0 = (XYs_l['paw_r'][0]**2 + XYs_l['paw_r'][1]**2)**0.5
-    
-    # get nose x position from left cam only
-    nose_pos0 = XYs_l['nose_tip'][0]
+        paw_pos_r0 = (dlc_right['paw_r_x']**2 + dlc_right['paw_r_y']**2)**0.5
+        paw_pos_l0 = (dlc_left['paw_r_x']**2 + dlc_left['paw_r_y']**2)**0.5
+ 
 
     licking = []
     whisking_l = []
@@ -243,80 +242,41 @@ def cut_behavior(eid, duration =0.4, lag = -0.6,
     sides = []
     choices = []
     T = [] 
-    difs = [] # difference between stim on and last wheel movement
 
 
     d = (licking, whisking_l, whisking_r, wheeling,
          nose_pos, paw_pos_r, paw_pos_l,
-         pleft, sides, choices, T, difs)
+         pleft, sides, choices, T)
 
     ds = ('licking','whisking_l', 'whisking_r', 'wheeling',
          'nose_pos', 'paw_pos_r', 'paw_pos_l',
-         'pleft', 'sides', 'choices', 'T', 'difs')
+         'pleft', 'sides', 'choices', 'T')
          
     D = dict(zip(ds,d))
     
     # continuous time series of behavior and stamps
     behaves = {'licking':[times_lick, lcs],
-               'whisking_l':[times_me_l, whisking_l0], 
-               'whisking_r':[times_me_r, whisking_r0], 
-               'wheeling':[times_w, v],
-               'nose_pos':[times_l, nose_pos0],
-               'paw_pos_r':[times_r,paw_pos_r0], 
-               'paw_pos_l':[times_l,paw_pos_l0]}
+               'whisking_l':[left_whisker['times'],
+                             left_whisker['whiskerMotionEnergy']],
+               'whisking_r':[right_whisker['times'],
+                             right_whisker['whiskerMotionEnergy']],
+               'wheeling':[wheel['times'], abs(wheel['velocity'])],
+               'nose_pos':[dlc_left['times'], dlc_left['nose_tip_x']],
+               'paw_pos_r':[dlc_right['times'],paw_pos_r0], 
+               'paw_pos_l':[dlc_left['times'],paw_pos_l0]}
 
-    trials = one.load_object(eid, 'trials', query_type=query_type)    
-    wheelMoves = one.load_object(eid, 'wheelMoves', query_type=query_type)
-    
-    print('cutting data')
 
-    trials = one.load_object(eid, 'trials', query_type=query_type)
-    evts = ['stimOn_times', 'feedback_times', 'probabilityLeft',
-            'choice', 'feedbackType','firstMovement_times']
+    trials, mask = load_trials_and_mask(one, eid)
             
     kk = 0     
 
-    for tr in range(1,len(trials['intervals']) - 1): 
-                                  
-        # skip trial if any key info is nan 
-        if any(np.isnan([trials[k][tr] for k in evts])):
-            continue
-        
-        # skip trial if any key info is nan for subsequ. trial    
-        if any(np.isnan([trials[k][tr + 1] for k in evts])):
-            continue            
-            
-        # skip trial if too long
-        if trials['feedback_times'][tr] - trials['stimOn_times'][tr] > 10: 
-            continue   
-        
+    for tr in range(1,len(trials[mask]) - 1):
+    
         # skip block boundary trials
         if trials['probabilityLeft'][tr] != trials['probabilityLeft'][tr+1]:
             continue
-
-
-        a = wheelMoves['intervals'][:,1]
-        b = trials['stimOn_times'][tr]
-        c = trials['feedback_times'][tr - 1]     
-
-        # making sure the motion onset time is in a coupled interval
-        ind = np.where((a < b) & (a > c))[0]
-        try:
-            a = a[ind][-1]
-        except:
-            continue           
-        
-        difs.append(b-a)
             
-
-        if stim_to_stim:
-            start_t = trials['stimOn_times'][tr]    
-                    
-        elif align == 'wheel_stop':            
-            start_t = a + lag    
-            
-        else:                                
-            start_t = trials[align][tr] + lag     
+        start_t = trials[align][tr] + lag     
                 
         if np.isnan(trials['contrastLeft'][tr]):
             cont = trials['contrastRight'][tr]            
@@ -334,7 +294,6 @@ def cut_behavior(eid, duration =0.4, lag = -0.6,
                  
         pleft.append(trials['probabilityLeft'][tr])
 
-         
         for be in behaves: 
             times = behaves[be][0] 
             series = behaves[be][1] 
@@ -374,22 +333,33 @@ batch processing
 ####
 '''
 
-def get_PSTHs_7behaviors():
+def get_PSTHs_7behaviors(lag = -0.4):
 
+    '''
+    run once with lag = -0.6, -0.4
+    '''
+        
+    lagd = {-0.6: '', -0.4: '0.4'}    
     df = bwm_query(one)
     eids = list(set(df['eid'].values))
     
     R = {}
     plt.ioff()
     for eid in eids:
+       
+        # only let sessions pass that have dlc passed for both side cams
+        qc = one.get_details(eid, True)['extended_qc']
+        if not (qc['dlcLeft'] == 'PASS' and qc['dlcRight'] == 'PASS'):
+            continue
+    
         try:
-            R[eid] = PSTH_pseudo(eid,lag = -0.6, duration = 0.4)    
+            R[eid] = PSTH_pseudo(eid,lag = lag, duration = 0.4)    
         except:
             print(f'something off with {eid}')
             continue
     
     s = ('/home/mic/paper-brain-wide-map/'
-         'behavioral_block_correlates/behave7.npy')
+         f'behavioral_block_correlates/behave7{lagd[lag]}.npy')
     np.save(s,R,allow_pickle=True)            
             
 
@@ -1639,9 +1609,6 @@ def plot_result(lcs = False):
     return eids, ps
 
 
-
-
-
 def plot_trials(neu, pleft, Clusters, MEs, licks,
                 clus=235, duration =4, lag = -2, probe ='probe00',
                 eid = '15f742e1-1043-45c9-9504-f1e8a53c1744'):
@@ -1781,8 +1748,10 @@ def example_block_structure(eid):
 def bwm_data_series_fig(cnew = False):
     '''
     plot a behavioral time series on block-colored background
-    above neural data
+    above neural data - intro figure
     '''
+
+    
     eid = '15f742e1-1043-45c9-9504-f1e8a53c1744'
     video_type='left'
     #reg = 'PRNr'#'SCiw''MRN'
