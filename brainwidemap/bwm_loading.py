@@ -418,7 +418,7 @@ def filter_sessions(eids, trials_table=None, one=None, min_trials=200):
     ----------
     eids: list or pandas.Series
         Session ids to map to regions. Typically, the 'eid' column of the bwm_df returned by bwm_query.
-        Note that these eids must be represented in clusters_table to be considered for the filter.
+        Note that these eids must be represented in trials_table to be considered for the filter.
     trials_table: str or pathlib.Path
         Absolute path to trials table to be used for filtering. If None, requires to provide one.api.ONE instance
         to download the latest version. Required when using min_trials.
