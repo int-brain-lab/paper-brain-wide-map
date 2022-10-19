@@ -8,7 +8,7 @@ from brainbox.io.one import SessionLoader
 out_file = Path(__file__).parent.joinpath('check_wheel_data.csv')
 
 one = ONE()
-bwm_df = bwm_query(one, freeze='2022_10_initial')
+bwm_df = bwm_query(one, freeze='2022_10_update')
 
 all_wheel = []
 errors = []
