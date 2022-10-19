@@ -80,7 +80,7 @@ if __name__ == '__main__':
     # Brainwide repo imports
     from brainwide.params import GLM_CACHE, GLM_FIT_PATH
 
-    FITDATE = '2022-02-24'  # Date on which fit was run
+    FITDATE = '2022-10-17'  # Date on which fit was run
 
     parpath = Path(GLM_FIT_PATH).joinpath(f'{FITDATE}_glm_fit_pars.pkl')
     with open(parpath, 'rb') as fo:
