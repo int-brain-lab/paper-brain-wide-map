@@ -1,4 +1,4 @@
-from datetime import dateq
+from datetime import date
 import pandas as pd
 from pathlib import Path
 
