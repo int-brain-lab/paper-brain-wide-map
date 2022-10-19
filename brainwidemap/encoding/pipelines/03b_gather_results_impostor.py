@@ -11,7 +11,7 @@ from tqdm import tqdm
 from ibllib.atlas import BrainRegions
 
 # Brainwide repo imports
-from brainwide.utils import get_id, remap
+from brainwidemap.encoding.utils import get_id, remap
 
 
 def generate_da_dict(
@@ -21,11 +21,12 @@ def generate_da_dict(
         region_mapper=lambda x: x,):
     datafile = pd.read_pickle(filename)
     eid = filename.parts[-2]  # Ugly hack because I forgot to keep eid value in files
-    dfs = process_kernels(datafile, eid, n_impostors, n_folds, region_mapper)
+    pid = datafile['probes']
+    dfs = process_kernels(datafile, eid, pid, n_impostors, n_folds, region_mapper)
     return dfs
 
 
-def process_kernels(datafile, eid, n_impostors, n_folds, reg_map, get_kweights=False):
+def process_kernels(datafile, eid, pid, n_impostors, n_folds, reg_map):
     dfs = defaultdict(list)
     for kernel in datafile['fitdata']['weights'][0].keys():
         for i in range(-1, n_impostors):
@@ -35,23 +36,24 @@ def process_kernels(datafile, eid, n_impostors, n_folds, reg_map, get_kweights=F
                     ref_idx = df.index.copy()
                 else:
                     df = datafile['nullfits'][i]['weights'][j][kernel].copy().reindex(ref_idx)
-                mi = make_multiindex(datafile, eid, reg_map, df, j, i)
+                mi = make_multiindex(datafile, eid, pid, reg_map, df, j, i)
                 df.index = mi
                 dfs[kernel].append(df)
     dfs_cat = {k: pd.concat(dfs[k]).sort_index() for k in dfs}
     return dfs_cat
 
 
-def make_multiindex(datafile, eid, reg_map, df, fold, impostor):
+def make_multiindex(datafile, eid, pid, reg_map, df, fold, impostor):
     mi = pd.MultiIndex.from_arrays(
         [
             np.array([eid] * len(df)),
+            np.array([pid] * len(df)),
             df.index,
             np.array([reg_map(id) for id in datafile['clu_regions'][df.index]]).flatten(),
             np.ones_like(df.index) * impostor,
             np.ones_like(df.index) * fold,
         ],
-        names=['eid', 'clu_id', 'region', 'nullrun', 'fold'],
+        names=['eid', 'probe', 'clu_id', 'region', 'nullrun', 'fold'],
     )
     return mi
 
@@ -78,9 +80,9 @@ if __name__ == '__main__':
     from pathlib import Path
 
     # Brainwide repo imports
-    from brainwide.params import GLM_CACHE, GLM_FIT_PATH
+    from brainwidemap.encoding.params import GLM_CACHE, GLM_FIT_PATH
 
-    FITDATE = '2022-10-17'  # Date on which fit was run
+    FITDATE = '2022-10-19'  # Date on which fit was run
 
     parpath = Path(GLM_FIT_PATH).joinpath(f'{FITDATE}_glm_fit_pars.pkl')
     with open(parpath, 'rb') as fo:
