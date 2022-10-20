@@ -115,7 +115,7 @@ def test_filter_trials():
     assert trials_table.exists()
 
     eids = bwm_loading.filter_sessions(bwm_df['eid'], trials_table=trials_table)
-    assert eids.shape == (345,)
+    assert eids.shape == (346,)
 
     eids = bwm_loading.filter_sessions(bwm_df['eid'], one=one, min_trials=None)
     assert eids.shape == (355,)
