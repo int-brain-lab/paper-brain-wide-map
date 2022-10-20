@@ -204,17 +204,17 @@ def load_trials_and_mask(
         Instance to be used to connect to local or remote database
     eid: str
         A session UUID
-    min_rt: float
-        Minimum admissible reaction time in seconds for a trial to be included. Default is 0.08.
-    max_rt: float
-        Maximum admissible reaction time in seconds for a trial to be included. Default is 2.
+    min_rt: float or None
+        Minimum admissible reaction time in seconds for a trial to be included. Default is 0.08. If None, don't apply.
+    max_rt: float or None
+        Maximum admissible reaction time in seconds for a trial to be included. Default is 2. If None, don't apply.
     nan_exclude: list or 'default'
         List of trial events that cannot be NaN for a trial to be included. If set to 'default' the list is
         ['stimOn_times','choice','feedback_times','probabilityLeft','firstMovement_times','feedbackType']
-    min_trial_len: float
+    min_trial_len: float or None
         Minimum admissible trial length measured by goCue_time (start) and feedback_time (end).
         Default is None.
-    max_trial_len: float
+    max_trial_len: float or Nona
         Maximum admissible trial length measured by goCue_time (start) and feedback_time (end).
         Default is None.
     exclude_unbiased: bool
@@ -255,7 +255,12 @@ def load_trials_and_mask(
 
     # Create a mask for trials to exclude
     # Remove trials that are outside the allowed reaction time range
-    query = f'(firstMovement_times - stimOn_times < {min_rt}) | (firstMovement_times - stimOn_times > {max_rt})'
+    if min_rt is not None:
+        query = f'(firstMovement_times - stimOn_times < {min_rt})'
+    else:
+        query = ''
+    if max_rt is not None:
+        query += f' | (firstMovement_times - stimOn_times > {max_rt})'
     # Remove trials that are outside the allowed trial duration range
     if min_trial_len is not None:
         query += f' | (feedback_times - goCue_times < {min_trial_len})'
@@ -270,6 +275,9 @@ def load_trials_and_mask(
     # Remove trials where animal does not respond
     if exclude_nochoice:
         query += ' | (choice == 0)'
+    # If min_rt was None we have to clean up the string
+    if min_rt is None:
+        query = query[3:]
 
     # Create mask
     mask = ~sess_loader.trials.eval(query)
