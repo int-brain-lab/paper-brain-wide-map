@@ -43,7 +43,7 @@ params = {
     'wheel_offset': -0.3,
     'contnorm': 5.,
     'reduce_wheel_dim': True,
-    'dataset_fn': '2022-10-17_dataset_metadata.pkl',
+    'dataset_fn': '2022-10-23_dataset_metadata.pkl',
     'impostor_fn': '2022-01-19_impostor_df.pkl',  # TODO: Regen impostor sessions
     'model': lm.LinearGLM,
     'alpha_grid': {
