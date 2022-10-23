@@ -24,7 +24,7 @@ def fit(design, spk_t, spk_clu, binwidth, model, estimator, n_folds=5, contiguou
         else:
             raise TypeError('Estimator must be a sklearn linear regression instance')
         intercepts.append(nglm.intercepts)
-        weights.append(nglm.combine_weights())
+        weights.append(nglm.combine_weights(peaksonly=True))
         scores.append(nglm.score(testinds=trials_idx[test]))
         splits.append({'test': test, 'train': train})
     outdict = {
