@@ -203,8 +203,6 @@ cluster.scale(40)
 client = Client(cluster)
 
 tmp_futures = [client.compute(future[3]) for future in dataset_futures]
-params['maxlen'] = params['max_len']
-params.pop('max_len')
 # impostor_df = get_impostor_df(
 #     '',
 #     one,
