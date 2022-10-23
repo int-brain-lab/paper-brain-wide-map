@@ -1,9 +1,7 @@
 # Standard library
-import hashlib
 import logging
 import os
 import pickle
-import re
 from datetime import datetime as dt
 from pathlib import Path
 
@@ -125,8 +123,8 @@ def cache_regressors(subject, session_id, pid, regressor_params, trialsdf, spk_t
         os.mkdir(sesspath)
     curr_t = dt.now()
     fnbase = str(curr_t.date())
-    metadata_fn = sesspath.joinpath(fnbase + '_metadata.pkl')
-    data_fn = sesspath.joinpath(fnbase + '_regressors.pkl')
+    metadata_fn = sesspath.joinpath(fnbase + f'{pid}_metadata.pkl')
+    data_fn = sesspath.joinpath(fnbase + f'{pid}_regressors.pkl')
     regressors = {
         'trialsdf': trialsdf,
         'spk_times': spk_times,
@@ -134,52 +132,18 @@ def cache_regressors(subject, session_id, pid, regressor_params, trialsdf, spk_t
         'clu_regions': clu_regions,
         'clu_df': clu_df,
     }
-    reghash = _hash_dict(regressors)
     metadata = {
         'subject': subject,
         'session_id': session_id,
         'pid': pid,
-        'regressor_hash': reghash,
         **regressor_params
     }
-    prevdata = [
-        sesspath.joinpath(f) for f in os.listdir(sesspath) if re.match(r'.*_metadata\.pkl', f)
-    ]
-    matchfile = False
-    for f in prevdata:
-        with open(f, 'rb') as fr:
-            frdata = pickle.load(fr)
-            if metadata == frdata:
-                matchfile = True
-        if matchfile:
-            _logger.info(f'Existing cache file found for {subject}: {session_id}, '
-                         'not writing data.')
-            old_data_fn = sesspath.joinpath(f.name.split('_')[0] + '_regressors.pkl')
-            return f, old_data_fn
-    # If you've reached here, there's no matching file
+
     with open(metadata_fn, 'wb') as fw:
         pickle.dump(metadata, fw)
     with open(data_fn, 'wb') as fw:
         pickle.dump(regressors, fw)
     return metadata_fn, data_fn
-
-
-def _hash_dict(d):
-    hasher = hashlib.md5()
-    sortkeys = sorted(d.keys())
-    for k in sortkeys:
-        v = d[k]
-        if type(v) == np.ndarray:
-            hasher.update(v)
-        elif isinstance(v, (pd.DataFrame, pd.Series)):
-            hasher.update(v.to_string().encode())
-        else:
-            try:
-                hasher.update(v)
-            except Exception:
-                _logger.warning(f'Key {k} was not able to be hashed. May lead to failure to update'
-                                ' in cached files if something was changed.')
-    return hasher.hexdigest()
 
 
 @dask.delayed
@@ -212,7 +176,7 @@ params = {
 one = ONE()
 dataset_futures = []
 
-sessdf = bwm_query(freeze="2022_10_initial").set_index("pid")
+sessdf = bwm_query(freeze="2022_10_update").set_index("pid")
 
 for pid, rec in sessdf.iterrows():
     subject = rec.subject
