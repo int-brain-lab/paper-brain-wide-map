@@ -55,7 +55,7 @@ slurm_job_id = int(sys.argv[1]) - 1
 # sessions. This job_repeat is 0 for the first round, 1 for the second round and so on
 job_repeat = slurm_job_id // bwm_df.index.size
 # Don't go any further if we are already at the end of pseudo sessions for this probe/session
-if (job_repeat + 1) * params['n_pseudo_per_job'] <= params['n_pseudo']:
+if (job_repeat + 1) * params['n_pseudo_per_job'] <= params['n_pseudo']: #TODO bb thinks this is wrong
     exit()
 # Otherwise use info to construct pseudo ids
 pseudo_ids = np.arange(job_repeat * params['n_pseudo_per_job'], (job_repeat + 1) * params['n_pseudo_per_job']) + 1
