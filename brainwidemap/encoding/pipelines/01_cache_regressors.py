@@ -154,7 +154,7 @@ def delayed_loadsave(subject, session_id, pid, params):
 
 # Parameters
 SESS_CRITERION = 'resolved-behavior'
-DATE = str(dt.today())
+DATE = str(dt.now().date())
 T_BEF = 0.6
 T_AFT = 0.6
 BINWIDTH = 0.02

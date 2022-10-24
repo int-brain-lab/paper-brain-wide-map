@@ -15,10 +15,11 @@ from brainwidemap.encoding.utils import get_id, remap
 
 
 def generate_da_dict(
-        filename,
-        n_impostors,
-        n_folds,
-        region_mapper=lambda x: x,):
+    filename,
+    n_impostors,
+    n_folds,
+    region_mapper=lambda x: x,
+):
     datafile = pd.read_pickle(filename)
     eid = filename.parts[-2]  # Ugly hack because I forgot to keep eid value in files
     pid = datafile['probes']
@@ -59,6 +60,7 @@ def make_multiindex(datafile, eid, pid, reg_map, df, fold, impostor):
 
 
 def extract_kweights(df: pd.DataFrame, bases=None):
+
     def lstsq(row):
         try:
             return np.linalg.lstsq(bases, row)[0]
@@ -82,7 +84,7 @@ if __name__ == '__main__':
     # Brainwide repo imports
     from brainwidemap.encoding.params import GLM_CACHE, GLM_FIT_PATH
 
-    FITDATE = '2022-10-19'  # Date on which fit was run
+    FITDATE = '2022-10-23'  # Date on which fit was run
 
     parpath = Path(GLM_FIT_PATH).joinpath(f'{FITDATE}_glm_fit_pars.pkl')
     with open(parpath, 'rb') as fo:
@@ -128,16 +130,46 @@ if __name__ == '__main__':
         for k in dfs:
             fdata[k].append(dfs[k])
 
+    outfns = []
     for k in list(fdata.keys()):
         fdata[k] = pd.concat(fdata[k])
         if isinstance(fdata[k], pd.DataFrame):
             fdata[k].columns = fdata[k].columns.astype(str)
         else:
             fdata[k] = fdata[k].to_frame()
-        fdata[k].to_parquet(fitfolder.joinpath(f'{k}_data.parquet'))
+        filename = fitfolder.joinpath(f'{k}_data.parquet')
+        fdata[k].to_parquet(filename)
+        outfns.append(filename)
         del fdata[k]
 
     with open(fitfolder.joinpath('fit_params.pkl'), 'wb') as fw:
         pickle.dump(params, fw)
     with open(fitfolder.joinpath('fit_dataset.pkl'), 'wb') as fw:
         pickle.dump(dataset, fw)
+
+    try:
+        from pandarallel import pandarallel
+        pandarallel.initialize()
+    except ImportError:
+        print("Pandarallel not installed, not computing percentiles as it takes >1 day for"
+              " most values of n_impostors")
+        exit()
+
+    def dfrank(df):
+        df.reset_index(inplace=True)
+        return df[datacols].rank(axis=0, pct=True)[df.nullrun == -1]
+
+    for file in outfns:
+        data = pd.read_parquet(file)
+        datacols = [
+            c for c in data.columns
+            if c not in ['eid', 'probe', 'clu_id', 'region', 'nullrun', 'fold']
+        ]
+        grpby = data.groupby(['eid', 'probe', 'clu_id', 'region'])
+        del data
+        perc = grpby.parallel_apply(dfrank)
+        perc.index.set_names("fold", level=-1, inplace=True)
+        del grpby
+        perc.to_parquet(
+            file.parent.joinpath("_".join(file.stem.split('_')[:-1]) + '_percentiles.parquet'))
+        del perc
