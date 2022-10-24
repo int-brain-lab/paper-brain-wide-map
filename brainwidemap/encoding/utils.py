@@ -245,6 +245,7 @@ def load_trials_df(
 
     loader = SessionLoader(one=one, eid=eid)
     loader.load_session_data(pose=False, motion_energy=False, pupil=False, wheel=True)
+    loader.load_wheel(fs=1000, corner_frequency=70, order=8)
 
     trials = loader.trials
     starttimes = trials.stimOn_times
