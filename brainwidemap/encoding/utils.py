@@ -264,28 +264,31 @@ def load_trials_df(
     if not ret_wheel and not ret_abswheel:
         return trialsdf
 
-    wheel = loader.wheel
-    whlt, whlv = wheel.times, wheel.velocity
-    starttimes = trialsdf["trial_start"]
-    endtimes = trialsdf["trial_end"]
+    wheel = one.load_object(eid, "wheel", collection="alf")
+    whlpos, whlt = wheel.position, wheel.timestamps
+    starttimes = trialsdf['trial_start']
+    endtimes = trialsdf['trial_end']
     wh_endlast = 0
     trials = []
     for (start, end) in np.vstack((starttimes, endtimes)).T:
         wh_startind = np.searchsorted(whlt[wh_endlast:], start) + wh_endlast
-        wh_endind = np.searchsorted(whlt[wh_endlast:], end, side="right") + wh_endlast + 4
+        wh_endind = np.searchsorted(whlt[wh_endlast:], end, side='right') + wh_endlast + 4
         wh_endlast = wh_endind
-        tr_whlvel = whlv[wh_startind:wh_endind]
-        tr_whlt = whlt[wh_startind : wh_endind] - start
-        whlseries = TimeSeries(tr_whlt, tr_whlvel, columns=["whlvel"])
-        whlsync = sync(wheel_binsize, timeseries=whlseries, interp="previous")
+        tr_whlpos = whlpos[wh_startind - 1:wh_endind + 1]
+        tr_whlt = whlt[wh_startind - 1:wh_endind + 1] - start
+        tr_whlt[0] = 0.  # Manual previous-value interpolation
+        whlseries = TimeSeries(tr_whlt, tr_whlpos, columns=['whlpos'])
+        whlsync = sync(wheel_binsize, timeseries=whlseries, interp='previous')
         trialstartind = np.searchsorted(whlsync.times, 0)
         trialendind = np.ceil((end - start) / wheel_binsize).astype(int)
-        trvel = whlsync.values[trialstartind : trialendind + trialstartind]
-        if np.abs((trialendind - len(trvel))) > 0:
-            raise IndexError("Mismatch between expected length of wheel data and actual.")
+        trpos = whlsync.values[trialstartind:trialendind + trialstartind]
+        whlvel = trpos[1:] - trpos[:-1]
+        whlvel = np.insert(whlvel, 0, 0)
+        if np.abs((trialendind - len(whlvel))) > 0:
+            raise IndexError('Mismatch between expected length of wheel data and actual.')
         if ret_wheel:
-            trials.append(trvel)
+            trials.append(whlvel)
         elif ret_abswheel:
-            trials.append(np.abs(trvel))
-    trialsdf["wheel_velocity"] = trials
+            trials.append(np.abs(whlvel))
+    trialsdf['wheel_velocity'] = trials
     return trialsdf
