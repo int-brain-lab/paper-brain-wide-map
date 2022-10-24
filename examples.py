@@ -23,7 +23,7 @@ one = ONE()
 Query for brainwide map probes and sessions
 """
 # Get the dataframe of all included sessions and probe insertions, use frozen query
-bwm_df = bwm_query(freeze='2022_10_initial')
+bwm_df = bwm_query()
 
 """
 Map probes to regions and filter regions

@@ -9,7 +9,7 @@ from ibllib.atlas.regions import BrainRegions
 from one.remote import aws
 
 
-def bwm_query(one=None, alignment_resolved=True, return_details=False, freeze='2022_10_initial'):
+def bwm_query(one=None, alignment_resolved=True, return_details=False, freeze='2022_10_update'):
     """
     Function to query for brainwide map sessions that pass the most important quality controls. Returns a dataframe
     with one row per insertions and columns ['pid', 'eid', 'probe_name', 'session_number', 'date', 'subject', 'lab']
@@ -24,8 +24,8 @@ def bwm_query(one=None, alignment_resolved=True, return_details=False, freeze='2
     return_details: bool
         Default is False. If True returns a second output a list containing the full insertion dictionary for all
         insertions returned by the query. Only needed if you need information that is not contained in the bwm_df.
-    freeze: {None, 2022_10_initial}
-        Default is 2022_10_initial. If None, the database is queried for the current set of pids satisfying the
+    freeze: {None, 2022_10_initial, 2022_10_update}
+        Default is 2022_10_update. If None, the database is queried for the current set of pids satisfying the
         criteria. If a string is specified, a fixed set of eids and pids is returned instead of querying the database.
 
     Returns
@@ -204,17 +204,17 @@ def load_trials_and_mask(
         Instance to be used to connect to local or remote database
     eid: str
         A session UUID
-    min_rt: float
-        Minimum admissible reaction time in seconds for a trial to be included. Default is 0.08.
-    max_rt: float
-        Maximum admissible reaction time in seconds for a trial to be included. Default is 2.
+    min_rt: float or None
+        Minimum admissible reaction time in seconds for a trial to be included. Default is 0.08. If None, don't apply.
+    max_rt: float or None
+        Maximum admissible reaction time in seconds for a trial to be included. Default is 2. If None, don't apply.
     nan_exclude: list or 'default'
         List of trial events that cannot be NaN for a trial to be included. If set to 'default' the list is
         ['stimOn_times','choice','feedback_times','probabilityLeft','firstMovement_times','feedbackType']
-    min_trial_len: float
+    min_trial_len: float or None
         Minimum admissible trial length measured by goCue_time (start) and feedback_time (end).
         Default is None.
-    max_trial_len: float
+    max_trial_len: float or Nona
         Maximum admissible trial length measured by goCue_time (start) and feedback_time (end).
         Default is None.
     exclude_unbiased: bool
@@ -255,7 +255,12 @@ def load_trials_and_mask(
 
     # Create a mask for trials to exclude
     # Remove trials that are outside the allowed reaction time range
-    query = f'(firstMovement_times - stimOn_times < {min_rt}) | (firstMovement_times - stimOn_times > {max_rt})'
+    if min_rt is not None:
+        query = f'(firstMovement_times - stimOn_times < {min_rt})'
+    else:
+        query = ''
+    if max_rt is not None:
+        query += f' | (firstMovement_times - stimOn_times > {max_rt})'
     # Remove trials that are outside the allowed trial duration range
     if min_trial_len is not None:
         query += f' | (feedback_times - goCue_times < {min_trial_len})'
@@ -270,6 +275,9 @@ def load_trials_and_mask(
     # Remove trials where animal does not respond
     if exclude_nochoice:
         query += ' | (choice == 0)'
+    # If min_rt was None we have to clean up the string
+    if min_rt is None:
+        query = query[3:]
 
     # Create mask
     mask = ~sess_loader.trials.eval(query)
@@ -418,7 +426,7 @@ def filter_sessions(eids, trials_table=None, one=None, min_trials=200):
     ----------
     eids: list or pandas.Series
         Session ids to map to regions. Typically, the 'eid' column of the bwm_df returned by bwm_query.
-        Note that these eids must be represented in clusters_table to be considered for the filter.
+        Note that these eids must be represented in trials_table to be considered for the filter.
     trials_table: str or pathlib.Path
         Absolute path to trials table to be used for filtering. If None, requires to provide one.api.ONE instance
         to download the latest version. Required when using min_trials.
