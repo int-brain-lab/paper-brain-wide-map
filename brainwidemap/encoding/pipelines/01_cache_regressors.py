@@ -123,8 +123,8 @@ def cache_regressors(subject, session_id, pid, regressor_params, trialsdf, spk_t
         os.mkdir(sesspath)
     curr_t = dt.now()
     fnbase = str(curr_t.date())
-    metadata_fn = sesspath.joinpath(fnbase + f'{pid}_metadata.pkl')
-    data_fn = sesspath.joinpath(fnbase + f'{pid}_regressors.pkl')
+    metadata_fn = sesspath.joinpath(fnbase + f'_{pid}_metadata.pkl')
+    data_fn = sesspath.joinpath(fnbase + f'_{pid}_regressors.pkl')
     regressors = {
         'trialsdf': trialsdf,
         'spk_times': spk_times,
