@@ -480,7 +480,6 @@ def get_d_vars(split, pid, rm_right=False,
                     stis = trials['contrastLeft'][
                                 sorted(dx[:,1])].values
                     
-                    return b, dx, y_, stis     
                     # block/stim classes            
                     c0 = np.bitwise_and(y_ == 0.8, np.isnan(stis))            
                     c1 = np.bitwise_and(y_ != 0.8, np.isnan(stis))
