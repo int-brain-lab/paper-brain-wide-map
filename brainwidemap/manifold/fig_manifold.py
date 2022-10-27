@@ -331,11 +331,9 @@ def get_d_vars(split, pid, rm_right=False,
         return
 
     print('#trials per condition: ',len(trn[0]), len(trn[1]))
-    assert ((len(trn[0]) != 0) and (len(trn[0]) != 0), 
-           'zero trials to average')
+    assert (len(trn[0]) != 0) and (len(trn[1]) != 0), 'zero trials to average'
            
-    assert (len(spikes['times']) == len(spikes['clusters']),
-           'spikes != clusters')    
+    assert len(spikes['times']) == len(spikes['clusters']), 'spikes != clusters'    
             
     # bin and cut into trials    
     bins = []
