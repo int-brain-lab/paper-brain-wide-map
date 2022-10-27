@@ -228,8 +228,8 @@ def get_name(brainregion):
     return br.name[np.argwhere(br.id == regid)[0, 0]]
 
 
-def get_d_vars(split, pid, 
-               mapping='Beryl', control=True):
+def get_d_vars(split, pid, rm_right=False, 
+               mapping='Beryl', control=True, impostor = False):
 
     '''
     for a given session, probe, bin neural activity
@@ -331,9 +331,11 @@ def get_d_vars(split, pid,
         return
 
     print('#trials per condition: ',len(trn[0]), len(trn[1]))
-    assert (len(trn[0]) != 0) and (len(trn[0]) != 0), 'zero trials to average'
+    assert ((len(trn[0]) != 0) and (len(trn[0]) != 0), 
+           'zero trials to average')
            
-    assert len(spikes['times']) == len(spikes['clusters']), 'spikes != clusters'    
+    assert (len(spikes['times']) == len(spikes['clusters']),
+           'spikes != clusters')    
             
     # bin and cut into trials    
     bins = []
@@ -369,22 +371,11 @@ def get_d_vars(split, pid,
     dx = np.concatenate([list(zip([True]*len(trn[0]),trn[0])),
                     list(zip([False]*len(trn[1]),trn[1]))])
 
-    b = b[np.argsort(dx[:, 1])] 
-    
+    b = b[np.argsort(dx[:, 1])]    
            
     ntr, nclus, nbins = b.shape    
     
     acs = br.id2acronym(clusters['atlas_id'],mapping=mapping)
-    
-    # check hemisphere 
-    xyz = np.c_[clusters['x'], clusters['y'], clusters['z']]
-    signed_atlas_id = ba.get_labels(xyz, mapping=f'{mapping}-lr')
-    rights = np.where(signed_atlas_id > 0)[0]  # >0 means right hem
-    
-    # append _r onto right hem region acronyms
-    for ind in rights:
-        acs[ind] = acs[ind]+'_r'
-    
                
     acs = np.array(acs)
     wsc = np.concatenate(b,axis=1)
@@ -399,12 +390,25 @@ def get_d_vars(split, pid,
     bins2 = [x[:,goodcells,:] for x in bins]
     bins = bins2    
 
-    return acs
 
-    # remove ill-defined regions and those in right hemisphere
-    goodcells = ~np.bitwise_or.reduce([acs == reg for 
-                     reg in ['void','root','void_r','root_r']]
-                      + [np.array([ac[-2:] == '_r' for ac in acs])])
+    # remove ill-defined regions
+    if rm_right:
+        print('removing right hemisphere regions')
+        # check hemisphere 
+        xyz = np.c_[clusters['x'], clusters['y'], clusters['z']]
+        signed_atlas_id = ba.get_labels(xyz, mapping=f'{mapping}-lr')
+        rights = np.where(signed_atlas_id > 0)[0]  # >0 means right hem
+        
+        # append _r onto right hem region acronyms
+        for ind in rights:
+            acs[ind] = acs[ind]+'_r'    
+        
+        goodcells = ~np.bitwise_or.reduce([acs == reg for 
+                         reg in ['void','root','void_r','root_r']]
+                          + [np.array([ac[-2:] == '_r' for ac in acs])])    
+    else:
+        goodcells = ~np.bitwise_or.reduce([acs == reg for 
+                         reg in ['void','root']])
 
     
     acs = acs[goodcells]
@@ -445,29 +449,67 @@ def get_d_vars(split, pid,
                 o = np.random.uniform(low=0, high=1, size=(ntr,))
                 ys = o < y_                
                 
-            else:  # impostor sessions
-                eids = random.choices([*spl],k=30)
-                bs = []
-                for eid in eids:
-                    t = spl[eid]
+            elif split in ['choice', ' fback']:  
+            
+            
+                if impostor:  # impostor sessions
                     
-                    # some sessions have empty behavior
-                    if (len(t[0]) < 2) or (len(t[1]) < 2):
-                        continue
-                           
-                    x = np.concatenate([list(zip([True]*len(t[0]),t[0])),
-                                    list(zip([False]*len(t[1]),t[1]))])
-                
-                    bs.append(np.array(x[np.argsort(x[:, 1])][:,0],
-                              dtype=bool))
-                              
-                ys = np.concatenate(bs)[:ntr]              
+                    eids = random.choices([*spl],k=30)
+                    bs = []
+                    for eid in eids:
+                        t = spl[eid]
+                        
+                        # some sessions have empty behavior
+                        if (len(t[0]) < 2) or (len(t[1]) < 2):
+                            continue
+                               
+                        x = np.concatenate([list(zip([True]*len(t[0]),t[0])),
+                                        list(zip([False]*len(t[1]),t[1]))])
+                    
+                        bs.append(np.array(x[np.argsort(x[:, 1])][:,0],
+                                  dtype=bool))
+                                  
+                    ys = np.concatenate(bs)[:ntr]
+                    
+                else:  # Yanliang's method
+                    
+                    # get real block labels
+                    y_ = trials['probabilityLeft'][
+                                sorted(dx[:,1])].values
+                    # get real stim sides
+                    stis = trials['contrastLeft'][
+                                sorted(dx[:,1])].values
+                    
+                    return b, dx, y_, stis     
+                    # block/stim classes            
+                    c0 = np.bitwise_and(y_ == 0.8, np.isnan(stis))            
+                    c1 = np.bitwise_and(y_ != 0.8, np.isnan(stis))
+                    c2 = np.bitwise_and(y_ == 0.8, ~np.isnan(stis))
+                    c3 = np.bitwise_and(y_ != 0.8, ~np.isnan(stis))
+              
+                    tr_c = dx[np.argsort(dx[:,1])][:,0]  # true choices
+                    
+                    # shuffle choices within each class
+                    for c in [c0,c1,c2,c3]:
+                        r = tr_c[c]
+                        shuffle(r)
+                        tr_c[c] = r
 
+                    ys = tr_c == 1  # boolean shuffled choices
+
+                    if split == 'fback':
+                        # get feedback types from shuffled choices
+                        cl = np.bitwise_and(tr_c == 0, np.isnan(stis))
+                        cr = np.bitwise_and(tr_c == 1, ~np.isnan(stis))  
+                        ys = np.bitwise_or(cl,cr)
+
+                
             w0.append(b[ys].mean(axis=0))
             s0.append(b[ys].var(axis=0))
             
             w0.append(b[~ys].mean(axis=0))
             s0.append(b[~ys].var(axis=0))                      
+
 
     else: # average trials per condition
         print('all trials')
@@ -725,12 +767,15 @@ def d_var_stacked(split, mapping='Beryl'):
         stde[reg] = np.std(ampsv[acs == reg])/np.sqrt(regs[reg])
         stde2[reg] = np.std(ampsv2[acs == reg])/np.sqrt(regs[reg])
   
+      
+        
         dat = ws[:,acs == reg,:]
         pca = PCA(n_components = 30)
         wsc = pca.fit_transform(np.concatenate(dat,axis=1).T).T
         pcs[reg] = wsc[:3]
         
         ntr, nclus, nobs = dat.shape
+        
         
         dists = []
         for tr in range(ntr // 2):
@@ -869,9 +914,9 @@ def curves_params_all(split):
 
       
 '''    
-###
+#####################################################
 ### plotting 
-###    
+#####################################################    
 '''
 
 def get_allen_info():
@@ -902,7 +947,7 @@ def put_panel_label(ax, k):
 
 
 def plot_all(curve='euc', amp_number=False, intro = False, 
-             mapping='Beryl', sigl=0.05, amp_type = '2', 
+             mapping='Beryl', sigl=0.01, amp_type = '2', 
              only3d = False, onlyScat = False, single_scat=False):
 
     '''
@@ -1243,8 +1288,8 @@ def plot_all(curve='euc', amp_number=False, intro = False,
     scatter latency versus max amplitude for significant regions
     '''   
  
-    fsize = 24 if single_scat else 10 if onlyScat else 5
-    dsize = 120 if single_scat else 10 if onlyScat else 5 # was 1
+    fsize = 24 if single_scat else 10 if onlyScat else 10
+    dsize = 120 if single_scat else 10 if onlyScat else 10 # was 1
     
 
     if amp_number: 
@@ -1845,10 +1890,10 @@ def inspect_regional_PETH(reg, split):
     for a given split and region, display PETHs as image,
     lines separating insertions
     '''
-           
+    mapping = 'Beryl'       
     print(split)
     R = np.load('/mnt/8cfe1683-d974-40f3-a20b-b217cad4722a/manifold/'
-                f'single_d_vars_{split}_Swanson.npy', 
+                f'single_d_vars_{split}_{mapping}.npy', 
                 allow_pickle=True).flat[0]
 
     # get stderror across cells for max-min/max+min
@@ -1872,7 +1917,8 @@ def inspect_regional_PETH(reg, split):
     # for the region under consideration plot temp plot
     dat = ws[:,acs == reg,:]
     sess0 = sess[acs == reg]
-    
+
+    #return dat    
     fig, axs = plt.subplots(ncols =2, nrows=1)    
                          
     for i in range(2): 
@@ -1882,17 +1928,20 @@ def inspect_regional_PETH(reg, split):
         for s in Counter(sess0):
             axs[i].axhline(y = np.where(sess0==s)[0][0], c = 'r', 
                        linestyle = '--') 
-    
+            axs[i].annotate(s, (0, np.where(sess0==s)[0][0]), c = 'r')
         
         axs[i].set_ylabel('cells')
         axs[i].set_xlabel('time [sec]')
-        axs[i].set_title(f'PETH type {i}')
+        axs[i].set_title(f'PETH, {trial_split[split][i]}')
         xs = np.linspace(0,pre_post[split][0] + pre_post[split][1],5)    
         axs[i].set_xticks(np.linspace(0,dat[i].shape[-1],5))
         axs[i].set_xticklabels(["{0:,.3f}".format(x) for x in xs])            
         
     fig.suptitle(f'{reg}, {split}')        
-    fig.tight_layout()   
+    fig.tight_layout()
+#    fig.savefig('/home/mic/paper-brain-wide-map/'
+#                f'manifold_analysis/figs/visps_lr/{reg}.png')
+#    plt.close()               
         
         
 def save_df_for_table(split): 
@@ -1936,6 +1985,105 @@ def load_brandon():
 
     df = pd.read_csv('/home/mic/paper-brain-wide-map/manifold_analysis'
                      '/10-09-2022_BWMmetaanalysis_decodeblock.csv')
+
+
+def check_lr():
+#    df = pd.read_csv('/home/mic/paper-brain-wide-map/'
+#                    f'manifold_analysis/bwm_sess_regions.csv')
+#                    
+#    df2 = df[df['Beryl'].str.contains('VIS')].sort_values(
+#                                'nclus',ascending=False)
+#                                
+#    pids = df2[df2['nclus']>10]['pid'].values                           
+
+
+#    eids_plus = [np.concatenate([one.pid2eid(pid),[pid]]) for pid in pids]
+    
+    cell_off = [
+           0.10091743, 0.1146789 , 0.10091743, 0.1146789 , 0.10091743,
+           0.10091743, 0.10550459, 0.08715596, 0.0733945 , 0.06422018,
+           0.05963303, 0.06422018, 0.0733945 , 0.07798165, 0.08715596,
+           0.08715596, 0.09633028, 0.09633028, 0.08256881, 0.10091743,
+           0.10091743, 0.09633028, 0.10550459, 0.10091743, 0.1146789 ,
+           0.09174312, 0.09633028, 0.08715596, 0.08715596, 0.09174312,
+           0.08715596, 0.09174312, 0.10091743, 0.1146789 , 0.10550459,
+           0.1146789 , 0.10550459, 0.11009174, 0.09174312, 0.08715596,
+           0.07798165, 0.06422018, 0.07798165, 0.06422018, 0.06422018,
+           0.05963303, 0.05963303, 0.06422018, 0.05963303, 0.05963303,
+           0.06422018, 0.05504587, 0.05963303, 0.04587156, 0.04587156,
+           0.05045872, 0.03669725, 0.04587156, 0.0412844 , 0.04587156,
+           0.03211009, 0.04587156, 0.06880734, 0.0733945 , 0.07798165,
+           0.0733945 , 0.09633028, 0.07798165, 0.0733945 , 0.06880734,
+           0.0733945 , 0.08256881]    
+
+    cell_on = [    
+           0.12727273, 0.12272727, 0.12272727, 0.12727273, 0.10454545,
+           0.11818182, 0.13181818, 0.14090909, 0.15      , 0.14545455,
+           0.15      , 0.13636364, 0.10909091, 0.10909091, 0.11363636,
+           0.13181818, 0.14090909, 0.15909091, 0.19090909, 0.20454545,
+           0.24545455, 0.27727273, 0.31818182, 0.32727273, 0.35909091,
+           0.37727273, 0.4       , 0.43636364, 0.41363636, 0.42272727,
+           0.44090909, 0.45454545, 0.42272727, 0.38181818, 0.42727273,
+           0.42727273, 0.40909091, 0.41818182, 0.43636364, 0.42272727,
+           0.42272727, 0.42727273, 0.37727273, 0.37272727, 0.35909091,
+           0.35454545, 0.33181818, 0.29090909, 0.31818182, 0.26818182,
+           0.24545455, 0.23636364, 0.2       , 0.20454545, 0.2       ,
+           0.21363636, 0.20454545, 0.20454545, 0.21363636, 0.2       ,
+           0.19090909, 0.19545455, 0.19545455, 0.18181818, 0.17272727,
+           0.19545455, 0.17727273, 0.16363636, 0.15      , 0.16363636,
+           0.15      , 0.14090909]
+
+
+    # 100 one orientation (2, 100, 72)
+    ws = np.array([np.array([cell_on for i in range(100)]),
+                         np.array([cell_off for i in range(100)])])
+
+
+    # 200 both orientations
+    ws_r = np.array([np.vstack([np.array([cell_on for i in range(10)]),
+                                np.array([cell_off for i in range(90)])]),
+                     np.vstack([np.array([cell_off for i in range(90)]), 
+                                np.array([cell_on for i in range(10)])])])
+
+
+    split = 'stim'
+
+    labs = ['one hemisphere', 'mixed hemispheres']
+    k = 0 
+    
+    fig0, ax0 = plt.subplots(figsize=(3,3))
+    for dat in [ws, ws_r]:
+    
+        fig, axs = plt.subplots(ncols =2, nrows=1,figsize=(3,3))
+        for i in range(2): 
+            axs[i].imshow(dat[i], cmap='Greys',aspect="auto",
+                interpolation='none', vmin=min(cell_off), vmax=max(cell_on))
+            axs[i].set_ylabel('cells')
+            axs[i].set_xlabel('time [sec]')
+            axs[i].set_title(f'PETH, {trial_split[split][i]}')
+        fig.suptitle(labs[k])   
+        fig.tight_layout()
+        pca = PCA(n_components = 30)
+        wsc = pca.fit_transform(np.concatenate(dat,axis=1).T).T
+        #pcs[reg] = wsc[:3]
+        
+        ntr, nclus, nobs = dat.shape
+        
+        dists = []
+        for tr in range(ntr // 2):
+            t0 = wsc[:,nobs * tr*2 :nobs * (tr*2 + 1)] 
+            t1 = wsc[:,nobs * (tr*2 + 1):nobs * (tr*2 + 2)] # actual trajectories
+            
+            dists.append(sum((t0 - t1)**2)**0.5)
+
+        ax0.plot(dists[0],label=labs[k])
+        k += 1
+    fig0.legend()
+    fig0.tight_layout()
+    ax0.set_xlabel('time')
+    ax0.set_ylabel('trajectory distance')
+    
+
 
 
 
