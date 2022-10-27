@@ -449,7 +449,7 @@ def get_d_vars(split, pid, rm_right=False,
                 o = np.random.uniform(low=0, high=1, size=(ntr,))
                 ys = o < y_                
                 
-            elif split in ['choice', ' fback']:  
+            elif split in ['choice', 'fback']:  
             
             
                 if impostor:  # impostor sessions
