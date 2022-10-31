@@ -127,7 +127,7 @@ def Time_TwoNmannWhitneyUshuf(x,y,bx,by,nShuf):
 
 
     ######################################################
-    numer_final=np.minimum(numer,numer2)
+    numer_final=np.minimum(numer,numer3)
     
     return numer_final
 
