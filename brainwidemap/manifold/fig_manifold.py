@@ -333,7 +333,7 @@ def get_d_vars(split, pid, rm_right=False,
     print('#trials per condition: ',len(trn[0]), len(trn[1]))
     assert (len(trn[0]) != 0) and (len(trn[1]) != 0), 'zero trials to average'
            
-    assert len(spikes['times']) == len(spikes['clusters']), 'spikes != clusters'    
+    assert len(spikes['times']) == len(spikes['clusters']), 'spikes != clusters'   
             
     # bin and cut into trials    
     bins = []
@@ -477,7 +477,7 @@ def get_d_vars(split, pid, rm_right=False,
                     # get real stim sides
                     stis = trials['contrastLeft'][
                                 sorted(dx[:,1])].values
-                    
+                     
                     # block/stim classes            
                     c0 = np.bitwise_and(y_ == 0.8, np.isnan(stis))            
                     c1 = np.bitwise_and(y_ != 0.8, np.isnan(stis))
@@ -640,7 +640,7 @@ def get_all_d_vars(split, eids_plus = None, control = True,
     
     print('split', split, 'control', control)
     
-    if eids_plus == None:
+    if eids_plus is None:
         df = bwm_query(one)
         eids_plus = df[['eid','probe_name', 'pid']].values
  
