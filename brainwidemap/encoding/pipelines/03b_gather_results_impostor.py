@@ -84,7 +84,7 @@ if __name__ == '__main__':
     # Brainwide repo imports
     from brainwidemap.encoding.params import GLM_CACHE, GLM_FIT_PATH
 
-    FITDATE = '2022-10-23'  # Date on which fit was run
+    FITDATE = '2022-10-24'  # Date on which fit was run
 
     parpath = Path(GLM_FIT_PATH).joinpath(f'{FITDATE}_glm_fit_pars.pkl')
     with open(parpath, 'rb') as fo:
