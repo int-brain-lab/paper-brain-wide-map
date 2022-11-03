@@ -419,16 +419,18 @@ def get_d_vars(split, pid, rm_right=False,
         w0 = [bi.mean(axis=0) for bi in bins]  
         s0 = [bi.var(axis=0) for bi in bins]
         
+        perms = []  # keep track of random trial splits to test sig
         
-        if not 'block' in split:
-            #  Load impostor behavior
-            spl = np.load('/home/mic/paper-brain-wide-map/'
-                          'manifold_analysis/bwm_behave.npy',
-                          allow_pickle=True).flat[0][split]
-            
-            #  exclude current session if present
-            if eid in list(spl.keys()):
-                del spl[eid]    
+        if impostor:
+            if not 'block' in split:
+                #  Load impostor behavior
+                spl = np.load('/home/mic/paper-brain-wide-map/'
+                              'manifold_analysis/bwm_behave.npy',
+                              allow_pickle=True).flat[0][split]
+                
+                #  exclude current session if present
+                if eid in list(spl.keys()):
+                    del spl[eid]    
         
         # nrand times random impostor/pseudo split of trials 
         for i in range(nrand):
@@ -442,10 +444,35 @@ def get_d_vars(split, pid, rm_right=False,
                 shuffle(ys)                
             
             elif split == 'stim':
-                # get real block labels; use to generate stim side
-                y_ = trials['probabilityLeft'][sorted(dx[:, 1])].values
-                o = np.random.uniform(low=0, high=1, size=(ntr,))
-                ys = o < y_                
+                # shuffle stim sides within block and choice classes
+                
+                # get real block labels
+                y_ = trials['probabilityLeft'][
+                            sorted(dx[:,1])].values
+                            
+                # get real choices
+                stis = trials['choice'][
+                            sorted(dx[:,1])].values
+                 
+                # block/choice classes            
+                c0 = np.bitwise_and(y_ == 0.8, stis == 1)            
+                c1 = np.bitwise_and(y_ != 0.8, stis == 1)
+                c2 = np.bitwise_and(y_ == 0.8, stis != 1)
+                c3 = np.bitwise_and(y_ != 0.8, stis != 1)
+          
+                tr_c = dx[np.argsort(dx[:,1])][:,0]  # true stim sides
+                
+                # shuffle stim sides within each class
+                for c in [c0,c1,c2,c3]:
+                    r = tr_c[c]
+                    tr_c[c] = np.array(random.sample(list(r), len(r)))
+
+                ys = tr_c == 1  # boolean shuffled choices            
+                        
+#                # get real block labels; use to generate stim side
+#                y_ = trials['probabilityLeft'][sorted(dx[:, 1])].values
+#                o = np.random.uniform(low=0, high=1, size=(ntr,))
+#                ys = o < y_                
                 
             elif split in ['choice', 'fback']:  
             
@@ -489,8 +516,7 @@ def get_d_vars(split, pid, rm_right=False,
                     # shuffle choices within each class
                     for c in [c0,c1,c2,c3]:
                         r = tr_c[c]
-                        shuffle(r)
-                        tr_c[c] = r
+                        tr_c[c] = np.array(random.sample(list(r), len(r)))
 
                     ys = tr_c == 1  # boolean shuffled choices
 
@@ -507,12 +533,12 @@ def get_d_vars(split, pid, rm_right=False,
             w0.append(b[~ys].mean(axis=0))
             s0.append(b[~ys].var(axis=0))                      
 
+            perms.append(ys)
 
     else: # average trials per condition
         print('all trials')
         w0 = [bi.mean(axis=0) for bi in bins] 
         s0 = [bi.var(axis=0) for bi in bins]
-
 
     ws = np.array(w0)
     ss = np.array(s0)
@@ -560,7 +586,8 @@ def get_d_vars(split, pid, rm_right=False,
 
         D[reg] = res
         
-    return D, D_    
+    uperms = len(np.unique([str(x.astype(int)) for x in perms]))    
+    return D, D_, uperms    
 
 
 
@@ -648,7 +675,8 @@ def get_all_d_vars(split, eids_plus = None, control = True,
     Fs = []
     eid_probe = []
     Ds = []
-    D_s = []   
+    D_s = []
+    permss = []   
     k=0
     print(f'Processing {len(eids_plus)} insertions')
     for i in eids_plus:
@@ -660,9 +688,11 @@ def get_all_d_vars(split, eids_plus = None, control = True,
                 D_ = get_d_vars(split, pid, control=control, mapping=mapping)
                 D_s.append(D_)            
             else:
-                D, D_ = get_d_vars(split, pid, control=control, mapping=mapping)
+                D, D_, uperms = get_d_vars(split, pid, control=control,
+                                          mapping=mapping)
                 Ds.append(D)             
                 D_s.append(D_)
+                permss.append(uperms)
                                          
             eid_probe.append(eid+'_'+probe)
             gc.collect() 
@@ -686,7 +716,7 @@ def get_all_d_vars(split, eids_plus = None, control = True,
                R_, allow_pickle=True)    
     
     else:     
-        R = {'Ds':Ds, 'eid_probe':eid_probe} 
+        R = {'Ds':Ds, 'eid_probe':eid_probe, 'uperms': permss} 
         
         np.save('/mnt/8cfe1683-d974-40f3-a20b-b217cad4722a/manifold/'
                f'd_vars_{split}_{mapping}.npy', R, allow_pickle=True)
@@ -1015,6 +1045,7 @@ def plot_all(curve='euc', amp_number=False, intro = False,
         
         regsa.append(regs_a)
         print(regs_a)
+        print(' ')
 
     #return tops
         
@@ -1941,7 +1972,7 @@ def inspect_regional_PETH(reg, split):
 #    plt.close()               
         
         
-def save_df_for_table(split): 
+def save_df_for_table(split, first100=False): 
     '''
     reformat results for table
     '''
@@ -1963,16 +1994,16 @@ def save_df_for_table(split):
 
         if reg in d:
             r.append([reg, get_name(reg), d[reg]['nclus'],
-                      d[reg]['p_euc2'], d[reg]['amp_euc2'],
+                      d[reg]['p_euc2'], 
+                      d[reg]['amp_euc2'] if not first100 else 
+                      np.max(d[reg]['euc'][:48]) - np.min(d[reg]['euc'][:48]),
                       d[reg]['lat_euc']]) 
         else:
             r.append([reg, get_name(reg), '','', '','']) 
                   
     df  = pd.DataFrame(data=r,columns=columns)        
-    df.to_pickle('/home/mic/paper-brain-wide-map/'
-                 f'manifold_analysis/results_{split}.pkl')
     df.to_excel('/home/mic/paper-brain-wide-map/'
-                 f'manifold_analysis/results_{split}.xlsx')   
+                 f'manifold_analysis/results_100_{split}.xlsx')   
 
 
 
