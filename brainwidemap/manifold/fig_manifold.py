@@ -42,7 +42,9 @@ import matplotlib.ticker as ticker
 
 import random
 from random import shuffle
+from copy import deepcopy
 import time
+import sys
 
 import math
 import string
@@ -52,7 +54,7 @@ import pstats
 
 import warnings
 warnings.filterwarnings("ignore")
-
+np.set_printoptions(threshold=sys.maxsize)
 
 blue_left = [0.13850039, 0.41331206, 0.74052025]
 red_right = [0.66080672, 0.21526712, 0.23069468]
@@ -461,13 +463,14 @@ def get_d_vars(split, pid, rm_right=False,
                 c3 = np.bitwise_and(y_ != 0.8, stis != 1)
           
                 tr_c = dx[np.argsort(dx[:,1])][:,0]  # true stim sides
+                tr_c2 = deepcopy(tr_c)
                 
                 # shuffle stim sides within each class
                 for c in [c0,c1,c2,c3]:
                     r = tr_c[c]
-                    tr_c[c] = np.array(random.sample(list(r), len(r)))
+                    tr_c2[c] = np.array(random.sample(list(r), len(r)))
 
-                ys = tr_c == 1  # boolean shuffled choices            
+                ys = tr_c2 == 1  # boolean shuffled choices            
                         
 #                # get real block labels; use to generate stim side
 #                y_ = trials['probabilityLeft'][sorted(dx[:, 1])].values
@@ -512,13 +515,14 @@ def get_d_vars(split, pid, rm_right=False,
                     c3 = np.bitwise_and(y_ != 0.8, ~np.isnan(stis))
               
                     tr_c = dx[np.argsort(dx[:,1])][:,0]  # true choices
+                    tr_c2 = deepcopy(tr_c)
                     
                     # shuffle choices within each class
                     for c in [c0,c1,c2,c3]:
                         r = tr_c[c]
-                        tr_c[c] = np.array(random.sample(list(r), len(r)))
+                        tr_c2[c] = np.array(random.sample(list(r), len(r)))
 
-                    ys = tr_c == 1  # boolean shuffled choices
+                    ys = tr_c2 == 1  # boolean shuffled choices
 
                     if split == 'fback':
                         # get feedback types from shuffled choices
