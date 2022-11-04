@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=decoding
-#SBATCH --output=/scratch/users/bensonb/international-brain-lab/paper-brain-wide-map/brainwidemap/logs/slurm/decodingformat.%A.%a.out
-#SBATCH --error=/scratch/users/bensonb/international-brain-lab/paper-brain-wide-map/brainwidemap/logs/slurm/decodingformat.%A.%a.err
+#SBATCH --output=/scratch/users/bensonb/international-brain-lab/paper-brain-wide-map/brainwidemap/logs/slurm/decodingimpostercaching.%A.%a.out
+#SBATCH --error=/scratch/users/bensonb/international-brain-lab/paper-brain-wide-map/brainwidemap/logs/slurm/decodingimpostercaching.%A.%a.err
 #SBATCH --partition=normal
 #SBATCH --array=1-500
 #SBATCH --mem=16G

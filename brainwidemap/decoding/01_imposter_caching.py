@@ -76,15 +76,15 @@ all_trialsdf = []
 for i, eid in enumerate(eids):
     if not (i%N_PARA == PARAINDEX):
         continue
-
-    det = one.get_details(eid, full=True)
-    print('%i: %s' % (i, eid))
-    try:
-        sess_loader = SessionLoader(one=one, eid=eid)
-        sess_loader.load_trials()
-        sess_loader.load_wheel()
-    except Exception as e:
-        print('ERROR LOADING TRIALS DF')
-        print(e)
-        continue
+    else:
+        det = one.get_details(eid, full=True)
+        print('%i: %s' % (i, eid))
+        try:
+            sess_loader = SessionLoader(one=one, eid=eid)
+            sess_loader.load_trials()
+            sess_loader.load_wheel()
+        except Exception as e:
+            print('ERROR LOADING TRIALS DF')
+            print(e)
+            continue
     

@@ -4,7 +4,7 @@
 #SBATCH --error=/scratch/users/bensonb/international-brain-lab/paper-brain-wide-map/brainwidemap/logs/slurm/decodingdatacaching.%A.%a.err
 #SBATCH --partition=normal
 #SBATCH --array=1-50
-#SBATCH --mem=64G
+#SBATCH --mem=16G
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=bensonb@stanford.edu
 #SBATCH --time=4:00:00

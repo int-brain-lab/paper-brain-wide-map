@@ -40,12 +40,7 @@ def preprocess_ephys(reg_clu_ids, neural_df, trials_df, **kwargs):
         trials_df[kwargs['align_time']] + kwargs['time_window'][0],
         trials_df[kwargs['align_time']] + kwargs['time_window'][1]
     ]).T
-
-    # compute interval length
-    interval_len = (
-            kwargs['time_window'][1] - kwargs['time_window'][0]
-            + kwargs['n_bins_lag'] * kwargs['binsize'])
-
+    
     # subselect spikes for this region
     spikemask = np.isin(neural_df['spk_clu'], reg_clu_ids)
     regspikes = neural_df['spk_times'][spikemask]
@@ -55,13 +50,18 @@ def preprocess_ephys(reg_clu_ids, neural_df, trials_df, **kwargs):
     trial_len = kwargs['time_window'][1] - kwargs['time_window'][0]
     binsize = kwargs.get('binsize', trial_len)
     # TODO: can likely combine get_spike_counts_in_bins and get_spike_data_per_trial
-    if trial_len / binsize == 1.0:
+    # added second condition in if statement if n_bins_lag is None, gives error otherwise (bensonb)
+    if trial_len / binsize == 1.0 or (kwargs['n_bins_lag'] is None):
         # one vector of neural activity per trial
         binned, _ = get_spike_counts_in_bins(regspikes, regclu, intervals)
         binned = binned.T  # binned is a 2D array
         binned_list = [x[None, :] for x in binned]
     else:
         # multiple vectors of neural activity per trial
+        # moved interval_len definintion into this condition so that when n_bins_lag is None it doesn't cause error
+        interval_len = (
+            kwargs['time_window'][1] - kwargs['time_window'][0]
+            + kwargs['n_bins_lag'] * kwargs['binsize'])
         spike_times_list, binned_array = get_spike_data_per_trial(
             regspikes, regclu,
             interval_begs=intervals[:, 0] - kwargs['n_bins_lag'] * kwargs['binsize'],

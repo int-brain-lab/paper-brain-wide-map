@@ -24,7 +24,6 @@ whisker_data = True
 # You can choose the cache directory if you want it to be different from the default
 cache_dir = None  # Path('/full/path/to/cache')
 
-
 """
 ----------
 CACHE DATA
@@ -36,6 +35,18 @@ if cache_dir:
 else:
     one = ONE(base_url='https://alyx.internationalbrainlab.org', mode='remote')
     cache_dir = one.cache_dir
+
+BAD_PIDS = ['367ea4c4-d1b7-47a6-9f18-5d0df9a3f4de',
+            '9b3ad89a-177f-4242-9a96-2fd98721e47f',
+            '485b50c8-71e1-4654-9a07-64395c15f5ed',
+            '0aafb6f1-6c10-4886-8f03-543988e02d9e',
+            'b976e816-bc24-42e3-adf4-2801f1a52657',
+            'dac5defe-62b8-4cc0-96cb-b9f923957c7f',
+            'e9cf749b-85dc-4b59-834b-325cec608c48',
+            'f84f36c9-88f8-4d80-ba34-7f7a2b254ece',
+            '96c816ad-9a48-46a4-8a84-9a73cc153d69']
+
+BAD_EIDS = [one.pid2eid(p)[0] for p in BAD_PIDS]
 
 # Get the dataframe of all included sessions and probe insertions, use frozen query
 bwm_df = bwm_query(freeze='2022_10_update')
@@ -61,6 +72,8 @@ for pid in bwm_df['pid']:
     count += 1
     if not (count%N_PARA == para_index):
         continue
+    elif pid in BAD_PIDS:
+        continue
     else:
        print(f"Downloading spike sorting data for {pid}")
        spikes, clusters = load_good_units(one, pid, compute_metrics=False)
@@ -71,7 +84,7 @@ for eid in bwm_df['eid']:
     count += 1
     if not (count%N_PARA == para_index):
         continue
-    else:
+    else: # Oddly not problem with errors here, dont need BAD_EIDS like wheel or spike sorting
         print(f"Downloading trials data for {eid}")
         sess_loader = SessionLoader(one, eid)
         sess_loader.load_trials()
@@ -84,7 +97,7 @@ if wheel_data:
         if not (count%N_PARA == para_index):
        	    continue
 
-        elif eid == 'cc45c568-c3b9-4f74-836e-c87762e898c8':
+        elif eid == 'cc45c568-c3b9-4f74-836e-c87762e898c8' or (eid in BAD_EIDS):
             continue
         else:
             print(f"Downloading wheel data for {eid}")

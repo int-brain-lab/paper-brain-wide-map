@@ -33,13 +33,17 @@ imposter_file = RESULTS_DIR.joinpath('decoding', f"imposterSessions_{params['tar
 one = ONE(mode='local')
 bwm_df = bwm_query()
 
+# used for only running pipeline on a few subjects
+#mysubs = [sys.argv[2], sys.argv[3], sys.argv[4]]
+#bwm_df = bwm_df[bwm_df["subject"].isin(mysubs)] 
+
 # Download the latest clusters table, we use the same cache as above
 clusters_table = download_aggregate_tables(one, type='clusters')
 # Map probes to regions (here: Beryl mapping) and filter according to QC, number of units and probes per region
 region_df = filter_regions(
     bwm_df['pid'], clusters_table=clusters_table, mapping='Beryl',
-    min_qc=1, min_units_region=10, min_probes_region=2)
-
+    min_qc=1, min_units_region=10, min_probes_region=None, min_sessions_region=2)
+print('completed region_df')
 # Download the latest trials table and filter for sessions that have at least 200 trials fulfilling BWM criteria
 trials_table = download_aggregate_tables(one, type='trials',)
 eids = filter_sessions(bwm_df['eid'], trials_table=trials_table, min_trials=200)
@@ -51,11 +55,13 @@ bwm_df = bwm_df[bwm_df['eid'].isin(eids)]
 # When creating the slurm jobs the (one-based) ID of the job in the array is passed to this script as an input.
 # Translate this into a zero-based index to select probes / sessions
 slurm_job_id = int(sys.argv[1]) - 1
+print(f'inside script, running slurm_job {slurm_job_id}')
 # If there are more slurm jobs than probes/sessions, the same probe/session will be rerun with a new set of pseudo
 # sessions. This job_repeat is 0 for the first round, 1 for the second round and so on
 job_repeat = slurm_job_id // bwm_df.index.size
 # Don't go any further if we are already at the end of pseudo sessions for this probe/session
-if (job_repeat + 1) * params['n_pseudo_per_job'] <= params['n_pseudo']: #TODO bb thinks this is wrong
+if (job_repeat + 1) * params['n_pseudo_per_job'] > params['n_pseudo']: #TODO bb thinks this is wrong, bb flipped from <= to >, should be good now
+    print('ended because job counter', job_repeat+1, params['n_pseudo_per_job'], params['n_pseudo'])
     exit()
 # Otherwise use info to construct pseudo ids
 pseudo_ids = np.arange(job_repeat * params['n_pseudo_per_job'], (job_repeat + 1) * params['n_pseudo_per_job']) + 1

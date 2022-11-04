@@ -1,4 +1,5 @@
 import logging
+import os
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -211,6 +212,21 @@ def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo
         for pseudo_id in pseudo_ids:
             fit_results = []
 
+            # save out decoding results
+            save_path = get_save_path(
+                pseudo_id, metadata['subject'], metadata['eid'], 'ephys',
+                probe=metadata['probe_name'],
+                region=str(np.squeeze(region)) if kwargs['single_region'] else 'allRegions',
+                output_path=kwargs['neuralfit_path'],
+                time_window=kwargs['time_window'],
+                date=kwargs['date'],
+                target=kwargs['target'],
+                add_to_saving_path=kwargs['add_to_saving_path']
+            )
+            if os.path.exists(save_path):
+                continue    
+           
+
             # create pseudo/imposter session when necessary
             # TODO: integrate single-/multi-bin code
             if pseudo_id > 0:
@@ -272,18 +288,6 @@ def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo
                 fit_result['pseudo_id'] = pseudo_id
                 fit_result['run_id'] = i_run
                 fit_results.append(fit_result)
-
-            # save out decoding results
-            save_path = get_save_path(
-                pseudo_id, metadata['subject'], metadata['eid'], 'ephys',
-                probe=metadata['probe_name'],
-                region=str(np.squeeze(region)) if kwargs['single_region'] else 'allRegions',
-                output_path=kwargs['neuralfit_path'],
-                time_window=kwargs['time_window'],
-                date=kwargs['date'],
-                target=kwargs['target'],
-                add_to_saving_path=kwargs['add_to_saving_path']
-            )
 
             filename = save_region_results(
                 fit_result=fit_results,

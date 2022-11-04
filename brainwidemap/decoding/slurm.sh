@@ -1,9 +1,9 @@
 #!/bin/bash
 #SBATCH --job-name=decoding
-#SBATCH --output=/scratch/users/bensonb/international-brain-lab/paper-brain-wide-map/brainwidemap/logs/slurm/decoding.%A.%a.out
-#SBATCH --error=/scratch/users/bensonb/international-brain-lab/paper-brain-wide-map/brainwidemap/logs/slurm/decoding.%A.%a.err
+#SBATCH --output=/scratch/users/bensonb/international-brain-lab/paper-brain-wide-map/brainwidemap/logs/slurm/db4.%a.out
+#SBATCH --error=/scratch/users/bensonb/international-brain-lab/paper-brain-wide-map/brainwidemap/logs/slurm/db4.%a.err
 #SBATCH --partition=normal
-#SBATCH --array=1-600
+#SBATCH --array=1-900
 #SBATCH --mem=8G
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=bensonb@stanford.edu

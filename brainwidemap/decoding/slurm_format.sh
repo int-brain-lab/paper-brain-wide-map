@@ -17,4 +17,4 @@ export PYTHONPATH="$PWD":$PYTHONPATH
 
 echo
 # change to conda  => which python
-python  03_format_slurm.py $SLURM_ARRAY_TASK_ID wheel-speed
+python  04_format_slurm.py $SLURM_ARRAY_TASK_ID

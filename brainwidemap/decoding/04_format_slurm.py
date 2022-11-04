@@ -1,4 +1,5 @@
 import pickle
+import re
 from behavior_models.models.utils import format_data as format_data_mut
 import pandas as pd
 import glob
@@ -6,7 +7,7 @@ import glob
 from brainwidemap.decoding.settings import *
 import models.utils as mut
 #from braindelphi.params import FIT_PATH
-from brainwidemap.decoding.paths import FIT_PATH
+from brainwidemap.decoding.settings import RESULTS_DIR
 #from braindelphi.decoding.settings import modeldispatcher
 from brainwidemap.decoding.settings import modeldispatcher
 from tqdm import tqdm
@@ -15,12 +16,20 @@ import sys
 para_index = int(sys.argv[1])-1
 N_PARA = 50
 #TARGET = str(sys.argv[2])
+#date = '27-10-2022'
 print('target is ',TARGET)
+print('date is ',DATE)
 
 SAVE_KFOLDS = False
 
-date = '10-10-2022'
-finished = glob.glob(str(FIT_PATH.joinpath("ephys", "*", "*", "*", "*%s*%s*" % (date, TARGET))))
+finished = glob.glob(str(RESULTS_DIR.joinpath("decoding", 
+                                           "results", 
+                                           "neural", 
+                                           "ephys", 
+                                           "*", 
+                                           "*", 
+                                           "*", 
+                                           "*%s*%s*" % (DATE, TARGET))))
 print('nb files:',len(finished))
 
 indexers = ['subject', 'eid', 'probe', 'region']
@@ -33,25 +42,39 @@ for fn in tqdm(finished):
     if not ((tot_index%N_PARA) == para_index):
         continue
     try:
+        print('file ', fn)
         fo = open(fn, 'rb')
         result = pickle.load(fo)
         fo.close()
         if result['fit'] is None:
             continue
+        
         for i_run in range(len(result['fit'])):
-            side, stim, act, _ = format_data_mut(result["fit"][i_run]["df"])
-            mask = result["fit"][i_run]["mask"]  # np.all(result["fit"][i_run]["target"] == stim[mask])
-            #full_test_prediction = np.zeros(np.array(result["fit"][i_run]["target"]).size)
-            #full_test_prediction = np.zeros(np.array(result["fit"][i_run]["target"]).shape)
-            #for k in range(len(result["fit"][i_run]["idxes_test"])):
-                #full_test_prediction[result["fit"][i_run]['idxes_test'][k]] = result["fit"][i_run]['predictions_test'][k]
-                #full_test_prediction[result["fit"][i_run]['idxes_test'][k], :] = result["fit"][i_run]['predictions_test'][k]
-            # neural_act = np.sign(full_test_prediction)
-            #perf_allcontrasts = (side.values[mask][neural_act != 0] == neural_act[neural_act != 0]).mean()
-            #perf_allcontrasts_prevtrial = (side.values[mask][1:] == neural_act[:-1])[neural_act[:-1] != 0].mean()
-            #perf_0contrasts = (side.values[mask] == neural_act)[(stim[mask] == 0) * (neural_act != 0)].mean()
-            #nb_trials_act_is_0 = (neural_act == 0).mean()
-            tmpdict = {**{x: result[x] for x in indexers},
+            if not re.match(".*pseudo_id_-1.*", fn):
+                tmpdict = {**{x: result[x] for x in indexers},
+                       'fold': -1,
+                       'pseudo_id': result['pseudo_id'],
+                       'run_id': i_run + 1,
+                       'R2_test': result['fit'][i_run]['Rsquared_test_full']}
+            else:
+                side, stim, act, _ = format_data_mut(result["fit"][i_run]["df"])
+                mask = result["fit"][i_run]["mask"]  # np.all(result["fit"][i_run]["target"] == stim[mask])
+                #full_test_prediction = np.zeros(np.array(result["fit"][i_run]["target"]).size)
+                full_test_prediction = np.zeros(np.array(result["fit"][i_run]["target"]).shape)
+                for k in range(len(result["fit"][i_run]["idxes_test"])):
+                    if len(full_test_prediction.shape) == 1:
+                        full_test_prediction[result["fit"][i_run]['idxes_test'][k]] = result["fit"][i_run]['predictions_test'][k]
+                    elif len(full_test_prediction.shape) == 2:
+                        #print(i_run, result["fit"][i_run])
+                        full_test_prediction[result["fit"][i_run]['idxes_test'][k], :] = result["fit"][i_run]['predictions_test'][k]
+                    else:
+                        raise IndexError('full_test_prediction is not an acceptable shape')
+                # neural_act = np.sign(full_test_prediction)
+                #perf_allcontrasts = (side.values[mask][neural_act != 0] == neural_act[neural_act != 0]).mean()
+                #perf_allcontrasts_prevtrial = (side.values[mask][1:] == neural_act[:-1])[neural_act[:-1] != 0].mean()
+                #perf_0contrasts = (side.values[mask] == neural_act)[(stim[mask] == 0) * (neural_act != 0)].mean()
+                #nb_trials_act_is_0 = (neural_act == 0).mean()
+                tmpdict = {**{x: result[x] for x in indexers},
                        'fold': -1,
                        'pseudo_id': result['pseudo_id'],
                        'N_units': result['N_units'],
@@ -60,9 +83,9 @@ for fn in tqdm(finished):
                        'R2_test': result['fit'][i_run]['Rsquared_test_full'],
                        'weights': result['fit'][i_run]['weights'],
                        'intercepts': result['fit'][i_run]['intercepts'],
-                       #'full_prediction': full_test_prediction,
+                       'full_prediction': full_test_prediction,
                        #'prediction': list(result["fit"][i_run]['predictions_test']),
-                       #'target': list(result["fit"][i_run]["target"]),
+                       'target': list(result["fit"][i_run]["target"]),
                        # 'perf_allcontrast': perf_allcontrasts,
                        # 'perf_allcontrasts_prevtrial': perf_allcontrasts_prevtrial,
                        # 'perf_0contrast': perf_0contrasts,
@@ -100,31 +123,30 @@ resultsdf = resultsdf[resultsdf.run_id == 1]
 subdf = resultsdf.set_index(['subject', 'eid', 'probe', 'region']).drop('fold', axis=1)
 '''
 
-estimatorstr = [k for k in decoder_options.keys() if ESTIMATOR == decoder_options[k]]
+estimatorstr = [estimator_strs[i] for i in range(len(estimator_options)) if ESTIMATOR == estimator_options[i]]
 assert len(estimatorstr)==1
 estimatorstr = estimatorstr[0] 
 start_tw, end_tw = TIME_WINDOW   
     
 model_str = 'interIndividual' if isinstance(MODEL, str) else modeldispatcher[MODEL]
 
-fn = str(FIT_PATH.joinpath('ephys', '_'.join([date, 'decode', TARGET,
-                                                               model_str if TARGET in ['prior',
-                                                                                                        'pLeft']
-                                                               else 'task',
-                                                               estimatorstr, 'align', ALIGN_TIME, str(N_PSEUDO),
-                                                               'pseudosessions',
-                                                               'regionWise' if SINGLE_REGION else 'allProbes',
-                                                               'timeWindow', str(start_tw).replace('.', '_'),
-                                                               str(end_tw).replace('.', '_')])))
+fn = str(RESULTS_DIR.joinpath('decoding','results','neural','ephys', 
+                              '_'.join([DATE, 'decode', TARGET,
+                               model_str if TARGET in ['prior','pLeft'] else 'task',
+                               estimatorstr, 
+                               'align', ALIGN_TIME, 
+                               str(N_PSEUDO), 'pseudosessions', 
+                               'regionWise' if SINGLE_REGION else 'allProbes',
+                               'timeWindow', str(start_tw).replace('.', '_'), str(end_tw).replace('.', '_')])))
 if ADD_TO_SAVING_PATH != '':
     fn = fn + '_' + ADD_TO_SAVING_PATH
 
-fn = fn + '_paraindex' + str(para_index) + '.parquet'
+fn = fn + '_paraindex' + str(para_index) + '.pkl'
 
-metadata_df = pd.Series({'filename': fn,  'date': date, **kwargs})
+metadata_df = pd.Series({'filename': fn,  'date': DATE, **params})
 metadata_fn = '.'.join([fn.split('.')[0], 'metadata', 'pkl'])
 print('saving parquet')
-resultsdf.to_parquet(fn)
+resultsdf.to_pickle(fn)
 print('parquet saved')
 print('saving metadata')
 metadata_df.to_pickle(metadata_fn)
