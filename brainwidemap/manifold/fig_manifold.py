@@ -977,7 +977,7 @@ def put_panel_label(ax, k):
                         fontsize=16, va='top', ha='right', weight='bold')
 
 
-def plot_all(curve='euc', amp_number=False, intro = False, 
+def plot_all(curve='euc', amp_number=False, intro = True, 
              mapping='Beryl', sigl=0.01, amp_type = '2', 
              only3d = False, onlyScat = False, single_scat=False):
 
@@ -996,14 +996,15 @@ def plot_all(curve='euc', amp_number=False, intro = False,
     
     nrows = 12
         
-    fig = plt.figure(figsize=(15, 15))  #10, 15
+    fig = plt.figure(figsize=(10, 10*(2**.5)))  #10, 15
     gs = fig.add_gridspec(nrows, len(align))
     
     dfa, palette = get_allen_info()
                    
 
     axs = []
-    k = 0
+    k = 0  # panel counter
+    row = 0  # row counter
     
     md = {'':'max-min/max+min','2':'max-min'}
     # choose distance amplitude type
@@ -1042,7 +1043,7 @@ def plot_all(curve='euc', amp_number=False, intro = False,
 
         print(split, curve)
         print(f'{len(maxsf)}/{len(d)} are significant')
-        tops[split+'_s'] = f'{len(maxsf)} of {len(d)}'
+        tops[split+'_s'] = f'{len(maxsf)}/{len(d)}'
         regs_a = [tops[split][0][j] for j in range(len(tops[split][0]))
                 if tops[split][1][j] < sigl]
         
@@ -1078,12 +1079,14 @@ def plot_all(curve='euc', amp_number=False, intro = False,
                 if tops[split][1][j] < sigl] for split in align}
           
     exs = {split: list(set(exs0[split]
-                  ).intersection(set(tops_p[split]))) for split in align}           
+                  ).intersection(set(tops_p[split]))) 
+                  for split in align}           
 
                 
-    exs = {'stim': ['VISp', 'MRN', 'MOs', 'PAG', 'LGd', 'GRN','ZI', 'SCm'],
-         'choice': ['APN', 'PRNr', 'LP', 'SCm', 'CP', 
-                    'SIM', 'CUL4 5'],
+    exs = {'stim': ['VISp', 'LP', 'LGd', 'VISpm', 'VISam', 
+                    'SCm', 'CP', 'MRN'],
+         'choice': ['GRN', 'LP', 'SIM', 'MOs', 
+                    'APN', 'PRNr', 'MRN', 'CP'],
           'fback': ['CA1', 'AUDp', 'PRNr', 'IRN', 'CP', 
                     'SIM', 'CUL4 5', 'GRN', 'CENT3', 'SSp-ul'],
           'block': ['Eth', 'IC']}
@@ -1098,22 +1101,19 @@ def plot_all(curve='euc', amp_number=False, intro = False,
 
         if intro:
     
-            for imn in ['intro', 'contrast_HB']:
-                
-                if imn == 'intro':
-                    axs.append(fig.add_subplot(gs[:3,0:2]))
-                else:
-                    axs.append(fig.add_subplot(gs[:3,-2:]))            
+            axs.append(fig.add_subplot(gs[:3,:]))
+      
 
-                data_path = '/home/mic/paper-brain-wide-map/manifold_analysis/'
-                pdf = fitz.open(data_path + f'{imn}.pdf')
-                rgb = pdf[0].get_pixmap(dpi=600)
-                pil_image = Image.open(io.BytesIO(rgb.tobytes()))
-                        
-                imgplot = axs[k].imshow(pil_image.convert('RGB'))
-                axs[k].axis('off')
-                put_panel_label(axs[k], k)
-                k += 1
+            data_path = '/home/mic/paper-brain-wide-map/manifold_analysis/'
+            pdf = fitz.open(data_path + f'intro2.pdf')
+            rgb = pdf[0].get_pixmap(dpi=600)
+            pil_image = Image.open(io.BytesIO(rgb.tobytes()))
+                    
+            imgplot = axs[k].imshow(pil_image.convert('RGB'))
+            axs[k].axis('off')
+            put_panel_label(axs[k], k)
+            k += 1
+            row += 1
 
            
         '''
@@ -1169,7 +1169,7 @@ def plot_all(curve='euc', amp_number=False, intro = False,
 
             axs[k].set_title(f"{split}, {reg} {d[reg]['nclus']}")   
             axs[k].grid(False)
-            #axs[k].axis('off')
+            axs[k].axis('off')
             
             axs[k].xaxis.set_ticklabels([])
             axs[k].yaxis.set_ticklabels([])
@@ -1197,25 +1197,28 @@ def plot_all(curve='euc', amp_number=False, intro = False,
             '''
       
             
-            handles, labels =  axs[k].get_legend_handles_labels()
-            updated_handles = []
-            for handle in handles:
-                updated_handles.append(mpatches.Patch(
-                                       color=handle.get_markerfacecolor(),
-                                       label=handle.get_label()))
-                                       
-            by_label = dict(sorted(dict(zip(labels,
-                            updated_handles)).items()))
+#            handles, labels =  axs[k].get_legend_handles_labels()
+#            updated_handles = []
+#            for handle in handles:
+#                updated_handles.append(mpatches.Patch(
+#                                       color=handle.get_markerfacecolor(),
+#                                       label=handle.get_label()))
+#                                       
+#            by_label = dict(sorted(dict(zip(labels,
+#                            updated_handles)).items()))
                             
-            axs[k].legend(by_label.values(), by_label.keys(),
-                          frameon=False, fontsize=6).set_draggable(True)
+#            axs[k].legend(by_label.values(), by_label.keys(),
+#                          frameon=False, fontsize=6).set_draggable(True)
 
-
-            put_panel_label(axs[k], k)
+            if c == 0:
+                put_panel_label(axs[k], row)
 
             c += 1
             k += 1
             
+        row += 1
+        
+                   
         if only3d:
             return      
         '''
@@ -1227,10 +1230,11 @@ def plot_all(curve='euc', amp_number=False, intro = False,
         for split in align:
             if c == 0:
                 axs.append(fig.add_subplot(gs[6-v:8-v,c]))
+                axs[-1].set_ylim(0, 4.5)
             else:  # to share y axis
-                axs.append(fig.add_subplot(gs[6-v:8-v,c],sharey=axs[len(axs)-1]))    
-                
-                
+                axs.append(fig.add_subplot(gs[6-v:8-v,c],
+                           sharey=axs[len(axs)-1]))
+                           
             f = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'
                         f'curves_{split}_{mapping}.npy',
                         allow_pickle=True).flat[0]
@@ -1270,23 +1274,20 @@ def plot_all(curve='euc', amp_number=False, intro = False,
                                      alpha = 0.2)
                                  
                 # put region labels                 
-                y = np.max(yy)
-                x = xx[np.argmax(yy)]
+                y = yy[-1]
+                x = xx[-1]
                 ss = f"{reg} {f[reg]['nclus']}" 
 
                 if cosregs[reg] in ['CBX', 'CBN']:  # darken yellow
                     texts.append(axs[k].text(x, y, ss, 
                                              color = 'k',
-                                             fontsize=9))             
+                                             fontsize=8))             
                     
                            
                 texts.append(axs[k].text(x, y, ss, 
                                          color = palette[reg],
-                                         fontsize=9))                 
-                 
-                 
-                 
-                                  
+                                         fontsize=8))                 
+
             #adjust_text(texts)                      
 
             axs[k].axvline(x=0, lw=0.5, linestyle='--', c='k')
@@ -1305,14 +1306,18 @@ def plot_all(curve='euc', amp_number=False, intro = False,
             axs[k].spines['top'].set_visible(False)
             axs[k].spines['right'].set_visible(False)
             if c == 0:        
-                axs[k].set_ylabel(f'{md[amp_type]} \n [a.u.]')
+                axs[k].set_ylabel(f'distance [Hz]')
             axs[k].set_xlabel('time [sec]')
-            axs[k].set_title(f'{split}')
-            put_panel_label(axs[k], k)
+            #axs[k].set_title(f'{split}')
+            
+            if c == 0:
+                put_panel_label(axs[k], row)
             
             c += 1        
             k += 1
-           
+            
+        row += 1
+                   
     if onlyScat:
         v = 8
 
@@ -1320,8 +1325,8 @@ def plot_all(curve='euc', amp_number=False, intro = False,
     scatter latency versus max amplitude for significant regions
     '''   
  
-    fsize = 24 if single_scat else 10 if onlyScat else 10
-    dsize = 120 if single_scat else 10 if onlyScat else 10 # was 1
+    fsize = 24 if single_scat else 9 if onlyScat else 7
+    dsize = 120 if single_scat else 9 if onlyScat else 4 # was 1
     
 
     if amp_number: 
@@ -1424,23 +1429,23 @@ def plot_all(curve='euc', amp_number=False, intro = False,
 
         axs[k].axvline(x=0, lw=0.5, linestyle='--', c='k')
         
-        if split in ['block', 'choice']:
-            ha = 'left'
-        else:
-            ha = 'right'   
+        ha = 'left'   
         
-        axs[k].text(0, 0.01, align[split],
+        axs[k].text(0, 0.95, align[split],
                       transform=axs[k].get_xaxis_transform(),
                       horizontalalignment = ha, rotation=90,
-                      fontsize = 10)
+                      fontsize = 8)
                                 
         axs[k].spines['top'].set_visible(False)
         axs[k].spines['right'].set_visible(False)        
         if c == 0:   
-            axs[k].set_ylabel(f'{md[amp_type]} [a.u.]')
+            axs[k].set_ylabel(f'max dist. [Hz]')
         axs[k].set_xlabel('latency [sec]')
-        axs[k].set_title(f"{split}, {tops[split+'_s']} sig")
-        put_panel_label(axs[k], k)
+        axs[k].set_title(f"{tops[split+'_s']} sig")
+        
+        if c == 0:
+            put_panel_label(axs[k], row)        
+
         
         if single_scat:
             figs[c][0].tight_layout()
@@ -1471,8 +1476,8 @@ def plot_all(curve='euc', amp_number=False, intro = False,
 #           f'overleaf_figs/manifold/'
 #           f'manifold.pdf', dpi=400)              
 
-    fig.suptitle(f'distance metric: {curve}, '
-                 f'amplitude type: {md[amp_type]}, sig_level: {sigl}')
+#    fig.suptitle(f'distance metric: {curve}, '
+#                 f'amplitude type: {md[amp_type]}, sig_level: {sigl}')
     
 #    fig.savefig('/home/mic/paper-brain-wide-map/'
 #           f'overleaf_figs/manifold/'
