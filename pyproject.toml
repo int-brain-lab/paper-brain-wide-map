@@ -1,0 +1,10 @@
+[tool.isort]
+known_first_party = ["ibllib", "iblutil", "one", "brainbox", "neurencoding"]
+known_local_folder = ["brainwidemap"]
+import_heading_stdlib = "Standard library"
+import_heading_thirdparty = "Third party libraries"
+import_heading_firstparty = "IBL libraries"
+import_heading_localfolder = "Brainwidemap repo imports"
+
+[tool.black]
+line-length = 130

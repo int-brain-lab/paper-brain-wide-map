@@ -1,16 +1,20 @@
+# Standard library
 from pathlib import Path
 
+# Third party libraries
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+
+# Brainwidemap repo imports
 from brainwidemap import bwm_query
 
 BASEPATH = Path("/home/berk/Documents/Projects/results/glms/merged_results")
 OLDDATE = "2022-03-22"
 NEWDATE = "2022-10-24"
 oldfit = BASEPATH.joinpath(f"{OLDDATE}_impostor_run")
-newfit = BASEPATH.joinpath("{NEWDATE}_impostor_run")
+newfit = BASEPATH.joinpath(f"{NEWDATE}_impostor_run")
 
 firstprobes = (
     bwm_query(freeze="2022_10_update").query("probe_name == 'probe00'").pid.unique()
@@ -58,15 +62,16 @@ for kern in [
     for i in range(1, ncols + 1):
         xcol = f"{i}_old"
         ycol = f"{i}_new"
-        sns.kdeplot(
+        sns.histplot(
             data=joindf,
             x=xcol,
             y=ycol,
             ax=ax[i - 1],
-            bw_adjust=0.7 if kern.find("pLeft") == -1 else 0.4,
-            thresh=0.05,
+            # bw_adjust=0.7 if kern.find("pLeft") == -1 else 0.4,
+            # thresh=0.05,
+            binwidth=0.01,
         )
-        sns.scatterplot(data=joindf, x=xcol, y=ycol, alpha=0.1, ax=ax[i - 1])
+        # sns.scatterplot(data=joindf, x=xcol, y=ycol, alpha=0.1, ax=ax[i - 1])
         ax[i - 1].set_title(
             f"Basis function {i}: $R^2 = {np.corrcoef(joindf[xcol], joindf[ycol])[0, 1]:0.3f}$"
         )
