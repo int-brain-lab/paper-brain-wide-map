@@ -6,85 +6,17 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 from scipy.stats import percentileofscore, spearmanr
 
+from one.api import ONE
+from ibllib.atlas import AllenAtlas
+from ibllib.atlas.regions import BrainRegions
 
-def reformat_results():
+pd.options.mode.chained_assignment = None
 
-    align = {'block':'stim on',
-             'stim':'stim on',
-             'choice':'motion on',
-             'action':'motion on',
-             'fback':'feedback'}
+one = ONE()  # (mode='local')
+ba = AllenAtlas()
+br = BrainRegions()
 
-    pre_post = {'choice':[0.1,0],'stim':[0,0.1],
-                'fback':[0,0.1],'block':[0.4,0],
-                'action':[0.025,0.3]}  #[pre_time, post_time]
-
-    mapping = 'Swanson'
-    curve = 'd_var_m'    
-
-    D = {} 
-    D['date'] = '2022-06-09' 
-     
-    D['description'] = ('We pool independent neural recordings from a given area'
-                        'by stacking peri-event time histograms (PETHs) of all cells'
-                        ' in a region across recordings, and thus creating the'
-                        ' trial-averaged activity map of a super session. '
-                        'For each region we consider the temporal evolution of'
-                        ' differences in  trial-averaged firing rate for different'
-                        ' trial types,such as activity during the first 100 ms after'
-                        ' stimulus onset for the stimulus being on the right versus'
-                        ' on the left side of the screen. The results here consist'
-                        ' only of super-session regions and maxima of the differences'
-                        ' of the trajectories, to be compared with decoding'
-                        'accuracies. Differnces for the following 5 trial conditions'
-                        ' are reported: d_block, d_choice, d_fback, d_stim, d_action.'
-                        'see header of this script for full details:'
-                        'https://github.com/int-brain-lab/'
-                        'paper-brain-wide-map/blob/develop/'
-                        'brainwidemap/manifold_figure.py')
-             
-    D['inclusion_crit'] = ('BWM standard query; min number of cells per region'
-                          ' after pooling: 200.')  
-    
-    r = []
-    cols = ['Swanson_acronym', 'n_clus', 'd_block', 'p_block',
-            'd_stim', 'p_stim', 'd_choice', 'p_choice',
-            'd_action', 'p_action', 'd_fback', 'p_fback']
-                 
-    regs = []
-    nclus = {}            
-    for split in align:
-        f = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'
-                    f'curves_{split}_mapping{mapping}.npy',
-                    allow_pickle=True).flat[0][0]
-        regs.append(list(f.keys()))
-        for x in f:
-            try:
-                nclus[x].append(f[x]['nclus'][1])      
-            except:
-                nclus[x] = []
-        
-    regsc = Counter(np.concatenate(regs))
-    regs2 = [reg for reg in regsc if regsc[reg] == len(align)]
-    
-    for reg in regs2:
-        l = [reg, np.rint(np.mean(nclus[reg]))]  
-        for split in align:
-            d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'
-                        f'curves_{split}_mapping{mapping}.npy',
-                        allow_pickle=True).flat[0]
-                        
-            max_ = d[0][reg][f'max_{curve}']
-            null_ = [d[i][reg][f'max_{curve}'] for i in range(1,len(d))]
-            p = 1 - (0.01 * percentileofscore(null_,max_,kind='weak'))           
-                        
-            l.append(max_)
-            l.append(p)           
-                        
-        r.append(l)
-       
-    D['data'] = pd.DataFrame(data=r,columns=cols)
-    np.save('/home/mic/paper-brain-wide-map/fig5_res.npy',D, allow_pickle=True)   
+sig_level = 0.01  # significance level
 
 
 def get_allen_info():
@@ -105,65 +37,7 @@ def get_allen_info():
     
     return dfa, palette
       
-        
-def correlate_decoding_manifold():
-
-    # split in ['block','stim','choice','fback']
-    
-    D = np.load('/home/mic/paper-brain-wide-map/fig5_res.npy',
-                allow_pickle=True).flat[0]['data']
-
-    _,palette = get_allen_info()
-    fig, axs = plt.subplots(nrows=1, ncols=4)
-    
-    k = 0
-    for split in ['block','stim','choice','fback']:
-        # load Brandon's results            
-        b = np.load('/home/mic/paper-brain-wide-map/'
-                    'Figure 4 - Decoding-20220609T102805Z-001/'
-                    f'Figure 4 - Decoding/{split}_BWM_2022-06-01.p', 
-                    allow_pickle=True)   
-                    
-        # keep only significant accuracies            
-        b = b['data'][b['data']['pvalue']<0.05]
-        
-        # mean sessions to get one value per region 
-        try:           
-            b = b[['acronym','score_accuracy']].groupby('acronym').mean()    
-        except:
-            b = b[['acronym','score_r2']].groupby('acronym').mean()
-                
-        cols = ['acronym', 'accuracy', 'distance']
-        r = []
-        
-        for i in range(len(b)):        
-                
-            reg = b.iloc[i].name
-            if reg in ['void','root']:
-                continue
-
-            if reg in D['Swanson_acronym'].values:
-                idx = list(D['Swanson_acronym'].values).index(reg)
-                try:        
-                    r.append([reg, b.iloc[i].score_accuracy,
-                              D[f'd_{split}'].values[idx]])
-                except:
-                    r.append([reg, b.iloc[i].score_r2, D[f'd_{split}'].values[idx]])
-    
-        df = pd.DataFrame(data=r,columns=cols)       
-        sns.regplot(x="accuracy", y="distance", data=df, ax = axs[k])
-        
-        for i in range(len(r)):
-        
-            axs[k].annotate('  ' + r[i][0],(r[i][1], r[i][2]),
-                fontsize=12,color=palette[r[i][0]])
-        
-        axs[k].set_title(split)
-        k+=1
-
-    plt.tight_layout()
-    
-    
+ 
 def cor_res(split, a1 = 'manifold', a2 = 'decoding'):
 
     '''
@@ -178,26 +52,183 @@ def cor_res(split, a1 = 'manifold', a2 = 'decoding'):
          'decoding': ['median_vals',"combined_p-values (Fisher's method)"], 
          'single-cell': ['fraction_of_sig_cells', 0]}
     
+    assert a1 != 'single-cell', 'swap order as single-cell has no p'
+    
     c1, p1 = A[a1]
     c2, p2 = A[a2] 
     
-    sig_level = 0.01
-    s = pd.read_excel('/home/mic/paper-brain-wide-map/'
-                      f'meta/{split}.xlsx', sheet_name='Sheet1')
+    
+    s = pd.read_excel('/home/mic/paper-brain-wide-map/meta/'
+                      f'per_reg/{split}.xlsx', sheet_name='Sheet1')
 
     dfa, palette = get_allen_info()  # for colors
     
     regsa = s['regions'].values
+    cosregs_ = [dfa[dfa['id'] == 
+                int(dfa[dfa['acronym']==reg]['structure_id_path']
+                .values[0].split('/')[4])]['acronym']
+                .values[0] for reg in regsa]
+           
+    cosregs = dict(zip(regsa,cosregs_))  # to make yellow labels black        
+    
+    if p2 == 0:
+        sigs = s[p1] < sig_level
+        sigs2 = sigs
+    else:
+        sigs = np.bitwise_and(s[p1] < sig_level,s[p2] < sig_level)
+        sigs2 = np.bitwise_or(s[p1] < sig_level,s[p2] < sig_level)
+        
+    m_both = ~np.bitwise_or(np.isnan(s[c1]),np.isnan(s[c2])) 
+    n_regs = sum(m_both)
+    n_sig_regs = sum(sigs)
+    
+    # correlate results
+    co0,p0 = spearmanr(s[c1][m_both],s[c2][m_both])
+    co_sig0,p_sig0 = spearmanr(s[c1][sigs],s[c2][sigs])
+    
+    co, p, co_sig, p_sig = [np.round(x,2) for x in [co0, p0, co_sig0, p_sig0]]
+    
+    cols = np.array([palette[reg] for reg in regsa])
+    
+    fig,ax = plt.subplots(figsize=(10,10))
+    ax.scatter(s[c1],s[c2],c=cols, s = 1,
+               label = 'neither sig')
+     
+    if p2 != 0:
+    
+        ax.scatter(s[c1][s[p1] < sig_level],s[c2][s[p1] < sig_level],
+                   c=cols[s[p1] < sig_level], s = 10, 
+                   marker = 'v', label = 'x only sig')    
+              
+        ax.scatter(s[c1][s[p2] < sig_level],s[c2][s[p2] < sig_level],
+                   c=cols[s[p2] < sig_level], s = 10, 
+                   marker = '^', label = 'y only sig')
+    
+    ax.scatter(s[c1][sigs],s[c2][sigs],c=cols[sigs], s = 20, 
+               label = 'both sig')
+    ax.set_title(f'{split}; #regs with amps [both p < {sig_level}]:'
+                 f' {n_regs} [{n_sig_regs}] \n'
+                 f' corr_all [p] = {co} [{p}], '
+                 f'corr_sig [p_sig]= {co_sig} [{p_sig}]')
+    ax.set_xlabel(f'{c1} ({a1})')
+    ax.set_ylabel(f'{c2} ({a2})') 
+    ax.legend()
+      
+      
+    for i in s[sigs2].index:
+        reg = s.iloc[i]['regions']
+        
+        if cosregs[reg] in ['CBX', 'CBN']:
+            ax.annotate('  ' + reg, # f"{reg} {f[reg]['nclus']}" ,
+                        (s.iloc[i][c1], s.iloc[i][c2]),
+                fontsize=10,color='k')            
+        
+        ax.annotate('  ' + reg, # f"{reg} {f[reg]['nclus']}" ,
+            (s.iloc[i][c1], s.iloc[i][c2]),
+            fontsize=10,color=palette[reg])   
+
+    fig.tight_layout()
+
+    fig.savefig('/home/mic/paper-brain-wide-map/meta/figs/'
+               f'per_reg/{split}_{a1}_{a2}.png')
+               
+               
+               
+def motor_block_eid(sig_lev = 0.05):
+    '''
+    comparing motor correlates and block decoding
+    '''
+
+    dm = pd.read_csv('/home/mic/paper-brain-wide-map/meta/'
+                     'motor_corr_0.6_0.2.csv')
+    db = pd.read_csv('/home/mic/paper-brain-wide-map/meta/'
+                     'block_eid_brandon.csv')
+    
+    eids = list(set(db['eid'].values
+                ).intersection(set(dm['eid'].values)))
+    
+    # for each eid count number of significant regions and significant 
+    # behaviors
+    
+    cols = ['eid','sig_beh', 'frac_beh', 'sig_regs', 'frac_regs'] 
+    r = []
+    for eid in eids:
+    
+        # count number of sig decodable regs and sig behaviors
+        x = db[db['eid'] == eid]  
+        y = dm[dm['eid'] == eid]
+  
+        ps = [k for k in dm.keys() if k[-2:] == '_p']
+        
+        sig_beh = [ps[i] for i in range(len(ps)) if 
+                y[ps[i]].values[0] < sig_lev]
+                 
+        sig_regs = list(x[x['p-value'] < sig_lev]['region'].values)
+        
+        r.append([eid, sig_beh, len(sig_beh)/len(ps), 
+                       sig_regs, len(sig_regs)/len(x)])
+    
+    df = pd.DataFrame(columns = cols, data = r)
+    
+    
+ 
+def cor_res_eid(split, get_merged = False, ptype=0):
+
+    '''
+    Per eid/region analysis; single-cell versus decoding
+    one point per eid/reg pair in scatter, 
+    different markers for significance
+    '''
+
+    s0 = pd.read_csv('/home/mic/paper-brain-wide-map/'
+                      f'meta/per_eid/decoding/{split}.csv')
+                          
+    s1 = pd.read_csv('/home/mic/paper-brain-wide-map/'
+                      f'meta/per_eid/single-cell/{split}.csv')
+                      
+    # for block and stim there's two analyses, pick first                  
+    psc = [y for y in s1.keys() if 'p_' in y][ptype]
+    
+    # group single-cell results into region/eid pairs, get 
+    # frac_of_sig_cells for each and list of p-vaues for hists
+    
+    eids = Counter(s1['eid'].values)
+    
+    cols = ['eid', 'region', 'frac_cells', 'ps']
+    r = []
+    for eid in eids:
+    
+        st = s1[s1['eid'] == eid]
+        atids = st['atlas_id'].values
+        acs = br.id2acronym(atids,mapping='Beryl')
+        st['region'] = acs    
+        regs = Counter(st['region'].values)
+        for reg in regs:
+            ps = st[st['region'] == reg][psc].values       
+            r.append([eid, reg, np.mean(ps < sig_level), ps]) 
+
+    s2 = pd.DataFrame(columns = cols, data = r)
+    s = pd.merge(s0,s2, how='inner', on=['eid', 'region'])
+    
+    # drop region in root, void
+    s = s[~np.bitwise_or.reduce([s['region'] == x for x in ['root', 'void']])]
+
+    if get_merged:
+        return s
+
+    dfa, palette = get_allen_info()  # for colors
+    
+    regsa = s['region'].values
     cosregs_ = [dfa[dfa['id'] == int(dfa[dfa['acronym']==reg]['structure_id_path']
            .values[0].split('/')[4])]['acronym']
            .values[0] for reg in regsa]    
     cosregs = dict(zip(regsa,cosregs_))  # to make yellow labels black        
     
-    if p2 == 0:
-        sigs = s[p1] < sig_level
-    else:
-        sigs = np.bitwise_and(s[p1] < sig_level,s[p2] < sig_level)
-        
+    sigs = s['p-value'] < sig_level
+    
+    c1, a1 = 'score', 'decoding'
+    c2, a2 = 'frac_cells', 'single-cell'
+            
     m_both = ~np.bitwise_or(np.isnan(s[c1]),np.isnan(s[c2])) 
     n_regs = sum(m_both)
     n_sig_regs = sum(sigs)
@@ -213,16 +244,17 @@ def cor_res(split, a1 = 'manifold', a2 = 'decoding'):
     fig,ax = plt.subplots(figsize=(10,10))
     ax.scatter(s[c1],s[c2],c=cols, s = 1)
     ax.scatter(s[c1][sigs],s[c2][sigs],c=cols[sigs], s = 20)
-    ax.set_title(f'{split}; #regs with amps [both p < {sig_level}]:'
+    ax.set_title(f'{split}; #regs with amps [p_decoding < {sig_level}]:'
                  f' {n_regs} [{n_sig_regs}] \n'
                  f' corr_all [p] = {co} [{p}], '
-                 f'corr_sig [p_sig]= {co_sig} [{p_sig}]')
+                 f'corr_sig [p_sig]= {co_sig} [{p_sig}] \n'
+                 f' single-cell p-value type: {psc}')
     ax.set_xlabel(f'{c1} ({a1})')
     ax.set_ylabel(f'{c2} ({a2})') 
     
-      
-    for i in s[sigs].index:
-        reg = s.iloc[i]['regions']
+    s = s[sigs].reset_index()  
+    for i in s.index:
+        reg = s.iloc[i]['region']
         
         if cosregs[reg] in ['CBX', 'CBN']:
             ax.annotate('  ' + reg, # f"{reg} {f[reg]['nclus']}" ,
@@ -231,44 +263,57 @@ def cor_res(split, a1 = 'manifold', a2 = 'decoding'):
         
         ax.annotate('  ' + reg, # f"{reg} {f[reg]['nclus']}" ,
             (s.iloc[i][c1], s.iloc[i][c2]),
-            fontsize=10,color=palette[reg])   
+            fontsize=10,color=palette[reg])
+            
+        if reg == 'MRN':
+            if np.bitwise_and.reduce([s.iloc[i]['score'] > 0.85,
+                               s.iloc[i]['p-value'] < 0.01,
+                               s.iloc[i]['frac_cells'] == 0]): 
+                print(s.iloc[i])
 
     fig.tight_layout()
 
     fig.savefig('/home/mic/paper-brain-wide-map/meta/figs/'
-               f'{split}_{a1}_{a2}.png')
-               
-               
-               
-               
-               
-               
+               f'per_eid/{split}_{a1}_{a2}.png')    
+    
+    fig.tight_layout()
     
     
- 
-#  Motor corelate and decoding per eid    
-#    
-#    df.to_csv('/home/mic/paper-brain-wide-map/'
-#              'behavioral_block_correlates/motor_corr_0.6_0.2.csv')
+def inspect_hists(s):
 
-#    
+    '''
+    recording cases with low single-cell modulation
+    but high decoding
+    '''
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-           
+    split = 'choice' 
+    reg = 'GRN'
+    eids = ['571d3ffe-54a5-473d-a265-5dc373eb7efc',
+            '671c7ea7-6726-4fbe-adeb-f89c2c8e489b',
+            'aec5d3cc-4bb2-4349-80a9-0395b76f04e2']
 
+    fig, axs = plt.subplots(nrows=1, ncols=len(eids),
+                            sharey = True, sharex=True)
+
+    k = 0
+    for eid in eids:
+        x = s[np.bitwise_and(s['region']=='GRN',s['eid'] == eid)]
+        axs[k].hist(x['ps'].values, bins=25)
         
+        t = ' '.join([f'decoding score: {np.round(x["score"].values[0],3)}', 
+                    ' \n', f'p_dec = {np.round(x["p-value"].values[0], 3)}', ' \n', 
+                    f"{x['eid'].values[0][:6]}...", reg,' \n',
+                    f"{x['subject'].values[0]}", 
+                    f'n_units: {x["n_units"].values[0]}', '\n',
+                    f"frac sig cells: {np.round(x['frac_cells'].values[0],5)}"])
+        axs[k].set_title(t)
+        axs[k].axvline(x=sig_level,c='r',linestyle='--')
+        axs[k].set_xlabel('p-value [single-cell]')
+        axs[k].set_ylabel('#cells')
+        
+        k += 1
+
+    fig.suptitle('Example recordings eid/reg with high decoding of CHOICE but low fraction of significant cells (single-cell)') 
+    fig.tight_layout()    
+    
+    
