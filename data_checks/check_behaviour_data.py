@@ -260,11 +260,11 @@ for eid in video_total.index:
 # Make sure manually checked sessions are correctly set
 video_total.loc[video_to_exclude, :] = "MISSING"
 #video_total.loc[video_to_include, ['leftVideo', 'rightVideo', 'bodyVideo']]
-video_total.loc['ebc9392c-1ecb-4b4b-a545-4e3d70d23611', 'bodyVideo'] = 'WARNING'
 
 behav_df = pd.merge(trials_total, wheel_total, on='eid', how='outer')
 behav_df = pd.merge(behav_df, video_total, on='eid', how='outer')
-behav_df.columns = ['Session', 'TrialEvents', 'Wheel', 'leftVideo', 'rightVideo', 'bodyVideo',
+behav_df.reset_index(inplace=True)
+behav_df.columns = ['Session ID', 'TrialEvents', 'Wheel', 'leftVideo', 'rightVideo', 'bodyVideo',
                     'leftDLC', 'rightDLC', 'bodyDLC']
 behav_df.to_csv(behav_file)
 
