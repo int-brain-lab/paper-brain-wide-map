@@ -1980,4 +1980,31 @@ def paw_position_onframe(D):
     #continue here
 
 #To illustrate paw position with pseudo sessions
-#PSTH_pseudo(eid,pawex=True) 
+#PSTH_pseudo(eid,pawex=True)
+
+
+def res_to_df():
+
+    t = ''  # lag = -0.6 sec
+    s = ('/home/mic/paper-brain-wide-map/'
+        f'behavioral_block_correlates/behave7{t}.npy')
+    R = np.load(s,allow_pickle=True).flat[0]
+    
+    columns = ['eid'] + list(np.concatenate([[x+'_p', x+'_amp'] for x in sr]))
+    r = []
+    for eid in R:
+        #print(eid)
+        try:  # there's one weird session, trials object nan
+            r.append([eid] + 
+                     list(np.concatenate([[R[eid][b][1],R[eid][b][0]] 
+                     for b in R[eid]])))
+        except:
+            continue
+
+    df = pd.DataFrame(columns = columns, data=r)
+    df.to_csv('/home/mic/paper-brain-wide-map/'
+              'behavioral_block_correlates/motor_corr_0.6_0.2.csv')
+
+
+
+
