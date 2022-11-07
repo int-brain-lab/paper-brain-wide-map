@@ -6,10 +6,11 @@ from brainwidemap import bwm_query
 from brainbox.io.one import SessionLoader
 
 # Output files
-trials_file = Path(__file__).parent.joinpath('check_trials_data.csv')
-wheel_file = Path(__file__).parent.joinpath('check_wheel_data.csv')
-video_file = Path(__file__).parent.joinpath('check_video_data.csv')
-behav_file = Path(__file__).parent.joinpath('check_behaviour_data.csv')
+trials_file = Path(__file__).parent.joinpath('qc_trials_data.csv')
+wheel_file = Path(__file__).parent.joinpath('qc_wheel_data.csv')
+video_file = Path(__file__).parent.joinpath('qc_video_data.csv')
+video_exclude_file = Path(__file__).parent.joinpath('video_exclude.csv')
+behav_file = Path(__file__).parent.joinpath('qc_behaviour_data.csv')
 
 # File created on SDSC (see check_video_sdsc.py)
 sdsc_video_info = pd.read_csv(Path(__file__).parent.joinpath('video_status_sdsc.csv'))
@@ -86,27 +87,6 @@ video_to_exclude = [
     '0c828385-6dd6-4842-a702-c5075f5f5e81',
     '19e66dc9-bf9f-430b-9d6a-acfa85de6fb7',
     '1e45d992-c356-40e1-9be1-a506d944896f',
-]
-
-video_to_include = [
-    '45ef6691-7b80-4a43-bd1a-85fc00851ae8',
-    '1928bf72-2002-46a6-8930-728420402e01',
-    'f84045b0-ce09-4ace-9d11-5ea491620707',
-    '91796ceb-e314-4859-9a1f-092f85cc846a',
-    '6c6983ef-7383-4989-9183-32b1a300d17a',
-    '671c7ea7-6726-4fbe-adeb-f89c2c8e489b',
-    '6bb5da8f-6858-4fdd-96d9-c34b3b841593',
-    '259927fd-7563-4b03-bc5d-17b4d0fa7a55',
-    'e49d8ee7-24b9-416a-9d04-9be33b655f40',
-    '5139ce2c-7d52-44bf-8129-692d61dd6403',
-    '66d98e6e-bcd9-4e78-8fbb-636f7e808b29',
-    'ebc9392c-1ecb-4b4b-a545-4e3d70d23611',
-    '32d27583-56aa-4510-bc03-669036edad20',
-    '4ef13091-1bc8-4f32-9619-107bdf48540c',
-    '09394481-8dd2-4d5c-9327-f2753ede92d7',
-    '952870e5-f2a7-4518-9e6d-71585460f6fe',
-    '695a6073-eae0-49e0-bb0f-e9e57a9275b9',
-    '03063955-2523-47bd-ae57-f7489dd40f15',
 ]
 
 
@@ -241,6 +221,10 @@ for eid in video_total.index:
         video_total.loc[eid, f'{side}DLC'] = (
             'MISSING' if not video_df.loc[eid, side]['dlc'] else video_df.loc[eid, side]['dlcQC']
         )
+        # Also set those that still have a frames mismatch to MISSING (will not be included)
+        if video_df.loc[eid, side]['frames_match'] is False or video_df.loc[eid, side]['videoQC_timestamps'] is False:
+            video_total.loc[eid, f'{side}Video'] = 'MISSING'
+            video_total.loc[eid, f'{side}DLC'] = 'MISSING'
 
         if video_total.loc[eid, f'{side}Video'] == 'FAIL':
             # If only framerate fails, set video to warning
@@ -248,18 +232,13 @@ for eid in video_total.index:
             if video_df.loc[eid, side].loc[videoQC_keys].drop('videoQC_framerate').all():
                 video_total.loc[eid, f'{side}Video'] = 'WARNING'
             # If position or brightness fail but dlc ok, set to warning
-            if video_df.loc[eid, side].loc[videoQC_keys].drop(['videoQC_framerate',
-                                                               'videoQC_position',
+            if video_df.loc[eid, side].loc[videoQC_keys].drop(['videoQC_framerate', 'videoQC_position',
                                                                'videoQC_brightness']).all():
                 if video_total.loc[eid, f'{side}DLC'] == 'PASS':
                     video_total.loc[eid, f'{side}Video'] = 'WARNING'
-        # Double check that frames match
-        if video_total.loc[eid, f'{side}Video'] == 'PASS' and not video_df.loc[eid, side]['frames_match']:
-            video_total.loc[eid, f'{side}Video'] = 'FAIL'
 
 # Make sure manually checked sessions are correctly set
 video_total.loc[video_to_exclude, :] = "MISSING"
-#video_total.loc[video_to_include, ['leftVideo', 'rightVideo', 'bodyVideo']]
 
 behav_df = pd.merge(trials_total, wheel_total, on='eid', how='outer')
 behav_df = pd.merge(behav_df, video_total, on='eid', how='outer')
@@ -268,5 +247,9 @@ behav_df.columns = ['Session ID', 'TrialEvents', 'Wheel', 'leftVideo', 'rightVid
                     'leftDLC', 'rightDLC', 'bodyDLC']
 behav_df.to_csv(behav_file)
 
-print('TRIALS:', trials_errors)
-print('WHEEL:', wheel_errors)
+# Create a dataframe to know which videos to exclude
+exclude_df = behav_df.set_index('Session ID').loc[:, [c for c in behav_df.columns if 'Video' in c]]
+exclude_df = exclude_df[(exclude_df == 'MISSING').any(axis=1)]
+for c in exclude_df.columns:
+    exclude_df.loc[:, c] = exclude_df[c].map({'MISSING': True, 'FAIL': False, 'WARNING': False, 'PASS': False})
+exclude_df.to_csv(video_exclude_file)
