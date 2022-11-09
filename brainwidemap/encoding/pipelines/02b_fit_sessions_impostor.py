@@ -40,7 +40,7 @@ params = {
     'binwidth': 0.02,
     'iti_prior': [-0.4, -0.1],
     'fmove_offset': -0.2,
-    'wheel_offset': -0.3,
+    'wheel_offset': -0.3,  # New causal/anticausal wheel kernels
     'contnorm': 5.,
     'reduce_wheel_dim': False,
     'dataset_fn': '2022-10-24_dataset_metadata.pkl',
@@ -60,7 +60,7 @@ params = {
 params['bases'] = {
     'stim': mut.raised_cosine(0.4, 5, tmp_binf),
     'feedback': mut.raised_cosine(0.4, 5, tmp_binf),
-    'wheel': mut.raised_cosine(0.3, 3, tmp_binf),
+    'wheel': mut.raised_cosine(0.6, 10, tmp_binf),  # New, causal/anticausal kernel
     'fmove': mut.raised_cosine(0.2, 3, tmp_binf),
 }
 
