@@ -69,8 +69,8 @@ def atlas_variable(df, cmap, vmin=0, vmax=1, axes=None, fig=None, cbar=False):
     )
     cb_ax = None
     if cbar:
-        fig.subplots_adjust(right=0.85)
-        cb_ax = fig.add_axes([0.88, 0.25, 0.02, 0.5])
+        fig.subplots_adjust(right=0.90)
+        cb_ax = fig.add_axes([0.92, 0.25, 0.02, 0.5])
         plt.colorbar(mappable=axes[2].images[0], cax=cb_ax)
     for ax in axes:
         ax.set_xticks([])
@@ -81,11 +81,14 @@ def atlas_variable(df, cmap, vmin=0, vmax=1, axes=None, fig=None, cbar=False):
 
 
 if __name__ == "__main__":
+    import itertools as it
     BASEPATH = Path("/home/berk/Documents/Projects/results/glms/merged_results")
     FITDATE = "2022-10-24"
     ALPHA = 0.01
     TWOTAIL = True
     KERNCOLORS = False
+    NOTIMECOURSE = True
+    ALLFOLDS_SIG = False
     COLOR_MAPS = {
         "stimonR": "Greens",
         "stimonL": "Greens",
@@ -97,9 +100,12 @@ if __name__ == "__main__":
         "pLeft_tr": "Blues",
         "wheel": "Purples",
     }
+    notkerns = [
+        "stimdiffs",
+    ]
     if not KERNCOLORS:
         COLOR_MAPS = {k: "viridis" for k in COLOR_MAPS.keys()}
-    COLOR_RANGE = [0.0, 0.5]
+    COLOR_RANGE = [0.0, 0.5] if not ALLFOLDS_SIG else [0.0, 0.3]
     MINUNITS = 20
     atlas = AllenAtlas()
     br = BrainRegions()
@@ -107,75 +113,108 @@ if __name__ == "__main__":
     fitfiles = [fn for fn in os.listdir(fitpath) if fn.find("percentiles.parquet") > 0]
     kerns = [fn[: fn.find("_percentiles.parquet")] for fn in fitfiles]
 
-    for file, kern in zip(fitfiles, kerns):
-        fitdata = pd.read_parquet(fitpath.joinpath(file))
-        ncols = len(fitdata.columns)
-        regcounts = fitdata.index.get_level_values("region").value_counts()
-        keepreg = regcounts[regcounts > MINUNITS].index
-        fitdata = fitdata.loc[fitdata.index.get_level_values("region").isin(keepreg)]
-        if TWOTAIL:
-            sig = 2 * (fitdata - 0.5).abs() > (1 - ALPHA)
-            propsig = sig.groupby("region").agg("mean")
-        else:
-            uppersig = fitdata > (1 - ALPHA)
-            lowersig = fitdata < ALPHA
-            lowerprop = lowersig.groupby("region").agg("mean")
-            upperprop = uppersig.groupby("region").agg("mean")
-            propsig = lowerprop.join(upperprop, lsuffix="_lower", rsuffix="_upper")
-
-        fig, ax = plt.subplots(
-            3 * ((not TWOTAIL) + 1),
-            ncols,
-            figsize=(ncols * 5, 8 * ((not TWOTAIL) + 1)),
-        )
-        plt.suptitle(
-            f"{kern} Proportion neurons significant per basis"
-            + (not TWOTAIL) * " (sep tail tested)"
-            + f" ($\\alpha = {ALPHA}$)"
-        )
-        plt.tight_layout()
-        if ncols == 1:
-            ax = ax.reshape(-1, 1)
-        for i, col in enumerate(fitdata.columns):
-            cbar = i == ncols - 1
-            colname = "" if ncols == 1 else f"{float(col):0.3f}s "
+    argtuples = it.product([True, False], [True, False], [True, False])
+    for TWOTAIL, NOTIMECOURSE, ALLFOLDS_SIG in argtuples:
+        COLOR_RANGE = [0.0, 0.5] if not ALLFOLDS_SIG else [0.0, 0.25]
+        print(f"TWOTAIL: {TWOTAIL}, NOTIMECOURSE: {NOTIMECOURSE}, ALLFOLDS_SIG: {ALLFOLDS_SIG}")
+        for file, kern in zip(fitfiles, kerns):
+            if kern in notkerns:
+                continue
+            fitdata = pd.read_parquet(fitpath.joinpath(file))
+            if FITDATE == "2022-03-22" and len(fitdata.columns) > 1:
+                fitdata = fitdata.loc[:, fitdata.columns[4::5]]
+            ncols = len(fitdata.columns)
+            corr_alpha = ALPHA / ncols
+            regcounts = fitdata.index.get_level_values("region").value_counts()
+            nfolds = fitdata.index.get_level_values("fold").max() + 1
+            keepreg = regcounts[regcounts > (MINUNITS * nfolds)].index
+            fitdata = fitdata.loc[fitdata.index.get_level_values("region").isin(keepreg)]
             if TWOTAIL:
-                ax[0, i].set_title(colname)
-                atlas_variable(
-                    propsig[col],
-                    cmap=COLOR_MAPS[kern],
-                    vmin=COLOR_RANGE[0],
-                    vmax=COLOR_RANGE[1],
-                    axes=ax[:, i],
-                    fig=fig,
-                    cbar=cbar,
-                )
+                if NOTIMECOURSE:
+                    sig = (2 * (fitdata - 0.5).abs() > (1 - corr_alpha)).any(axis=1)
+                else:
+                    sig = 2 * (fitdata - 0.5).abs() > (1 - ALPHA)
+                if ALLFOLDS_SIG:
+                    sig = sig.groupby(list(filter(lambda n: n != "fold", sig.index.names))).all()
+                propsig = sig.groupby("region").agg("mean")
             else:
-                atlas_variable(
-                    propsig[col + "_lower"],
-                    cmap=COLOR_MAPS[kern],
-                    vmin=COLOR_RANGE[0],
-                    vmax=COLOR_RANGE[1],
-                    axes=ax[::2, i],
-                    fig=fig,
-                )
-                atlas_variable(
-                    propsig[col + "_upper"],
-                    cmap=COLOR_MAPS[kern],
-                    vmin=COLOR_RANGE[0],
-                    vmax=COLOR_RANGE[1],
-                    axes=ax[1::2, i],
-                    fig=fig,
-                    cbar=cbar,
-                )
-                for iax in ax[::2, i]:
-                    iax.set_title(colname + "lower sig")
-                for iax in ax[1::2, i]:
-                    iax.set_title(colname + "upper sig")
-        plt.savefig(
-            fitpath.joinpath(
-                f"{kern}_proportion_neurons_sig" + (not TWOTAIL) * "_septails" + ".png"
-            ),
-            dpi=300,
-        )
-        plt.close()
+                if NOTIMECOURSE:
+                    uppersig = (fitdata > (1 - corr_alpha)).any(axis=1).to_frame(name="significance")
+                    lowersig = (fitdata < corr_alpha).any(axis=1).to_frame(name="significance")
+                else:
+                    uppersig = fitdata > (1 - ALPHA)
+                    lowersig = fitdata < ALPHA
+                if ALLFOLDS_SIG:
+                    uppersig = uppersig.groupby(
+                        list(filter(lambda n: n != "fold", uppersig.index.names))
+                    ).all()
+                    lowersig = lowersig.groupby(
+                        list(filter(lambda n: n != "fold", lowersig.index.names))
+                    ).all()
+                lowerprop = lowersig.groupby("region").agg("mean")
+                upperprop = uppersig.groupby("region").agg("mean")
+                propsig = lowerprop.join(upperprop, lsuffix="_lower", rsuffix="_upper")
+
+            if NOTIMECOURSE:
+                ncols = 1
+            fig, ax = plt.subplots(
+                3 * ((not TWOTAIL) + 1),
+                ncols,
+                figsize=(ncols * 5, 8 * ((not TWOTAIL) + 1)),
+            )
+            plt.suptitle(
+                f"{kern} Proportion neurons significant per basis\n"
+                + (not TWOTAIL) * "(sep tail tested)"
+                + f" ($\\alpha = {ALPHA}$)"
+            )
+            plt.tight_layout()
+            if ncols == 1:
+                ax = ax.reshape(-1, 1)
+            plotcols = fitdata.columns if not NOTIMECOURSE else ["significance"]
+            for i, col in enumerate(plotcols):
+                cbar = i == ncols - 1
+                colname = "" if ncols == 1 else f"{float(col):0.3f}s "
+                if TWOTAIL:
+                    ax[0, i].set_title(colname)
+                    atlas_variable(
+                        propsig[col] if not NOTIMECOURSE else propsig,
+                        cmap=COLOR_MAPS[kern],
+                        vmin=COLOR_RANGE[0],
+                        vmax=COLOR_RANGE[1],
+                        axes=ax[:, i],
+                        fig=fig,
+                        cbar=cbar,
+                    )
+                else:
+                    atlas_variable(
+                        propsig[col + "_lower"],
+                        cmap=COLOR_MAPS[kern],
+                        vmin=COLOR_RANGE[0],
+                        vmax=COLOR_RANGE[1],
+                        axes=ax[::2, i],
+                        fig=fig,
+                    )
+                    atlas_variable(
+                        propsig[col + "_upper"],
+                        cmap=COLOR_MAPS[kern],
+                        vmin=COLOR_RANGE[0],
+                        vmax=COLOR_RANGE[1],
+                        axes=ax[1::2, i],
+                        fig=fig,
+                        cbar=cbar,
+                    )
+                    for iax in ax[::2, i]:
+                        iax.set_title(colname + "lower sig")
+                    for iax in ax[1::2, i]:
+                        iax.set_title(colname + "upper sig")
+            plt.savefig(
+                fitpath.joinpath(
+                    f"{kern}_proportion_neurons_sig"
+                    + (not TWOTAIL) * "_septails"
+                    + (NOTIMECOURSE) * "_allbases"
+                    + (ALLFOLDS_SIG) * "_allfoldssig"
+                    + ".svg"
+                ),
+                dpi=300,
+            )
+            plt.close()

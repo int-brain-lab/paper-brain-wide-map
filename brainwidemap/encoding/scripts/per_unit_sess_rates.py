@@ -1,10 +1,10 @@
-from oneibl import one
+from one.api import ONE
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import brainbox.io.one as bbone
-from neurencoding.glm_linear import LinearGLM
-import neurencoding.glm as glm
+from neurencoding.linear import LinearGLM
+import neurencoding.utils as mut
 import sklearn.preprocessing as pp
 
 
@@ -35,7 +35,7 @@ def session_rateplot(eid, probe=0, n_tails=40):
                 'wheel_velocity': 'continuous'}
     
     linglm = LinearGLM(trialsdf, spk_times, spk_clu, vartypes, binwidth=0.02)
-    bases = glm.full_rcos(0.6, 10, linglm.binf)
+    bases = mut.full_rcos(0.6, 10, linglm.binf)
     linglm.add_covariate_timing('stimon', 'stimOn_times', bases)
     linglm.compile_design_matrix()
     binnedspikes = linglm.binnedspikes
@@ -58,7 +58,7 @@ def session_rateplot(eid, probe=0, n_tails=40):
 if __name__ == '__main__':
     from bbglm_sessfit_linear_comp import get_bwm_ins_alyx
 
-    one = one.ONE()
+    one = ONE()
     ins, ins_ids, sess_ids = get_bwm_ins_alyx(one=one)
 
     for eid in sess_ids:
