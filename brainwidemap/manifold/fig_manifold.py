@@ -5,8 +5,6 @@ from ibllib.atlas import AllenAtlas
 from ibllib.atlas.regions import BrainRegions
 from brainbox.io.one import SpikeSortingLoader, SessionLoader
 
-from ibllib.atlas.plots import prepare_lr_data
-from ibllib.atlas.plots import plot_scalar_on_flatmap, plot_scalar_on_slice
 from ibllib.atlas import FlatMap
 from ibllib.atlas.flatmaps import plot_swanson
 
@@ -16,7 +14,6 @@ import numpy as np
 from collections import Counter, ChainMap
 from sklearn.decomposition import PCA
 import gc
-from scipy.stats import percentileofscore, zscore
 import umap
 import os
 from pathlib import Path
@@ -59,20 +56,12 @@ np.set_printoptions(threshold=sys.maxsize)
 blue_left = [0.13850039, 0.41331206, 0.74052025]
 red_right = [0.66080672, 0.21526712, 0.23069468]
 
-c = 0.0125  # 0.005 sec for a static bin size, or None for single bin
+b_size = 0.0125  # 0.005 sec for a static bin size, or None for single bin
 sts = 0.002  # stride size in s for overlapping bins 
 ntravis = 30  # number of trajectories for visualisation, first 2 real
-nrand = 150  # 
+nrand = 1000  # number of random trial splits for null_d
 min_reg = 100  # 100, minimum number of neurons in pooled region
 
-
-def T_BIN(split, c=c):
-
-    # c = 0.005 # time bin size in seconds (5 ms)
-    if c is None:
-        return pre_post[split][0] + pre_post[split][1]
-    else:
-        return c    
 
 # trial split types, see get_d_vars for details       
 align = {'stim':'stim on',
@@ -80,29 +69,30 @@ align = {'stim':'stim on',
          'fback':'feedback',
          'block':'stim on'}
                   
-# 'action':'motion on',         
-#'block_stim_r':'stim on',
-#'block_stim_l':'stim on',
 
 # [pre_time, post_time]
 pre_post = {'choice':[0.15,0],'stim':[0,0.15],
-            'fback':[0,0.15],'block':[0.4,-0.1],
-            'block_stim_r':[0,0.15], 'block_stim_l':[0,0.15]}
+            'fback':[0,0.15],'block':[0.4,-0.1]}
 
-            #'action':[0.025,0.3]}  
 
 # labels for illustrative trajectory legend 
 trial_split = {'choice':['choice left', 'choice right','pseudo'],
                'stim':['stim left','stim right','pseudo'],
                'fback':['correct','false','pseudo'],
-               'block':['pleft 0.8','pleft 0.2','pseudo'],
-               'action':['choice left', 'choice right','pseudo'],
-               'block_stim_r':['pleft 0.8','pleft 0.2','pseudo'],            
-               'block_stim_l':['pleft 0.8','pleft 0.2','pseudo']}
+               'block':['pleft 0.8','pleft 0.2','pseudo']}
 
 one = ONE()  # (mode='local')
 ba = AllenAtlas()
 br = BrainRegions()
+
+
+def T_BIN(split, b_size=b_size):
+
+    # c = 0.005 # time bin size in seconds (5 ms)
+    if b_size is None:
+        return pre_post[split][0] + pre_post[split][1]
+    else:
+        return b_size  
 
 
 def grad(c,nobs):
@@ -148,120 +138,24 @@ def generate_pseudo_blocks(n_trials, factor=60, min_=20, max_=100, first5050=90)
     return np.array([0.5] * first5050 + block_ids[:n_trials - first5050])
 
 
-def compute_impostor_behavior():
-
-    '''
-    for a given split, get the behavior of 
-    5 random concatenated sessions to match length
-    for block there is the pseudo session method
-    
-    eid_no is the one eid to exclude
-    
-    SOON TO BE REPLACED BY CHARLES' MODEL
-    '''
-    
-    df = bwm_query(one)
-    
-    eids_plus = list(set(df['eid'].values))
-    
-    R = {}
-    for split in align:
-        d = {}
-        for eid in eids_plus: 
-            try:  
-                
-
-
-                # Load in trials data
-                trials = one.load_object(eid, 'trials', collection='alf')
-                   
-                # remove certain trials    
-                # discard trials were feedback - stim is outside that range [sec]
-                rs_range = [0.08, 2]
-                stim_diff = trials['feedback_times'] - trials['stimOn_times']     
-       
-                rm_trials = np.bitwise_or.reduce([np.isnan(trials['stimOn_times']),
-                                           np.isnan(trials['choice']),
-                                           np.isnan(trials['feedback_times']),
-                                           np.isnan(trials['probabilityLeft']),
-                                           np.isnan(trials['firstMovement_times']),
-                                           np.isnan(trials['feedbackType']),
-                                           stim_diff > rs_range[-1],
-                                           stim_diff < rs_range[0]])
-                       
-                trn = []
-
-                if split in ['choice', 'action']:
-                    for choice in [1,-1]:
-                        trn.append(np.arange(len(trials['choice']))
-                            [np.bitwise_and.reduce([
-                            ~rm_trials,trials['choice'] == choice])])             
-
-                elif split == 'stim':    
-                    for side in ['Left', 'Right']:
-                        trn.append(np.arange(len(trials['stimOn_times']))
-                            [np.bitwise_and.reduce([ ~rm_trials,
-                            trials[f'contrast{side}'] == 1.0])])
-                   
-                elif split == 'fback':    
-                    for fb in [1,-1]:
-                        trn.append(np.arange(len(trials['choice']))
-                            [np.bitwise_and.reduce([
-                            ~rm_trials,trials['feedbackType'] == fb])])
-              
-                elif split == 'block':
-                    for pleft in [0.8, 0.2]:
-                        trn.append(np.arange(len(trials['choice']))
-                            [np.bitwise_and.reduce([
-                             ~rm_trials,trials['probabilityLeft'] == pleft])])    
-
-                d[eid] = trn
-                print(eid, 'done')
-            except:
-                print(eid, 'faulty')
-        R[split] = d
-
-    np.save('/home/mic/paper-brain-wide-map/manifold_analysis/'
-            'bwm_behave.npy',R,allow_pickle=True)    
-
-
 def get_name(brainregion):
     regid = br.id[np.argwhere(br.acronym == brainregion)][0, 0]
     return br.name[np.argwhere(br.id == regid)[0, 0]]
 
 
-def get_d_vars(split, pid, rm_right=False, 
-               mapping='Beryl', control=True, impostor = False):
+def get_d_vars(split, pid, mapping='Beryl', control=True):
 
     '''
     for a given session, probe, bin neural activity
     cut into trials, compute d_var per region
-    '''    
-
+    '''
     
     eid,probe = one.pid2eid(pid)
-#    # Load in spikesorting
-#    sl = SpikeSortingLoader(eid=eid, pname=probe, one=one, atlas=ba)
-#    spikes, clusters, channels = sl.load_spike_sorting()
-#    clusters = sl.merge_clusters(spikes, clusters, channels)
-#    
-#    #only good units
-#    clusters_labeled = clusters.to_df()
-#    good_clusters = clusters_labeled[clusters_labeled['label']==1]
-#    good_clusters.reset_index(drop=True, inplace=True)
-#    clusters = good_clusters
-#    # Find spikes that are from the clusterIDs
-#    spike_idx = np.isin(spikes['clusters'], clusters['cluster_id'])
-
     
     # load in spikes
     spikes, clusters = load_good_units(one, pid)    
-    
-
 
     # Load in trials data
-
-    #trials = one.load_object(eid, 'trials', collection='alf')
     sess_loader = SessionLoader(one, eid)
     sess_loader.load_trials()
     trials = sess_loader.trials
@@ -310,24 +204,6 @@ def get_d_vars(split, pid, rm_right=False,
             trn.append(np.arange(len(trials['choice']))[np.bitwise_and.reduce([
                        ~rm_trials,trials['probabilityLeft'] == pleft])])
                        
-    elif split == 'block_stim_l':
-        for pleft in [0.8, 0.2]:
-            events.append(trials['stimOn_times'][np.bitwise_and.reduce([
-                ~rm_trials,trials['probabilityLeft'] == pleft,
-                np.isnan(trials[f'contrastRight'])])])
-            trn.append(np.arange(len(trials['choice']))[np.bitwise_and.reduce([
-                       ~rm_trials,trials['probabilityLeft'] == pleft,
-                       np.isnan(trials[f'contrastRight'])])])
-                       
-    elif split == 'block_stim_r':
-        for pleft in [0.8, 0.2]:
-            events.append(trials['stimOn_times'][np.bitwise_and.reduce([
-                ~rm_trials,trials['probabilityLeft'] == pleft,
-                np.isnan(trials[f'contrastLeft'])])])
-            trn.append(np.arange(len(trials['choice']))[np.bitwise_and.reduce([
-                       ~rm_trials,trials['probabilityLeft'] == pleft,
-                       np.isnan(trials[f'contrastLeft'])])])
-                       
     else:
         print('what is the split?', split)
         return
@@ -348,9 +224,8 @@ def get_d_vars(split, pid, rm_right=False,
         
         for ts in range(st):
     
-            bi, _ = bin_spikes2D(spikes['times'],#[spike_idx], 
+            bi, _ = bin_spikes2D(spikes['times'],
                                clusters['cluster_id'][spikes['clusters']],
-                                #spikes['clusters'][spike_idx],
                                clusters['cluster_id'],
                                np.array(event) + ts*sts, 
                                pre_post[split][0], pre_post[split][1], 
@@ -367,7 +242,7 @@ def get_d_vars(split, pid, rm_right=False,
                                               
     b = np.concatenate(bins)
     
-    #  recreate temporal trial order              
+    # recreate temporal trial order              
     dx = np.concatenate([list(zip([True]*len(trn[0]),trn[0])),
                     list(zip([False]*len(trn[1]),trn[1]))])
 
@@ -390,26 +265,8 @@ def get_d_vars(split, pid, rm_right=False,
     bins2 = [x[:,goodcells,:] for x in bins]
     bins = bins2    
 
-
-    # remove ill-defined regions
-    if rm_right:
-        print('removing right hemisphere regions')
-        # check hemisphere 
-        xyz = np.c_[clusters['x'], clusters['y'], clusters['z']]
-        signed_atlas_id = ba.get_labels(xyz, mapping=f'{mapping}-lr')
-        rights = np.where(signed_atlas_id > 0)[0]  # >0 means right hem
-        
-        # append _r onto right hem region acronyms
-        for ind in rights:
-            acs[ind] = acs[ind]+'_r'    
-        
-        goodcells = ~np.bitwise_or.reduce([acs == reg for 
-                         reg in ['void','root','void_r','root_r']]
-                          + [np.array([ac[-2:] == '_r' for ac in acs])])    
-    else:
-        goodcells = ~np.bitwise_or.reduce([acs == reg for 
-                         reg in ['void','root']])
-
+    goodcells = ~np.bitwise_or.reduce([acs == reg for 
+                     reg in ['void','root']])
     
     acs = acs[goodcells]
     b = b[:,goodcells,:]
@@ -423,27 +280,10 @@ def get_d_vars(split, pid, rm_right=False,
         
         perms = []  # keep track of random trial splits to test sig
         
-        if impostor:
-            if not 'block' in split:
-                #  Load impostor behavior
-                spl = np.load('/home/mic/paper-brain-wide-map/'
-                              'manifold_analysis/bwm_behave.npy',
-                              allow_pickle=True).flat[0][split]
-                
-                #  exclude current session if present
-                if eid in list(spl.keys()):
-                    del spl[eid]    
-        
         # nrand times random impostor/pseudo split of trials 
         for i in range(nrand):
             if split == 'block':  #'block' pseudo sessions
-                ys = generate_pseudo_blocks(ntr, first5050=0) == 0.8
-                
-            elif 'block_stim' in split:  # shuffle uniformly 
-                assert ntr == (len(trn[0]) + len(trn[1])), 'ntr??'    
-                ys = np.concatenate([np.full(len(trn[0]), True),
-                                     np.full(len(trn[1]), False)])               
-                shuffle(ys)                
+                ys = generate_pseudo_blocks(ntr, first5050=0) == 0.8             
             
             elif split == 'stim':
                 # shuffle stim sides within block and choice classes
@@ -466,69 +306,44 @@ def get_d_vars(split, pid, rm_right=False,
                 tr_c2 = deepcopy(tr_c)
                 
                 # shuffle stim sides within each class
-                for c in [c0,c1,c2,c3]:
-                    r = tr_c[c]
-                    tr_c2[c] = np.array(random.sample(list(r), len(r)))
+                for cc in [c0,c1,c2,c3]:
+                    r = tr_c[cc]
+                    tr_c2[cc] = np.array(random.sample(list(r), len(r)))
 
                 ys = tr_c2 == 1  # boolean shuffled choices            
-                        
-#                # get real block labels; use to generate stim side
-#                y_ = trials['probabilityLeft'][sorted(dx[:, 1])].values
-#                o = np.random.uniform(low=0, high=1, size=(ntr,))
-#                ys = o < y_                
+                                      
                 
             elif split in ['choice', 'fback']:  
-            
-            
-                if impostor:  # impostor sessions
-                    
-                    eids = random.choices([*spl],k=30)
-                    bs = []
-                    for eid in eids:
-                        t = spl[eid]
-                        
-                        # some sessions have empty behavior
-                        if (len(t[0]) < 2) or (len(t[1]) < 2):
-                            continue
-                               
-                        x = np.concatenate([list(zip([True]*len(t[0]),t[0])),
-                                        list(zip([False]*len(t[1]),t[1]))])
-                    
-                        bs.append(np.array(x[np.argsort(x[:, 1])][:,0],
-                                  dtype=bool))
-                                  
-                    ys = np.concatenate(bs)[:ntr]
-                    
-                else:  # Yanliang's method
-                    
-                    # get real block labels
-                    y_ = trials['probabilityLeft'][
-                                sorted(dx[:,1])].values
-                    # get real stim sides
-                    stis = trials['contrastLeft'][
-                                sorted(dx[:,1])].values
-                     
-                    # block/stim classes            
-                    c0 = np.bitwise_and(y_ == 0.8, np.isnan(stis))            
-                    c1 = np.bitwise_and(y_ != 0.8, np.isnan(stis))
-                    c2 = np.bitwise_and(y_ == 0.8, ~np.isnan(stis))
-                    c3 = np.bitwise_and(y_ != 0.8, ~np.isnan(stis))
-              
-                    tr_c = dx[np.argsort(dx[:,1])][:,0]  # true choices
-                    tr_c2 = deepcopy(tr_c)
-                    
-                    # shuffle choices within each class
-                    for c in [c0,c1,c2,c3]:
-                        r = tr_c[c]
-                        tr_c2[c] = np.array(random.sample(list(r), len(r)))
+                # shuffle choice sides within block and stim classes
+                
+                # get real block labels
+                y_ = trials['probabilityLeft'][
+                            sorted(dx[:,1])].values
+                # get real stim sides
+                stis = trials['contrastLeft'][
+                            sorted(dx[:,1])].values
+                 
+                # block/stim classes            
+                c0 = np.bitwise_and(y_ == 0.8, np.isnan(stis))            
+                c1 = np.bitwise_and(y_ != 0.8, np.isnan(stis))
+                c2 = np.bitwise_and(y_ == 0.8, ~np.isnan(stis))
+                c3 = np.bitwise_and(y_ != 0.8, ~np.isnan(stis))
+          
+                tr_c = dx[np.argsort(dx[:,1])][:,0]  # true choices
+                tr_c2 = deepcopy(tr_c)
+                
+                # shuffle choices within each class
+                for cc in [c0,c1,c2,c3]:
+                    r = tr_c[cc]
+                    tr_c2[cc] = np.array(random.sample(list(r), len(r)))
 
-                    ys = tr_c2 == 1  # boolean shuffled choices
+                ys = tr_c2 == 1  # boolean shuffled choices
 
-                    if split == 'fback':
-                        # get feedback types from shuffled choices
-                        cl = np.bitwise_and(tr_c == 0, np.isnan(stis))
-                        cr = np.bitwise_and(tr_c == 1, ~np.isnan(stis))  
-                        ys = np.bitwise_or(cl,cr)
+                if split == 'fback':
+                    # get feedback types from shuffled choices
+                    cl = np.bitwise_and(tr_c == 0, np.isnan(stis))
+                    cr = np.bitwise_and(tr_c == 1, ~np.isnan(stis))  
+                    ys = np.bitwise_or(cl,cr)
 
                 
             w0.append(b[ys].mean(axis=0))
@@ -554,10 +369,14 @@ def get_d_vars(split, pid, rm_right=False,
     # strictly standardized mean difference
     d_var = (((ws[0] - ws[1])/
               ((ss[0] + ss[1])**0.5))**2)
+              
+    d_euc = (ws[0] - ws[1])**2          
+              
     D_ = {}
     D_['acs'] = acs
     D_['d_vars'] = d_var
-    D_['ws'] = ws
+    D_['d_eucs'] = d_euc
+    D_['ws'] = ws[:ntravis]
 
     if not control:
         return D_
@@ -574,20 +393,27 @@ def get_d_vars(split, pid, rm_right=False,
      
         res['nclus'] = sum(acs == reg)
         d_vars = []
+        d_eucs = []
                 
         for j in range(len(ws_)//2):
-
 
             # strictly standardized mean difference
             d_var = (((ws_[2*j] - ws_[2*j + 1])/
                       ((ss_[2*j] + ss_[2*j + 1])**0.5))**2)
+            
+            # Euclidean distance          
+            d_euc = (ws_[2*j] - ws_[2*j + 1])**2          
 
             # sum over cells, divide by #neu later
             d_var_m = np.nansum(d_var,axis=0)
+            d_euc_m = np.sum(d_euc,axis=0)
+            
             d_vars.append(d_var_m)
-
+            d_eucs.append(d_euc_m)
+            
         res['d_vars'] = d_vars
-
+        res['d_eucs'] = d_eucs
+        
         D[reg] = res
         
     uperms = len(np.unique([str(x.astype(int)) for x in perms]))    
@@ -600,64 +426,6 @@ def get_d_vars(split, pid, rm_right=False,
 ### bulk processing 
 ###    
 ''' 
-
-def get_BWM_region_pid_pairs():
-
-    '''
-    get all BWM insertion/region pairs, then filter for those with
-    at least two insertions and at least 10 neurons;
-    takes 1 h min to run (loading clusters is the slow bit)
-    '''
-
-    columns = ['pid', 'Beryl', 'nclus']        
-    data = []    
-    
-    mapping = 'Beryl'
-    
-    df = bwm_query(one)
-    pids = df['pid'].values
-    k = 0
-    for pid in pids:
-        spikes, clusters = load_good_units(one, pid)
-        acs = br.id2acronym(clusters['atlas_id'],
-                        mapping='Beryl')
-                        
-        # check hemisphere 
-        xyz = np.c_[clusters['x'], clusters['y'], clusters['z']]
-        signed_atlas_id = ba.get_labels(xyz, mapping=f'{mapping}-lr')
-        rights = np.where(signed_atlas_id > 0)[0]  # >0 means right hem
-
-        # append _r onto right hem region acronyms
-        for ind in rights:
-            acs[ind] = acs[ind]+'_r'
-
-                        
-        # discard cells in regions root or void
-        goodcells = ~np.bitwise_or.reduce([acs == reg for 
-                                           reg in ['void','root',
-                                                   'void_r','root_r']])
-
-        acs = Counter(acs[goodcells])                        
-                        
-        for reg in acs:
-            data.append([pid, reg, acs[reg]])
-
-        print(pid, f'{k} of {len(pids)} done')
-        k += 1
-
-    df = pd.DataFrame(data, columns=columns)
-
-    # count number of insertions for each region
-    nsC = Counter(df['Beryl'].values)
-    ns = [nsC[reg] for reg in df['Beryl'].values]
-    df['#pids'] = ns
-#    
-#    df1 = df[df['nclus'] > 9]  # at least 10 neurons
-#    df2 = df1[df1['#pids'] > 1]  # at least 2 recordings
-    
-    df.to_csv('bwm_sess_regions.csv')
-    return df    
-    
 
 
 def get_all_d_vars(split, eids_plus = None, control = True, 
@@ -675,7 +443,6 @@ def get_all_d_vars(split, eids_plus = None, control = True,
         df = bwm_query(one)
         eids_plus = df[['eid','probe_name', 'pid']].values
  
-
     Fs = []
     eid_probe = []
     Ds = []
@@ -736,6 +503,10 @@ def get_all_d_vars(split, eids_plus = None, control = True,
     print(f'{len(Fs)}, load failures:')
     print(Fs)
 
+# merge dicts in case of load failure induced reruns
+#In [13]: for k in R.keys():
+#    ...:     R1[k] = np.concatenate([R[k],R0[k]])
+
     
 def d_var_stacked(split, mapping='Beryl'):
                   
@@ -745,9 +516,9 @@ def d_var_stacked(split, mapping='Beryl'):
     average d_var_m via nanmean across insertions,
     remove regions with too few neurons (min_reg)
     compute maxes, latencies and p-values
-    
-    load in single_d_vars for PCA and std of d_var maxes across cells 
     '''
+        
+    # PCA and std of d_var maxes across cells 
   
     print(split)
     R = np.load('/mnt/8cfe1683-d974-40f3-a20b-b217cad4722a/manifold/'
@@ -757,84 +528,58 @@ def d_var_stacked(split, mapping='Beryl'):
     # get stderror across cells for max-min/max+min
     # pool data for illustrative PCA
     ampsv = []
-    ampsv2 = []
+    ampse = []
     acs = []
     ws = []
     for D_ in R['D_s']:
-        ma = np.nanmax(D_['d_vars'],axis=1)
-        mi = np.nanmin(D_['d_vars'],axis=1)   
-        ampsv.append((ma-mi)/(ma + mi))
-        ampsv2.append(ma-mi)
+        ma = np.nanmax(D_['d_vars']/b_size,axis=1)
+        mi = np.nanmin(D_['d_vars']/b_size,axis=1)   
+        ampsv.append(ma-mi)
+        
+        ma = np.nanmax(D_['d_eucs']/b_size,axis=1)
+        mi = np.nanmin(D_['d_eucs']/b_size,axis=1)   
+        ampse.append(ma-mi)        
+        
         acs.append(D_['acs'])
         ws.append(D_['ws'])
         
     ampsv = np.concatenate(ampsv)
-    ampsv2 = np.concatenate(ampsv2)
+    ampse = np.concatenate(ampse)
     acs = np.concatenate(acs)
     ws = np.concatenate(ws, axis=1)           
 
     # remove all cells that have a nan max
     keep = ~np.isnan(ampsv)
     if sum(keep) != len(ampsv):
+        print(sum(keep), len(ampsv))
         acs = acs[keep]
         ampsv = ampsv[keep]
-        ampsv2 = ampsv2[keep]
+        ampse = ampse[keep]
         ws = ws[:,keep,:]
        
     # for each region get standard error
     regs = Counter(acs)
-    stde = {}  # ma-mi/ma+mi
-    stde2 = {}  # for ma-mi
+    stdev = {}  # for ma-mi
+    stdee = {}  # for ma-mi
     pcs = {}
-    euc = {}  # also compute Euclidean distance on PCA-reduced trajectories
-    p_euc = {}
-    p_euc2 = {}
     
     for reg in regs:         
                 
         if (reg in ['root', 'void']) or (regs[reg] < min_reg):
             continue
    
-        stde[reg] = np.std(ampsv[acs == reg])/np.sqrt(regs[reg])
-        stde2[reg] = np.std(ampsv2[acs == reg])/np.sqrt(regs[reg])
-  
-      
-        
+        stdev[reg] = np.std(ampsv[acs == reg])/np.sqrt(regs[reg])
+        stdee[reg] = np.std(ampse[acs == reg])/np.sqrt(regs[reg])
+     
         dat = ws[:,acs == reg,:]
-        pca = PCA(n_components = 30)
+        pca = PCA(n_components = 3)
         wsc = pca.fit_transform(np.concatenate(dat,axis=1).T).T
-        pcs[reg] = wsc[:3]
-        
-        ntr, nclus, nobs = dat.shape
-        
-        
-        dists = []
-        for tr in range(ntr // 2):
-            t0 = wsc[:,nobs * tr*2 :nobs * (tr*2 + 1)] 
-            t1 = wsc[:,nobs * (tr*2 + 1):nobs * (tr*2 + 2)] # actual trajectories
-            
-            dists.append(sum((t0 - t1)**2)**0.5)
-            
-        euc[reg] = dists[0]
-       
-        # get p-value for pca based Euclidean distance
-        maxes = [(np.max(x) - np.min(x))/(np.max(x) + np.min(x)) for x in dists]
+        pcs[reg] = wsc
 
-        # real scroe included in null_d
-        p_euc[reg] = np.mean(np.array(maxes)>= maxes[0])
-                                  
-#        p_euc[reg] = 1 - (0.01 * 
-#                     percentileofscore(maxes[1:],maxes[0],kind='weak'))
-                     
-         # get p-value for pca based Euclidean distance
-        maxes2 = [np.max(x) - np.min(x) for x in dists]
-        p_euc2[reg] = np.mean(np.array(maxes2)>= maxes2[0])
 
-                          
-#        p_euc2[reg] = (1 - (0.01 *percentileofscore(
-#                           maxes2[1:],maxes2[0],kind='weak')))
-    
-    print('PCA done, next group d_var results')    
+    print('PCA and std done, next group d_var and d_euc results')
+    print(len(pcs), 'regs from single file')
+     
     # getting d_vars params for controls (extra file for storage)    
     R = np.load('/mnt/8cfe1683-d974-40f3-a20b-b217cad4722a/manifold/'
                 f'd_vars_{split}_{mapping}.npy', allow_pickle=True).flat[0]
@@ -847,86 +592,80 @@ def d_var_stacked(split, mapping='Beryl'):
         for reg in D:
             regd[reg].append(D[reg]['nclus'])
             
-    regs = [x for x in regd if sum(regd[x]) > min_reg]
+    regs = [x for x in regd if sum(regd[x]) >= min_reg]
+    assert set(regs) == set(list(pcs.keys())), 'reg number mismatch'
+    
     nclus = {reg:sum(regd[reg]) for reg in regs}
     
     print(f'pre min_reg filter: {len(regd)}; post: {len(regs)}')
 
-    regd = {reg:[] for reg in regs}
+    regdv = {reg:[] for reg in regs}
+    regde = {reg:[] for reg in regs}
     for D in R['Ds']:
         for reg in D:
             if reg in regs:
-                regd[reg].append(D[reg]['d_vars'])
+                regdv[reg].append(np.array(D[reg]['d_vars'])/b_size)
+                regde[reg].append(np.array(D[reg]['d_eucs'])/b_size)
 
-    # nanmean across insertions and take sqrt
-    for reg in regd:
-        regd[reg] = (np.nansum(np.array(regd[reg]),axis=0)/
-                     nclus[reg])**0.5
-
+    # nansum across insertions and take sqrt
+    for reg in regdv:
+        regdv[reg] = (np.nansum(regdv[reg],axis=0))**0.5
+                        #/nclus[reg]
+                     
+        regde[reg] = (np.nansum(regde[reg],axis=0))**0.5
+                     
     r = {}
-    for reg in regd:
+    for reg in regs:
         res = {}
 
         # nclus
         res['nclus'] = nclus[reg]
-        res['stde'] = stde[reg]
-        res['stde2'] = stde2[reg]
+        res['stde_var'] = stdev[reg]
+        res['stde_euc'] = stdee[reg]
         res['pcs'] = pcs[reg]
-        res['euc'] = euc[reg]
-        res['p_euc'] = p_euc[reg]
-        res['p_euc2'] = p_euc2[reg]
-        
-        # full curve
-        d_var_m = regd[reg][0]
-        res['d_var_m'] = d_var_m
 
         # amplitudes
-        amps = [((np.max(x) - np.min(x))/
-                 (np.max(x) + np.min(x)))  for x in regd[reg]]
-                 
-        res['max-min/max+min'] = amps[0]
-        
-        amps2 = [np.max(x) - np.min(x) for x in regd[reg]]        
-        
-        res['max-min'] = amps2[0]
-        
+        ampsv = [np.max(x) - np.min(x) for x in regdv[reg]]                
+
         # p value
-        null_d = amps[1:]
-        p = np.mean(np.array(amps) >= amps[0])
-        #p = 1 - (0.01 * percentileofscore(null_d,amps[0],kind='weak'))
-        res['p'] = p
-        
-        null_d2 = amps2[1:]
-        p2 = np.mean(np.array(amps2) >= amps2[0])
-        #p2 = 1 - (0.01 * percentileofscore(null_d2,amps2[0],kind='weak'))
-        res['p2'] = p2        
-        
-        
+        res['p_var'] = np.mean(np.array(ampsv) >= ampsv[0])      
+
+        # full curve, subtract null-d mean
+        d_var = regdv[reg][0] - np.mean(regdv[reg][1:], axis=0)
+        res['d_var'] = d_var - min(d_var)
+        res['amp_var'] = max(res['d_var'])
+    
         # latency  
-        if np.max(d_var_m) == np.inf:
-            loc = np.where(d_var_m == np.inf)[0]  
+        if np.max(res['d_var']) == np.inf:
+            loc = np.where(res['d_var'] == np.inf)[0]  
         else:
-            loc = np.where(d_var_m > 
-                           np.min(d_var_m) + 0.7*(np.max(d_var_m) - 
-                           np.min(d_var_m)))[0]
+            loc = np.where(res['d_var'] > 
+                           np.min(res['d_var']) + 0.7*(np.max(res['d_var']) - 
+                           np.min(res['d_var'])))[0]
         
-        res['lat'] = np.linspace(-pre_post[split][0], 
-                        pre_post[split][1], len(d_var_m))[loc[0]]
+        res['lat_var'] = np.linspace(-pre_post[split][0], 
+                        pre_post[split][1], len(res['d_var']))[loc[0]]
                       
-                      
-        # amplitude and latitude for Euclidean distance also; no p                
-        res['amp_euc'] = ((np.max(euc[reg]) - np.min(euc[reg]))/
-                          (np.max(euc[reg]) + np.min(euc[reg])))
-                         
-        res['amp_euc2'] = np.max(euc[reg]) - np.min(euc[reg])
-                                  
-        loc = np.where(euc[reg] > 
-               np.min(euc[reg]) + 0.7*(np.max(euc[reg]) - 
-               np.min(euc[reg])))[0]
-                                 
+        # same for Euclidean              
+        # amplitudes
+        ampse = [np.max(x) - np.min(x) for x in regde[reg]]                
+
+        # p value
+        res['p_euc'] = np.mean(np.array(ampse) >= ampse[0])      
+
+        # full curve, subtract null-d mean
+        d_euc = regde[reg][0] - np.mean(regde[reg][1:], axis=0)
+        res['d_euc'] = d_euc - min(d_euc)
+        res['amp_euc'] = max(res['d_euc'])
+    
+        # latency  
+        loc = np.where(res['d_euc'] > 
+                       np.min(res['d_euc']) + 0.7*(np.max(res['d_euc']) - 
+                       np.min(res['d_euc'])))[0]
+        
         res['lat_euc'] = np.linspace(-pre_post[split][0], 
-                        pre_post[split][1], len(euc[reg]))[loc[0]]
-                        
+                        pre_post[split][1], len(res['d_euc']))[loc[0]]   
+
         r[reg] = res
     
     np.save('/home/mic/paper-brain-wide-map/manifold_analysis/'
@@ -935,7 +674,6 @@ def d_var_stacked(split, mapping='Beryl'):
            
     time1 = time.perf_counter()    
     print('total time:', time1 - time0, 'sec')
-
 
 
 def curves_params_all(split):
@@ -965,9 +703,7 @@ def get_allen_info():
                                 mpl.colors.to_rgba(x))
                                 
     palette = dict(zip(dfa.acronym, dfa.color_hex_triplet))
-    
-    
-    
+
     return dfa, palette           
 
 
@@ -978,15 +714,14 @@ def put_panel_label(ax, k):
 
 
 def plot_all(curve='euc', amp_number=False, intro = True, 
-             mapping='Beryl', sigl=0.01, amp_type = '2', 
+             mapping='Beryl', sigl=0.01,  
              only3d = False, onlyScat = False, single_scat=False):
 
     '''
     main figure: show example trajectories,
     d_var_m for select regions and scatter all sigificant regions
-    Instead of d_var_m there is also euc
+    curve in [var, euc]
     sigl: significance level, default 0.05
-    amp_type: if max-min/max+min (type '') or max-min (type 2)
     intro: if False, don't plot schematics of method and contrast
     only3d: only 3d plots 
     '''
@@ -1006,16 +741,9 @@ def plot_all(curve='euc', amp_number=False, intro = True,
     k = 0  # panel counter
     row = 0  # row counter
     
-    md = {'':'max-min/max+min','2':'max-min'}
-    # choose distance amplitude type
-    amp_curve = (md[amp_type] if curve == 'd_var_m' 
-                         else f'amp_euc{amp_type}')
-                         
-    p_type = f'p{amp_type}' if curve == 'd_var_m' else f'p_euc{amp_type}'         
-    
-    
+
     '''
-    get significant regions and high pass threshold for amp
+    get significant regions
     '''           
     tops = {}
     regsa = []
@@ -1026,18 +754,18 @@ def plot_all(curve='euc', amp_number=False, intro = True,
                     f'curves_{split}_{mapping}.npy',
                     allow_pickle=True).flat[0]              
              
-        maxs = np.array([d[x][amp_curve] for x in d])
+        maxs = np.array([d[x][f'amp_{curve}'] for x in d])
         acronyms = np.array(list(d.keys()))
         order = list(reversed(np.argsort(maxs)))
         maxs = maxs[order]
         acronyms = acronyms[order] 
              
         tops[split] = [acronyms, 
-                      [d[reg][p_type] for reg in acronyms], maxs]
+                      [d[reg][f'p_{curve}'] for reg in acronyms], maxs]
 
             
-        maxs = np.array([d[reg][amp_curve] for reg in acronyms
-                         if d[reg][p_type] < sigl])
+        maxs = np.array([d[reg][f'amp_{curve}'] for reg in acronyms
+                         if d[reg][f'p_{curve}'] < sigl])
                          
         maxsf = [v for v in maxs if not (math.isinf(v) or math.isnan(v))] 
 
@@ -1052,8 +780,6 @@ def plot_all(curve='euc', amp_number=False, intro = True,
         print(regs_a)
         print(' ')
 
-    #return tops
-        
 
     #  get Cosmos parent region for yellow color adjustment
     regsa = np.unique(np.concatenate(regsa))
@@ -1069,20 +795,14 @@ def plot_all(curve='euc', amp_number=False, intro = True,
     '''
     example regions per split for embedded space and line plots
     '''
-    
-    exs0 = {'stim': ['VISpm', 'VISp', 'GRN', 'MOs', 'LGd','PAG'],
-           'choice': ['GRN', 'VISpm', 'SSp-ul', 'SSs', 'IRN'],
-           'fback': ['AUDp', 'CA1', 'EPd', 'SPVI', 'SSp-ul'],
-           'block': ['ACAv', 'SPVI', 'IC', 'Eth', 'RSPagl']} 
 
     tops_p = {split: [tops[split][0][j] for j in range(len(tops[split][0]))
                 if tops[split][1][j] < sigl] for split in align}
           
-    exs = {split: list(set(exs0[split]
-                  ).intersection(set(tops_p[split]))) 
-                  for split in align}           
-
-                
+#    exs = {split: list(set(exs0[split]
+#                  ).intersection(set(tops_p[split]))) 
+#                  for split in align}           
+               
     exs = {'stim': ['VISp', 'LP', 'LGd', 'VISpm', 'VISam', 
                     'SCm', 'CP', 'MRN'],
          'choice': ['GRN', 'LP', 'SIM', 'MOs', 
@@ -1137,7 +857,7 @@ def plot_all(curve='euc', amp_number=False, intro = True,
                                            projection='3d'))           
 
             npcs, allnobs = d[reg]['pcs'].shape
-            nobs = allnobs // (2*(nrand +1))
+            nobs = allnobs // ntravis
 
             for j in range(ntravis):
             
@@ -1152,8 +872,6 @@ def plot_all(curve='euc', amp_number=False, intro = True,
                 else:
                     col = grad('Greys_r', nobs)
                         
-                                
-
                 axs[k].plot(cs[:,0],cs[:,1],cs[:,2], color=col[len(col)//2],
                         linewidth = 5 if j in [0,1] else 1,
                         label=trial_split[split][j] if j in range(3)
@@ -1165,50 +883,9 @@ def plot_all(curve='euc', amp_number=False, intro = True,
                                depthshade=False)
 
 
-            # add triplet of arrows as coordinate system?
-
             axs[k].set_title(f"{split}, {reg} {d[reg]['nclus']}")   
             axs[k].grid(False)
             axs[k].axis('off')
-            
-            axs[k].xaxis.set_ticklabels([])
-            axs[k].yaxis.set_ticklabels([])
-            axs[k].zaxis.set_ticklabels([])
-                
-            axs[k].xaxis.labelpad=-12
-            axs[k].yaxis.labelpad=-12
-            axs[k].zaxis.labelpad=-12            
-                
-            axs[k].set_xlabel('pc1')
-            axs[k].set_ylabel('pc2')
-            axs[k].set_zlabel('pc3')
-            
-            # remove box panes
-            axs[k].xaxis.pane.fill = False
-            axs[k].yaxis.pane.fill = False
-            axs[k].zaxis.pane.fill = False
-            axs[k].xaxis.pane.set_edgecolor('w')
-            axs[k].yaxis.pane.set_edgecolor('w')
-            axs[k].zaxis.pane.set_edgecolor('w')
-       
-                   
-            '''
-            draw coordinate system with pc1, pc2, pc3 labels
-            '''
-      
-            
-#            handles, labels =  axs[k].get_legend_handles_labels()
-#            updated_handles = []
-#            for handle in handles:
-#                updated_handles.append(mpatches.Patch(
-#                                       color=handle.get_markerfacecolor(),
-#                                       label=handle.get_label()))
-#                                       
-#            by_label = dict(sorted(dict(zip(labels,
-#                            updated_handles)).items()))
-                            
-#            axs[k].legend(by_label.values(), by_label.keys(),
-#                          frameon=False, fontsize=6).set_draggable(True)
 
             if c == 0:
                 put_panel_label(axs[k], row)
@@ -1220,22 +897,22 @@ def plot_all(curve='euc', amp_number=False, intro = True,
         
                    
         if only3d:
-            return      
+            return
+                 
         '''
         line plot per 5 example regions per split
         '''
         c = 0  # column index
 
-
         for split in align:
             if c == 0:
                 axs.append(fig.add_subplot(gs[6-v:8-v,c]))
-                axs[-1].set_ylim(0, 4.5)
+                #axs[-1].set_ylim(0, 4.5/b_size)
             else:  # to share y axis
-                axs.append(fig.add_subplot(gs[6-v:8-v,c],
-                           sharey=axs[len(axs)-1]))
+                axs.append(fig.add_subplot(gs[6-v:8-v,c]))
+                           #,sharey=axs[len(axs)-1]))
                            
-            f = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'
+            d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'
                         f'curves_{split}_{mapping}.npy',
                         allow_pickle=True).flat[0]
                        
@@ -1244,72 +921,58 @@ def plot_all(curve='euc', amp_number=False, intro = True,
             
             texts = []          
             for reg in regs:
-                if any(np.isinf(f[reg][curve])):
+                if any(np.isinf(d[reg][f'd_{curve}'])):
                     print(f'inf in {curve} of {reg}')
                     continue
 
 
                 xx = np.linspace(-pre_post[split][0], 
-                                  pre_post[split][1], len(f[reg][curve]))
-                                        
-                # normalize curve
-                if amp_type == '2':
-                    yy = f[reg][curve] - min(f[reg][curve])         
-                else:
-                    yy = ((f[reg][curve] - min(f[reg][curve]))/
-                          (max(f[reg][curve]) + min(f[reg][curve])))
+                                  pre_post[split][1], 
+                                  len(d[reg][f'd_{curve}']))       
+      
+                # get units in Hz          
+                yy = d[reg][f'd_{curve}']
                 
-                #yy = f[reg][curve]
                 
                 axs[k].plot(xx,yy, linewidth = 2,
                               color=palette[reg], 
-                              label=f"{reg} {f[reg]['nclus']}")
+                              label=f"{reg} {d[reg]['nclus']}")
                 
-                if curve == 'd_var_m':
-                    # plot stderror bars on lines
-                    axs[k].fill_between(xx,    
-                                     yy + f[reg][f'stde{amp_type}'],
-                                     yy - f[reg][f'stde{amp_type}'],
-                                     color=palette[reg],
-                                     alpha = 0.2)
+
+                # plot stderror bars on lines
+                axs[k].fill_between(xx,    
+                                 yy + d[reg][f'stde_{curve}'],
+                                 yy - d[reg][f'stde_{curve}'],
+                                 color=palette[reg],
+                                 alpha = 0.2)
                                  
                 # put region labels                 
                 y = yy[-1]
                 x = xx[-1]
-                ss = f"{reg} {f[reg]['nclus']}" 
+                ss = f"{reg} {d[reg]['nclus']}" 
 
                 if cosregs[reg] in ['CBX', 'CBN']:  # darken yellow
                     texts.append(axs[k].text(x, y, ss, 
                                              color = 'k',
                                              fontsize=8))             
-                    
-                           
+                                               
                 texts.append(axs[k].text(x, y, ss, 
                                          color = palette[reg],
                                          fontsize=8))                 
-
-            #adjust_text(texts)                      
 
             axs[k].axvline(x=0, lw=0.5, linestyle='--', c='k')
             
             if split in ['block', 'choice']:
                 ha = 'left'
             else:
-                ha = 'right'    
-            
-#            axs[k].text(0, 0.01, align[split],
-#                          transform=axs[k].get_xaxis_transform(),
-#                          horizontalalignment = ha, rotation=90,
-#                          fontsize = 10)           
-            
+                ha = 'right'              
 
             axs[k].spines['top'].set_visible(False)
             axs[k].spines['right'].set_visible(False)
             if c == 0:        
                 axs[k].set_ylabel(f'distance [Hz]')
             axs[k].set_xlabel('time [sec]')
-            #axs[k].set_title(f'{split}')
-            
+
             if c == 0:
                 put_panel_label(axs[k], row)
             
@@ -1332,7 +995,7 @@ def plot_all(curve='euc', amp_number=False, intro = True,
     if amp_number: 
         fig2 = plt.figure()
         axss = []
-        fig2.suptitle(f'distance metric: {curve}, amplitude type: {md[amp_type]}')
+        fig2.suptitle(f'distance metric: {curve}')
     
     if single_scat:
         figs = [plt.subplots(figsize=(10,10)) 
@@ -1347,14 +1010,14 @@ def plot_all(curve='euc', amp_number=False, intro = True,
             if c == 0:
                 axs.append(fig.add_subplot(gs[8-v:,c]))
             else:
-                axs.append(fig.add_subplot(gs[8-v:,c],
-                           sharey=axs[len(axs)-1]))
+                axs.append(fig.add_subplot(gs[8-v:,c]))
+                           #,sharey=axs[len(axs)-1]
                                   
-            axs[-1].set_ylim(0, 5)
+            #axs[-1].set_ylim(0, 4.5/b_size)
         
         else:   
             axs.append(figs[c][1])
-            axs[-1].set_ylim(0, 7.5 if split == 'fback' else 4.5)
+            axs[-1].set_ylim(0, 7.5/b_size if split == 'fback' else 4.5/b_size)
             axs[-1].xaxis.set_major_locator(ticker.MultipleLocator(0.05))
 
 
@@ -1367,18 +1030,14 @@ def plot_all(curve='euc', amp_number=False, intro = True,
                         else False for j in range(len(tops[split][0]))])
                 
 
-        if curve == 'euc':
-            maxes = np.array([d[x][f'amp_euc{amp_type}'] for x in acronyms])
-            lats = np.array([d[x]['lat_euc'] for x in acronyms])        
-        else:
-            maxes = np.array([d[x][md[amp_type]] for x in acronyms])
-            lats = np.array([d[x]['lat'] for x in acronyms])
 
+        maxes = np.array([d[x][f'amp_{curve}'] for x in acronyms])
+        lats = np.array([d[x][f'lat_{curve}'] for x in acronyms])
+        stdes = np.array([d[x][f'stde_{curve}'] for x in acronyms])
         cols = [palette[reg] for reg in acronyms]
-        stdes = np.array([d[x][f'stde{amp_type}'] for x in acronyms])
-        
 
-        if amp_number:
+
+        if amp_number:  # supp figure for correlation of nclus and maxes
             axss.append(fig2.add_subplot(int(f'1{len(align)}{c+1}')))
             nums = [1/d[reg]['nclus'] for reg in np.array(acronyms)[ac_sig]]
 
@@ -1389,9 +1048,9 @@ def plot_all(curve='euc', amp_number=False, intro = True,
             sns.regplot(ax=axss[c], x="1/nclus", y="maxes", data=df)
             axss[c].set_title(split)
         
-        if curve == 'd_var_m':
-            axs[k].errorbar(lats, maxes, yerr=stdes, fmt='None', 
-                            ecolor=cols, ls = 'None', elinewidth = 0.5)
+        
+        axs[k].errorbar(lats, maxes, yerr=stdes, fmt='None', 
+                        ecolor=cols, ls = 'None', elinewidth = 0.5)
         
         # plot significant regions               
         axs[k].scatter(np.array(lats)[ac_sig], 
@@ -1404,8 +1063,7 @@ def plot_all(curve='euc', amp_number=False, intro = True,
                        np.array(maxes)[~ac_sig], 
                        color = np.array(cols)[~ac_sig], 
                        marker='o',s=dsize/10)                       
-        
-        
+                
         # put extra marker for highlighted regions
         exs_i = [i for i in range(len(acronyms)) 
                  if acronyms[i] in exs[split]]
@@ -1456,8 +1114,6 @@ def plot_all(curve='euc', amp_number=False, intro = True,
         
         c += 1     
         k += 1
-        
- 
 
 
     fig = plt.gcf()
@@ -1470,23 +1126,12 @@ def plot_all(curve='euc', amp_number=False, intro = True,
                         hspace=1.3,
                         wspace=0.52)
 
-    fig.tight_layout()
+    if curve == 'var':
+        fig.suptitle('d_var')
 
 #    fig.savefig('/home/mic/paper-brain-wide-map/'
 #           f'overleaf_figs/manifold/'
 #           f'manifold.pdf', dpi=400)              
-
-#    fig.suptitle(f'distance metric: {curve}, '
-#                 f'amplitude type: {md[amp_type]}, sig_level: {sigl}')
-    
-#    fig.savefig('/home/mic/paper-brain-wide-map/'
-#           f'overleaf_figs/manifold/'
-#           f'manifold_{curve}_{amp_type}.png', dpi=300) 
-# 
-#    if amp_number:
-#        fig2.savefig('/home/mic/paper-brain-wide-map/'
-#               f'overleaf_figs/manifold/'
-#               f'amp_n_clus_{curve}_{amp_type}.png', dpi=300)  
 
 
 def plot_swanson_supp(curve = 'd_var_m', mapping = 'Beryl'):
@@ -1957,15 +1602,18 @@ def inspect_regional_PETH(reg, split):
 
     #return dat    
     fig, axs = plt.subplots(ncols =2, nrows=1)    
+    
+    vmax = np.amax(dat)
+    vmin = np.amin(dat)
                          
     for i in range(2): 
         axs[i].imshow(dat[i], cmap='Greys',aspect="auto",
-            interpolation='none')
+            interpolation='none', vmax = vmax, vmin = vmin)
         
         for s in Counter(sess0):
             axs[i].axhline(y = np.where(sess0==s)[0][0], c = 'r', 
                        linestyle = '--') 
-            axs[i].annotate(s, (0, np.where(sess0==s)[0][0]), c = 'r')
+            #axs[i].annotate(s, (0, np.where(sess0==s)[0][0]), c = 'r')
         
         axs[i].set_ylabel('cells')
         axs[i].set_xlabel('time [sec]')
@@ -2012,7 +1660,8 @@ def save_df_for_table(split, first100=False):
                   
     df  = pd.DataFrame(data=r,columns=columns)        
     df.to_excel('/home/mic/paper-brain-wide-map/'
-                 f'manifold_analysis/results_100_{split}.xlsx')   
+              f'manifold_analysis/results{"_100" if first100 else ""}'
+              f'_{split}.xlsx')   
 
 
 
