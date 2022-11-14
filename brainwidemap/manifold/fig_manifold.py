@@ -609,10 +609,8 @@ def d_var_stacked(split, mapping='Beryl'):
 
     # nansum across insertions and take sqrt
     for reg in regdv:
-        regdv[reg] = (np.nansum(regdv[reg],axis=0))**0.5
-                        #/nclus[reg]
-                     
-        regde[reg] = (np.nansum(regde[reg],axis=0))**0.5
+        regdv[reg] = (np.nansum(regdv[reg],axis=0)/nclus[reg])**0.5         
+        regde[reg] = (np.nansum(regde[reg],axis=0)/nclus[reg])**0.5
                      
     r = {}
     for reg in regs:
@@ -939,12 +937,12 @@ def plot_all(curve='euc', amp_number=False, intro = True,
                               label=f"{reg} {d[reg]['nclus']}")
                 
 
-                # plot stderror bars on lines
-                axs[k].fill_between(xx,    
-                                 yy + d[reg][f'stde_{curve}'],
-                                 yy - d[reg][f'stde_{curve}'],
-                                 color=palette[reg],
-                                 alpha = 0.2)
+#                # plot stderror bars on lines
+#                axs[k].fill_between(xx,    
+#                                 yy + d[reg][f'stde_{curve}'],
+#                                 yy - d[reg][f'stde_{curve}'],
+#                                 color=palette[reg],
+#                                 alpha = 0.2)
                                  
                 # put region labels                 
                 y = yy[-1]
@@ -970,7 +968,7 @@ def plot_all(curve='euc', amp_number=False, intro = True,
             axs[k].spines['top'].set_visible(False)
             axs[k].spines['right'].set_visible(False)
             if c == 0:        
-                axs[k].set_ylabel(f'distance [Hz]')
+                axs[k].set_ylabel(f'distance')
             axs[k].set_xlabel('time [sec]')
 
             if c == 0:
@@ -1049,7 +1047,7 @@ def plot_all(curve='euc', amp_number=False, intro = True,
             axss[c].set_title(split)
         
         
-        axs[k].errorbar(lats, maxes, yerr=stdes, fmt='None', 
+        axs[k].errorbar(lats, maxes, yerr=None, fmt='None', 
                         ecolor=cols, ls = 'None', elinewidth = 0.5)
         
         # plot significant regions               
@@ -1097,7 +1095,7 @@ def plot_all(curve='euc', amp_number=False, intro = True,
         axs[k].spines['top'].set_visible(False)
         axs[k].spines['right'].set_visible(False)        
         if c == 0:   
-            axs[k].set_ylabel(f'max dist. [Hz]')
+            axs[k].set_ylabel(f'max dist.')
         axs[k].set_xlabel('latency [sec]')
         axs[k].set_title(f"{tops[split+'_s']} sig")
         
@@ -1636,7 +1634,7 @@ def save_df_for_table(split, first100=False):
     
     mapping = 'Beryl'
 
-    columns = ['acronym','name','nclus', 'p_euc2', 'amp_euc2', 'lat_euc']
+    columns = ['acronym','name','nclus', 'p_euc', 'amp_euc', 'lat_euc']
         
     r = []
 
@@ -1651,8 +1649,8 @@ def save_df_for_table(split, first100=False):
 
         if reg in d:
             r.append([reg, get_name(reg), d[reg]['nclus'],
-                      d[reg]['p_euc2'], 
-                      d[reg]['amp_euc2'] if not first100 else 
+                      d[reg]['p_euc'], 
+                      d[reg]['amp_euc'] if not first100 else 
                       np.max(d[reg]['euc'][:48]) - np.min(d[reg]['euc'][:48]),
                       d[reg]['lat_euc']]) 
         else:
