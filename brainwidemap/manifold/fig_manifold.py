@@ -59,8 +59,8 @@ red_right = [0.66080672, 0.21526712, 0.23069468]
 b_size = 0.0125  # 0.005 sec for a static bin size, or None for single bin
 sts = 0.002  # stride size in s for overlapping bins 
 ntravis = 30  # number of trajectories for visualisation, first 2 real
-nrand = 1000  # number of random trial splits for null_d
-min_reg = 100  # 100, minimum number of neurons in pooled region
+#nrand = 2000  # number of random trial splits for null_d
+#min_reg = 100  # 100, minimum number of neurons in pooled region
 
 
 # trial split types, see get_d_vars for details       
@@ -81,9 +81,14 @@ trial_split = {'choice':['choice left', 'choice right','pseudo'],
                'fback':['correct','false','pseudo'],
                'block':['pleft 0.8','pleft 0.2','pseudo']}
 
-one = ONE()  # (mode='local')
+one = ONE(base_url='https://openalyx.internationalbrainlab.org',
+          password='international', silent=True)  # (mode='local')
 ba = AllenAtlas()
 br = BrainRegions()
+
+# save results for plotting here
+pth_res = Path(one.cache_dir, 'manifold', 'res') 
+pth_res.mkdir(parents=True, exist_ok=True)
 
 
 def T_BIN(split, b_size=b_size):
@@ -143,12 +148,16 @@ def get_name(brainregion):
     return br.name[np.argwhere(br.id == regid)[0, 0]]
 
 
-def get_d_vars(split, pid, mapping='Beryl', control=True):
+def get_d_vars(split, pid, mapping='Beryl', control=True,
+               nrand = 2000):
 
     '''
     for a given session, probe, bin neural activity
     cut into trials, compute d_var per region
     '''
+    
+    if split == 'block':
+        nrand = 1000
     
     eid,probe = one.pid2eid(pid)
     
@@ -416,9 +425,9 @@ def get_d_vars(split, pid, mapping='Beryl', control=True):
         
         D[reg] = res
         
-    uperms = len(np.unique([str(x.astype(int)) for x in perms]))    
-    return D, D_, uperms    
-
+    D_['uperms'] = len(np.unique([str(x.astype(int)) for x in perms]))
+    D_['D'] = D    
+    return D_    
 
 
 '''    
@@ -426,7 +435,6 @@ def get_d_vars(split, pid, mapping='Beryl', control=True):
 ### bulk processing 
 ###    
 ''' 
-
 
 def get_all_d_vars(split, eids_plus = None, control = True, 
                    mapping='Beryl'):
@@ -442,12 +450,12 @@ def get_all_d_vars(split, eids_plus = None, control = True,
     if eids_plus is None:
         df = bwm_query(one)
         eids_plus = df[['eid','probe_name', 'pid']].values
+
+    # save results per insertion (eid_probe) in FlatIron folder
+    pth = Path(one.cache_dir, 'manifold', split) 
+    pth.mkdir(parents=True, exist_ok=True)
  
-    Fs = []
-    eid_probe = []
-    Ds = []
-    D_s = []
-    permss = []   
+    Fs = []   
     k=0
     print(f'Processing {len(eids_plus)} insertions')
     for i in eids_plus:
@@ -455,17 +463,11 @@ def get_all_d_vars(split, eids_plus = None, control = True,
           
         time0 = time.perf_counter()
         try:
-            if not control:
-                D_ = get_d_vars(split, pid, control=control, mapping=mapping)
-                D_s.append(D_)            
-            else:
-                D, D_, uperms = get_d_vars(split, pid, control=control,
-                                          mapping=mapping)
-                Ds.append(D)             
-                D_s.append(D_)
-                permss.append(uperms)
+            D_ = get_d_vars(split, pid, control=control, mapping=mapping)
+            eid_probe = eid+'_'+probe
+            
+            np.save(Path(pth,f'{eid_probe}.npy'), D_, allow_pickle=True)
                                          
-            eid_probe.append(eid+'_'+probe)
             gc.collect() 
             print(k+1, 'of', len(eids_plus), 'ok') 
         except:
@@ -477,38 +479,14 @@ def get_all_d_vars(split, eids_plus = None, control = True,
         print(time1 - time0, 'sec')
                     
         k+=1            
-    
-    
-    if not control:
-        R_ = {'D_s':D_s, 'eid_probe':eid_probe} 
-        
-        np.save('/mnt/8cfe1683-d974-40f3-a20b-b217cad4722a/manifold/'
-               f'single_d_vars_{split}_{mapping}.npy', 
-               R_, allow_pickle=True)    
-    
-    else:     
-        R = {'Ds':Ds, 'eid_probe':eid_probe, 'uperms': permss} 
-        
-        np.save('/mnt/8cfe1683-d974-40f3-a20b-b217cad4722a/manifold/'
-               f'd_vars_{split}_{mapping}.npy', R, allow_pickle=True)
-               
-        R_ = {'D_s':D_s, 'eid_probe':eid_probe} 
-        
-        np.save('/mnt/8cfe1683-d974-40f3-a20b-b217cad4722a/manifold/'
-               f'single_d_vars_{split}_{mapping}.npy', 
-               R_, allow_pickle=True)
                
     time11 = time.perf_counter()
-    print((time11 - time00)/60, 'min for the complete bwm set')
+    print((time11 - time00)/60, f'min for the complete bwm set, {split}')
     print(f'{len(Fs)}, load failures:')
     print(Fs)
 
-# merge dicts in case of load failure induced reruns
-#In [13]: for k in R.keys():
-#    ...:     R1[k] = np.concatenate([R[k],R0[k]])
 
-    
-def d_var_stacked(split, mapping='Beryl'):
+def d_var_stacked(split, min_reg = 100, uperms_ = False):
                   
     time0 = time.perf_counter()
 
@@ -517,111 +495,68 @@ def d_var_stacked(split, mapping='Beryl'):
     remove regions with too few neurons (min_reg)
     compute maxes, latencies and p-values
     '''
-        
-    # PCA and std of d_var maxes across cells 
-  
-    print(split)
-    R = np.load('/mnt/8cfe1683-d974-40f3-a20b-b217cad4722a/manifold/'
-                f'single_d_vars_{split}_{mapping}.npy', 
-                allow_pickle=True).flat[0]
-
-    # get stderror across cells for max-min/max+min
-    # pool data for illustrative PCA
-    ampsv = []
-    ampse = []
-    acs = []
-    ws = []
-    for D_ in R['D_s']:
-        ma = np.nanmax(D_['d_vars']/b_size,axis=1)
-        mi = np.nanmin(D_['d_vars']/b_size,axis=1)   
-        ampsv.append(ma-mi)
-        
-        ma = np.nanmax(D_['d_eucs']/b_size,axis=1)
-        mi = np.nanmin(D_['d_eucs']/b_size,axis=1)   
-        ampse.append(ma-mi)        
-        
-        acs.append(D_['acs'])
-        ws.append(D_['ws'])
-        
-    ampsv = np.concatenate(ampsv)
-    ampse = np.concatenate(ampse)
-    acs = np.concatenate(acs)
-    ws = np.concatenate(ws, axis=1)           
-
-    # remove all cells that have a nan max
-    keep = ~np.isnan(ampsv)
-    if sum(keep) != len(ampsv):
-        print(sum(keep), len(ampsv))
-        acs = acs[keep]
-        ampsv = ampsv[keep]
-        ampse = ampse[keep]
-        ws = ws[:,keep,:]
-       
-    # for each region get standard error
-    regs = Counter(acs)
-    stdev = {}  # for ma-mi
-    stdee = {}  # for ma-mi
-    pcs = {}
     
-    for reg in regs:         
-                
-        if (reg in ['root', 'void']) or (regs[reg] < min_reg):
+    print(split)
+    pth = Path(one.cache_dir, 'manifold', split) 
+    ss = os.listdir(pth)  # get insertions
+    
+
+    # pool data for illustrative PCA
+    acs = []
+    ws = [] 
+    regdv0 = {}
+    regde0 = {}
+    uperms = {}
+    
+    # group results across insertions
+    for s in ss:
+    
+        D_ = np.load(Path(pth,s), 
+                    allow_pickle=True).flat[0]
+                       
+        uperms[s.split('.')[0]] = D_['uperms']
+        if uperms_:
             continue
-   
-        stdev[reg] = np.std(ampsv[acs == reg])/np.sqrt(regs[reg])
-        stdee[reg] = np.std(ampse[acs == reg])/np.sqrt(regs[reg])
-     
+        acs.append(D_['acs'])
+        ws.append(D_['ws'])        
+        
+        for reg in D_['D']:
+            if reg not in regdv0:
+                regdv0[reg] = []
+            regdv0[reg].append(np.array(D_['D'][reg]['d_vars'])/b_size)
+            if reg not in regde0:
+                regde0[reg] = []            
+            regde0[reg].append(np.array(D_['D'][reg]['d_eucs'])/b_size)
+    
+    if uperms_:
+        return uperms
+
+    acs = np.concatenate(acs)
+    ws = np.concatenate(ws, axis=1)
+    regs0 = Counter(acs)
+    regs = {reg: regs0[reg] for reg in regs0 if regs0[reg] > min_reg}
+        
+    # nansum across insertions and take sqrt
+    regdv = {reg: (np.nansum(regdv0[reg],axis=0)/regs[reg])**0.5 
+                  for reg in regs }         
+    regde = {reg: (np.nansum(regde0[reg],axis=0)/regs[reg])**0.5
+                  for reg in regs}
+        
+    r = {}
+    for reg in regs:         
+        res = {}        
+    
+        # get PCA for 3d trajectories
         dat = ws[:,acs == reg,:]
         pca = PCA(n_components = 3)
         wsc = pca.fit_transform(np.concatenate(dat,axis=1).T).T
-        pcs[reg] = wsc
 
+        res['pcs'] = wsc
+        res['nclus'] = regs[reg]
 
-    print('PCA and std done, next group d_var and d_euc results')
-    print(len(pcs), 'regs from single file')
-     
-    # getting d_vars params for controls (extra file for storage)    
-    R = np.load('/mnt/8cfe1683-d974-40f3-a20b-b217cad4722a/manifold/'
-                f'd_vars_{split}_{mapping}.npy', allow_pickle=True).flat[0]
-
-    # pooling of insertions per region, discard low-neuron-number regs
-    regs = np.concatenate([list(x.keys()) for x in R['Ds']])  
-    regd = {reg:[] for reg in Counter(regs)}
-    
-    for D in R['Ds']:
-        for reg in D:
-            regd[reg].append(D[reg]['nclus'])
-            
-    regs = [x for x in regd if sum(regd[x]) >= min_reg]
-    assert set(regs) == set(list(pcs.keys())), 'reg number mismatch'
-    
-    nclus = {reg:sum(regd[reg]) for reg in regs}
-    
-    print(f'pre min_reg filter: {len(regd)}; post: {len(regs)}')
-
-    regdv = {reg:[] for reg in regs}
-    regde = {reg:[] for reg in regs}
-    for D in R['Ds']:
-        for reg in D:
-            if reg in regs:
-                regdv[reg].append(np.array(D[reg]['d_vars'])/b_size)
-                regde[reg].append(np.array(D[reg]['d_eucs'])/b_size)
-
-    # nansum across insertions and take sqrt
-    for reg in regdv:
-        regdv[reg] = (np.nansum(regdv[reg],axis=0)/nclus[reg])**0.5         
-        regde[reg] = (np.nansum(regde[reg],axis=0)/nclus[reg])**0.5
-                     
-    r = {}
-    for reg in regs:
-        res = {}
-
-        # nclus
-        res['nclus'] = nclus[reg]
-        res['stde_var'] = stdev[reg]
-        res['stde_euc'] = stdee[reg]
-        res['pcs'] = pcs[reg]
-
+        '''
+        var
+        '''        
         # amplitudes
         ampsv = [np.max(x) - np.min(x) for x in regdv[reg]]                
 
@@ -637,14 +572,14 @@ def d_var_stacked(split, mapping='Beryl'):
         if np.max(res['d_var']) == np.inf:
             loc = np.where(res['d_var'] == np.inf)[0]  
         else:
-            loc = np.where(res['d_var'] > 
-                           np.min(res['d_var']) + 0.7*(np.max(res['d_var']) - 
-                           np.min(res['d_var'])))[0]
+            loc = np.where(res['d_var'] > 0.7*(np.max(res['d_var'])))[0]
         
         res['lat_var'] = np.linspace(-pre_post[split][0], 
                         pre_post[split][1], len(res['d_var']))[loc[0]]
                       
-        # same for Euclidean              
+        '''
+        euc
+        '''          
         # amplitudes
         ampse = [np.max(x) - np.min(x) for x in regde[reg]]                
 
@@ -657,18 +592,14 @@ def d_var_stacked(split, mapping='Beryl'):
         res['amp_euc'] = max(res['d_euc'])
     
         # latency  
-        loc = np.where(res['d_euc'] > 
-                       np.min(res['d_euc']) + 0.7*(np.max(res['d_euc']) - 
-                       np.min(res['d_euc'])))[0]
+        loc = np.where(res['d_euc'] > 0.7*(np.max(res['d_euc'])))[0]
         
         res['lat_euc'] = np.linspace(-pre_post[split][0], 
                         pre_post[split][1], len(res['d_euc']))[loc[0]]   
 
-        r[reg] = res
+        r[reg] = res        
     
-    np.save('/home/mic/paper-brain-wide-map/manifold_analysis/'
-           f'curves_{split}_{mapping}.npy', 
-           r, allow_pickle=True)
+    np.save(Path(pth_res,f'{split}.npy'), r, allow_pickle=True)
            
     time1 = time.perf_counter()    
     print('total time:', time1 - time0, 'sec')
@@ -687,8 +618,7 @@ def curves_params_all(split):
 '''
 
 def get_allen_info():
-    dfa = pd.read_csv('/home/mic/paper-brain-wide-map/'
-                       'allen_structure_tree.csv')
+    dfa = pd.read_csv(Path(pth_res,'allen_structure_tree.csv'))
     
     # get colors per acronym and transfomr into RGB
     dfa['color_hex_triplet'] = dfa['color_hex_triplet'].fillna('FFFFFF')
@@ -712,8 +642,8 @@ def put_panel_label(ax, k):
 
 
 def plot_all(curve='euc', amp_number=False, intro = True, 
-             mapping='Beryl', sigl=0.01,  
-             only3d = False, onlyScat = False, single_scat=False):
+             sigl=0.0006, only3d = False, onlyScat = False, 
+             single_scat=False):
 
     '''
     main figure: show example trajectories,
@@ -748,8 +678,7 @@ def plot_all(curve='euc', amp_number=False, intro = True,
 
     for split in align: 
     
-        d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'         
-                    f'curves_{split}_{mapping}.npy',
+        d = np.load(Path(pth_res,f'{split}.npy'),
                     allow_pickle=True).flat[0]              
              
         maxs = np.array([d[x][f'amp_{curve}'] for x in d])
@@ -802,7 +731,7 @@ def plot_all(curve='euc', amp_number=False, intro = True,
 #                  for split in align}           
                
     exs = {'stim': ['VISp', 'LP', 'LGd', 'VISpm', 'VISam', 
-                    'SCm', 'CP', 'MRN'],
+                    'SCm', 'CP', 'MRN','GRN'],
          'choice': ['GRN', 'LP', 'SIM', 'MOs', 
                     'APN', 'PRNr', 'MRN', 'CP'],
           'fback': ['CA1', 'AUDp', 'PRNr', 'IRN', 'CP', 
@@ -821,9 +750,7 @@ def plot_all(curve='euc', amp_number=False, intro = True,
     
             axs.append(fig.add_subplot(gs[:3,:]))
       
-
-            data_path = '/home/mic/paper-brain-wide-map/manifold_analysis/'
-            pdf = fitz.open(data_path + f'intro2.pdf')
+            pdf = fitz.open(Path(pth_res,'intro2.pdf'))
             rgb = pdf[0].get_pixmap(dpi=600)
             pil_image = Image.open(io.BytesIO(rgb.tobytes()))
                     
@@ -840,9 +767,8 @@ def plot_all(curve='euc', amp_number=False, intro = True,
                          
         c = 0
         for split in align:
-            d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'
-                    f'curves_{split}_{mapping}.npy',
-                    allow_pickle=True).flat[0]
+            d = np.load(Path(pth_res,f'{split}.npy'),
+                        allow_pickle=True).flat[0] 
 
             # pick example region
             reg = exs[split][0]
@@ -909,10 +835,9 @@ def plot_all(curve='euc', amp_number=False, intro = True,
             else:  # to share y axis
                 axs.append(fig.add_subplot(gs[6-v:8-v,c]))
                            #,sharey=axs[len(axs)-1]))
-                           
-            d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'
-                        f'curves_{split}_{mapping}.npy',
-                        allow_pickle=True).flat[0]
+                               
+            d = np.load(Path(pth_res,f'{split}.npy'),
+                        allow_pickle=True).flat[0] 
                        
             # example regions to illustrate line plots              
             regs = exs[split]
@@ -1019,19 +944,16 @@ def plot_all(curve='euc', amp_number=False, intro = True,
             axs[-1].xaxis.set_major_locator(ticker.MultipleLocator(0.05))
 
 
-        d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'         
-                    f'curves_{split}_{mapping}.npy',
-                    allow_pickle=True).flat[0]
+        d = np.load(Path(pth_res,f'{split}.npy'),
+                    allow_pickle=True).flat[0] 
 
         acronyms = [tops[split][0][j] for j in range(len(tops[split][0]))] 
         ac_sig = np.array([True if tops[split][1][j] < sigl 
                         else False for j in range(len(tops[split][0]))])
-                
-
 
         maxes = np.array([d[x][f'amp_{curve}'] for x in acronyms])
         lats = np.array([d[x][f'lat_{curve}'] for x in acronyms])
-        stdes = np.array([d[x][f'stde_{curve}'] for x in acronyms])
+        #stdes = np.array([d[x][f'stde_{curve}'] for x in acronyms])
         cols = [palette[reg] for reg in acronyms]
 
 
@@ -1046,7 +968,7 @@ def plot_all(curve='euc', amp_number=False, intro = True,
             sns.regplot(ax=axss[c], x="1/nclus", y="maxes", data=df)
             axss[c].set_title(split)
         
-        
+        # yerr = 100*maxes/d[reg]['nclus']
         axs[k].errorbar(lats, maxes, yerr=None, fmt='None', 
                         ecolor=cols, ls = 'None', elinewidth = 0.5)
         
@@ -1105,9 +1027,8 @@ def plot_all(curve='euc', amp_number=False, intro = True,
         
         if single_scat:
             figs[c][0].tight_layout()
-            figs[c][0].savefig('/home/mic/paper-brain-wide-map/'
-                   f'overleaf_figs/manifold/'
-                   f'scat_{split}.pdf', dpi=300)         
+            figs[c][0].savefig(Path(pth_res, 
+                               f'scat_{split}.pdf'), dpi=300)         
             plt.close()
         
         c += 1     
@@ -1124,12 +1045,10 @@ def plot_all(curve='euc', amp_number=False, intro = True,
                         hspace=1.3,
                         wspace=0.52)
 
-    if curve == 'var':
-        fig.suptitle('d_var')
 
-#    fig.savefig('/home/mic/paper-brain-wide-map/'
-#           f'overleaf_figs/manifold/'
-#           f'manifold.pdf', dpi=400)              
+    fig.suptitle(f'd_{curve}')
+
+    fig.savefig(Path(pth_res,f'manifold_{curve}.pdf'), dpi=400)              
 
 
 def plot_swanson_supp(curve = 'd_var_m', mapping = 'Beryl'):
@@ -1627,39 +1546,42 @@ def inspect_regional_PETH(reg, split):
 #    plt.close()               
         
         
-def save_df_for_table(split, first100=False): 
+def save_df_for_table(curve='var'):
+
+
     '''
     reformat results for table
     '''
     
     mapping = 'Beryl'
 
-    columns = ['acronym','name','nclus', 'p_euc', 'amp_euc', 'lat_euc']
-        
-    r = []
+    columns = ['acronym','name','nclus', 
+               f'p_{curve}', f'amp_{curve}', f'lat_{curve}']
 
     b = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/beryl.npy')
-    regs =br.id2acronym(b,mapping='Beryl')
+    for split in align:        
+        r = []
 
-    d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'         
-                f'curves_{split}_{mapping}.npy',
-                allow_pickle=True).flat[0] 
-    
-    for reg in regs:
+        
+        regs =br.id2acronym(b,mapping='Beryl')
 
-        if reg in d:
-            r.append([reg, get_name(reg), d[reg]['nclus'],
-                      d[reg]['p_euc'], 
-                      d[reg]['amp_euc'] if not first100 else 
-                      np.max(d[reg]['euc'][:48]) - np.min(d[reg]['euc'][:48]),
-                      d[reg]['lat_euc']]) 
-        else:
-            r.append([reg, get_name(reg), '','', '','']) 
-                  
-    df  = pd.DataFrame(data=r,columns=columns)        
-    df.to_excel('/home/mic/paper-brain-wide-map/'
-              f'manifold_analysis/results{"_100" if first100 else ""}'
-              f'_{split}.xlsx')   
+        d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'         
+                    f'curves_{split}_{mapping}.npy',
+                    allow_pickle=True).flat[0] 
+        
+        for reg in regs:
+
+            if reg in d:
+                r.append([reg, get_name(reg), d[reg]['nclus'],
+                          d[reg][f'p_{curve}'], 
+                          d[reg][f'amp_{curve}'],
+                          d[reg][f'lat_{curve}']]) 
+            else:
+                r.append([reg, get_name(reg), '','', '','']) 
+                      
+        df  = pd.DataFrame(data=r,columns=columns)        
+        df.to_excel('/home/mic/paper-brain-wide-map/'
+                  f'manifold_analysis/results_{split}.xlsx')   
 
 
 
