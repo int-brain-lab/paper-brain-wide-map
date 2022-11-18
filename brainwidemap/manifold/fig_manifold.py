@@ -156,8 +156,6 @@ def get_d_vars(split, pid, mapping='Beryl', control=True,
     cut into trials, compute d_var per region
     '''
     
-    if split == 'block':
-        nrand = 1000
     
     eid,probe = one.pid2eid(pid)
     
