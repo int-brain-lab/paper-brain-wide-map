@@ -4,20 +4,25 @@ from collections import Counter
 import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-from scipy.stats import percentileofscore, spearmanr
-
+from scipy.stats import percentileofscore, spearmanr,combine_pvalues 
+from pathlib import Path
 from one.api import ONE
 from ibllib.atlas import AllenAtlas
 from ibllib.atlas.regions import BrainRegions
 
 pd.options.mode.chained_assignment = None
 
-one = ONE()  # (mode='local')
+one = ONE(base_url='https://openalyx.internationalbrainlab.org',
+          password='international', silent=True)
+pth_res = Path(one.cache_dir, 'manifold', 'res')
 ba = AllenAtlas()
 br = BrainRegions()
 
 sig_level = 0.01  # significance level
-
+align = {'stim':'stim on',
+         'choice':'motion on',
+         'fback':'feedback',
+         'block':'stim on'}
 
 def get_allen_info():
     dfa = pd.read_csv('/home/mic/paper-brain-wide-map/'
@@ -38,7 +43,7 @@ def get_allen_info():
     return dfa, palette
       
  
-def cor_res(split, a1 = 'manifold', a2 = 'decoding'):
+def cor_res(split, a1 = 'manifold', a2 = 'decoding', curve = 'euc'):
 
     '''
     17.10, using newest excel sheets from Brandon
@@ -48,22 +53,79 @@ def cor_res(split, a1 = 'manifold', a2 = 'decoding'):
     '''
     
     #  analysis: [amplitude, pvalue]
-    A = {'manifold': ['amp_euc2','p_euc2'], 
-         'decoding': ['median_vals',"combined_p-values (Fisher's method)"], 
-         'single-cell': ['fraction_of_sig_cells', 0]}
+    A = {'manifold': [f'amp_{curve}',f'p_{curve}'], 
+         'decoding': ['median_vals','combined_p (Fisher)'], 
+         'single-cell': ['frac_of_sig_cells', 0]}
     
     assert a1 != 'single-cell', 'swap order as single-cell has no p'
     
     c1, p1 = A[a1]
     c2, p2 = A[a2] 
     
-    
-    s = pd.read_excel('/home/mic/paper-brain-wide-map/meta/'
-                      f'per_reg/{split}.xlsx', sheet_name='Sheet1')
+    # combine eid results from decoding and single-cell per region
+    dss = cor_res_eid(split, get_merged = True)
+    dm =  np.load(Path(pth_res,f'{split}.npy'),
+                  allow_pickle=True).flat[0]
+                                    
+    if a1 == 'manifold' and a2 == 'decoding':              
+        regs = list(set(dss['region'].values).
+                   intersection(set(dm.keys())))
+                      
+    elif a1 == 'manifold' and a2 == 'single-cell':
+        regs = list(set(dss['region'].values).
+                   intersection(set(dm.keys())))
+        
+    elif a1 == 'decoding' and a2 == 'single-cell':
+        regs = Counter(dss['region'].values)
+     
+    else:
+        print('wring analysis order')
+        return              
+                  
+    cols = ['region'] + list(np.concatenate([A[x] for x in [a1,a2]]))
+    r = []
+    for reg in regs:
+        if a1 == 'manifold' and a2 == 'decoding':
+
+            median_vals = dss[dss['region']==reg]['score'].median() 
+            combined_p = combine_pvalues(dss[dss['region']==reg]
+                                         ['p-value'].values)[1]        
+        
+            r.append([reg, dm[reg][A[a1][0]], dm[reg][A[a1][1]],
+                      median_vals, combined_p])
+
+        elif a1 == 'manifold' and a2 == 'single-cell':
+
+            frac_of_sig = (dss[dss['region']==reg]
+                             ['frac_cells'].median())           
+        
+            r.append([reg, dm[reg][A[a1][0]], dm[reg][A[a1][1]],
+                      frac_of_sig, 0])
+                      
+                      
+        elif a1 == 'decoding' and a2 == 'single-cell':
+        
+            median_vals = dss[dss['region']==reg]['scores'].median() 
+            combined_p = combine_pvalues(dss[dss['region']==reg]
+                                         ['p-value'].values)[1]
+            frac_of_sig = (dss[dss['region']==reg]
+                             ['frac_cells'].median())           
+        
+            r.append([reg, median_vals, combined_p,
+                      frac_of_sig, 0])        
+                                
+        else:
+            print('wrong analysis order')
+            return             
+        
+    s = pd.DataFrame(data = r,columns = cols)
+
+#    s = pd.read_excel('/home/mic/paper-brain-wide-map/meta/'
+#                      f'per_reg/{split}.xlsx', sheet_name='Sheet1')
 
     dfa, palette = get_allen_info()  # for colors
     
-    regsa = s['regions'].values
+    regsa = s['region'].values
     cosregs_ = [dfa[dfa['id'] == 
                 int(dfa[dfa['acronym']==reg]['structure_id_path']
                 .values[0].split('/')[4])]['acronym']
@@ -116,7 +178,7 @@ def cor_res(split, a1 = 'manifold', a2 = 'decoding'):
       
       
     for i in s[sigs2].index:
-        reg = s.iloc[i]['regions']
+        reg = s.iloc[i]['region']
         
         if cosregs[reg] in ['CBX', 'CBN']:
             ax.annotate('  ' + reg, # f"{reg} {f[reg]['nclus']}" ,
@@ -131,45 +193,21 @@ def cor_res(split, a1 = 'manifold', a2 = 'decoding'):
 
     fig.savefig('/home/mic/paper-brain-wide-map/meta/figs/'
                f'per_reg/{split}_{a1}_{a2}.png')
-               
-               
-               
-def motor_block_eid(sig_lev = 0.05):
-    '''
-    comparing motor correlates and block decoding
-    '''
 
-    dm = pd.read_csv('/home/mic/paper-brain-wide-map/meta/'
-                     'motor_corr_0.6_0.2.csv')
-    db = pd.read_csv('/home/mic/paper-brain-wide-map/meta/'
-                     'block_eid_brandon.csv')
-    
-    eids = list(set(db['eid'].values
-                ).intersection(set(dm['eid'].values)))
-    
-    # for each eid count number of significant regions and significant 
-    # behaviors
-    
-    cols = ['eid','sig_beh', 'frac_beh', 'sig_regs', 'frac_regs'] 
-    r = []
-    for eid in eids:
-    
-        # count number of sig decodable regs and sig behaviors
-        x = db[db['eid'] == eid]  
-        y = dm[dm['eid'] == eid]
-  
-        ps = [k for k in dm.keys() if k[-2:] == '_p']
-        
-        sig_beh = [ps[i] for i in range(len(ps)) if 
-                y[ps[i]].values[0] < sig_lev]
-                 
-        sig_regs = list(x[x['p-value'] < sig_lev]['region'].values)
-        
-        r.append([eid, sig_beh, len(sig_beh)/len(ps), 
-                       sig_regs, len(sig_regs)/len(x)])
-    
-    df = pd.DataFrame(columns = cols, data = r)
-    
+    return s               
+
+def bulk_per_reg():
+
+    plt.ioff()
+    for a1 in ['manifold', 'decoding']:
+        for a2 in ['decoding', 'single-cell']:
+            if a1 == a2:
+                continue
+            for split in align:    
+                cor_res(split, a1 = a1, a2 = a2)
+            plt.close()
+               
+
     
  
 def cor_res_eid(split, get_merged = False, ptype=0):
@@ -316,4 +354,41 @@ def inspect_hists(s):
     fig.suptitle('Example recordings eid/reg with high decoding of CHOICE but low fraction of significant cells (single-cell)') 
     fig.tight_layout()    
     
+           
+               
+def motor_block_eid(sig_lev = 0.01):
+    '''
+    comparing motor correlates and block decoding
+    '''
+
+    dm = pd.read_csv('/home/mic/paper-brain-wide-map/meta/'
+                     'motor_corr_0.6_0.2.csv')
+    db = pd.read_csv('/home/mic/paper-brain-wide-map/meta/'
+                     'per_eid/decoding/block.csv')
     
+    eids = list(set(db['eid'].values
+                ).intersection(set(dm['eid'].values)))
+    
+    # for each eid count number of significant regions and significant 
+    # behaviors
+    
+    cols = ['eid','sig_beh', 'frac_beh', 'sig_regs', 'frac_regs'] 
+    r = []
+    for eid in eids:
+    
+        # count number of sig decodable regs and sig behaviors
+        x = db[db['eid'] == eid]  
+        y = dm[dm['eid'] == eid]
+  
+        ps = [k for k in dm.keys() if k[-2:] == '_p']
+        
+        sig_beh = [ps[i] for i in range(len(ps)) if 
+                y[ps[i]].values[0] < sig_lev]
+                 
+        sig_regs = list(x[x['p-value'] < sig_lev]['region'].values)
+        
+        r.append([eid, sig_beh, len(sig_beh)/len(ps), 
+                       sig_regs, len(sig_regs)/len(x)])
+    
+    df = pd.DataFrame(columns = cols, data = r)
+    return df        
