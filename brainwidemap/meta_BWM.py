@@ -24,6 +24,53 @@ align = {'stim':'stim on',
          'fback':'feedback',
          'block':'stim on'}
 
+
+def get_name(brainregion):
+    regid = br.id[np.argwhere(br.acronym == brainregion)][0, 0]
+    return br.name[np.argwhere(br.id == regid)[0, 0]]
+
+
+def manifold_to_csv():
+
+    '''
+    reformat results for table
+    '''
+    
+    mapping = 'Beryl'
+
+    columns = ['region','name','nclus', 
+               f'p_var', f'amp_var', f'lat_var',
+               f'p_euc', f'amp_euc', f'lat_euc']
+
+    b = np.load(Path(pth_res,f'beryl.npy'))
+    for split in align:        
+        r = []
+        
+        regs =br.id2acronym(b,mapping='Beryl')
+
+        d = np.load(Path(pth_res,f'{split}.npy'),
+                    allow_pickle=True).flat[0] 
+        
+        for reg in regs:
+
+            if reg in d:
+                r.append([reg, get_name(reg), d[reg]['nclus'],
+                          d[reg][f'p_var'], 
+                          np.max(d[reg]['d_var'][:48]) 
+                          if split == 'stim' else d[reg][f'amp_var'],
+                          d[reg][f'lat_var'],                          
+                          d[reg][f'p_euc'],
+                          np.max(d[reg]['d_euc'][:48]) 
+                          if split == 'stim' else d[reg][f'amp_euc'],
+                          d[reg][f'lat_euc']]) 
+            else:
+                r.append([reg, get_name(reg), '','', '','', '', '','']) 
+                      
+        df  = pd.DataFrame(data=r,columns=columns)        
+        df.to_csv('/home/mic/paper-brain-wide-map/'
+                 f'meta/per_reg/manifold/{split}.csv')  
+
+
 def get_allen_info():
     dfa = pd.read_csv('/home/mic/paper-brain-wide-map/'
                        'allen_structure_tree.csv')
@@ -43,85 +90,29 @@ def get_allen_info():
     return dfa, palette
       
  
-def cor_res(split, a1 = 'manifold', a2 = 'decoding', curve = 'euc'):
+def cor_per_reg(split, a1 = 'manifold', a2 = 'decoding', curve = 'euc'):
 
     '''
-    17.10, using newest excel sheets from Brandon
     c1/2 amplitudes to correlate per region
     p1/2 p-values for significance filter
-    
     '''
+
+    ss = [pd.read_csv('/home/mic/paper-brain-wide-map/'
+                      f'meta/per_reg/{a}/{split}.csv')
+                      for a in [a1, a2]]
     
     #  analysis: [amplitude, pvalue]
     A = {'manifold': [f'amp_{curve}',f'p_{curve}'], 
-         'decoding': ['median_vals','combined_p (Fisher)'], 
-         'single-cell': ['frac_of_sig_cells', 0]}
+         'decoding': ['median_vals','combined_p-values'], 
+         'single-cell': ['fra', 0],
+         'glm': ['frac_of_sig_cells', 0]}
     
     assert a1 != 'single-cell', 'swap order as single-cell has no p'
     
     c1, p1 = A[a1]
-    c2, p2 = A[a2] 
+    c2, p2 = A[a2]
     
-    # combine eid results from decoding and single-cell per region
-    dss = cor_res_eid(split, get_merged = True)
-    dm =  np.load(Path(pth_res,f'{split}.npy'),
-                  allow_pickle=True).flat[0]
-                                    
-    if a1 == 'manifold' and a2 == 'decoding':              
-        regs = list(set(dss['region'].values).
-                   intersection(set(dm.keys())))
-                      
-    elif a1 == 'manifold' and a2 == 'single-cell':
-        regs = list(set(dss['region'].values).
-                   intersection(set(dm.keys())))
-        
-    elif a1 == 'decoding' and a2 == 'single-cell':
-        regs = Counter(dss['region'].values)
-     
-    else:
-        print('wring analysis order')
-        return              
-                  
-    cols = ['region'] + list(np.concatenate([A[x] for x in [a1,a2]]))
-    r = []
-    for reg in regs:
-        if a1 == 'manifold' and a2 == 'decoding':
-
-            median_vals = dss[dss['region']==reg]['score'].median() 
-            combined_p = combine_pvalues(dss[dss['region']==reg]
-                                         ['p-value'].values)[1]        
-        
-            r.append([reg, dm[reg][A[a1][0]], dm[reg][A[a1][1]],
-                      median_vals, combined_p])
-
-        elif a1 == 'manifold' and a2 == 'single-cell':
-
-            frac_of_sig = (dss[dss['region']==reg]
-                             ['frac_cells'].median())           
-        
-            r.append([reg, dm[reg][A[a1][0]], dm[reg][A[a1][1]],
-                      frac_of_sig, 0])
-                      
-                      
-        elif a1 == 'decoding' and a2 == 'single-cell':
-        
-            median_vals = dss[dss['region']==reg]['scores'].median() 
-            combined_p = combine_pvalues(dss[dss['region']==reg]
-                                         ['p-value'].values)[1]
-            frac_of_sig = (dss[dss['region']==reg]
-                             ['frac_cells'].median())           
-        
-            r.append([reg, median_vals, combined_p,
-                      frac_of_sig, 0])        
-                                
-        else:
-            print('wrong analysis order')
-            return             
-        
-    s = pd.DataFrame(data = r,columns = cols)
-
-#    s = pd.read_excel('/home/mic/paper-brain-wide-map/meta/'
-#                      f'per_reg/{split}.xlsx', sheet_name='Sheet1')
+    s = pd.merge(ss[0],ss[1], how='inner', on=['region'])
 
     dfa, palette = get_allen_info()  # for colors
     
@@ -137,6 +128,9 @@ def cor_res(split, a1 = 'manifold', a2 = 'decoding', curve = 'euc'):
         sigs = s[p1] < sig_level
         sigs2 = sigs
     else:
+        if p1 == 0:
+            print('change order of analysis type')
+            return
         sigs = np.bitwise_and(s[p1] < sig_level,s[p2] < sig_level)
         sigs2 = np.bitwise_or(s[p1] < sig_level,s[p2] < sig_level)
         
@@ -210,7 +204,7 @@ def bulk_per_reg():
 
     
  
-def cor_res_eid(split, get_merged = False, ptype=0):
+def cor_per_eid(split, get_merged = False, ptype=0):
 
     '''
     Per eid/region analysis; single-cell versus decoding
@@ -392,3 +386,64 @@ def motor_block_eid(sig_lev = 0.01):
     
     df = pd.DataFrame(columns = cols, data = r)
     return df        
+
+
+
+#    else:    
+#        # combine eid results from decoding and single-cell per region
+#        dss = cor_res_eid(split, get_merged = True)
+#        dm =  np.load(Path(pth_res,f'{split}.npy'),
+#                      allow_pickle=True).flat[0]
+#                                        
+#        if a1 == 'manifold' and a2 == 'decoding':              
+#            regs = list(set(dss['region'].values).
+#                       intersection(set(dm.keys())))
+#                          
+#        elif a1 == 'manifold' and a2 == 'single-cell':
+#            regs = list(set(dss['region'].values).
+#                       intersection(set(dm.keys())))
+#            
+#        elif a1 == 'decoding' and a2 == 'single-cell':
+#            regs = Counter(dss['region'].values)
+#         
+#        else:
+#            print('wring analysis order')
+#            return              
+#                      
+#        cols = ['region'] + list(np.concatenate([A[x] for x in [a1,a2]]))
+#        r = []
+#        for reg in regs:
+#            if a1 == 'manifold' and a2 == 'decoding':
+
+#                median_vals = dss[dss['region']==reg]['score'].median() 
+#                combined_p = combine_pvalues(dss[dss['region']==reg]
+#                                             ['p-value'].values)[1]        
+#            
+#                r.append([reg, dm[reg][A[a1][0]], dm[reg][A[a1][1]],
+#                          median_vals, combined_p])
+
+#            elif a1 == 'manifold' and a2 == 'single-cell':
+
+#                frac_of_sig = (dss[dss['region']==reg]
+#                                 ['frac_cells'].median())           
+#            
+#                r.append([reg, dm[reg][A[a1][0]], dm[reg][A[a1][1]],
+#                          frac_of_sig, 0])
+#                          
+#                          
+#            elif a1 == 'decoding' and a2 == 'single-cell':
+#            
+#                median_vals = dss[dss['region']==reg]['scores'].median() 
+#                combined_p = combine_pvalues(dss[dss['region']==reg]
+#                                             ['p-value'].values)[1]
+#                frac_of_sig = (dss[dss['region']==reg]
+#                                 ['frac_cells'].median())           
+#            
+#                r.append([reg, median_vals, combined_p,
+#                          frac_of_sig, 0])        
+#                                    
+#            else:
+#                print('wrong analysis order')
+#                return             
+#            
+#        s = pd.DataFrame(data = r,columns = cols)
