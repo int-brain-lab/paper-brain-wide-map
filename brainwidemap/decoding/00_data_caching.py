@@ -45,11 +45,11 @@ BAD_PIDS = ['367ea4c4-d1b7-47a6-9f18-5d0df9a3f4de',
             'e9cf749b-85dc-4b59-834b-325cec608c48',
             'f84f36c9-88f8-4d80-ba34-7f7a2b254ece',
             '96c816ad-9a48-46a4-8a84-9a73cc153d69']
-
+BAD_PIDS = []
 BAD_EIDS = [one.pid2eid(p)[0] for p in BAD_PIDS]
 
 # Get the dataframe of all included sessions and probe insertions, use frozen query
-bwm_df = bwm_query(freeze='2022_10_update')
+bwm_df = bwm_query(freeze='2022_10_bwm_release')
 
 if regions_filter:
     # Download the latest clusters table, we use the same cache as above
@@ -97,8 +97,8 @@ if wheel_data:
         if not (count%N_PARA == para_index):
        	    continue
 
-        elif eid == 'cc45c568-c3b9-4f74-836e-c87762e898c8' or (eid in BAD_EIDS):
-            continue
+        #elif eid == 'cc45c568-c3b9-4f74-836e-c87762e898c8' or (eid in BAD_EIDS):
+        #    continue
         else:
             print(f"Downloading wheel data for {eid}")
             sess_loader = SessionLoader(one, eid)

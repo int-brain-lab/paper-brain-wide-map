@@ -11,13 +11,15 @@ from sklearn import linear_model as lm
 ADAPT AT LEAST THESE IN YOUR COPY OF SETTINGS.PY
 ------------------------------------------------
 """
-RESULTS_DIR = Path().home()
+RESULTS_DIR = Path("/scratch/users/bensonb/international-brain-lab/paper-brain-wide-map")
 # Directory to which to save all outputs, including models. Will be created if it doesn't exist.
+SLURM_DIR = Path("/scratch/users/bensonb/international-brain-lab/paper-brain-wide-map/brainwidemap/logs/slurm")
 
-DATE = '08-10-2022'
+
+DATE = '02-11-2022'
 # Either current date for a fresh run, or date of the run you want to build on
 
-TARGET = 'wheel-speed'
+TARGET = 'signcont'
 # single-bin targets:
 #   'pLeft' - estimate of block prior
 #   'signcont' - signed contrast of stimulus
@@ -47,65 +49,79 @@ if TARGET == 'pLeft':
     BINSIZE = 0.3  # size of individual bins within time window (seconds)
     N_BINS_LAG = None  # number of bins to use for prediction
     USE_IMPOSTER_SESSION = False  # False will use pseudo-sessions to create null distributions
+    BINARIZATION_VALUE = 0.5  # to binarize the target -> could be useful with logistic regression estimator
+    TANH_TRANSFORM = False
+    EXCLUDE_UNBIASED_TRIALS = True  # True to take out unbiased block at beginning of session
 elif TARGET == 'signcont':
     ALIGN_TIME = 'stimOn_times'
     TIME_WINDOW = (0.0, 0.1)
     BINSIZE = 0.1
     N_BINS_LAG = None
     USE_IMPOSTER_SESSION = False
-    raise NotImplementedError
+    BINARIZATION_VALUE = 0
+    TANH_TRANSFORM = False
+    EXCLUDE_UNBIASED_TRIALS = False
+    #raise NotImplementedError
 elif TARGET == 'choice':
     ALIGN_TIME = 'firstMovement_times'
     TIME_WINDOW = (-0.1, 0.0)
     BINSIZE = 0.1
     N_BINS_LAG = None
     USE_IMPOSTER_SESSION = False
-    raise NotImplementedError
+    BINARIZATION_VALUE = 0 # choice vals are -1 and 1
+    TANH_TRANSFORM = False
+    EXCLUDE_UNBIASED_TRIALS = False
+    #raise NotImplementedError
 elif TARGET == 'feedback':
     ALIGN_TIME = 'feedback_times'
     TIME_WINDOW = (0.0, 0.2)
     BINSIZE = 0.2
     N_BINS_LAG = None
     USE_IMPOSTER_SESSION = False
-    raise NotImplementedError
+    BINARIZATION_VALUE = 0 # feedback vals are -1 and 1
+    TANH_TRANSFORM = False
+    EXCLUDE_UNBIASED_TRIALS = False
+    #raise NotImplementedError
 elif TARGET in ['wheel-vel', 'wheel-speed', 'l-whisker-me', 'r-whisker-me']:
     ALIGN_TIME = 'firstMovement_times'
     TIME_WINDOW = (-0.2, 1.0)
     BINSIZE = 0.02
     N_BINS_LAG = 10
     USE_IMPOSTER_SESSION = True
+    BINARIZATION_VALUE = None
+    TANH_TRANSFORM = False
+    EXCLUDE_UNBIASED_TRIALS = False
 
 
 # DECODER PARAMS
-ESTIMATOR = lm.Lasso
+ESTIMATOR = lm.LogisticRegression
 # A scikit learn linear_model class: LinearRegression, Lasso (linear + L1), Ridge (linear + L2) or LogisticRegression
 ESTIMATOR_KWARGS = {'tol': 0.0001, 'max_iter': 20000, 'fit_intercept': True}  # default args for decoder
 if ESTIMATOR == lm.LogisticRegression:
     HPARAM_GRID = {'C': np.array([0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 10])}  # hyperparameter values to search over
 else:
     HPARAM_GRID = {'alpha': np.array([0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 10])}
-N_PSEUDO = 1  # number of pseudo/imposter sessions to fit per session
-N_PSEUDO_PER_JOB = 1  # number of pseudo/imposter sessions to assign per cluster job
+N_PSEUDO = 200  # number of pseudo/imposter sessions to fit per session
+N_PSEUDO_PER_JOB = 100  # number of pseudo/imposter sessions to assign per cluster job
 N_JOBS_PER_SESSION = N_PSEUDO // N_PSEUDO_PER_JOB  # number of cluster jobs to run per session
-N_RUNS = 5  # number of times to repeat full nested xv with different folds
+N_RUNS = 10  # number of times to repeat full nested xv with different folds
 SHUFFLE = True  # true for interleaved xv, false for contiguous
-QUASI_RANDOM = True  # if True, decoding is launched in a quasi-random, reproducible way => it sets the seed
-BALANCED_WEIGHT = False  # seems to work better with BALANCED_WEIGHT=False, but putting True is important
-BALANCED_CONTINUOUS_TARGET = True  # is target continuous or discrete FOR BALANCED WEIGHTING
+QUASI_RANDOM = False  # if True, decoding is launched in a quasi-random, reproducible way => it sets the seed
+BALANCED_WEIGHT = True  # seems to work better with BALANCED_WEIGHT=False, but putting True is important
+BALANCED_CONTINUOUS_TARGET = False  # is target continuous or discrete FOR BALANCED WEIGHTING
 
 # CLUSTER/UNIT PARAMS
 MIN_UNITS = 10  # regions with units below this threshold are skipped
 QC_CRITERIA = 3 / 3  # fraction of qc criteria each unit needs to pass for inclusion
 SINGLE_REGION = True  # perform decoding on region-wise or whole-brain decoding
-MERGED_PROBES = False  # merge probes before performing analysis
+MERGED_PROBES = True  # merge probes before performing analysis
 
 # SESSION/BEHAVIOR PARAMS
 MIN_BEHAV_TRIAS = 200  # minimum number of behavioral trials completed in one session, that fulfill below criteria
 MIN_RT = 0.08  # remove trials with reaction times above/below these values (seconds), if None, don't apply
 MAX_RT = 2.0
-MIN_LEN = 0.0  # remove trials with length (feedback_time-goCue_time) above/below these value, if None, don't apply
-MAX_LEN = 5.0
-EXCLUDE_UNBIASED_TRIALS = False  # True to take out unbiased block at beginning of session
+MIN_LEN = None  # remove trials with length (feedback_time-goCue_time) above/below these value, if None, don't apply
+MAX_LEN = None
 
 # NULL DISTRIBUTION PARAMS
 IMPOSTER_GENERATE_FROM_EPHYS = False  # True to just use ephys sessions, False to use training sessions (more templates)
@@ -121,10 +137,10 @@ USE_OPENTURNS = False  # uses openturns to perform kernel density estimation
 BIN_SIZE_KDE = 0.05
 SAVE_PREDICTIONS = True  # save model predictions in output file
 SAVE_PREDICTIONS_PSEUDO = False  # save model predictions in output file from pseudo/imposter/synthetic sessions
-SAVE_BINNED = False  # save binned neural predictors in output file (causes large files)
-BINARIZATION_VALUE = None  # to binarize the target -> could be useful with logistic regression estimator
+SAVE_BINNED = True  # save binned neural predictors in output file for non-null fits (causes large files)
 MOTOR_REGRESSORS = False  # add DLC data as additional regressors to neural activity
 MOTOR_REGRESSORS_ONLY = False  # *only* use motor regressors, no neural activity
+EXCLUDE_TRIALS_WITHIN_VALUES = (-0.01, 0.01) # Applies mask equally to target and control, only works for scalars
 
 
 """
@@ -137,6 +153,9 @@ target_options = ['pLeft', 'choice', 'feedback', 'signcont', 'wheel-vel', 'wheel
 if TARGET not in target_options:
     raise NotImplementedError(f"Provided target option '{TARGET}' invalid; must be in {target_options}")
 
+if BINARIZATION_VALUE and TANH_TRANSFORM:
+   raise ValueError("Binarization can be done without tanh_transform; do not choose both")
+
 modeldispatcher = {
     expSmoothing_prevAction: expSmoothing_prevAction.name,
     expSmoothing_stimside: expSmoothing_stimside.name,
@@ -147,6 +166,7 @@ if MODEL not in list(modeldispatcher.keys()) and not isinstance(MODEL, str):
     raise NotImplementedError(f"Provided model '{MODEL}' is not supported yet.")
 
 estimator_options = [lm.LinearRegression, lm.Lasso, lm.Ridge, lm.LogisticRegression]
+estimator_strs = ['LinearRegression', 'Lasso', 'Ridge', 'LogisticsRegression']
 if ESTIMATOR not in estimator_options:
     raise NotImplementedError(f"Provided estimator '{ESTIMATOR}' invalid; must be in {estimator_options}")
 
@@ -183,6 +203,8 @@ params = {
     'model': MODEL,
     'modeldispatcher': modeldispatcher,
     'beh_mouseLevel_training': BEH_MOUSELEVEL_TRAINING,
+    'binarization_value': BINARIZATION_VALUE,
+    'tanh_transform': TANH_TRANSFORM,
     # TIME WINDOW
     'align_time': ALIGN_TIME,
     'time_window': TIME_WINDOW,
@@ -211,6 +233,7 @@ params = {
     'min_len': MIN_LEN,
     'max_len': MAX_LEN,
     'exclude_unbiased_trials': EXCLUDE_UNBIASED_TRIALS,
+    'exclude_trials_within_values': EXCLUDE_TRIALS_WITHIN_VALUES,
     # NULL DISTRIBUTION
     'use_imposter_session': USE_IMPOSTER_SESSION,
     'imposter_generate_from_ephys': IMPOSTER_GENERATE_FROM_EPHYS,
@@ -226,7 +249,6 @@ params = {
     'save_predictions': SAVE_PREDICTIONS,
     'save_predictions_pseudo': SAVE_PREDICTIONS_PSEUDO,
     'save_binned': SAVE_BINNED,
-    'binarization_value': BINARIZATION_VALUE,
     'add_to_saving_path': ADD_TO_SAVING_PATH,
     'motor_regressors': MOTOR_REGRESSORS,
     'motor_regressors_only': MOTOR_REGRESSORS_ONLY,

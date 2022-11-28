@@ -80,8 +80,41 @@ def optimal_Bayesian(act, side):
 
     return 1 - Pis
 
+def compute_target_mask(target, exclude_trials_within_values):
+    """
+    Computes a boolean array which is False where target indicies should be excluded
+    and True otherwise.
+    
+    Parameters
+    ----------
+    target : array of scalar values for each trial.  does not allow for multiple values
+             per trial
+    exclude_trials_within_values: 2-tuple where each value is either a float of None
+             
+    
+    Returns
+    ----------
+    boolean numpy array
+    """
+    valwin = exclude_trials_within_values
+    target_mask_lb = None if valwin[0] is None else target < valwin[0]
+    target_mask_ub = None if valwin[1] is None else target > valwin[1]
+    if (not (target_mask_lb is None)) and (not (target_mask_ub is None)):
+        #print('choosing both lb and ub mask')
+        target_mask = target_mask_lb | target_mask_ub
+    elif not (target_mask_lb is None):
+        #print(f'choosing lb mask with value of {valwin[0]}')
+        target_mask = target_mask_lb
+    elif not (target_mask_ub is None):
+        #print(f'choosing ub mask with value of {valwin[1]}')
+        target_mask = target_mask_ub
+    else:
+        target_mask = np.ones(len(target), dtype=bool)
+    return target_mask
 
-def compute_beh_target(trials_df, metadata, remove_old=False, **kwargs):
+def compute_beh_target(trials_df, metadata, remove_old=False, 
+                       return_raw=False,
+                       **kwargs):
     """
     Computes regression target for use with regress_target, using subject, eid, and a string
     identifying the target parameter to output a vector of N_trials length containing the target
@@ -107,11 +140,16 @@ def compute_beh_target(trials_df, metadata, remove_old=False, **kwargs):
         Instantiated object of behavior models. Needs to be instantiated for pseudosession target
         generation in the case of a 'prior' or 'prederr' target.
     beh_data : behavioral data feed to the model when using pseudo-sessions
+    return_raw : bool, if True returns tuple where second element is the target without applying
+                 a transformation or binarization.  this is useful for computing a mask from target 
+                 values
 
     Returns
     -------
     pandas.Series
         Pandas series in which index is trial number, and value is the target
+    pandas.Series
+        same pandas series , returned only if return_raw is True
     """
 
     '''
@@ -123,8 +161,19 @@ def compute_beh_target(trials_df, metadata, remove_old=False, **kwargs):
                        if beh_data_test is explicited, the eid_test will not be considered
         target can be pLeft or signcont. If target=pLeft, it will return the prior predicted by modeltype
                                          if modetype=None, then it will return the actual pLeft (.2, .5, .8)
-    '''
+    '''    
 
+    tvec = get_beh_target(trials_df, metadata, remove_old=False, **kwargs)
+    tvec_raw = tvec.copy()
+    if kwargs['tanh_transform']:
+        tvec = np.tanh(5*tvec)/np.tanh(5) 
+    if kwargs['binarization_value'] is not None:
+        tvec = (tvec > kwargs['binarization_value']) * 1
+    if return_raw:
+        return tvec, tvec_raw
+    return tvec
+    
+def get_beh_target(trials_df, metadata, remove_old=False, **kwargs):
     if kwargs['model_parameters'] is None:
         istrained, fullpath = check_bhv_fit_exists(
             metadata['subject'], kwargs['model'], metadata['eids_train'], kwargs['behfit_path'],
@@ -190,9 +239,6 @@ def compute_beh_target(trials_df, metadata, remove_old=False, **kwargs):
         signal = output[1]
 
     tvec = signal.squeeze()
-    if kwargs['binarization_value'] is not None:
-        tvec = (tvec > kwargs['binarization_value']) * 1
-
     return tvec
 
 
