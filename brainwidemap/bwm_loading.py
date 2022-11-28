@@ -9,7 +9,7 @@ from ibllib.atlas.regions import BrainRegions
 from one.remote import aws
 
 
-def bwm_query(one=None, alignment_resolved=True, return_details=False, freeze='2022_10_update'):
+def bwm_query(one=None, alignment_resolved=True, return_details=False, freeze='2022_10_bwm_release'):
     """
     Function to query for brainwide map sessions that pass the most important quality controls. Returns a dataframe
     with one row per insertions and columns ['pid', 'eid', 'probe_name', 'session_number', 'date', 'subject', 'lab']
@@ -24,8 +24,8 @@ def bwm_query(one=None, alignment_resolved=True, return_details=False, freeze='2
     return_details: bool
         Default is False. If True returns a second output a list containing the full insertion dictionary for all
         insertions returned by the query. Only needed if you need information that is not contained in the bwm_df.
-    freeze: {None, 2022_10_initial, 2022_10_update}
-        Default is 2022_10_update. If None, the database is queried for the current set of pids satisfying the
+    freeze: {None, 2022_10_initial, 2022_10_update, 2022_bwm_release}
+        Default is 2022_10_bwm_release. If None, the database is queried for the current set of pids satisfying the
         criteria. If a string is specified, a fixed set of eids and pids is returned instead of querying the database.
 
     Returns
