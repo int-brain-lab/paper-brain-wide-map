@@ -129,7 +129,7 @@ def cor_per_reg(split, a1 = 'manifold', a2 = 'decoding', curve = 'euc'):
         sigs2 = sigs
     else:
         if p1 == 0:
-            print('change order of analysis type')
+            print('change order of analysis')
             return
         sigs = np.bitwise_and(s[p1] < sig_level,s[p2] < sig_level)
         sigs2 = np.bitwise_or(s[p1] < sig_level,s[p2] < sig_level)
