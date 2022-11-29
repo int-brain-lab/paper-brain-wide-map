@@ -46,7 +46,8 @@ def pred_psth(nglm, align_time, t_before, t_after, targ_regressors=None, trials=
               incl_bias=True):
     if trials is None:
         trials = nglm.design.trialsdf.index
-    times = nglm.design.trialsdf[align_time].apply(nglm.binf)
+    designtimes = nglm.design.trialsdf[align_time]
+    times = designtimes[np.isfinite(designtimes)].apply(nglm.binf)
     tbef_bin = nglm.binf(t_before)
     taft_bin = nglm.binf(t_after)
     pred, labels = predict(nglm, targ_regressors, trials, retlab=True, incl_bias=incl_bias)
@@ -74,24 +75,26 @@ class GLMPredictor:
         self.cov_psths = {}
         self.combweights = nglm.combine_weights()
 
-    def psth_summary(self, align_time, unit, t_before=0.1, t_after=0.6, ax=None):
+    def psth_summary(self, align_time, unit, t_before=0.1, t_after=0.6, trials=None, ax=None):
         if ax is None:
             fig, ax = plt.subplots(3, 1, figsize=(8, 12))
 
-        times = self.trialsdf.loc[self.trials, align_time] #
+        if trials is None:
+            trials = self.trials
+        times = self.trialsdf.loc[trials, align_time] #
         peri_event_time_histogram(self.spk_t, self.spk_clu,
-                                  times,
+                                  times[np.isfinite(times)],
                                   unit, t_before, t_after, bin_size=self.nglm.binwidth,
                                   error_bars='sem', ax=ax[0], smoothing=0.01)
-        keytuple = (align_time, t_before, t_after)
+        keytuple = (align_time, t_before, t_after, tuple(trials))
         if keytuple not in self.full_psths:
             self.full_psths[keytuple] = pred_psth(self.nglm, align_time, t_before, t_after,
-                                                  trials=self.trials)
+                                                  trials=trials)
             self.cov_psths[keytuple] = {}
             tmp = self.cov_psths[keytuple]
             for cov in self.covar:
                 tmp[cov] = pred_psth(self.nglm, align_time, t_before, t_after,
-                                     targ_regressors=[cov], trials=self.trials,
+                                     targ_regressors=[cov], trials=trials,
                                      incl_bias=False)
         for cov in self.covar:
             ax[2].plot(self.combweights[cov].loc[unit])

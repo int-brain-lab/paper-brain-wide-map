@@ -28,6 +28,7 @@ def generate_design(trialsdf,
                     contnorm=5.,
                     binwidth=0.02,
                     reduce_wheel_dim=True,
+                    addtl_vars=None,
                     **kwargs):
     """
     Generate GLM design matrix object
@@ -82,6 +83,8 @@ def generate_design(trialsdf,
         'wheel_velocity': 'continuous',
         'firstMovement_times': 'timing'
     }
+    if addtl_vars is not None and isinstance(addtl_vars, dict):
+        vartypes.update(addtl_vars)
 
     def stepfunc_prestim(row):
         stepvec = np.zeros(design.binf(row.duration))
