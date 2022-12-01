@@ -1,4 +1,5 @@
 # Third party libraries
+import pandas as pd
 from sklearn.base import RegressorMixin
 from sklearn.model_selection import GridSearchCV, KFold
 from tqdm import tqdm
@@ -57,12 +58,34 @@ def fit_stepwise(
     for test, train in tqdm(splitter.split(trials_idx), desc="Fold", leave=False):
         nglm.traininds = trials_idx[train]
         sfs = mut.SequentialSelector(nglm, **seqsel_kwargs)
+        direction = sfs.direction
         sfs.fit(**seqselfit_kwargs)
         if "full_scores" in seqselfit_kwargs and seqselfit_kwargs["full_scores"]:
             scores.append({"test": sfs.full_scores_test_, "train": sfs.full_scores_train_})
         else:
             scores.append({"test": sfs.scores_test_, "train": sfs.scores_train_})
-        deltas.append({"test": sfs.deltas_test_, "train": sfs.deltas_train_})
+        if direction == "backward":
+            scores[-1]["basescores"] = {
+                "test": sfs.basescores_test_,
+                "train": sfs.basescores_train_,
+            }
+        if direction == "forward":
+            deltas.append({"test": sfs.deltas_test_, "train": sfs.deltas_train_})
+        else:
+            deltas_test_ = pd.DataFrame(
+                {
+                    name: sfs.basescores_test_ - sfs.full_scores_test_[k].loc[:, 0]
+                    for name, k in zip(design.covar.keys(), sfs.full_scores_test_.columns)
+                }
+            )
+            deltas_train_ = pd.DataFrame(
+                {
+                    name: sfs.basescores_train_ - sfs.full_scores_train_[k].loc[:, 0]
+                    for name, k in zip(design.covar.keys(), sfs.full_scores_train_.columns)
+                }
+            )
+
+            deltas.append({"test": deltas_test_, "train": deltas_train_})
         sequences.append(sfs.sequences_)
         # TODO: Extract per-submodel alpha values
         splits.append({"test": trials_idx[test], "train": trials_idx[train]})

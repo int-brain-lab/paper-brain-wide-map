@@ -51,7 +51,7 @@ def pred_psth(nglm, align_time, t_before, t_after, targ_regressors=None, trials=
     tbef_bin = nglm.binf(t_before)
     taft_bin = nglm.binf(t_after)
     pred, labels = predict(nglm, targ_regressors, trials, retlab=True, incl_bias=incl_bias)
-    t_inds = [np.searchsorted(labels, tr) + times[tr] for tr in trials]
+    t_inds = [np.searchsorted(labels, tr) + times[tr] - 1 for tr in trials]
     winds = [(t - tbef_bin, t + taft_bin) for t in t_inds]
     psths = {}
     for cell in pred.keys():

@@ -18,8 +18,8 @@ from brainwidemap.encoding.params import GLM_CACHE, GLM_FIT_PATH
 from brainwidemap.encoding.utils import make_batch_slurm
 
 # SLURM params
-BATCHFILE = "/home/gercek/bwm_stepwise_glm_signwheel.sh"
-JOBNAME = "bwm_GLMs_signwheel"
+BATCHFILE = "/home/gercek/bwm_stepwise_glm_leaveoneout.sh"
+JOBNAME = "bwm_GLMs_LOO"
 PARTITION = "shared-cpu"
 TIME = "06:30:00"
 CONDAPATH = Path("/home/gercek/mambaforge/")
@@ -43,12 +43,13 @@ params = {
     "wheel_offset": -0.3,
     "contnorm": 5.0,
     "reduce_wheel_dim": True,
-    "dataset_fn": "2022-01-03_dataset_metadata.pkl",
+    "dataset_fn": "2022-10-24_dataset_metadata.pkl",
     "model": lm.LinearGLM,
     "alpha_grid": {"alpha": np.logspace(-2, 1.5, 50)},
     "contiguous": False,
     "prior_estimate": False,
-    "seqsel_kwargs": {"direction": "backwards", "n_features_to_select": 8},
+    "impostor": False,
+    "seqsel_kwargs": {"direction": "backward", "n_features_to_select": 8},
     "seqselfit_kwargs": {"full_scores": True},
 }
 
@@ -62,8 +63,7 @@ params["bases"] = {
 params["estimator"] = GridSearchCV(skl.Ridge(), params["alpha_grid"])
 
 # Output parameters file for workers
-# currdate = str(date.today())
-currdate = "2022-02-15"
+currdate = str(date.today())
 parpath = Path(GLM_FIT_PATH).joinpath(f"{currdate}_glm_fit_pars.pkl")
 datapath = Path(GLM_CACHE).joinpath(params["dataset_fn"])
 with open(parpath, "wb") as fw:
