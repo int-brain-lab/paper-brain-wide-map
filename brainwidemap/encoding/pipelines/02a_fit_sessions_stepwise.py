@@ -21,7 +21,7 @@ from brainwidemap.encoding.utils import make_batch_slurm
 BATCHFILE = "/home/gercek/bwm_stepwise_glm_leaveoneout.sh"
 JOBNAME = "bwm_GLMs_LOO"
 PARTITION = "shared-cpu"
-TIME = "06:30:00"
+TIME = "01:00:00"
 CONDAPATH = Path("/home/gercek/mambaforge/")
 ENVNAME = "iblenv"
 LOGPATH = Path("/home/gercek/worker-logs/")
