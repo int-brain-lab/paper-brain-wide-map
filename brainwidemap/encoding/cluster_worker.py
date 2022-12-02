@@ -45,7 +45,7 @@ def _create_sub_sess_path(parent, subject, session):
 
 def save_stepwise(subject, session_id, fitout, params, probes, input_fn, clu_reg, clu_df, fitdate):
     sesspath = _create_sub_sess_path(GLM_FIT_PATH, subject, session_id)
-    fn = sesspath.joinpath(f'{fitdate}_stepwise_regression.pkl')
+    fn = sesspath.joinpath(f'{fitdate}_{probes}_stepwise_regression.pkl')
     outdict = {
         'params': params,
         'probes': probes,

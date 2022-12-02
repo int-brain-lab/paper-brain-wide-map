@@ -58,10 +58,10 @@ if __name__ == "__main__":
     from pathlib import Path
 
     # Brainwide repo imports
-    from brainwide.params import GLM_CACHE, GLM_FIT_PATH
+    from brainwidemap.encoding.params import GLM_CACHE, GLM_FIT_PATH
 
-    currdate = "2022-02-14"  # Date on which fit was run
-    n_cov = 8  # Modify if you change the model!
+    currdate = "2022-12-01"  # Date on which fit was run
+    n_cov = 9  # Modify if you change the model!
     parpath = Path(GLM_FIT_PATH).joinpath(f'{currdate}_glm_fit_pars.pkl')
     with open(parpath, 'rb') as fo:
         params = pickle.load(fo)
