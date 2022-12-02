@@ -7,17 +7,6 @@ from ibllib.atlas import BrainRegions
 from iblutil.numerical import ismember
 
 
-def compute_deltas(scores):
-    outdf = pd.DataFrame(np.zeros_like(scores), index=scores.index, columns=scores.columns)
-    for i in scores.columns:  # Change this for diff num covs
-        if i >= 1:
-            diff = scores[i] - scores[i - 1]
-        else:
-            diff = scores[i]
-        outdf[i] = diff
-    return outdf
-
-
 def colrename(cname, suffix):
     return str(cname + 1) + 'cov' + suffix
 
@@ -88,27 +77,18 @@ if __name__ == "__main__":
             tmpfile = pickle.load(fo)
         folds = []
         for i in range(len(tmpfile['scores'])):
-            tmp_sc = tmpfile['scores'][i].rename(columns=lambda c: colrename(c, '_score'))
-            tmp_seq = tmpfile['sequences'][i].rename(columns=lambda c: colrename(c, '_name'))
-            tmp_diff = compute_deltas(tmpfile['scores'][i])
-            tmp_diff.rename(columns=lambda c: colrename(c, '_diff'), inplace=True)
-            tmpdf = tmp_sc.join(tmp_seq).join(tmp_diff)
+            tmpdf = tmpfile['deltas'][i]['test']
             tmpdf['eid'] = fitname.parts[-2]
+            
             tmpdf['acronym'] = tmpfile['clu_regions'][tmpdf.index]
-            tmpdf['qc_label'] = tmpfile['clu_qc']['label'][tmpdf.index]
+            tmpdf['qc_label'] = tmpfile['clu_df']['label'][tmpdf.index]
             tmpdf['fold'] = i
             tmpdf.index.set_names(['clu_id'], inplace=True)
             folds.append(tmpdf.reset_index())
         sess_master = pd.concat(folds)
         sessdfs.append(sess_master)
     masterscores = pd.concat(sessdfs)
-
-    for i in range(1, n_cov + 1):  # Change this for diff num covs
-        if i >= 2:
-            diff = masterscores[str(i) + 'cov_score'] - masterscores[str(i - 1) + 'cov_score']
-        else:
-            diff = masterscores[str(i) + 'cov_score']
-    masterscores[str(i) + 'cov_diff'] = diff
+    meanmaster = masterscores.set_index(["eid", ])
 
     br = BrainRegions()
     grpby = masterscores.groupby('acronym')
@@ -125,6 +105,7 @@ if __name__ == "__main__":
         'fit_params': params,
         'dataset': dataset,
         'fit_results': masterscores,
+        'mean_fit_results': 
         'fit_files': filenames,
     }
     with open(Path(GLM_FIT_PATH).joinpath(f'{currdate}_glm_fit.pkl'), 'wb') as fw:
