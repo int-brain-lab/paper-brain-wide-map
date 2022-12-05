@@ -14,13 +14,15 @@ from ibllib.atlas.plots import plot_scalar_on_slice
 from ibllib.atlas.flatmaps import plot_swanson
 
 
-def atlas_variable(df, cmap, vmin=0, vmax=1, axes=None, fig=None, cbar=False):
+def atlas_variable(df, cmap, vmin=0, vmax=1, axes=None, fig=None, cbar=False, atlas=None):
     if axes is not None and fig is None:
         raise ValueError("If axes is not None, fig must be provided")
     if axes is not None and len(axes) != 3:
         raise ValueError("Axes must be a list of 3 axes for 3 slices")
     if axes is None:
         fig, axes = plt.subplots(1, 3, figsize=(18, 6))
+    if atlas is None:
+        atlas = AllenAtlas()
     oldshape = axes.shape
     axes = axes.flatten()
     # Plot top view

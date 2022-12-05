@@ -54,10 +54,10 @@ params = {
 }
 
 params["bases"] = {
-    "stim": mut.raised_cosine(0.4, 5, tmp_binf),
-    "feedback": mut.raised_cosine(0.4, 5, tmp_binf),
-    "wheel": mut.raised_cosine(0.3, 3, tmp_binf),
-    "fmove": mut.raised_cosine(0.2, 3, tmp_binf),
+    "stim": mut.nonlinear_rcos(0.4, 5, 0.1, tmp_binf),
+    "feedback": mut.nonlinear_rcos(0.4, 5, 0.1, tmp_binf),
+    "wheel": mut.nonlinear_rcos(0.3, 3, 0.05, tmp_binf)[::-1],
+    "fmove": mut.nonlinear_rcos(0.2, 3, 0.05, tmp_binf)[::-1],
 }
 # Estimator relies on alpha grid in case of GridSearchCV, needs to be defined after main params
 params["estimator"] = GridSearchCV(skl.Ridge(), params["alpha_grid"])
