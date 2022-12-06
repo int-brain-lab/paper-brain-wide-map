@@ -31,7 +31,7 @@ imposter_file = RESULTS_DIR.joinpath('decoding', f"imposterSessions_{params['tar
 
 # Load ONE and the list of probe insertions and select probe(s)
 one = ONE(mode='local')
-bwm_df = bwm_query()
+bwm_df = bwm_query(freeze='2022_10_bwm_release')
 
 # used for only running pipeline on a few subjects
 #mysubs = [sys.argv[2], sys.argv[3], sys.argv[4]]

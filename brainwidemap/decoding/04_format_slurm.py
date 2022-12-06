@@ -3,20 +3,17 @@ import re
 from behavior_models.models.utils import format_data as format_data_mut
 import pandas as pd
 import glob
-#from braindelphi.decoding.settings import *
 from brainwidemap.decoding.settings import *
+from brainwidemap.decoding.functions.process_outputs import fix_pd_regions
 import models.utils as mut
-#from braindelphi.params import FIT_PATH
-from brainwidemap.decoding.settings import RESULTS_DIR
-#from braindelphi.decoding.settings import modeldispatcher
-from brainwidemap.decoding.settings import modeldispatcher
+#from brainwidemap.decoding.settings import RESULTS_DIR
+#from brainwidemap.decoding.settings import modeldispatcher
+#from brainwidemap.decoding.settings import SETTINGS_FORMAT_NAME
 from tqdm import tqdm
 import sys
 
 para_index = int(sys.argv[1])-1
 N_PARA = 50
-#TARGET = str(sys.argv[2])
-#date = '27-10-2022'
 print('target is ',TARGET)
 print('date is ',DATE)
 
@@ -82,6 +79,7 @@ for fn in tqdm(finished):
                        'mask': ''.join([str(item) for item in list(result['fit'][i_run]['mask'].values * 1)]),
                        'R2_test': result['fit'][i_run]['Rsquared_test_full'],
                        'weights': result['fit'][i_run]['weights'],
+                       'params': result['fit'][i_run]['best_params'],
                        'intercepts': result['fit'][i_run]['intercepts'],
                        #'full_prediction': full_test_prediction,
                        'prediction': list(result["fit"][i_run]['predictions_test']),
@@ -113,6 +111,7 @@ for fn in tqdm(finished):
         pass
 print('loading of %i files failed' % failed_load)
 resultsdf = pd.DataFrame(resultslist)
+resultsdf = fix_pd_regions(resultsdf)
 
 '''
 resultsdf = resultsdf[resultsdf.subject == 'NYU-12']
@@ -122,7 +121,6 @@ resultsdf = resultsdf[resultsdf.region == 'CA1']
 resultsdf = resultsdf[resultsdf.probe == 'probe00']
 resultsdf = resultsdf[resultsdf.run_id == 1]
 subdf = resultsdf.set_index(['subject', 'eid', 'probe', 'region']).drop('fold', axis=1)
-'''
 
 estimatorstr = [estimator_strs[i] for i in range(len(estimator_options)) if ESTIMATOR == estimator_options[i]]
 assert len(estimatorstr)==1
@@ -141,14 +139,17 @@ fn = str(RESULTS_DIR.joinpath('decoding','results','neural','ephys',
                                'timeWindow', str(start_tw).replace('.', '_'), str(end_tw).replace('.', '_')])))
 if ADD_TO_SAVING_PATH != '':
     fn = fn + '_' + ADD_TO_SAVING_PATH
+'''
+
+fn = SETTINGS_FORMAT_NAME
 
 fn = fn + '_paraindex' + str(para_index) + '.pkl'
 
 metadata_df = pd.Series({'filename': fn,  'date': DATE, **params})
 metadata_fn = '.'.join([fn.split('.')[0], 'metadata', 'pkl'])
-print('saving parquet')
+print('saving pickle')
 resultsdf.to_pickle(fn)
-print('parquet saved')
+print('pickle saved')
 print('saving metadata')
 metadata_df.to_pickle(metadata_fn)
 print('metadata saved')

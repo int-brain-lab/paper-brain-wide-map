@@ -97,8 +97,8 @@ if wheel_data:
         if not (count%N_PARA == para_index):
        	    continue
 
-        #elif eid == 'cc45c568-c3b9-4f74-836e-c87762e898c8' or (eid in BAD_EIDS):
-        #    continue
+        elif eid == 'cc45c568-c3b9-4f74-836e-c87762e898c8' or (eid in BAD_EIDS):
+            continue
         else:
             print(f"Downloading wheel data for {eid}")
             sess_loader = SessionLoader(one, eid)

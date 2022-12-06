@@ -16,7 +16,8 @@ RESULTS_DIR = Path("/scratch/users/bensonb/international-brain-lab/paper-brain-w
 SLURM_DIR = Path("/scratch/users/bensonb/international-brain-lab/paper-brain-wide-map/brainwidemap/logs/slurm")
 
 
-DATE = '02-11-2022'
+DATE = '29-11-2022' # date must be different if you do different runs of the same target
+                    # e.g. signcont side with LogisticRegression vs signcont with Lasso
 # Either current date for a fresh run, or date of the run you want to build on
 
 TARGET = 'signcont'
@@ -58,8 +59,8 @@ elif TARGET == 'signcont':
     BINSIZE = 0.1
     N_BINS_LAG = None
     USE_IMPOSTER_SESSION = False
-    BINARIZATION_VALUE = 0
-    TANH_TRANSFORM = False
+    BINARIZATION_VALUE = None
+    TANH_TRANSFORM = True
     EXCLUDE_UNBIASED_TRIALS = False
     #raise NotImplementedError
 elif TARGET == 'choice':
@@ -94,7 +95,7 @@ elif TARGET in ['wheel-vel', 'wheel-speed', 'l-whisker-me', 'r-whisker-me']:
 
 
 # DECODER PARAMS
-ESTIMATOR = lm.LogisticRegression
+ESTIMATOR = lm.Lasso
 # A scikit learn linear_model class: LinearRegression, Lasso (linear + L1), Ridge (linear + L2) or LogisticRegression
 ESTIMATOR_KWARGS = {'tol': 0.0001, 'max_iter': 20000, 'fit_intercept': True}  # default args for decoder
 if ESTIMATOR == lm.LogisticRegression:
@@ -107,8 +108,8 @@ N_JOBS_PER_SESSION = N_PSEUDO // N_PSEUDO_PER_JOB  # number of cluster jobs to r
 N_RUNS = 10  # number of times to repeat full nested xv with different folds
 SHUFFLE = True  # true for interleaved xv, false for contiguous
 QUASI_RANDOM = False  # if True, decoding is launched in a quasi-random, reproducible way => it sets the seed
-BALANCED_WEIGHT = True  # seems to work better with BALANCED_WEIGHT=False, but putting True is important
-BALANCED_CONTINUOUS_TARGET = False  # is target continuous or discrete FOR BALANCED WEIGHTING
+BALANCED_WEIGHT = False  # seems to work better with BALANCED_WEIGHT=False, but putting True is important
+BALANCED_CONTINUOUS_TARGET = True  # is target continuous or discrete FOR BALANCED WEIGHTING
 
 # CLUSTER/UNIT PARAMS
 MIN_UNITS = 10  # regions with units below this threshold are skipped
@@ -124,7 +125,7 @@ MIN_LEN = None  # remove trials with length (feedback_time-goCue_time) above/bel
 MAX_LEN = None
 
 # NULL DISTRIBUTION PARAMS
-IMPOSTER_GENERATE_FROM_EPHYS = False  # True to just use ephys sessions, False to use training sessions (more templates)
+IMPOSTER_GENERATE_FROM_EPHYS = True  # True to just use ephys sessions, False to use training sessions (more templates)
 CONSTRAIN_NULL_SESSION_WITH_BEH = False  # TODO
 STITCHING_FOR_IMPOSTER_SESSION = True  # If true, stitches sessions to create imposters
 USE_IMPOSTER_SESSION_FOR_BALANCING = False  # Not currently implemented, so it will be forced to be False
@@ -140,7 +141,7 @@ SAVE_PREDICTIONS_PSEUDO = False  # save model predictions in output file from ps
 SAVE_BINNED = True  # save binned neural predictors in output file for non-null fits (causes large files)
 MOTOR_REGRESSORS = False  # add DLC data as additional regressors to neural activity
 MOTOR_REGRESSORS_ONLY = False  # *only* use motor regressors, no neural activity
-EXCLUDE_TRIALS_WITHIN_VALUES = (-0.01, 0.01) # Applies mask equally to target and control, only works for scalars
+EXCLUDE_TRIALS_WITHIN_VALUES = (None, None) # Applies mask equally to target and control, only works for scalars
 
 
 """
@@ -254,3 +255,31 @@ params = {
     'motor_regressors_only': MOTOR_REGRESSORS_ONLY,
     'imposterdf': None,
 }
+
+"""
+------------------------------
+CONSTRUCT SETTINGS FORMAT NAME
+------------------------------
+"""
+estimatorstr = [estimator_strs[i] for i in range(len(estimator_options)) if ESTIMATOR == estimator_options[i]]
+assert len(estimatorstr)==1
+estimatorstr = estimatorstr[0]
+start_tw, end_tw = TIME_WINDOW
+
+model_str = 'interIndividual' if isinstance(MODEL, str) else modeldispatcher[MODEL]
+
+
+SETTINGS_FORMAT_NAME = str(RESULTS_DIR.joinpath('decoding','results','neural','ephys',
+                              '_'.join([DATE, 'decode', TARGET,
+                               model_str if TARGET in ['prior','pLeft'] else 'task',
+                               estimatorstr,
+                               'align', ALIGN_TIME,
+                               str(N_PSEUDO), 'pseudosessions',
+                               'regionWise' if SINGLE_REGION else 'allProbes',
+                               'timeWindow', str(start_tw).replace('.', '_'), str(end_tw).replace('.', '_')])))
+if ADD_TO_SAVING_PATH != '':
+    SETTINGS_FORMAT_NAME = SETTINGS_FORMAT_NAME + '_' + ADD_TO_SAVING_PATH
+
+
+
+

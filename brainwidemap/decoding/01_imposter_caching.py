@@ -18,7 +18,7 @@ PARAINDEX = int(sys.argv[1])-1
 if params['imposter_generate_from_ephys']:
     # ephys sessions from from one of 12 templates
     one = ONE(mode='local')
-    bwm_df = bwm_query()
+    bwm_df = bwm_query(freeze='2022_10_bwm_release')
     eids = bwm_df['eid'].unique()
 else:
     # no template, no neural activity

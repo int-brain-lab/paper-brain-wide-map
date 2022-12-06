@@ -28,7 +28,7 @@ one = ONE(mode='local')
 # Decide which eids to use
 if params['imposter_generate_from_ephys']:
     # ephys sessions from one of 12 templates
-    bwm_df = bwm_query(freeze='2022_10_update')
+    bwm_df = bwm_query(freeze='2022_10_bwm_release')
     eids = bwm_df['eid'].unique()
 else:
     # no template, no neural activity
