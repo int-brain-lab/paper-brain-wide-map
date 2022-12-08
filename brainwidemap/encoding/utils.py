@@ -170,6 +170,46 @@ def make_batch_slurm(
     return
 
 
+def make_batch_slurm_singularity(
+    filename,
+    scriptpath,
+    job_name="brainwide",
+    partition="shared-cpu",
+    time="01:00:00",
+    singularity_modules=["GCC/9.3.0", "Singularity/3.7.3-Go-1.14"],
+    container_image="~/iblcore.sif",
+    mount_paths={},
+    img_condapath="/opt/conda/",
+    img_envname="iblenv",
+    logpath=Path("~/worker-logs/"),
+    cores_per_job=4,
+    memory="16GB",
+    array_size="1-100",
+    f_args=[],
+):
+    fw = open(filename, "wt")
+    fw.write("#!/bin/sh\n")
+    fw.write(f"#SBATCH --job-name={job_name}\n")
+    fw.write(f"#SBATCH --time={time}\n")
+    fw.write(f"#SBATCH --partition={partition}\n")
+    fw.write(f"#SBATCH --array={array_size}\n")
+    fw.write(f"#SBATCH --output={logpath.joinpath(job_name)}.%a.out\n")
+    fw.write("#SBATCH --ntasks=1\n")
+    fw.write(f"#SBATCH --cpus-per-task={cores_per_job}\n")
+    fw.write(f"#SBATCH --mem={memory}\n")
+    fw.write("\n")
+    fw.write(f"module load {'_'.join(singularity_modules)}\n")
+    bindstr = "" if len(mount_paths) == 0 else "-B "
+    mountpairs = ",".join([f"{k}:{v}" for k, v in mount_paths.items()])
+    fw.write(
+        f"singularity run --fakeroot {bindstr} {mountpairs} {container_image} "
+        f"{img_condapath + '/envs/' + img_envname + '/bin/python'} {scriptpath} "
+        f"{' '.join(f_args)}\n"
+    )
+    fw.close()
+    return
+
+
 def load_trials_df(
     eid,
     one=None,
@@ -253,8 +293,8 @@ def load_trials_df(
     trialsdf = trials[trialstypes]
     if trials_mask is not None:
         trialsdf = trialsdf.loc[trials_mask]
-    trialsdf["trial_start"] = trialsdf['stimOn_times'] - t_before
-    trialsdf["trial_end"] = trialsdf['feedback_times'] + t_after
+    trialsdf["trial_start"] = trialsdf["stimOn_times"] - t_before
+    trialsdf["trial_end"] = trialsdf["feedback_times"] + t_after
     tdiffs = trialsdf["trial_end"] - np.roll(trialsdf["trial_start"], -1)
     if np.any(tdiffs[:-1] > 0):
         logging.warning(
@@ -266,29 +306,29 @@ def load_trials_df(
 
     wheel = one.load_object(eid, "wheel", collection="alf")
     whlpos, whlt = wheel.position, wheel.timestamps
-    starttimes = trialsdf['trial_start']
-    endtimes = trialsdf['trial_end']
+    starttimes = trialsdf["trial_start"]
+    endtimes = trialsdf["trial_end"]
     wh_endlast = 0
     trials = []
     for (start, end) in np.vstack((starttimes, endtimes)).T:
         wh_startind = np.searchsorted(whlt[wh_endlast:], start) + wh_endlast
-        wh_endind = np.searchsorted(whlt[wh_endlast:], end, side='right') + wh_endlast + 4
+        wh_endind = np.searchsorted(whlt[wh_endlast:], end, side="right") + wh_endlast + 4
         wh_endlast = wh_endind
-        tr_whlpos = whlpos[wh_startind - 1:wh_endind + 1]
-        tr_whlt = whlt[wh_startind - 1:wh_endind + 1] - start
-        tr_whlt[0] = 0.  # Manual previous-value interpolation
-        whlseries = TimeSeries(tr_whlt, tr_whlpos, columns=['whlpos'])
-        whlsync = sync(wheel_binsize, timeseries=whlseries, interp='previous')
+        tr_whlpos = whlpos[wh_startind - 1 : wh_endind + 1]
+        tr_whlt = whlt[wh_startind - 1 : wh_endind + 1] - start
+        tr_whlt[0] = 0.0  # Manual previous-value interpolation
+        whlseries = TimeSeries(tr_whlt, tr_whlpos, columns=["whlpos"])
+        whlsync = sync(wheel_binsize, timeseries=whlseries, interp="previous")
         trialstartind = np.searchsorted(whlsync.times, 0)
         trialendind = np.ceil((end - start) / wheel_binsize).astype(int)
-        trpos = whlsync.values[trialstartind:trialendind + trialstartind]
+        trpos = whlsync.values[trialstartind : trialendind + trialstartind]
         whlvel = trpos[1:] - trpos[:-1]
         whlvel = np.insert(whlvel, 0, 0)
         if np.abs((trialendind - len(whlvel))) > 0:
-            raise IndexError('Mismatch between expected length of wheel data and actual.')
+            raise IndexError("Mismatch between expected length of wheel data and actual.")
         if ret_wheel:
             trials.append(whlvel)
         elif ret_abswheel:
             trials.append(np.abs(whlvel))
-    trialsdf['wheel_velocity'] = trials
+    trialsdf["wheel_velocity"] = trials
     return trialsdf
