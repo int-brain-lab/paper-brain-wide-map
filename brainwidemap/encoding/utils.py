@@ -198,7 +198,7 @@ def make_batch_slurm_singularity(
     fw.write(f"#SBATCH --cpus-per-task={cores_per_job}\n")
     fw.write(f"#SBATCH --mem={memory}\n")
     fw.write("\n")
-    fw.write(f"module load {'_'.join(singularity_modules)}\n")
+    fw.write(f"module load {' '.join(singularity_modules)}\n")
     bindstr = "" if len(mount_paths) == 0 else "-B "
     mountpairs = ",".join([f"{k}:{v}" for k, v in mount_paths.items()])
     fw.write(
