@@ -21,7 +21,7 @@ from brainwidemap.encoding.utils import make_batch_slurm, make_batch_slurm_singu
 BATCHFILE = "/home/gercek/bwm_stepwise_glm_leaveoneout.sh"
 JOBNAME = "bwm_GLMs_LOO"
 PARTITION = "shared-cpu"
-TIME = "06:30:00"
+TIME = "00:30:00"
 SINGULARITY = True
 if SINGULARITY:
     parfile = "paper-brain-wide-map/brainwidemap/encoding/params.py"
@@ -29,7 +29,6 @@ if SINGULARITY:
     SINGULARITY_IMAGE = "~/iblcore.sif"
     SINGULARITY_BIND = {
         f"/home/gercek/Projects/{parfile}": f"/data/{parfile}",
-        "/home/gercek/.one": "/root/.one",
     }
     SINGULARITY_CONDA = "/opt/conda"
     SINGULARITY_ENV = "iblenv"

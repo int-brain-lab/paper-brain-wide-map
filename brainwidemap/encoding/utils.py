@@ -202,7 +202,7 @@ def make_batch_slurm_singularity(
     bindstr = "" if len(mount_paths) == 0 else "-B "
     mountpairs = ",".join([f"{k}:{v}" for k, v in mount_paths.items()])
     fw.write(
-        f"singularity run --fakeroot {bindstr} {mountpairs} {container_image} "
+        f"singularity run {bindstr} {mountpairs} {container_image} "
         f"{img_condapath + '/envs/' + img_envname + '/bin/python'} {scriptpath} "
         f"{' '.join(f_args)}\n"
     )
