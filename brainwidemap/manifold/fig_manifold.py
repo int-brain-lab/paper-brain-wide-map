@@ -1803,7 +1803,7 @@ def get_average_peth():
         r['v1'] = np.std(ws[1], axis=0)/(ncells**0.5)
         r['vs'] = np.std(ws[2:], axis=(0,1))/(ncells**0.5)
         
-        r['euc'] = np.mean((((ws[0] - ws[1])**2)/ncells)**0.5, axis=0) 
+        r['euc'] = np.mean((ws[0] - ws[1])**2, axis=0)**0.5
         
 
         res[split] = r
@@ -1872,7 +1872,10 @@ def plot_grand_average():
             axs[r,k].sharey(axs[r,k-1])
             
           
-        k +=1           
+        k +=1 
+          
+    axs[1,0].get_shared_y_axes().join(axs[1,0],axs[1,1])
+    axs[1,0].autoscale()
     
     fig.tight_layout()
     
