@@ -831,7 +831,9 @@ def PSTH_pseudo(eid,duration =0.4, lag = -0.4, plotting=True,
         samp = np.nanmean(D2['left_right'])
         
         # p value via percentile
-        alpha = 1 - (0.01 * percentileofscore(null_d,samp,kind='weak'))        
+        #alpha = 1 - (0.01 * percentileofscore(null_d,samp,kind='weak'))
+        alpha = np.mean(np.array(null_d + [samp]) >= samp) 
+        
         
         # z-scored distance
         samp = (samp - np.mean(null_d))/np.std(null_d)
