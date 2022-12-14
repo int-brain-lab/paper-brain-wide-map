@@ -20,6 +20,7 @@ from pathlib import Path
 import glob
 from dateutil import parser
 
+from matplotlib.axis import Axis
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import seaborn as sns
@@ -50,8 +51,26 @@ import cProfile
 import pstats
 
 import warnings
-warnings.filterwarnings("ignore")
+#warnings.filterwarnings("ignore")
 np.set_printoptions(threshold=sys.maxsize)
+
+plt.rcParams.update(plt.rcParamsDefault)
+plt.ion()
+
+
+f_size = 15
+def set_sizes(f_s = f_size):
+    plt.rc('font', size=f_s)
+    plt.rc('axes', titlesize=f_s)
+    plt.rc('axes', labelsize=f_s)
+    plt.rc('xtick', labelsize=f_s)
+    plt.rc('ytick', labelsize=f_s)
+    plt.rc('legend', fontsize=f_s)
+    plt.rc('figure', titlesize=f_s)
+
+#set_sizes()    
+
+#plt.rcParams['figure.constrained_layout.use'] = True
 
 blue_left = [0.13850039, 0.41331206, 0.74052025]
 red_right = [0.66080672, 0.21526712, 0.23069468]
@@ -72,7 +91,7 @@ align = {'stim':'stim on',
 
 # [pre_time, post_time]
 pre_post = {'choice':[0.15,0],'stim':[0,0.15],
-            'fback':[0,0.15],'block':[0.4,-0.1]}
+            'fback':[0,0.7],'block':[0.4,-0.1]}
 
 
 # labels for illustrative trajectory legend 
@@ -149,11 +168,12 @@ def get_name(brainregion):
 
 
 def get_d_vars(split, pid, mapping='Beryl', control=True,
-               nrand = 2000):
+               nrand = 100):
 
     '''
     for a given session, probe, bin neural activity
     cut into trials, compute d_var per region
+    nrand: nuber of random trial splits
     '''
     
     
@@ -317,7 +337,7 @@ def get_d_vars(split, pid, mapping='Beryl', control=True,
                     r = tr_c[cc]
                     tr_c2[cc] = np.array(random.sample(list(r), len(r)))
 
-                ys = tr_c2 == 1  # boolean shuffled choices            
+                ys = tr_c2 == 1  # boolean shuffled stim sides            
                                       
                 
             elif split in ['choice', 'fback']:  
@@ -636,12 +656,13 @@ def get_allen_info():
 def put_panel_label(ax, k):                    
         ax.annotate(string.ascii_lowercase[k],(-0.05, 1.15),
                         xycoords='axes fraction',
-                        fontsize=16, va='top', ha='right', weight='bold')
+                        fontsize=f_size*1.5, va='top', 
+                        ha='right', weight='bold')
 
 
 def plot_all(curve='euc', amp_number=False, intro = True, 
-             sigl=0.0006, only3d = False, onlyScat = False, 
-             single_scat=False):
+             sigl=0.01, only3d = False, onlyScat = False, 
+             single_scat=False, auto_label_adjust = False):
 
     '''
     main figure: show example trajectories,
@@ -652,8 +673,6 @@ def plot_all(curve='euc', amp_number=False, intro = True,
     only3d: only 3d plots 
     '''
 
-    plt.rcParams['font.size'] = '11'
-    plt.rcParams['figure.constrained_layout.use'] = True
     
     nrows = 12
         
@@ -729,11 +748,11 @@ def plot_all(curve='euc', amp_number=False, intro = True,
 #                  for split in align}           
                
     exs = {'stim': ['VISp', 'LP', 'LGd', 'VISpm', 'VISam', 
-                    'SCm', 'CP', 'MRN','GRN'],
-         'choice': ['GRN', 'LP', 'SIM', 'MOs', 
-                    'APN', 'PRNr', 'MRN', 'CP'],
-          'fback': ['CA1', 'AUDp', 'PRNr', 'IRN', 'CP', 
-                    'SIM', 'CUL4 5', 'GRN', 'CENT3', 'SSp-ul'],
+                    'SCm', 'CP', 'MRN','GRN', 'GPe'],
+         'choice': ['GRN','ACAv', 'APN', 'IRN', 'PRM', 
+                    'PRNr', 'RT', 'SIM', 'SSp-ul', 'ZI'],
+          'fback': ['IRN', 'SSp-m', 'PRNr', 'IC', 'MV', 'AUDp', 
+                    'CENT3', 'SSp-ul', 'GPe'],
           'block': ['Eth', 'IC']}
 
 
@@ -881,6 +900,9 @@ def plot_all(curve='euc', amp_number=False, intro = True,
                                          color = palette[reg],
                                          fontsize=8))                 
 
+
+
+
             axs[k].axvline(x=0, lw=0.5, linestyle='--', c='k')
             
             if split in ['block', 'choice']:
@@ -891,7 +913,7 @@ def plot_all(curve='euc', amp_number=False, intro = True,
             axs[k].spines['top'].set_visible(False)
             axs[k].spines['right'].set_visible(False)
             if c == 0:        
-                axs[k].set_ylabel(f'distance')
+                axs[k].set_ylabel(f'distance [Hz]')
             axs[k].set_xlabel('time [sec]')
 
             if c == 0:
@@ -909,7 +931,7 @@ def plot_all(curve='euc', amp_number=False, intro = True,
     scatter latency versus max amplitude for significant regions
     '''   
  
-    fsize = 24 if single_scat else 9 if onlyScat else 7
+    fsize = 20 if single_scat else 9 if onlyScat else 7
     dsize = 120 if single_scat else 9 if onlyScat else 4 # was 1
     
 
@@ -934,7 +956,7 @@ def plot_all(curve='euc', amp_number=False, intro = True,
                 axs.append(fig.add_subplot(gs[8-v:,c]))
                            #,sharey=axs[len(axs)-1]
                                   
-            #axs[-1].set_ylim(0, 4.5/b_size)
+            axs[-1].set_ylim(0, 4.5)
         
         else:   
             axs.append(figs[c][1])
@@ -986,22 +1008,37 @@ def plot_all(curve='euc', amp_number=False, intro = True,
         exs_i = [i for i in range(len(acronyms)) 
                  if acronyms[i] in exs[split]]
                  
-        axs[k].scatter(np.array(lats)[exs_i], np.array(maxes)[exs_i], 
-                       color=np.array(cols)[exs_i], marker='x',s=10*dsize)
-                       
+#        axs[k].scatter(np.array(lats)[exs_i], np.array(maxes)[exs_i], 
+#                       color=np.array(cols)[exs_i], marker='x',s=10*dsize)
+         
+        texts = []
+        alw = 0.1
         for i in range(len(acronyms)):
             if ac_sig[i]:  # only decorate marker with label if sig
                 reg = acronyms[i]
                 
                 if cosregs[reg] in ['CBX', 'CBN']:
-                    axs[k].annotate('  ' + reg, # f"{reg} {f[reg]['nclus']}" ,
+                        texts.append(axs[k].annotate('  ' + reg, 
                                     (lats[i], maxes[i]),
-                        fontsize=fsize,color='k')            
-                
-                axs[k].annotate('  ' + reg, # f"{reg} {f[reg]['nclus']}" ,
-                    (lats[i], maxes[i]),
-                    fontsize=fsize,color=palette[acronyms[i]])
+                                    fontsize=fsize,color='k',
+                                    arrowprops=dict(arrowstyle="-", 
+                                    color='k', 
+                                    lw=alw)))
 
+#                        axs[k].annotate('  ' + reg, 
+#                                    (lats[i], maxes[i]),
+#                        fontsize=fsize,color=palette[acronyms[i]])
+                else:
+                    texts.append(axs[k].annotate('  ' + reg, 
+                    # f"{reg} {f[reg]['nclus']}" ,
+                        (lats[i], maxes[i]),
+                        fontsize=fsize,color=palette[acronyms[i]],
+                        arrowprops=dict(arrowstyle="-", 
+                                    color=palette[acronyms[i]], 
+                                    lw=alw)))
+                                    
+        if auto_label_adjust:        
+            adjust_text(texts,force_text=(3, 6),ax=axs[k])
 
         axs[k].axvline(x=0, lw=0.5, linestyle='--', c='k')
         
@@ -1010,12 +1047,12 @@ def plot_all(curve='euc', amp_number=False, intro = True,
         axs[k].text(0, 0.95, align[split],
                       transform=axs[k].get_xaxis_transform(),
                       horizontalalignment = ha, rotation=90,
-                      fontsize = 8)
+                      fontsize = f_size*0.8)
                                 
         axs[k].spines['top'].set_visible(False)
         axs[k].spines['right'].set_visible(False)        
         if c == 0:   
-            axs[k].set_ylabel(f'max dist.')
+            axs[k].set_ylabel(f'max dist. [Hz]')
         axs[k].set_xlabel('latency [sec]')
         axs[k].set_title(f"{tops[split+'_s']} sig")
         
@@ -1033,20 +1070,20 @@ def plot_all(curve='euc', amp_number=False, intro = True,
         k += 1
 
 
-    fig = plt.gcf()
-    fig.tight_layout()
-    
-    fig.subplots_adjust(top=0.98,
-                        bottom=0.051,
-                        left=0.1,
-                        right=0.971,
-                        hspace=1.3,
-                        wspace=0.52)
+#    fig = plt.gcf()
+#    fig.tight_layout()
+#    
+#    fig.subplots_adjust(top=0.98,
+#                        bottom=0.051,
+#                        left=0.1,
+#                        right=0.971,
+#                        hspace=1.3,
+#                        wspace=0.52)
 
 
-    fig.suptitle(f'd_{curve}')
+    #fig.suptitle(f'd_{curve}')
 
-    fig.savefig(Path(pth_res,f'manifold_{curve}.pdf'), dpi=400)              
+#    fig.savefig(Path(pth_res,f'manifold_{curve}.pdf'), dpi=400)              
 
 
 def plot_swanson_supp(curve = 'd_var_m', mapping = 'Beryl'):
@@ -1055,12 +1092,6 @@ def plot_swanson_supp(curve = 'd_var_m', mapping = 'Beryl'):
     nrows = 3
     ncols = len(align) 
     gs = GridSpec(nrows, ncols, figure=figs)
-
-
-    amp_curve = ('max-min/max+min' if curve == 'd_var_m' 
-                         else 'amp_euc')
-                         
-    p_type = 'p' if curve == 'd_var_m' else 'p_euc' 
 
 
     
@@ -1085,13 +1116,12 @@ def plot_swanson_supp(curve = 'd_var_m', mapping = 'Beryl'):
     
         axs.append(figs.add_subplot(gs[1,c]))   
         c += 1
-        d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'         
-                    f'curves_{split}_{mapping}.npy',
-                    allow_pickle=True).flat[0]
+        d = np.load(Path(pth_res,f'{split}.npy'),
+                    allow_pickle=True).flat[0] 
 
         # get significant regions only
         acronyms = [reg for reg in d
-                if d[reg][p_type] < 0.05]
+                if d[reg][f'p_{curve}'] < 0.05]
 
         values = np.array([d[x][amp_curve] for x in acronyms])
         
@@ -1114,13 +1144,12 @@ def plot_swanson_supp(curve = 'd_var_m', mapping = 'Beryl'):
     
         axs.append(figs.add_subplot(gs[2,c]))   
         c += 1
-        d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'         
-                    f'curves_{split}_{mapping}.npy',
-                    allow_pickle=True).flat[0]
+        d = np.load(Path(pth_res,f'{split}.npy'),
+                    allow_pickle=True).flat[0] 
                     
         # get significant regions only
         acronyms = [reg for reg in d
-                if d[reg][p_type] < 0.05]
+                if d[reg][f'p_{curve}'] < 0.05]
 
         #  compute latencies (inverted, shorter latency is darker)
         for x in acronyms:
@@ -1155,54 +1184,47 @@ def plot_swanson_supp(curve = 'd_var_m', mapping = 'Beryl'):
         '''
 
 
-    figs.subplots_adjust(top=0.89,
-bottom=0.018,
-left=0.058,
-right=0.985,
-hspace=0.3,
-wspace=0.214)
-                       
-
-    font = {'size'   : 10}
-    mpl.rc('font', **font)    
+#    figs.subplots_adjust(top=0.89,
+#bottom=0.018,
+#left=0.058,
+#right=0.985,
+#hspace=0.3,
+#wspace=0.214)
 
 
-def plot_cosmos_lines(curve = 'euc', amp_type='2'):
+def plot_cosmos_lines(curve = 'euc', single=True, 
+                      ssplit='fback', sigl=0.01):
 
-    md = {'':'max-min/max+min','2':'max-min'}
-    # choose distance amplitude type
-    amp_curve = (md[amp_type] if curve == 'd_var_m' 
-                         else f'amp_euc{amp_type}')
-                         
-    p_type = f'p{amp_type}' if curve == 'd_var_m' else f'p_euc{amp_type}'  
+    if single:
+        splits = [ssplit]
+    else:
+        splits = align
 
     mapping = 'Beryl'
     df, palette = get_allen_info()
     fig = plt.figure(figsize=(20, 15), constrained_layout=True)
      
-    gs = GridSpec(len(align), 7, figure=fig)
-
-
+    gs = GridSpec(len(splits), 7, figure=fig)
 
     sc = 0
-    for split in list(align):
+    for split in splits:
     
-        d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'
-                    f'curves_{split}_{mapping}.npy',
-                    allow_pickle=True).flat[0]
+        d = np.load(Path(pth_res,f'{split}.npy'),
+                    allow_pickle=True).flat[0] 
                     
         # get significant regions only
         regsa = [reg for reg in d
-                if d[reg][p_type] < 0.05]
+                if d[reg][f'p_{curve}'] < sigl]
                                 
         # get cosmos parent regions for Swanson acronyms 
-        cosregs = [df[df['id'] == int(df[df['acronym']==reg]['structure_id_path']
+        cosregs = [df[df['id'] == int(df[df['acronym']==reg
+                    ]['structure_id_path']
                    .values[0].split('/')[4])]['acronym']
                    .values[0] for reg in regsa]
                    
         cosregsC = list(Counter(cosregs))
-        
         cosregsC = sorted(cosregsC)         
+        
         
         k = 0
         axs = []                 
@@ -1210,60 +1232,69 @@ def plot_cosmos_lines(curve = 'euc', amp_type='2'):
             
             axs.append(fig.add_subplot(gs[sc,k]))
             regs = np.array(regsa)[np.array(cosregs)==cos]
- 
+            ma_x = max([d[reg][f'amp_{curve}'] for reg in regs])
+            
             print(split, cos, regs)
 
+            cc = 0
             texts = []
             for reg in regs:
-                if any(np.isinf(d[reg][curve])):
-                    print(f'inf in d_var_m of {reg}')
+                if any(np.isinf(d[reg][f'd_{curve}'])):
+                    print(f'{curve} inf in {reg}')
                     continue
                     
-                # normalize curve
-                if amp_type == '2':
-                    yy = d[reg][curve] - min(d[reg][curve])         
+                if single:
+                    yy = d[reg][f'd_{curve}'] + cc * ma_x
                 else:
-                    yy = ((d[reg][curve] - min(d[reg][curve]))/
-                          (max(d[reg][curve]) + min(d[reg][curve])))
-                      
+                    yy = d[reg][f'd_{curve}']
+                         
                 xx = np.linspace(-pre_post[split][0], 
-                                  pre_post[split][1], len(d[reg][curve]))        
+                                  pre_post[split][1], 
+                                  len(d[reg][f'd_{curve}']))        
 
                 axs[k].plot(xx,yy, linewidth = 2,
                               color=palette[reg], 
-                              label=f"{reg}")# {d[reg]['nclus']}
+                              label=f"{reg}")
                               
-                y = np.max(d[reg][curve])
-                x = xx[np.argmax(d[reg][curve])]
-                ss = f"{reg}"#  {d[reg]['nclus']}"
+                # put region labels                 
+                y = yy[-1]
+                x = xx[-1]
+                ss = f"{reg} {d[reg]['nclus']}" 
                 
                 if cos in ['CBX', 'CBN']:  # darken yellow
                     texts.append(axs[k].text(x, y, ss, 
                                              color = 'k',
                                              fontsize=10))                
                 
-                    texts.append(axs[k].text(x, y, ss, 
-                                             color = palette[reg],
-                                             fontsize=9))                             
-
+                texts.append(axs[k].text(
+                             x, y, ss, 
+                             color = palette[reg], fontsize=9))
+                  
+                cc +=1  
+                                 
             #adjust_text(texts)
             
     
-            axs[k].axvline(x=0, lw=0.5, linestyle='--', c='k')
-            axs[k].text(0, 0.01, align[split],
-                          transform=axs[k].get_xaxis_transform(),
-                          horizontalalignment = 'right' if split == 'block'
-                          else 'left')           
+#            axs[k].axvline(x=0, lw=0.5, linestyle='--', c='k')
+#            axs[k].text(0, 0.01, align[split],
+#                          transform=axs[k].get_xaxis_transform(),
+#                          horizontalalignment = 'right' if split == 'block'
+#                          else 'left')           
             axs[k].spines['top'].set_visible(False)
             axs[k].spines['right'].set_visible(False)
             axs[k].set_ylabel('distance')
             axs[k].set_xlabel('time [sec]')
             axs[k].set_title(f'{split}, {cos}')
-            put_panel_label(axs[k], k)
-                    
+            if not single: put_panel_label(axs[k], k)
+
             k +=1
         sc +=1
     plt.tight_layout()
+
+    if single:
+        fig.savefig(Path(pth_res,f'lines_{curve}_{ssplit}.png'))
+    else:
+        fig.savefig(Path(pth_res,f'lines_{curve}_.png')) 
 
 
 def plot_session_numbers():
@@ -1543,52 +1574,6 @@ def inspect_regional_PETH(reg, split):
 #                f'manifold_analysis/figs/visps_lr/{reg}.png')
 #    plt.close()               
         
-        
-def save_df_for_table(curve='var'):
-
-
-    '''
-    reformat results for table
-    '''
-    
-    mapping = 'Beryl'
-
-    columns = ['acronym','name','nclus', 
-               f'p_{curve}', f'amp_{curve}', f'lat_{curve}']
-
-    b = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/beryl.npy')
-    for split in align:        
-        r = []
-
-        
-        regs =br.id2acronym(b,mapping='Beryl')
-
-        d = np.load('/home/mic/paper-brain-wide-map/manifold_analysis/'         
-                    f'curves_{split}_{mapping}.npy',
-                    allow_pickle=True).flat[0] 
-        
-        for reg in regs:
-
-            if reg in d:
-                r.append([reg, get_name(reg), d[reg]['nclus'],
-                          d[reg][f'p_{curve}'], 
-                          d[reg][f'amp_{curve}'],
-                          d[reg][f'lat_{curve}']]) 
-            else:
-                r.append([reg, get_name(reg), '','', '','']) 
-                      
-        df  = pd.DataFrame(data=r,columns=columns)        
-        df.to_excel('/home/mic/paper-brain-wide-map/'
-                  f'manifold_analysis/results_{split}.xlsx')   
-
-
-
-def load_brandon():
-
-    # identify sessions/regions with highest block decoding
-
-    df = pd.read_csv('/home/mic/paper-brain-wide-map/manifold_analysis'
-                     '/10-09-2022_BWMmetaanalysis_decodeblock.csv')
 
 
 def check_lr():
@@ -1686,12 +1671,211 @@ def check_lr():
     fig0.tight_layout()
     ax0.set_xlabel('time')
     ax0.set_ylabel('trajectory distance')
+
+
+def plot_custom_lines(curve = 'euc', split='fback'):
+
+
+    '''
+    distance line plots for select regions;
+    Welch psd as insets for each
     
+    for supp figure on oscillations
+    '''
+    
+   
+    regs = ['MV', 'MRN', 'APN', 'SSp-m', 
+            'SIM', 'PRM', 'PoT', 'MEA', 'ANcr2']
+            
+    mapping = 'Beryl'
+    df, palette = get_allen_info()
+    nr = 3
+    fig, axs = plt.subplots(nrows =nr, ncols = int(np.ceil(len(regs)/nr)), 
+                            figsize=(7, 7),
+                            sharex=True, constrained_layout=True)
+    axs = axs.flatten()
+    axsi = []  # inset axes
+    
+    # get results
+    d = np.load(Path(pth_res,f'{split}.npy'),
+                allow_pickle=True).flat[0] 
+                
+    # get cosmos parent regions for Swanson acronyms 
+    cosregs = {reg: df[df['id'] == int(df[df['acronym']==reg
+                ]['structure_id_path']
+               .values[0].split('/')[4])]['acronym']
+               .values[0] for reg in regs}
+               
+    
+    k = 0                 
+    for reg in regs:
+     
+        yy = d[reg][f'd_{curve}']
+                 
+        xx = np.linspace(-pre_post[split][0], 
+                          pre_post[split][1], 
+                          len(d[reg][f'd_{curve}']))        
 
+        axs[k].plot(xx,yy, linewidth = 2,
+                      color=palette[reg], 
+                      label=f"{reg}")
+                      
+        # put region labels                 
+        y = yy[-1]
+        x = xx[-1]
+        ss = f"{reg} {d[reg]['nclus']}" 
+        
+        cos =  cosregs[reg]
+#        if cos in ['CBX', 'CBN']:  # darken yellow
+#            axs[k].text(x, y, ss,color = 'k', fontsize=10)               
+#        
+#        axs[k].text(x, y, ss, color = palette[reg], fontsize=9)
+      
+        axs[k].spines['top'].set_visible(False)
+        axs[k].spines['right'].set_visible(False)
+        axs[k].set_ylabel('distance')
+        axs[k].set_xlabel('time [sec]')
+        axs[k].set_title(ss,color = palette[reg] if cos not in ['CBX', 'CBN']
+                         else 'k')
 
+                               
+        f, psd = signal.welch(yy,
+                              fs=int(len(xx)/(xx[-1] - xx[0])))
+                              
+        with plt.rc_context({'font.size': 0.8*plt.rcParams['font.size']}):
+            # plot psd as inset 
+            axsi.append(inset_axes(axs[k], width="30%", height="35%", 
+                                   loc=4 if reg != 'PoT' else 1,
+                                   borderpad=1,
+                                   bbox_to_anchor=(-0.02,0.1,1,1), 
+                                   bbox_transform=axs[k].transAxes))
+                                   #
 
+            axsi[-1].plot(f,psd)
+            axsi[-1].set_xlim(3, 40)
+            axsi[-1].set_xlabel('f [Hz]')
+            Axis.set_label_coords(axsi[-1].xaxis,-0.3, -0.05)
+            
+            axsi[-1].set_ylabel('psd ')        
+            axsi[-1].spines['top'].set_visible(False)
+            axsi[-1].spines['right'].set_visible(False)        
+            axsi[-1].set_yticks([])
+            axsi[-1].set_yticklabels([])
+            if k > 0:
+                axsi[-1].sharex(axsi[-2])
+        
+        k +=1
 
+    #plt.tight_layout()
+    
+    
+    
+def get_average_peth():
 
+    split = 'stim'
+    res = {}
+    
+    for split in align:
+        r = {}
+    
+        pth = Path(one.cache_dir, 'manifold', split) 
+        ss = os.listdir(pth)  # get insertions
+        
+        ws = [] 
+        
+        # group results across insertions
+        for s in ss:
+        
+            D_ = np.load(Path(pth,s), 
+                        allow_pickle=True).flat[0]
+                           
+            ws.append(D_['ws'])        
+            
 
+        ws = np.concatenate(ws, axis=1)
+        ntr, ncells, nt = ws.shape
 
+        r['m0'] = np.mean(ws[0], axis=0)
+        r['m1'] = np.mean(ws[1], axis=0)
+        r['ms'] = np.mean(ws[2:], axis=(0,1))
 
+        r['v0'] = np.std(ws[0], axis=0)/(ncells**0.5)
+        r['v1'] = np.std(ws[1], axis=0)/(ncells**0.5)
+        r['vs'] = np.std(ws[2:], axis=(0,1))/(ncells**0.5)
+        
+        r['euc'] = np.mean((((ws[0] - ws[1])**2)/ncells)**0.5, axis=0) 
+        
+
+        res[split] = r
+
+    np.save(Path(pth_res,'grand_averages.npy'), res,
+                allow_pickle=True)
+
+def plot_grand_average():
+
+    fig, axs = plt.subplots(nrows=2,
+                            ncols=len(align))
+    
+    res = np.load(Path(pth_res,'grand_averages.npy'),
+                  allow_pickle=True).flat[0]
+    
+    cols = {'0':blue_left,
+            '1':red_right,
+            's': 'gray'}
+    
+    k = 0
+    for split in res:
+        r = 0
+        for t in ['0', '1', 's']:
+            yy = res[split][f'm{t}']
+            xx = np.linspace(-pre_post[split][0], 
+                      pre_post[split][1], 
+                      len(yy))
+                                          
+            axs[r,k].plot(xx,yy, c = cols[t])   
+            axs[r,k].fill_between(xx,    
+                         yy + res[split][f'v{t}']/2,
+                         yy - res[split][f'v{t}']/2,
+                         color=cols[t],
+                         alpha = 0.2)
+                                
+        axs[r,k].axvline(x=0, lw=0.5, linestyle='--', c='k')
+        axs[r,k].spines['top'].set_visible(False)
+        axs[r,k].spines['right'].set_visible(False)
+        if k == 0:        
+            axs[r,k].set_ylabel(f'average firing rate [Hz]')
+        axs[r,k].set_xlabel('time [sec]')
+        axs[r,k].set_title(split)    
+        
+        r = 1
+        
+        #yy = np.abs(res[split][f'm0'] - res[split][f'm1'])
+        yy = res[split]['euc']
+        xx = np.linspace(-pre_post[split][0], 
+                  pre_post[split][1], 
+                  len(yy))
+                                      
+        axs[r,k].plot(xx,yy, c = 'k')   
+
+                                
+        axs[r,k].axvline(x=0, lw=0.5, linestyle='--', c='k')
+        axs[r,k].spines['top'].set_visible(False)
+        axs[r,k].spines['right'].set_visible(False)
+        if k == 0:        
+            axs[r,k].set_ylabel(f'distance [Hz]')
+        axs[r,k].set_xlabel('time [sec]')
+        axs[r,k].set_title(split) 
+        
+        axs[0,k].sharex(axs[1,k])
+        
+        if k > 0:
+            axs[r,k].sharey(axs[r,k-1])
+            
+          
+        k +=1           
+    
+    fig.tight_layout()
+    
+    
+    
+    
