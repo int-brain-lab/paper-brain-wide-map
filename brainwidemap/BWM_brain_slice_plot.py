@@ -319,7 +319,7 @@ im_sag_3=sag_slice_RGB(list_region_id, list_region_value,coord_3,1)
 
 
 #### generate cortex top view slice 
-im_ctx_1=ctx_slice_RGB(list_region_id, list_region_value)
+im_ctx_1=ctx_slice_RGB(list_region_id, list_region_value,1)
 
 
 
