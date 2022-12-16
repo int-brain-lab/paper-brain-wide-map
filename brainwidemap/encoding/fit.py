@@ -1,10 +1,12 @@
 # Third party libraries
+from joblib import parallel_backend
 import pandas as pd
 from sklearn.base import RegressorMixin
 from sklearn.model_selection import GridSearchCV, KFold
 from tqdm import tqdm
 
 # IBL libraries
+from brainbox.task.closed_loop import generate_pseudo_blocks
 import neurencoding.utils as mut
 
 # Brainwide repo imports
@@ -91,6 +93,55 @@ def fit_stepwise(
         splits.append({"test": trials_idx[test], "train": trials_idx[train]})
     outdict = {"scores": scores, "deltas": deltas, "sequences": sequences, "splits": splits}
     return outdict
+
+
+def fit_stepwise_with_pseudoblocks(
+    design,
+    spk_t,
+    spk_clu,
+    binwidth,
+    model,
+    estimator,
+    t_before,
+    n_folds=5,
+    contiguous=False,
+    seqsel_kwargs={},
+    seqselfit_kwargs={},
+    n_impostors=100,
+    **kwargs
+):
+    with parallel_backend(backend="loky", n_jobs=-1, inner_max_num_threads=2):
+        print("context change worked")
+        data_fit = fit_stepwise(
+            design,
+            spk_t,
+            spk_clu,
+            binwidth,
+            model,
+            estimator,
+            n_folds,
+            contiguous,
+            seqsel_kwargs,
+            seqselfit_kwargs,
+        )
+        null_fits = []
+        while len(null_fits) < n_impostors:
+            pseudoblock = generate_pseudo_blocks(design.base_df.shape[0])
+            pdesign = generate_design(design.base_df, pseudoblock, t_before, **kwargs)
+            pfit = fit_stepwise(
+                pdesign,
+                spk_t,
+                spk_clu,
+                binwidth,
+                model,
+                estimator,
+                n_folds,
+                contiguous,
+                seqsel_kwargs,
+                seqselfit_kwargs,
+            )
+            null_fits.append(pfit)
+    return data_fit, null_fits
 
 
 def fit_impostor(

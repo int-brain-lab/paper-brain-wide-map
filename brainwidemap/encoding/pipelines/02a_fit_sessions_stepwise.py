@@ -20,8 +20,8 @@ from brainwidemap.encoding.utils import make_batch_slurm, make_batch_slurm_singu
 # SLURM params
 BATCHFILE = "/home/gercek/bwm_stepwise_glm_leaveoneout.sh"
 JOBNAME = "bwm_GLMs_LOO"
-PARTITION = "shared-cpu"
-TIME = "00:30:00"
+PARTITION = "public-cpu"
+TIME = "1-06:00:00"
 SINGULARITY = True
 if SINGULARITY:
     parfile = "paper-brain-wide-map/brainwidemap/encoding/params.py"
@@ -59,16 +59,17 @@ params = {
     "alpha_grid": {"alpha": np.logspace(-2, 1.5, 50)},
     "contiguous": False,
     "prior_estimate": False,
-    "impostor": False,
+    "null": "pseudosession_pleft",
+    "n_impostors": 50,
     "seqsel_kwargs": {"direction": "backward", "n_features_to_select": 8},
     "seqselfit_kwargs": {"full_scores": True},
 }
 
 params["bases"] = {
-    "stim": mut.nonlinear_rcos(0.4, 10, 0.1, tmp_binf),
-    "feedback": mut.nonlinear_rcos(0.4, 10, 0.1, tmp_binf),
-    "wheel": mut.nonlinear_rcos(0.3, 5, 0.05, tmp_binf)[::-1],
-    "fmove": mut.nonlinear_rcos(0.2, 5, 0.05, tmp_binf)[::-1],
+    "stim": mut.nonlinear_rcos(0.4, 5, 0.1, tmp_binf),
+    "feedback": mut.nonlinear_rcos(0.4, 5, 0.1, tmp_binf),
+    "wheel": mut.nonlinear_rcos(0.3, 4, 0.05, tmp_binf)[::-1],
+    "fmove": mut.nonlinear_rcos(0.2, 4, 0.05, tmp_binf)[::-1],
 }
 # Estimator relies on alpha grid in case of GridSearchCV, needs to be defined after main params
 params["estimator"] = GridSearchCV(skl.Ridge(), params["alpha_grid"])
