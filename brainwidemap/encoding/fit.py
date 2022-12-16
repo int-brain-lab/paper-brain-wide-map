@@ -126,7 +126,9 @@ def fit_stepwise_with_pseudoblocks(
         )
         null_fits = []
         while len(null_fits) < n_impostors:
-            pseudoblock = generate_pseudo_blocks(design.base_df.shape[0])
+            pseudoblock = pd.Series(
+                generate_pseudo_blocks(design.base_df.shape[0]), index=design.base_df.index
+            )
             pdesign = generate_design(design.base_df, pseudoblock, t_before, **kwargs)
             pfit = fit_stepwise(
                 pdesign,
