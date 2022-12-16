@@ -70,9 +70,9 @@ def save_stepwise_pseudoblocks(
         "clu_regions": clu_reg,
         "clu_df": clu_df,
         "fitdata": sessfit,
-        "nullfits": nullfits,        
+        "nullfits": nullfits,
     }
-    with open(fn, 'wb') as fw:
+    with open(fn, "wb") as fw:
         pickle.dump(outdict, fw)
     return fn
 
@@ -127,7 +127,9 @@ def fit_save_inputs(
             subject, eid, sessfit, nullfits, params, probes, eidfn, sclureg, scluqc, fitdate
         )
     elif null == "pseudosession_pleft":
-        sessfit, nullfits = fit_stepwise_with_pseudoblocks(sessdesign, sspkt, sspkclu, **params)
+        sessfit, nullfits = fit_stepwise_with_pseudoblocks(
+            sessdesign, sspkt, sspkclu, t_before=t_before, **params
+        )
         outputfn = save_stepwise_pseudoblocks(
             subject, eid, sessfit, nullfits, params, probes, eidfn, sclureg, scluqc, fitdate
         )
