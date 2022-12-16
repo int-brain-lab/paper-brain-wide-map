@@ -53,7 +53,7 @@ params = {
     "fmove_offset": -0.2,
     "wheel_offset": -0.3,
     "contnorm": 5.0,
-    "reduce_wheel_dim": True,
+    "reduce_wheel_dim": False,
     "dataset_fn": "2022-10-24_dataset_metadata.pkl",
     "model": lm.LinearGLM,
     "alpha_grid": {"alpha": np.logspace(-2, 1.5, 50)},
@@ -68,8 +68,8 @@ params = {
 params["bases"] = {
     "stim": mut.nonlinear_rcos(0.4, 5, 0.1, tmp_binf),
     "feedback": mut.nonlinear_rcos(0.4, 5, 0.1, tmp_binf),
-    "wheel": mut.nonlinear_rcos(0.3, 4, 0.05, tmp_binf)[::-1],
-    "fmove": mut.nonlinear_rcos(0.2, 4, 0.05, tmp_binf)[::-1],
+    "wheel": mut.nonlinear_rcos(0.3, 3, 0.05, tmp_binf)[::-1],
+    "fmove": mut.nonlinear_rcos(0.2, 3, 0.05, tmp_binf)[::-1],
 }
 # Estimator relies on alpha grid in case of GridSearchCV, needs to be defined after main params
 params["estimator"] = GridSearchCV(skl.Ridge(), params["alpha_grid"])
