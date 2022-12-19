@@ -93,7 +93,7 @@ def get_spike_data_per_trial(times, clusters, interval_begs, interval_ends, inte
     Returns
     -------
     tuple
-        - (list): time in seconds for each trial
+        - (list): time in seconds for each trial; timepoints refer to the start/left edge of a bin
         - (list): data for each trial of shape (n_clusters, n_bins)
 
     """

@@ -328,7 +328,10 @@ def get_target_data_per_trial(
             continue
 
         # resample signal in desired bins
-        x_interp = np.linspace(target_time[0], target_time[-1], n_bins)
+        # using `interval_begs[i] + binsize` forces the interpolation to sample the continuous
+        # signal at the *end* (or right side) of each bin; this way the spikes in a given bin will
+        # fully precede the corresponding target sample for that same bin.
+        x_interp = np.linspace(interval_begs[i] + binsize, interval_ends[i], n_bins)
         if len(target_vals.shape) > 1 and target_vals.shape[1] > 1:
             n_dims = target_vals.shape[1]
             y_interp_tmps = []
