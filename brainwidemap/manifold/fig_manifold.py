@@ -168,7 +168,7 @@ def get_name(brainregion):
 
 
 def get_d_vars(split, pid, mapping='Beryl', control=True,
-               nrand = 100):
+               nrand = 100, licka=True):
 
     '''
     for a given session, probe, bin neural activity
@@ -186,7 +186,17 @@ def get_d_vars(split, pid, mapping='Beryl', control=True,
     sess_loader = SessionLoader(one, eid)
     sess_loader.load_trials()
     trials = sess_loader.trials
-       
+    
+    if licka:
+        # load licks
+        qc = one.get_details(eid, True)['extended_qc']
+        if (qc['_dlcRight_lick_detection'] and qc['_dlcLeft_lick_detection']):
+            licks = one.load_object(eid, 'licks')
+        else:
+            print('lick detection qc fail')
+            return
+
+
     # remove certain trials     
     rs_range = [0.08, 2]  # discard [long/short] reaction time trials
     stim_diff = trials['firstMovement_times'] - trials['stimOn_times']     
