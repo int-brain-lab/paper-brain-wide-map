@@ -15,7 +15,6 @@ from brainbox.io.one import SpikeSortingLoader
 
 logger = get_logger('brainbox')
 
-one = ONE()
 ba = AllenAtlas()
 
 year_week = date.today().isocalendar()[:2]
@@ -64,7 +63,7 @@ for i, pid in enumerate(pids):
             _clusters[k] = df_clusters[k].values
         clusters = _clusters
     else:
-        clusters = ss.merge_clusters(spikes, clusters, channels, compute_metrics=True, cache_dir=cache_dir_cluster)
+        clusters = ss.merge_clusters(spikes, clusters, channels, compute_metrics=False, cache_dir=cache_dir_cluster)
     df_probes['spike_sorter'][i] = ss.collection
     df_probes['histology'][i] = ss.histology
     if not spikes:
