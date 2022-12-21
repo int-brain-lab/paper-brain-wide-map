@@ -9,6 +9,7 @@ from ibllib.atlas import FlatMap
 from ibllib.atlas.flatmaps import plot_swanson
 
 from scipy import optimize, signal, stats
+from scipy.interpolate import interp1d
 import pandas as pd
 import numpy as np
 from collections import Counter, ChainMap
@@ -81,6 +82,9 @@ ntravis = 30  # number of trajectories for visualisation, first 2 real
 #nrand = 2000  # number of random trial splits for null_d
 #min_reg = 100  # 100, minimum number of neurons in pooled region
 
+BIN_w = 0.25  # one lick count as bin size
+nlicks = 50  # trial window length in licks
+
 
 # trial split types, see get_d_vars for details       
 align = {'stim':'stim on',
@@ -119,10 +123,18 @@ def T_BIN(split, b_size=b_size):
         return b_size  
 
 
-def grad(c,nobs):
+def grad(c,nobs,fr=0.8):
     cmap = mpl.cm.get_cmap(c)
     
-    return [cmap(0.5*(nobs - p)/nobs) for p in range(nobs)]
+    return [cmap(fr*(nobs - p)/nobs) for p in range(nobs)]
+
+
+def find_nearest(array,value):
+    idx = np.searchsorted(array, value, side="left")
+    if idx > 0 and (idx == len(array) or math.fabs(value - array[idx-1]) < math.fabs(value - array[idx])):
+        return idx-1
+    else:
+        return idx
 
 
 def generate_pseudo_blocks(n_trials, factor=60, min_=20, max_=100, first5050=90):
@@ -168,7 +180,7 @@ def get_name(brainregion):
 
 
 def get_d_vars(split, pid, mapping='Beryl', control=True,
-               nrand = 100, licka=True):
+               nrand = 100, licka=False):
 
     '''
     for a given session, probe, bin neural activity
@@ -251,46 +263,98 @@ def get_d_vars(split, pid, mapping='Beryl', control=True,
     assert len(spikes['times']) == len(spikes['clusters']), 'spikes != clusters'   
             
     # bin and cut into trials    
-    bins = []
+    if licka and split == 'fback':
+        '''
+        time warping
+        '''
+        
+        # time warping, time unit is lick counts     
+        f = interp1d(licks['times'], range(len(licks['times'])))
+        
+        # truncate spike times to allow interpolation 
+        st = np.searchsorted(spikes['times'],licks['times'][0],side='right')
+        en = np.searchsorted(spikes['times'],licks['times'][-1],side='left')
+        
+        # warped spike times
+        s_w = f(spikes['times'][st:en])
 
-    for event in events:
-    
-        #  overlapping time bins, bin size = T_BIN, stride = sts 
-        bis = []
-        st = int(T_BIN(split)//sts) 
+        # last trial must be before last lick
+        evs = events[0].values[np.where(events[0].values < 
+                                        licks['times'][-1])[0]]
         
-        for ts in range(st):
-    
-            bi, _ = bin_spikes2D(spikes['times'],
-                               clusters['cluster_id'][spikes['clusters']],
-                               clusters['cluster_id'],
-                               np.array(event) + ts*sts, 
-                               pre_post[split][0], pre_post[split][1], 
-                               T_BIN(split))
-            bis.append(bi)
-            
-        ntr, nn, nbin = bi.shape
-        ar = np.zeros((ntr, nn, st*nbin))
-        
-        for ts in range(st):
-            ar[:,:,ts::st] = bis[ts]
+        # warped alignment times
+        evs_w = np.searchsorted(licks['times'],evs,side='right')
+     
+        # bin spikes, using warped time stamps
+        b, _ = bin_spikes2D(s_w,
+                           clusters['cluster_id'][spikes['clusters'][st:en]],
+                           clusters['cluster_id'],
+                           evs_w, 
+                           0, nlicks, 
+                           BIN_w)
                            
-        bins.append(ar)                   
-                                              
-    b = np.concatenate(bins)
+        wsc = np.concatenate(b,axis=1)
+        
+        
+    else:
+        bins = []
+        for event in events:
+        
+            #  overlapping time bins, bin size = T_BIN, stride = sts 
+            bis = []
+            st = int(T_BIN(split)//sts) 
+            
+            for ts in range(st):
+        
+                bi, _ = bin_spikes2D(spikes['times'],
+                                   clusters['cluster_id'][spikes['clusters']],
+                                   clusters['cluster_id'],
+                                   np.array(event) + ts*sts, 
+                                   pre_post[split][0], pre_post[split][1], 
+                                   T_BIN(split))
+                bis.append(bi)
+                
+            ntr, nn, nbin = bi.shape
+            ar = np.zeros((ntr, nn, st*nbin))
+            
+            for ts in range(st):
+                ar[:,:,ts::st] = bis[ts]
+                               
+            bins.append(ar)
+            
+                                        
+        b = np.concatenate(bins)
     
-    # recreate temporal trial order              
-    dx = np.concatenate([list(zip([True]*len(trn[0]),trn[0])),
-                    list(zip([False]*len(trn[1]),trn[1]))])
+        # recreate temporal trial order              
+        dx = np.concatenate([list(zip([True]*len(trn[0]),trn[0])),
+                        list(zip([False]*len(trn[1]),trn[1]))])
 
-    b = b[np.argsort(dx[:, 1])]    
+        b = b[np.argsort(dx[:, 1])]    
            
-    ntr, nclus, nbins = b.shape    
-    
-    acs = br.id2acronym(clusters['atlas_id'],mapping=mapping)
-               
+        ntr, nclus, nbins = b.shape    
+
+        wsc = np.concatenate(b,axis=1)
+
+                               
+    acs = br.id2acronym(clusters['atlas_id'],mapping=mapping)         
     acs = np.array(acs)
-    wsc = np.concatenate(b,axis=1)
+    
+    # discard ill-defined regions
+    goodcells = ~np.bitwise_or.reduce([acs == reg for 
+                     reg in ['void','root']])
+    
+    acs = acs[goodcells]
+    b = b[:,goodcells,:]
+    
+    if licka:
+        D_ = {}
+        D_['ws'] = b.mean(axis=0)
+        D_['acs'] = acs
+        return D_ 
+            
+    if not licka:
+        bins2 = [x[:,goodcells,:] for x in bins]
+        bins = bins2
 
     # Discard cells with any nan or 0 for all bins    
     goodcells = [k for k in range(wsc.shape[0]) if 
@@ -299,16 +363,11 @@ def get_d_vars(split, pid, mapping='Beryl', control=True,
 
     acs = acs[goodcells]
     b = b[:,goodcells,:]
+    
+
+        
     bins2 = [x[:,goodcells,:] for x in bins]
     bins = bins2    
-
-    goodcells = ~np.bitwise_or.reduce([acs == reg for 
-                     reg in ['void','root']])
-    
-    acs = acs[goodcells]
-    b = b[:,goodcells,:]
-    bins2 = [x[:,goodcells,:] for x in bins]
-    bins = bins2
 
     if control:
         # get mean and var across trials
@@ -465,7 +524,7 @@ def get_d_vars(split, pid, mapping='Beryl', control=True,
 ''' 
 
 def get_all_d_vars(split, eids_plus = None, control = True, 
-                   mapping='Beryl'):
+                   mapping='Beryl', licka=False):
 
     '''
     for all BWM insertions, get the PSTHs and acronyms,
@@ -473,14 +532,16 @@ def get_all_d_vars(split, eids_plus = None, control = True,
     
     time00 = time.perf_counter()
     
-    print('split', split, 'control', control)
+    print('split', split, 'control', control, 'licka', licka)
     
     if eids_plus is None:
         df = bwm_query(one)
         eids_plus = df[['eid','probe_name', 'pid']].values
 
     # save results per insertion (eid_probe) in FlatIron folder
-    pth = Path(one.cache_dir, 'manifold', split) 
+    pth = Path(one.cache_dir, 'manifold', f'{split}_licka' 
+               if licka else split)
+                
     pth.mkdir(parents=True, exist_ok=True)
  
     Fs = []   
@@ -491,7 +552,9 @@ def get_all_d_vars(split, eids_plus = None, control = True,
           
         time0 = time.perf_counter()
         try:
-            D_ = get_d_vars(split, pid, control=control, mapping=mapping)
+            D_ = get_d_vars(split, pid, control=control, 
+                            mapping=mapping, licka=licka)
+                            
             eid_probe = eid+'_'+probe
             
             np.save(Path(pth,f'{eid_probe}.npy'), D_, allow_pickle=True)
@@ -514,7 +577,7 @@ def get_all_d_vars(split, eids_plus = None, control = True,
     print(Fs)
 
 
-def d_var_stacked(split, min_reg = 100, uperms_ = False):
+def d_var_stacked(split, min_reg = 100, uperms_ = False, licka=False):
                   
     time0 = time.perf_counter()
 
@@ -522,10 +585,13 @@ def d_var_stacked(split, min_reg = 100, uperms_ = False):
     average d_var_m via nanmean across insertions,
     remove regions with too few neurons (min_reg)
     compute maxes, latencies and p-values
+    
+    For lickalignment (licka = True), only get regional means 
     '''
     
     print(split)
-    pth = Path(one.cache_dir, 'manifold', split) 
+    pth = Path(one.cache_dir, 'manifold', f'{split}_licka' 
+                                        if licka else split) 
     ss = os.listdir(pth)  # get insertions
     
 
@@ -541,41 +607,52 @@ def d_var_stacked(split, min_reg = 100, uperms_ = False):
     
         D_ = np.load(Path(pth,s), 
                     allow_pickle=True).flat[0]
-                       
-        uperms[s.split('.')[0]] = D_['uperms']
-        if uperms_:
-            continue
+
         acs.append(D_['acs'])
         ws.append(D_['ws'])        
+            
+        if uperms_:
+            uperms[s.split('.')[0]] = D_['uperms']
+            continue         
         
-        for reg in D_['D']:
-            if reg not in regdv0:
-                regdv0[reg] = []
-            regdv0[reg].append(np.array(D_['D'][reg]['d_vars'])/b_size)
-            if reg not in regde0:
-                regde0[reg] = []            
-            regde0[reg].append(np.array(D_['D'][reg]['d_eucs'])/b_size)
+        if not licka:
+            for reg in D_['D']:
+                if reg not in regdv0:
+                    regdv0[reg] = []
+                regdv0[reg].append(np.array(D_['D'][reg]['d_vars'])/b_size)
+                if reg not in regde0:
+                    regde0[reg] = []            
+                regde0[reg].append(np.array(D_['D'][reg]['d_eucs'])/b_size)
     
     if uperms_:
         return uperms
 
     acs = np.concatenate(acs)
-    ws = np.concatenate(ws, axis=1)
+    ws = np.concatenate(ws, axis=0 if licka else 1)
     regs0 = Counter(acs)
     regs = {reg: regs0[reg] for reg in regs0 if regs0[reg] > min_reg}
-        
-    # nansum across insertions and take sqrt
-    regdv = {reg: (np.nansum(regdv0[reg],axis=0)/regs[reg])**0.5 
-                  for reg in regs }         
-    regde = {reg: (np.nansum(regde0[reg],axis=0)/regs[reg])**0.5
-                  for reg in regs}
+    
+    if not licka:    
+        # nansum across insertions and take sqrt
+        regdv = {reg: (np.nansum(regdv0[reg],axis=0)/regs[reg])**0.5 
+                      for reg in regs }         
+        regde = {reg: (np.nansum(regde0[reg],axis=0)/regs[reg])**0.5
+                      for reg in regs}
         
     r = {}
     for reg in regs:         
         res = {}        
     
+        if licka: 
+            res['mean'] = np.mean(ws[acs == reg],axis=0)
+            res['nclus'] = regs0[reg]
+            res['stde'] = np.std(ws[acs == reg],axis=0)/(regs0[reg]**0.5)
+            r[reg] = res
+            continue
+    
         # get PCA for 3d trajectories
         dat = ws[:,acs == reg,:]
+        
         pca = PCA(n_components = 3)
         wsc = pca.fit_transform(np.concatenate(dat,axis=1).T).T
 
@@ -627,7 +704,8 @@ def d_var_stacked(split, min_reg = 100, uperms_ = False):
 
         r[reg] = res        
     
-    np.save(Path(pth_res,f'{split}.npy'), r, allow_pickle=True)
+    np.save(Path(pth_res,f'{split}_licka.npy' if licka else f'{split}.npy'), 
+            r, allow_pickle=True)
            
     time1 = time.perf_counter()    
     print('total time:', time1 - time0, 'sec')
@@ -638,7 +716,54 @@ def curves_params_all(split):
     get_all_d_vars(split)
     d_var_stacked(split)        
 
-      
+
+def get_average_peth():
+
+    split = 'stim'
+    res = {}
+    
+    for split in align:
+        r = {}
+    
+        pth = Path(one.cache_dir, 'manifold', split) 
+        ss = os.listdir(pth)  # get insertions
+        
+        ws = [] 
+        
+        # group results across insertions
+        for s in ss:
+        
+            D_ = np.load(Path(pth,s), 
+                        allow_pickle=True).flat[0]
+                           
+            ws.append(D_['ws'])        
+            
+
+        ws = np.concatenate(ws, axis=1)
+        ntr, ncells, nt = ws.shape
+
+        r['m0'] = np.mean(ws[0], axis=0)
+        r['m1'] = np.mean(ws[1], axis=0)
+        r['ms'] = np.mean(ws[2:], axis=(0,1))
+
+        r['v0'] = np.std(ws[0], axis=0)/(ncells**0.5)
+        r['v1'] = np.std(ws[1], axis=0)/(ncells**0.5)
+        r['vs'] = np.std(ws[2:], axis=(0,1))/(ncells**0.5)
+        
+        r['euc'] = np.mean((ws[0] - ws[1])**2, axis=0)**0.5
+        r['nclus'] = ncells
+        
+        pca = PCA(n_components = 3)
+        wsc = pca.fit_transform(np.concatenate(ws,axis=1).T).T        
+        r['pcs'] = wsc
+
+
+        res[split] = r
+
+    np.save(Path(pth_res,'grand_averages.npy'), res,
+                allow_pickle=True)
+
+    
 '''    
 #####################################################
 ### plotting 
@@ -672,7 +797,8 @@ def put_panel_label(ax, k):
 
 def plot_all(curve='euc', amp_number=False, intro = True, 
              sigl=0.01, only3d = False, onlyScat = False, 
-             single_scat=False, auto_label_adjust = False):
+             single_scat=False, auto_label_adjust = False,
+             ga_pcs=True):
 
     '''
     main figure: show example trajectories,
@@ -794,8 +920,13 @@ def plot_all(curve='euc', amp_number=False, intro = True,
                          
         c = 0
         for split in align:
-            d = np.load(Path(pth_res,f'{split}.npy'),
-                        allow_pickle=True).flat[0] 
+        
+            if ga_pcs:
+                d = np.load(Path(pth_res,'grand_averages.npy'),
+                  allow_pickle=True).flat[0][split]
+            else:
+                d = np.load(Path(pth_res,f'{split}.npy'),
+                            allow_pickle=True).flat[0][reg] 
 
             # pick example region
             reg = exs[split][0]
@@ -807,13 +938,13 @@ def plot_all(curve='euc', amp_number=False, intro = True,
                 axs.append(fig.add_subplot(gs[3-v:6-v,c],
                                            projection='3d'))           
 
-            npcs, allnobs = d[reg]['pcs'].shape
+            npcs, allnobs = d['pcs'].shape
             nobs = allnobs // ntravis
 
             for j in range(ntravis):
             
                 # 3d trajectory
-                cs = d[reg]['pcs'][:,nobs * j: nobs * (j+1)].T
+                cs = d['pcs'][:,nobs * j: nobs * (j+1)].T
         
 
                 if j == 0:
@@ -833,8 +964,9 @@ def plot_all(curve='euc', amp_number=False, intro = True,
                                s=20 if j in [0,1] else 1,
                                depthshade=False)
 
-
-            axs[k].set_title(f"{split}, {reg} {d[reg]['nclus']}")   
+            
+            axs[k].set_title(f"{split}, {reg} {d[reg]['nclus']}" if not ga_pcs
+                             else split)   
             axs[k].grid(False)
             axs[k].axis('off')
 
@@ -1033,7 +1165,7 @@ def plot_all(curve='euc', amp_number=False, intro = True,
                                     fontsize=fsize,color='k',
                                     arrowprops=dict(arrowstyle="-", 
                                     color='k', 
-                                    lw=alw)))
+                                    lw=alw) if auto_label_adjust else None))
 
 #                        axs[k].annotate('  ' + reg, 
 #                                    (lats[i], maxes[i]),
@@ -1043,9 +1175,9 @@ def plot_all(curve='euc', amp_number=False, intro = True,
                     # f"{reg} {f[reg]['nclus']}" ,
                         (lats[i], maxes[i]),
                         fontsize=fsize,color=palette[acronyms[i]],
-                        arrowprops=dict(arrowstyle="-", 
+                        arrowprops=dict(arrowstyle=" ", 
                                     color=palette[acronyms[i]], 
-                                    lw=alw)))
+                                    lw=alw) if auto_label_adjust else None))
                                     
         if auto_label_adjust:        
             adjust_text(texts,force_text=(3, 6),ax=axs[k])
@@ -1080,15 +1212,16 @@ def plot_all(curve='euc', amp_number=False, intro = True,
         k += 1
 
 
-#    fig = plt.gcf()
+    fig = plt.gcf()
 #    fig.tight_layout()
 #    
-#    fig.subplots_adjust(top=0.98,
-#                        bottom=0.051,
-#                        left=0.1,
-#                        right=0.971,
-#                        hspace=1.3,
-#                        wspace=0.52)
+    fig.subplots_adjust(top=0.98,
+                        bottom=0.051,
+                        left=0.06,
+                        right=0.98,
+                        hspace=5.1,
+                        wspace=0.62)
+
 
 
     #fig.suptitle(f'd_{curve}')
@@ -1203,7 +1336,7 @@ def plot_swanson_supp(curve = 'd_var_m', mapping = 'Beryl'):
 
 
 def plot_cosmos_lines(curve = 'euc', single=True, 
-                      ssplit='fback', sigl=0.01):
+                      ssplit='fback', sigl=0.01, licka=False):
 
     if single:
         splits = [ssplit]
@@ -1219,11 +1352,12 @@ def plot_cosmos_lines(curve = 'euc', single=True,
     sc = 0
     for split in splits:
     
-        d = np.load(Path(pth_res,f'{split}.npy'),
+        d = np.load(Path(pth_res,f'{split}_licka.npy' if licka else f'{split}.npy'),
                     allow_pickle=True).flat[0] 
-                    
+        
+                   
         # get significant regions only
-        regsa = [reg for reg in d
+        regsa = list(d.keys()) if licka else [reg for reg in d
                 if d[reg][f'p_{curve}'] < sigl]
                                 
         # get cosmos parent regions for Swanson acronyms 
@@ -1242,23 +1376,29 @@ def plot_cosmos_lines(curve = 'euc', single=True,
             
             axs.append(fig.add_subplot(gs[sc,k]))
             regs = np.array(regsa)[np.array(cosregs)==cos]
-            ma_x = max([d[reg][f'amp_{curve}'] for reg in regs])
+            ma_x = max([(max(d[reg]['mean']) if licka else d[reg][f'amp_{curve}']) 
+                       for reg in regs])
             
             print(split, cos, regs)
 
             cc = 0
             texts = []
             for reg in regs:
-                if any(np.isinf(d[reg][f'd_{curve}'])):
-                    print(f'{curve} inf in {reg}')
+                if any(np.isinf(d[reg]['mean' if licka else f'd_{curve}'])):
+                    print(f'inf in {reg}')
                     continue
                     
                 if single:
-                    yy = d[reg][f'd_{curve}'] + cc * ma_x
+                    yy = d[reg]['mean' if licka else f'd_{curve}'] + cc * ma_x
                 else:
-                    yy = d[reg][f'd_{curve}']
-                         
-                xx = np.linspace(-pre_post[split][0], 
+                    yy = d[reg]['mean' if licka else f'd_{curve}']
+                
+                
+                if licka:
+                    xx = np.arange(nlicks/BIN_w) * BIN_w
+                    
+                else:             
+                    xx = np.linspace(-pre_post[split][0], 
                                   pre_post[split][1], 
                                   len(d[reg][f'd_{curve}']))        
 
@@ -1292,19 +1432,19 @@ def plot_cosmos_lines(curve = 'euc', single=True,
 #                          else 'left')           
             axs[k].spines['top'].set_visible(False)
             axs[k].spines['right'].set_visible(False)
-            axs[k].set_ylabel('distance')
-            axs[k].set_xlabel('time [sec]')
+            axs[k].set_ylabel('mean firing rate' if licka else 'distance')
+            axs[k].set_xlabel('time [licks]' if licka else 'time [sec]')
             axs[k].set_title(f'{split}, {cos}')
             if not single: put_panel_label(axs[k], k)
 
             k +=1
         sc +=1
-    plt.tight_layout()
 
-    if single:
-        fig.savefig(Path(pth_res,f'lines_{curve}_{ssplit}.png'))
-    else:
-        fig.savefig(Path(pth_res,f'lines_{curve}_.png')) 
+
+#    if single:
+#        fig.savefig(Path(pth_res,f'lines_{curve}_{ssplit}.png'))
+#    else:
+#        fig.savefig(Path(pth_res,f'lines_{curve}_.png')) 
 
 
 def plot_session_numbers():
@@ -1586,101 +1726,101 @@ def inspect_regional_PETH(reg, split):
         
 
 
-def check_lr():
-#    df = pd.read_csv('/home/mic/paper-brain-wide-map/'
-#                    f'manifold_analysis/bwm_sess_regions.csv')
-#                    
-#    df2 = df[df['Beryl'].str.contains('VIS')].sort_values(
-#                                'nclus',ascending=False)
-#                                
-#    pids = df2[df2['nclus']>10]['pid'].values                           
+#def check_lr():
+##    df = pd.read_csv('/home/mic/paper-brain-wide-map/'
+##                    f'manifold_analysis/bwm_sess_regions.csv')
+##                    
+##    df2 = df[df['Beryl'].str.contains('VIS')].sort_values(
+##                                'nclus',ascending=False)
+##                                
+##    pids = df2[df2['nclus']>10]['pid'].values                           
 
 
-#    eids_plus = [np.concatenate([one.pid2eid(pid),[pid]]) for pid in pids]
-    
-    cell_off = [
-           0.10091743, 0.1146789 , 0.10091743, 0.1146789 , 0.10091743,
-           0.10091743, 0.10550459, 0.08715596, 0.0733945 , 0.06422018,
-           0.05963303, 0.06422018, 0.0733945 , 0.07798165, 0.08715596,
-           0.08715596, 0.09633028, 0.09633028, 0.08256881, 0.10091743,
-           0.10091743, 0.09633028, 0.10550459, 0.10091743, 0.1146789 ,
-           0.09174312, 0.09633028, 0.08715596, 0.08715596, 0.09174312,
-           0.08715596, 0.09174312, 0.10091743, 0.1146789 , 0.10550459,
-           0.1146789 , 0.10550459, 0.11009174, 0.09174312, 0.08715596,
-           0.07798165, 0.06422018, 0.07798165, 0.06422018, 0.06422018,
-           0.05963303, 0.05963303, 0.06422018, 0.05963303, 0.05963303,
-           0.06422018, 0.05504587, 0.05963303, 0.04587156, 0.04587156,
-           0.05045872, 0.03669725, 0.04587156, 0.0412844 , 0.04587156,
-           0.03211009, 0.04587156, 0.06880734, 0.0733945 , 0.07798165,
-           0.0733945 , 0.09633028, 0.07798165, 0.0733945 , 0.06880734,
-           0.0733945 , 0.08256881]    
+##    eids_plus = [np.concatenate([one.pid2eid(pid),[pid]]) for pid in pids]
+#    
+#    cell_off = [
+#           0.10091743, 0.1146789 , 0.10091743, 0.1146789 , 0.10091743,
+#           0.10091743, 0.10550459, 0.08715596, 0.0733945 , 0.06422018,
+#           0.05963303, 0.06422018, 0.0733945 , 0.07798165, 0.08715596,
+#           0.08715596, 0.09633028, 0.09633028, 0.08256881, 0.10091743,
+#           0.10091743, 0.09633028, 0.10550459, 0.10091743, 0.1146789 ,
+#           0.09174312, 0.09633028, 0.08715596, 0.08715596, 0.09174312,
+#           0.08715596, 0.09174312, 0.10091743, 0.1146789 , 0.10550459,
+#           0.1146789 , 0.10550459, 0.11009174, 0.09174312, 0.08715596,
+#           0.07798165, 0.06422018, 0.07798165, 0.06422018, 0.06422018,
+#           0.05963303, 0.05963303, 0.06422018, 0.05963303, 0.05963303,
+#           0.06422018, 0.05504587, 0.05963303, 0.04587156, 0.04587156,
+#           0.05045872, 0.03669725, 0.04587156, 0.0412844 , 0.04587156,
+#           0.03211009, 0.04587156, 0.06880734, 0.0733945 , 0.07798165,
+#           0.0733945 , 0.09633028, 0.07798165, 0.0733945 , 0.06880734,
+#           0.0733945 , 0.08256881]    
 
-    cell_on = [    
-           0.12727273, 0.12272727, 0.12272727, 0.12727273, 0.10454545,
-           0.11818182, 0.13181818, 0.14090909, 0.15      , 0.14545455,
-           0.15      , 0.13636364, 0.10909091, 0.10909091, 0.11363636,
-           0.13181818, 0.14090909, 0.15909091, 0.19090909, 0.20454545,
-           0.24545455, 0.27727273, 0.31818182, 0.32727273, 0.35909091,
-           0.37727273, 0.4       , 0.43636364, 0.41363636, 0.42272727,
-           0.44090909, 0.45454545, 0.42272727, 0.38181818, 0.42727273,
-           0.42727273, 0.40909091, 0.41818182, 0.43636364, 0.42272727,
-           0.42272727, 0.42727273, 0.37727273, 0.37272727, 0.35909091,
-           0.35454545, 0.33181818, 0.29090909, 0.31818182, 0.26818182,
-           0.24545455, 0.23636364, 0.2       , 0.20454545, 0.2       ,
-           0.21363636, 0.20454545, 0.20454545, 0.21363636, 0.2       ,
-           0.19090909, 0.19545455, 0.19545455, 0.18181818, 0.17272727,
-           0.19545455, 0.17727273, 0.16363636, 0.15      , 0.16363636,
-           0.15      , 0.14090909]
-
-
-    # 100 one orientation (2, 100, 72)
-    ws = np.array([np.array([cell_on for i in range(100)]),
-                         np.array([cell_off for i in range(100)])])
+#    cell_on = [    
+#           0.12727273, 0.12272727, 0.12272727, 0.12727273, 0.10454545,
+#           0.11818182, 0.13181818, 0.14090909, 0.15      , 0.14545455,
+#           0.15      , 0.13636364, 0.10909091, 0.10909091, 0.11363636,
+#           0.13181818, 0.14090909, 0.15909091, 0.19090909, 0.20454545,
+#           0.24545455, 0.27727273, 0.31818182, 0.32727273, 0.35909091,
+#           0.37727273, 0.4       , 0.43636364, 0.41363636, 0.42272727,
+#           0.44090909, 0.45454545, 0.42272727, 0.38181818, 0.42727273,
+#           0.42727273, 0.40909091, 0.41818182, 0.43636364, 0.42272727,
+#           0.42272727, 0.42727273, 0.37727273, 0.37272727, 0.35909091,
+#           0.35454545, 0.33181818, 0.29090909, 0.31818182, 0.26818182,
+#           0.24545455, 0.23636364, 0.2       , 0.20454545, 0.2       ,
+#           0.21363636, 0.20454545, 0.20454545, 0.21363636, 0.2       ,
+#           0.19090909, 0.19545455, 0.19545455, 0.18181818, 0.17272727,
+#           0.19545455, 0.17727273, 0.16363636, 0.15      , 0.16363636,
+#           0.15      , 0.14090909]
 
 
-    # 200 both orientations
-    ws_r = np.array([np.vstack([np.array([cell_on for i in range(10)]),
-                                np.array([cell_off for i in range(90)])]),
-                     np.vstack([np.array([cell_off for i in range(90)]), 
-                                np.array([cell_on for i in range(10)])])])
+#    # 100 one orientation (2, 100, 72)
+#    ws = np.array([np.array([cell_on for i in range(100)]),
+#                         np.array([cell_off for i in range(100)])])
 
 
-    split = 'stim'
+#    # 200 both orientations
+#    ws_r = np.array([np.vstack([np.array([cell_on for i in range(10)]),
+#                                np.array([cell_off for i in range(90)])]),
+#                     np.vstack([np.array([cell_off for i in range(90)]), 
+#                                np.array([cell_on for i in range(10)])])])
 
-    labs = ['one hemisphere', 'mixed hemispheres']
-    k = 0 
-    
-    fig0, ax0 = plt.subplots(figsize=(3,3))
-    for dat in [ws, ws_r]:
-    
-        fig, axs = plt.subplots(ncols =2, nrows=1,figsize=(3,3))
-        for i in range(2): 
-            axs[i].imshow(dat[i], cmap='Greys',aspect="auto",
-                interpolation='none', vmin=min(cell_off), vmax=max(cell_on))
-            axs[i].set_ylabel('cells')
-            axs[i].set_xlabel('time [sec]')
-            axs[i].set_title(f'PETH, {trial_split[split][i]}')
-        fig.suptitle(labs[k])   
-        fig.tight_layout()
-        pca = PCA(n_components = 30)
-        wsc = pca.fit_transform(np.concatenate(dat,axis=1).T).T
-        #pcs[reg] = wsc[:3]
-        
-        ntr, nclus, nobs = dat.shape
-        
-        dists = []
-        for tr in range(ntr // 2):
-            t0 = wsc[:,nobs * tr*2 :nobs * (tr*2 + 1)] 
-            t1 = wsc[:,nobs * (tr*2 + 1):nobs * (tr*2 + 2)] # actual trajectories
-            
-            dists.append(sum((t0 - t1)**2)**0.5)
 
-        ax0.plot(dists[0],label=labs[k])
-        k += 1
-    fig0.legend()
-    fig0.tight_layout()
-    ax0.set_xlabel('time')
-    ax0.set_ylabel('trajectory distance')
+#    split = 'stim'
+
+#    labs = ['one hemisphere', 'mixed hemispheres']
+#    k = 0 
+#    
+#    fig0, ax0 = plt.subplots(figsize=(3,3))
+#    for dat in [ws, ws_r]:
+#    
+#        fig, axs = plt.subplots(ncols =2, nrows=1,figsize=(3,3))
+#        for i in range(2): 
+#            axs[i].imshow(dat[i], cmap='Greys',aspect="auto",
+#                interpolation='none', vmin=min(cell_off), vmax=max(cell_on))
+#            axs[i].set_ylabel('cells')
+#            axs[i].set_xlabel('time [sec]')
+#            axs[i].set_title(f'PETH, {trial_split[split][i]}')
+#        fig.suptitle(labs[k])   
+#        fig.tight_layout()
+#        pca = PCA(n_components = 30)
+#        wsc = pca.fit_transform(np.concatenate(dat,axis=1).T).T
+#        #pcs[reg] = wsc[:3]
+#        
+#        ntr, nclus, nobs = dat.shape
+#        
+#        dists = []
+#        for tr in range(ntr // 2):
+#            t0 = wsc[:,nobs * tr*2 :nobs * (tr*2 + 1)] 
+#            t1 = wsc[:,nobs * (tr*2 + 1):nobs * (tr*2 + 2)] # actual trajectories
+#            
+#            dists.append(sum((t0 - t1)**2)**0.5)
+
+#        ax0.plot(dists[0],label=labs[k])
+#        k += 1
+#    fig0.legend()
+#    fig0.tight_layout()
+#    ax0.set_xlabel('time')
+#    ax0.set_ylabel('trajectory distance')
 
 
 def plot_custom_lines(curve = 'euc', split='fback'):
@@ -1778,52 +1918,10 @@ def plot_custom_lines(curve = 'euc', split='fback'):
 
     #plt.tight_layout()
     
-    
-    
-def get_average_peth():
-
-    split = 'stim'
-    res = {}
-    
-    for split in align:
-        r = {}
-    
-        pth = Path(one.cache_dir, 'manifold', split) 
-        ss = os.listdir(pth)  # get insertions
-        
-        ws = [] 
-        
-        # group results across insertions
-        for s in ss:
-        
-            D_ = np.load(Path(pth,s), 
-                        allow_pickle=True).flat[0]
-                           
-            ws.append(D_['ws'])        
-            
-
-        ws = np.concatenate(ws, axis=1)
-        ntr, ncells, nt = ws.shape
-
-        r['m0'] = np.mean(ws[0], axis=0)
-        r['m1'] = np.mean(ws[1], axis=0)
-        r['ms'] = np.mean(ws[2:], axis=(0,1))
-
-        r['v0'] = np.std(ws[0], axis=0)/(ncells**0.5)
-        r['v1'] = np.std(ws[1], axis=0)/(ncells**0.5)
-        r['vs'] = np.std(ws[2:], axis=(0,1))/(ncells**0.5)
-        
-        r['euc'] = np.mean((ws[0] - ws[1])**2, axis=0)**0.5
-        
-
-        res[split] = r
-
-    np.save(Path(pth_res,'grand_averages.npy'), res,
-                allow_pickle=True)
 
 def plot_grand_average():
 
-    fig, axs = plt.subplots(nrows=2,
+    fig, axs = plt.subplots(nrows=3,
                             ncols=len(align))
     
     res = np.load(Path(pth_res,'grand_averages.npy'),
@@ -1880,7 +1978,7 @@ def plot_grand_average():
         
         if k > 0:
             axs[r,k].sharey(axs[r,k-1])
-            
+  
           
         k +=1 
           
@@ -1888,7 +1986,4 @@ def plot_grand_average():
     axs[1,0].autoscale()
     
     fig.tight_layout()
-    
-    
-    
     
