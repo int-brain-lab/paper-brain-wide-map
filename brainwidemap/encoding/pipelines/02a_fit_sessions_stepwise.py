@@ -59,7 +59,7 @@ params = {
     "alpha_grid": {"alpha": np.logspace(-2, 1.5, 50)},
     "contiguous": False,
     "prior_estimate": False,
-    "null": "pseudosession_pleft",
+    "null": "pseudosession_pleft_iti",
     "n_impostors": 100,
     "seqsel_kwargs": {"direction": "backward", "n_features_to_select": 8},
     "seqselfit_kwargs": {"full_scores": True},
