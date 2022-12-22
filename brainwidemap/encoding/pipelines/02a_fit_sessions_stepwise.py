@@ -20,8 +20,8 @@ from brainwidemap.encoding.utils import make_batch_slurm, make_batch_slurm_singu
 # SLURM params
 BATCHFILE = "/home/gercek/bwm_stepwise_glm_leaveoneout.sh"
 JOBNAME = "bwm_GLMs_LOO"
-PARTITION = "public-cpu"
-TIME = "1-06:00:00"
+PARTITION = "shared-cpu"
+TIME = "12:00:00"
 SINGULARITY = True
 if SINGULARITY:
     parfile = "paper-brain-wide-map/brainwidemap/encoding/params.py"
@@ -36,7 +36,7 @@ if SINGULARITY:
 CONDAPATH = Path("/home/gercek/mambaforge/")
 ENVNAME = "iblenv"
 LOGPATH = Path("/home/gercek/worker-logs/")
-JOB_CORES = 4
+JOB_CORES = 32
 MEM = "12GB"
 SUBMIT_BATCH = False
 
@@ -60,7 +60,7 @@ params = {
     "contiguous": False,
     "prior_estimate": False,
     "null": "pseudosession_pleft",
-    "n_impostors": 50,
+    "n_impostors": 100,
     "seqsel_kwargs": {"direction": "backward", "n_features_to_select": 8},
     "seqselfit_kwargs": {"full_scores": True},
 }

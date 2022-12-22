@@ -133,6 +133,21 @@ def fit_save_inputs(
         outputfn = save_stepwise_pseudoblocks(
             subject, eid, sessfit, nullfits, params, probes, eidfn, sclureg, scluqc, fitdate
         )
+    elif null == "pseudosession_pleft_iti":
+        sessfit, nullfits = fit_stepwise_with_pseudoblocks(
+            sessdesign, sspkt, sspkclu, t_before=t_before, null_target="iti", **params
+        )
+        outputfn = save_stepwise_pseudoblocks(
+            subject, eid, sessfit, nullfits, params, probes, eidfn, sclureg, scluqc, fitdate
+        )
+    elif null == "pseudosession_pleft_trial":
+        sessfit, nullfits = fit_stepwise_with_pseudoblocks(
+            sessdesign, sspkt, sspkclu, t_before=t_before, null_target="trial", **params
+        )
+        outputfn = save_stepwise_pseudoblocks(
+            subject, eid, sessfit, nullfits, params, probes, eidfn, sclureg, scluqc, fitdate
+        )
+
     else:
         raise ValueError(
             f"Null model {null} not recognized. Must be one of None, 'impostor', "
