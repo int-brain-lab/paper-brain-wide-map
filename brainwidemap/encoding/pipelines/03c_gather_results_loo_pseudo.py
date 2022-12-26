@@ -90,7 +90,7 @@ if __name__ == "__main__":
     # Brainwide repo imports
     from brainwidemap.encoding.params import GLM_CACHE, GLM_FIT_PATH
 
-    FITDATE = "2022-12-16"  # Date on which fit was run
+    FITDATE = "2022-12-23"  # Date on which fit was run
     PARALLEL = True
 
     kernels = [
