@@ -49,14 +49,16 @@ for i, row in dataset.iterrows():
         continue
     subject, eid, pid, _, reg_file = row
     print(subject, eid, pid)
-    stdf, sspkt, sspkclu, sclureg, scluqc = get_cached_regressors(reg_file)
+    relpath = "/".join(Path(reg_file).parts[-3:])
+    relfile = Path(GLM_CACHE + relpath)
+    stdf, sspkt, sspkclu, sclureg, scluqc = get_cached_regressors(relfile)
     windows = pd.concat(((stdf["stimOn_times"] - 0.4), (stdf["stimOn_times"] - 0.1)), axis=1)
     windows.columns = ["start", "end"]
 
     # Add extra clu since we're binning them and not counting
     clu_ids = np.pad(np.unique(sspkclu), (0, 1), constant_values=sspkclu.max() + 1)
     binned, tbins, clu_ids = np.histogram2d(
-        sspkclu, sspkt, bins=(windows.values.flatten(), clu_ids)
+        sspkt, sspkclu, bins=(windows.values.flatten(), clu_ids)
     )
     binned = binned[::2]
     target = stdf["probabilityLeft"].values
