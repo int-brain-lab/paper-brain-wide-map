@@ -84,7 +84,8 @@ for i, row in dataset.iterrows():
 
     meanscores = scores.mean(axis=1)
     percentiles = meanscores.groupby("clu_id").apply(lambda df: df.rank(pct=True).loc[:, -1])
-    percentiles = percentiles.droplevel(0)
+    percentiles = percentiles.droplevel(0).to_frame()
+    meanscores = meanscores.to_frame()
 
     scores["eid"] = eid
     scores["pid"] = pid
@@ -92,6 +93,10 @@ for i, row in dataset.iterrows():
     meanscores["pid"] = pid
     percentiles["eid"] = eid
     percentiles["pid"] = pid
+
+    scores = scores.reset_index().set_index(["eid", "pid", "clu_id", "null"]).sort_index()
+    meanscores = meanscores.reset_index().set_index(["eid", "pid", "clu_id", "null"]).sort_index()
+    percentiles = percentiles.reset_index().set_index(["eid", "pid", "clu_id"]).sort_index()
 
     allscores.append(scores)
     allmeanscores.append(meanscores)
