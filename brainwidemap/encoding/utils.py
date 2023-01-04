@@ -171,7 +171,7 @@ def make_batch_slurm(
 
 
 def make_batch_slurm_singularity(
-    filename,
+    filebase,
     scriptpath,
     job_name="brainwide",
     partition="shared-cpu",
@@ -181,13 +181,65 @@ def make_batch_slurm_singularity(
     mount_paths={},
     img_condapath="/opt/conda/",
     img_envname="iblenv",
+    local_pathadd="~/Projects/paper-brain-wide-map/",
     logpath=Path("~/worker-logs/"),
     cores_per_job=4,
     memory="16GB",
     array_size="1-100",
     f_args=[],
 ):
-    fw = open(filename, "wt")
+    """
+    Make a batch file for slurm to run a singularity container.
+
+    Filebase is used to generate a _batch.sh and _workerscript.sh file, the former of which
+    is submitted via sbatch, and the latter of which is run by the worker nodes.
+
+    Parameters
+    ----------
+    filebase : str
+        The base name of the batch file to be generated.
+    scriptpath : str
+        The path to the python script to be run by the worker nodes.
+    job_name : str, optional
+        The name of the job, by default "brainwide"
+    partition : str, optional
+        The partition to run on, by default "shared-cpu"
+    time : str, optional
+        The time limit for the job, by default "01:00:00"
+    singularity_modules : list, optional
+        The modules to load for singularity, by default ["GCC/9.3.0", "Singularity/3.7.3-Go-1.14"]
+    container_image : str, optional
+        The path to the singularity container image, by default "~/iblcore.sif"
+    mount_paths : dict, optional
+        A dictionary of path pairs to mount in the container. Usually singularity will by
+        default mount the home directory of the user, but if additional directories are needed
+        specify them here. The keys are the paths on the host machine, and the values are the
+        paths in the container. By default {}.
+    img_condapath : str, optional
+        The path to conda in the container, by default "/opt/conda/"
+    img_envname : str, optional
+        The name of the conda environment to activate in the container, by default "iblenv"
+    local_pathadd : str, optional
+        The path to add to the PYTHONPATH in the container, which will be seen by the python
+        executable as being part of pythons normal path. Similar to using conda develop.
+        by default "~/Projects/paper-brain-wide-map/"
+    logpath : Path, optional
+        The path to write the log files to, by default Path("~/worker-logs/")
+    cores_per_job : int, optional
+        The number of cores to request per job, by default 4
+    memory : str, optional
+        The amount of memory to request per job, by default "16GB"
+    array_size : str, optional
+        The size of the slurm job array to run. These are the jobs that will be run in parallel
+        and the index of the job for a current worker node is available as the environment
+        variable $SLURM_ARRAY_TASK_ID, which can be used in f_args. By default "1-100"
+    f_args : list, optional
+        A list of string arguments to pass to the python script. These will be passed concatenated
+        by spaces. By default []
+    """
+    batchfile = filebase + "_batch.sh"
+    workerscript = filebase + "_workerscript.sh"
+    fw = open(batchfile, "wt")
     fw.write("#!/bin/sh\n")
     fw.write(f"#SBATCH --job-name={job_name}\n")
     fw.write(f"#SBATCH --time={time}\n")
@@ -202,11 +254,16 @@ def make_batch_slurm_singularity(
     bindstr = "" if len(mount_paths) == 0 else "-B "
     mountpairs = ",".join([f"{k}:{v}" for k, v in mount_paths.items()])
     fw.write(
-        f"singularity run {bindstr} {mountpairs} {container_image} "
-        f"{img_condapath + '/envs/' + img_envname + '/bin/python'} {scriptpath} "
-        f"{' '.join(f_args)}\n"
+        f"singularity run {bindstr} {mountpairs} {container_image} /bin/bash {workerscript}"
     )
     fw.close()
+
+    fw = open(workerscript, "wt")
+    fw.write("#!/bin/bash\n")
+    fw.write(f"source {img_condapath}/bin/activate\n")
+    fw.write(f"conda activate {img_envname}\n")
+    fw.write(f"export PYTHONPATH={local_pathadd}\n")
+    fw.write("python " + scriptpath + " " + " ".join(f_args) + "\n")
     return
 
 

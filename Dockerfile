@@ -19,7 +19,12 @@ RUN wget -O Mambaforge.sh  "https://github.com/conda-forge/miniforge/releases/la
 RUN bash Mambaforge.sh -b -p /opt/conda && rm Mambaforge.sh
 RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh && \
  mamba install conda-build &&\
- mamba env create -n iblenv --file=environment.yaml &&\
+ mamba env create -n iblenv --file=environment.yaml"
+RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh &&\
+ conda activate iblenv &&\
+ mamba install --yes pytorch pytorch-cuda=11.7 -c pytorch -c nvidia &&\
+ conda clean --all -f -y"
+RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh &&\
  conda activate iblenv &&\
  pip install globus-sdk iblutil ibl-neuropixel ONE-api phylib pynrrd slidingRP &&\
  git clone https://github.com/int-brain-lab/iblapps.git &&\
@@ -27,19 +32,15 @@ RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh && \
  git clone https://github.com/int-brain-lab/ibllib &&\
  conda develop ./ibllib &&\
  git clone https://github.com/berkgercek/neurencoding &&\
- conda develop ./neurencoding &&\
- conda clean --all -f -y"
+ conda develop ./neurencoding"
 # The below allows interactively running the container with the correct environment, but be warned
 # that this will not work with commands passed to the container in a non-interactive shell.
 # In the case of e.g. `docker run thiscontainer python myscript.py`, the environment will not
 # be activated and the script will fail. You will need to directly call the python executable
 # in the container, e.g. `docker run thiscontainer /opt/conda/envs/iblenv/bin/python myscript.py`
 RUN echo "source /opt/conda/etc/profile.d/conda.sh && conda activate iblenv" >> /root/.bashrc
+RUN chmod -R 777 /root/
 ENV BASH_ENV=/root/.bashrc
 # Copying this repo in at the end so rebuilding the container with the latest code is easy. If you
 # need to add your own dependencies, add them above this line so you won't have to reinstall them
 # every time you rebuild the container. Alternatively just add them to the environment.yaml file.
-COPY ./ /data/paper-brain-wide-map
-RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh &&\
- conda activate iblenv &&\
- conda develop /data/paper-brain-wide-map"
