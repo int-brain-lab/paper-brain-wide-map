@@ -221,8 +221,10 @@ def cut_behavior(eid, duration =0.4, lag = -0.6,
 
     # get paw position, for each cam separate
     if pawex:
-        paw_pos_r0 = list(zip(dlc_right['paw_r_x'],dlc_right['paw_r_y']))
-        paw_pos_l0 = list(zip(dlc_left['paw_r_x'],dlc_left['paw_r_y'])) 
+        paw_pos_r0 = np.array(list(zip(dlc_right['paw_r_x'],
+                                       dlc_right['paw_r_y'])))
+        paw_pos_l0 = np.array(list(zip(dlc_left['paw_r_x'],
+                                       dlc_left['paw_r_y']))) 
     else:
         paw_pos_r0 = (dlc_right['paw_r_x']**2 + dlc_right['paw_r_y']**2)**0.5
         paw_pos_l0 = (dlc_left['paw_r_x']**2 + dlc_left['paw_r_y']**2)**0.5
@@ -311,8 +313,8 @@ def cut_behavior(eid, duration =0.4, lag = -0.6,
 
             
             if (pawex and ('paw' in be)): #for illustration on frame
-                D[be].append([series[0][start_idx:end_idx],
-                              series[1][start_idx:end_idx]])            
+                D[be].append([series[start_idx:end_idx,0],
+                              series[start_idx:end_idx,1]])            
             else:              
                 if start_idx > len(series):
                     print('start_idx > len(series)')
