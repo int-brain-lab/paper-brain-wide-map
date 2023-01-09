@@ -1933,7 +1933,7 @@ overleaf motor_correlates figure
 ##########
 '''
 
-def paw_position_onframe(D):
+def paw_position_onframe(D=None):
 
     '''
     example video frame with average paw position locations on top
