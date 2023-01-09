@@ -4,7 +4,7 @@ from brainwidemap import bwm_query, load_good_units
 from ibllib.atlas import AllenAtlas
 from ibllib.atlas.regions import BrainRegions
 from brainbox.io.one import SpikeSortingLoader, SessionLoader
-
+from brainbox.behavior.dlc import plot_lick_raster
 from ibllib.atlas import FlatMap
 from ibllib.atlas.flatmaps import plot_swanson
 
@@ -82,7 +82,7 @@ ntravis = 30  # number of trajectories for visualisation, first 2 real
 #nrand = 2000  # number of random trial splits for null_d
 #min_reg = 100  # 100, minimum number of neurons in pooled region
 
-BIN_w = 0.25  # one lick count as bin size
+#BIN_w = 0.25  # one lick count as bin size
 nlicks = 50  # trial window length in licks
 
 
@@ -91,7 +91,8 @@ align = {'stim':'stim on',
          'choice':'motion on',
          'fback':'feedback',
          'block':'stim on'}
-                  
+         
+# contrasts: 0.    , 0.0625, 0.125 , 0.25  , 1.    ,    nan               
 
 # [pre_time, post_time]
 pre_post = {'choice':[0.15,0],'stim':[0,0.15],
@@ -123,7 +124,7 @@ def T_BIN(split, b_size=b_size):
         return b_size  
 
 
-def grad(c,nobs,fr=0.8):
+def grad(c,nobs,fr=1):
     cmap = mpl.cm.get_cmap(c)
     
     return [cmap(fr*(nobs - p)/nobs) for p in range(nobs)]
@@ -180,12 +181,14 @@ def get_name(brainregion):
 
 
 def get_d_vars(split, pid, mapping='Beryl', control=True,
-               nrand = 100, licka=False):
+               nrand = 100, licka=False, BIN_w = 0.25, contr=None):
 
     '''
     for a given session, probe, bin neural activity
     cut into trials, compute d_var per region
     nrand: nuber of random trial splits
+    
+    BIN_w = 0.25  # bin size in lick counts
     '''
     
     
@@ -224,13 +227,25 @@ def get_d_vars(split, pid, mapping='Beryl', control=True,
     trn = []
 
 
-    if split in ['choice', 'action']:
+    if split == 'choice':
         for choice in [1,-1]:
-            events.append(trials['firstMovement_times'][np.bitwise_and.reduce([
-                       ~rm_trials,trials['choice'] == choice])])
-            trn.append(np.arange(len(trials['choice']))[np.bitwise_and.reduce([
-                       ~rm_trials,trials['choice'] == choice])])             
-
+        
+            if contr is None:  # include any contrast    
+                events.append(trials['firstMovement_times'][np.bitwise_and.reduce([
+                           ~rm_trials,trials['choice'] == choice])])
+                trn.append(np.arange(len(trials['choice']))[np.bitwise_and.reduce([
+                           ~rm_trials,trials['choice'] == choice])])
+                           
+            else:  # include only trials with given contrast
+                events.append(trials['firstMovement_times'][np.bitwise_and.reduce([
+                           ~rm_trials,trials['choice'] == choice,
+                           np.bitwise_or(trials[f'contrastLeft'] == contr, 
+                                         trials[f'contrastRight'] == contr)])])
+                trn.append(np.arange(len(trials['choice']))[np.bitwise_and.reduce([
+                           ~rm_trials,trials['choice'] == choice,
+                           np.bitwise_or(trials[f'contrastLeft'] == contr, 
+                                         trials[f'contrastRight'] == contr)])])
+                 
     elif split == 'stim':    
         for side in ['Left', 'Right']:
             events.append(trials['stimOn_times'][np.bitwise_and.reduce([
@@ -261,11 +276,12 @@ def get_d_vars(split, pid, mapping='Beryl', control=True,
     assert (len(trn[0]) != 0) and (len(trn[1]) != 0), 'zero trials to average'
            
     assert len(spikes['times']) == len(spikes['clusters']), 'spikes != clusters'   
+
             
     # bin and cut into trials    
     if licka and split == 'fback':
         '''
-        time warping
+        time warping; only consider rewarded trials
         '''
         
         # time warping, time unit is lick counts     
@@ -339,13 +355,15 @@ def get_d_vars(split, pid, mapping='Beryl', control=True,
     acs = br.id2acronym(clusters['atlas_id'],mapping=mapping)         
     acs = np.array(acs)
     
+    
     # discard ill-defined regions
     goodcells = ~np.bitwise_or.reduce([acs == reg for 
                      reg in ['void','root']])
     
     acs = acs[goodcells]
     b = b[:,goodcells,:]
-    
+
+
     if licka:
         D_ = {}
         D_['ws'] = b.mean(axis=0)
@@ -355,6 +373,9 @@ def get_d_vars(split, pid, mapping='Beryl', control=True,
     if not licka:
         bins2 = [x[:,goodcells,:] for x in bins]
         bins = bins2
+        b = np.concatenate(bins)
+        wsc = np.concatenate(b,axis=1)
+        
 
     # Discard cells with any nan or 0 for all bins    
     goodcells = [k for k in range(wsc.shape[0]) if 
@@ -365,7 +386,6 @@ def get_d_vars(split, pid, mapping='Beryl', control=True,
     b = b[:,goodcells,:]
     
 
-        
     bins2 = [x[:,goodcells,:] for x in bins]
     bins = bins2    
 
@@ -524,7 +544,7 @@ def get_d_vars(split, pid, mapping='Beryl', control=True,
 ''' 
 
 def get_all_d_vars(split, eids_plus = None, control = True, 
-                   mapping='Beryl', licka=False):
+                   mapping='Beryl', licka=False, contr=False):
 
     '''
     for all BWM insertions, get the PSTHs and acronyms,
@@ -532,15 +552,22 @@ def get_all_d_vars(split, eids_plus = None, control = True,
     
     time00 = time.perf_counter()
     
-    print('split', split, 'control', control, 'licka', licka)
+    print('split', split, 'control', control, 
+          'licka', licka, 'contr', contr)
     
     if eids_plus is None:
         df = bwm_query(one)
         eids_plus = df[['eid','probe_name', 'pid']].values
 
     # save results per insertion (eid_probe) in FlatIron folder
-    pth = Path(one.cache_dir, 'manifold', f'{split}_licka' 
-               if licka else split)
+    if licka:
+        ps = f'{split}_licka'
+    elif contr is not None:
+        ps = f'{split}_{contr}'
+    else:
+        ps = split    
+    
+    pth = Path(one.cache_dir, 'manifold', ps)
                 
     pth.mkdir(parents=True, exist_ok=True)
  
@@ -553,7 +580,7 @@ def get_all_d_vars(split, eids_plus = None, control = True,
         time0 = time.perf_counter()
         try:
             D_ = get_d_vars(split, pid, control=control, 
-                            mapping=mapping, licka=licka)
+                            mapping=mapping, licka=licka, contr=contr)
                             
             eid_probe = eid+'_'+probe
             
@@ -669,8 +696,8 @@ def d_var_stacked(split, min_reg = 100, uperms_ = False, licka=False):
         res['p_var'] = np.mean(np.array(ampsv) >= ampsv[0])      
 
         # full curve, subtract null-d mean
-        d_var = regdv[reg][0] - np.mean(regdv[reg][1:], axis=0)
-        res['d_var'] = d_var - min(d_var)
+        res['d_var'] = regdv[reg][0] - min(regdv[reg][0])
+        res['d_var_n'] = abs(regdv[reg][0] - np.mean(regdv[reg][1:], axis=0))
         res['amp_var'] = max(res['d_var'])
     
         # latency  
@@ -679,8 +706,12 @@ def d_var_stacked(split, min_reg = 100, uperms_ = False, licka=False):
         else:
             loc = np.where(res['d_var'] > 0.7*(np.max(res['d_var'])))[0]
         
-        res['lat_var'] = np.linspace(-pre_post[split][0], 
-                        pre_post[split][1], len(res['d_var']))[loc[0]]
+        if 'choice' in split:
+            split0 = 'choice'
+        else:
+            split0 = split    
+        res['lat_var'] = np.linspace(-pre_post[split0][0], 
+                        pre_post[split0][1], len(res['d_var']))[loc[0]]
                       
         '''
         euc
@@ -692,18 +723,22 @@ def d_var_stacked(split, min_reg = 100, uperms_ = False, licka=False):
         res['p_euc'] = np.mean(np.array(ampse) >= ampse[0])      
 
         # full curve, subtract null-d mean
-        d_euc = regde[reg][0] - np.mean(regde[reg][1:], axis=0)
-        res['d_euc'] = d_euc - min(d_euc)
+        res['d_euc'] = regde[reg][0] - min(regde[reg][0])
+        res['mean_rand'] = np.mean(regde[reg][1:], axis=0)
+        res['d_euc_n'] = abs(regde[reg][0] - np.mean(regde[reg][1:], axis=0))
+        #res['d_euc'] = d_euc - min(d_euc)
         res['amp_euc'] = max(res['d_euc'])
+        
+    
     
         # latency  
         loc = np.where(res['d_euc'] > 0.7*(np.max(res['d_euc'])))[0]
         
-        res['lat_euc'] = np.linspace(-pre_post[split][0], 
-                        pre_post[split][1], len(res['d_euc']))[loc[0]]   
+        res['lat_euc'] = np.linspace(-pre_post[split0][0], 
+                        pre_post[split0][1], len(res['d_euc']))[loc[0]]   
 
         r[reg] = res        
-    
+   
     np.save(Path(pth_res,f'{split}_licka.npy' if licka else f'{split}.npy'), 
             r, allow_pickle=True)
            
@@ -719,7 +754,6 @@ def curves_params_all(split):
 
 def get_average_peth():
 
-    split = 'stim'
     res = {}
     
     for split in align:
@@ -885,13 +919,15 @@ def plot_all(curve='euc', amp_number=False, intro = True,
                
     exs = {'stim': ['VISp', 'LP', 'LGd', 'VISpm', 'VISam', 
                     'SCm', 'CP', 'MRN','GRN', 'GPe'],
-         'choice': ['GRN','ACAv', 'APN', 'IRN', 'PRM', 
-                    'PRNr', 'RT', 'SIM', 'SSp-ul', 'ZI'],
+         'choice': ['PRM', 'CA3', 'LP', 'ACAv', 'PRNr', 'IRN'],  
+                    
           'fback': ['IRN', 'SSp-m', 'PRNr', 'IC', 'MV', 'AUDp', 
                     'CENT3', 'SSp-ul', 'GPe'],
           'block': ['Eth', 'IC']}
 
-
+    # old choice: ['GRN','ACAv', 'APN', 'IRN', 'PRM',
+    # 'PRNr', 'RT', 'SIM', 'SSp-ul', 'ZI'],
+    
     if not onlyScat:
 
         
@@ -1823,7 +1859,8 @@ def inspect_regional_PETH(reg, split):
 #    ax0.set_ylabel('trajectory distance')
 
 
-def plot_custom_lines(curve = 'euc', split='fback'):
+def plot_custom_lines(regs = None, curve = 'euc', split='fback',
+                      psd_ = False, contr_= False):
 
 
     '''
@@ -1833,9 +1870,14 @@ def plot_custom_lines(curve = 'euc', split='fback'):
     for supp figure on oscillations
     '''
     
-   
-    regs = ['MV', 'MRN', 'APN', 'SSp-m', 
-            'SIM', 'PRM', 'PoT', 'MEA', 'ANcr2']
+    if regs is None:
+        # clear oscillations
+        regs = ['MV', 'MRN', 'APN', 'SSp-m', 
+                'SIM', 'PRM', 'PoT', 'MEA', 'ANcr2']
+            
+        # Ila's for choice    
+        regs = ['PRM', 'CA3', 'LP', 'ACAv', 'PRNr', 
+                'IRN','MRN','SSp-m', 'MV']  
             
     mapping = 'Beryl'
     df, palette = get_allen_info()
@@ -1846,75 +1888,83 @@ def plot_custom_lines(curve = 'euc', split='fback'):
     axs = axs.flatten()
     axsi = []  # inset axes
     
-    # get results
-    d = np.load(Path(pth_res,f'{split}.npy'),
-                allow_pickle=True).flat[0] 
-                
-    # get cosmos parent regions for Swanson acronyms 
-    cosregs = {reg: df[df['id'] == int(df[df['acronym']==reg
-                ]['structure_id_path']
-               .values[0].split('/')[4])]['acronym']
-               .values[0] for reg in regs}
-               
+    contrs = [0.    , 0.0625, 0.125 , 0.25  , 1.] if contr_ else [0]
     
-    k = 0                 
-    for reg in regs:
-     
-        yy = d[reg][f'd_{curve}']
-                 
-        xx = np.linspace(-pre_post[split][0], 
-                          pre_post[split][1], 
-                          len(d[reg][f'd_{curve}']))        
-
-        axs[k].plot(xx,yy, linewidth = 2,
-                      color=palette[reg], 
-                      label=f"{reg}")
-                      
-        # put region labels                 
-        y = yy[-1]
-        x = xx[-1]
-        ss = f"{reg} {d[reg]['nclus']}" 
+    for contr in contrs:
+         
+    
+        # get results
+        d = np.load(Path(pth_res,f'{split}_{contr}.npy' 
+                    if contr_ else f'{split}.npy'),
+                    allow_pickle=True).flat[0] 
+                    
+        # get cosmos parent regions for Swanson acronyms 
+        cosregs = {reg: df[df['id'] == int(df[df['acronym']==reg
+                    ]['structure_id_path']
+                   .values[0].split('/')[4])]['acronym']
+                   .values[0] for reg in regs}
+                   
         
-        cos =  cosregs[reg]
-#        if cos in ['CBX', 'CBN']:  # darken yellow
-#            axs[k].text(x, y, ss,color = 'k', fontsize=10)               
-#        
-#        axs[k].text(x, y, ss, color = palette[reg], fontsize=9)
-      
-        axs[k].spines['top'].set_visible(False)
-        axs[k].spines['right'].set_visible(False)
-        axs[k].set_ylabel('distance')
-        axs[k].set_xlabel('time [sec]')
-        axs[k].set_title(ss,color = palette[reg] if cos not in ['CBX', 'CBN']
-                         else 'k')
+        k = 0                 
+        for reg in regs:
+         
+            yy = d[reg][f'd_{curve}']
+                     
+            xx = np.linspace(-pre_post[split][0], 
+                              pre_post[split][1], 
+                              len(d[reg][f'd_{curve}']))        
 
-                               
-        f, psd = signal.welch(yy,
-                              fs=int(len(xx)/(xx[-1] - xx[0])))
-                              
-        with plt.rc_context({'font.size': 0.8*plt.rcParams['font.size']}):
-            # plot psd as inset 
-            axsi.append(inset_axes(axs[k], width="30%", height="35%", 
-                                   loc=4 if reg != 'PoT' else 1,
-                                   borderpad=1,
-                                   bbox_to_anchor=(-0.02,0.1,1,1), 
-                                   bbox_transform=axs[k].transAxes))
-                                   #
-
-            axsi[-1].plot(f,psd)
-            axsi[-1].set_xlim(3, 40)
-            axsi[-1].set_xlabel('f [Hz]')
-            Axis.set_label_coords(axsi[-1].xaxis,-0.3, -0.05)
+            axs[k].plot(xx,yy, linewidth = 2, alpha = 1 
+                        if contr == 1. else contr + 0.1,
+                          color=palette[reg], 
+                          label=f"{reg}")
+                          
+            # put region labels                 
+            y = yy[-1]
+            x = xx[-1]
+            ss = f"{reg} {d[reg]['nclus']}" 
             
-            axsi[-1].set_ylabel('psd ')        
-            axsi[-1].spines['top'].set_visible(False)
-            axsi[-1].spines['right'].set_visible(False)        
-            axsi[-1].set_yticks([])
-            axsi[-1].set_yticklabels([])
-            if k > 0:
-                axsi[-1].sharex(axsi[-2])
-        
-        k +=1
+            cos =  cosregs[reg]
+    #        if cos in ['CBX', 'CBN']:  # darken yellow
+    #            axs[k].text(x, y, ss,color = 'k', fontsize=10)               
+    #        
+    #        axs[k].text(x, y, ss, color = palette[reg], fontsize=9)
+          
+            axs[k].spines['top'].set_visible(False)
+            axs[k].spines['right'].set_visible(False)
+            axs[k].set_ylabel('distance')
+            axs[k].set_xlabel('time [sec]')
+            axs[k].set_title(ss,color = palette[reg] if cos not in ['CBX', 'CBN']
+                             else 'k')
+
+            if psd_:                      
+                f, psd = signal.welch(yy,
+                                      fs=int(len(xx)/(xx[-1] - xx[0])))
+                                      
+                with plt.rc_context({'font.size':
+                                     0.8*plt.rcParams['font.size']}):
+                    # plot psd as inset 
+                    axsi.append(inset_axes(axs[k], width="30%", height="35%", 
+                                           loc=4 if reg != 'PoT' else 1,
+                                           borderpad=1,
+                                           bbox_to_anchor=(-0.02,0.1,1,1), 
+                                           bbox_transform=axs[k].transAxes))
+                                           #
+
+                    axsi[-1].plot(f,psd)
+                    axsi[-1].set_xlim(3, 40)
+                    axsi[-1].set_xlabel('f [Hz]')
+                    Axis.set_label_coords(axsi[-1].xaxis,-0.3, -0.05)
+                    
+                    axsi[-1].set_ylabel('psd ')        
+                    axsi[-1].spines['top'].set_visible(False)
+                    axsi[-1].spines['right'].set_visible(False)        
+                    axsi[-1].set_yticks([])
+                    axsi[-1].set_yticklabels([])
+                    if k > 0:
+                        axsi[-1].sharex(axsi[-2])
+            
+            k +=1
 
     #plt.tight_layout()
     
@@ -1986,4 +2036,66 @@ def plot_grand_average():
     axs[1,0].autoscale()
     
     fig.tight_layout()
+
+
+def plot_licka_raster(D_=None, eid=None):
+
+    '''
+    for each insertion, get lick raster, 
+    licka cell PETH
+    '''
+    
+    # save results for plotting here
+    pth_figs = Path(one.cache_dir, 'manifold', 'res','figs') 
+    pth_figs.mkdir(parents=True, exist_ok=True)    
+    
+    
+    df, palette = get_allen_info()    
+    pth = Path(one.cache_dir, 'manifold', 'fback_licka') 
+    ss = os.listdir(pth)  # get insertions
+    
+    plt.ioff()
+
+    k = 0
+    for s in ss:
+    
+        if D_ is None:
+
+            D_ = np.load(Path(pth,s), 
+                        allow_pickle=True).flat[0]
+        
+        fig,ax = plt.subplots(nrows=2)
+        
+        ncells, nbins = D_['ws'].shape
+        ax[0].imshow(D_['ws'], cmap='Greys',aspect="auto",
+                     interpolation='none', extent=[0,nlicks,ncells,0])
+                         
+        ax[0].set_yticks(range(D_['ws'].shape[0]))
+        ax[0].set_yticklabels(D_['acs'],fontsize=3)
+        ax[0].set_title(f'{s.split("_")[0]}, {ncells} cells')
+        ax[0].set_ylabel('cells')
+        ax[0].set_xlabel('time [licks]')
+        
+        cols = [palette[x] for x in D_['acs']]
+
+        for ticklabel, tickcolor in zip(ax[0].get_yticklabels(), cols):
+            ticklabel.set_color(tickcolor)
+
+        if eid is None:
+            eid = s.split('_')[0]
+        licks = one.load_object(eid, 'licks', collection='alf')
+        trials = one.load_object(eid, 'trials', collection='alf')
+        plot_lick_raster(licks['times'], trials.to_df())
+
+        fig.tight_layout()
+        
+        if D_ is not None:
+            break
+        
+        fig.savefig(Path(pth_figs,s.split('.')[0]+'.png'))
+        plt.close()    
+        print(k, 'of', len(ss), 'done')
+        k += 1 
+
+
     
