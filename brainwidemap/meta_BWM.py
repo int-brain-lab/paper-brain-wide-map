@@ -4,7 +4,8 @@ from collections import Counter
 import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-from scipy.stats import percentileofscore, spearmanr,combine_pvalues 
+from scipy.stats import (percentileofscore, spearmanr, 
+combine_pvalues, fisher_exact, barnard_exact, boschloo_exact, ttest_ind) 
 from pathlib import Path
 from one.api import ONE
 from ibllib.atlas import AllenAtlas
@@ -79,7 +80,7 @@ def get_allen_info():
     dfa['color_hex_triplet'] = dfa['color_hex_triplet'].fillna('FFFFFF')
     dfa['color_hex_triplet']  = dfa['color_hex_triplet'
                                     ].replace('19399','19399a')
-    dfa['color_hex_triplet']  = dfa['color_hex_triplet'] .replace('0','FFFFFF')
+    dfa['color_hex_triplet']  = dfa['color_hex_triplet'].replace('0','FFFFFF')
     dfa['color_hex_triplet'] = '#' + dfa['color_hex_triplet'].astype(str)
     dfa['color_hex_triplet'] = dfa['color_hex_triplet'
                                 ].apply(lambda x: 
@@ -103,7 +104,7 @@ def cor_per_reg(split, a1 = 'manifold', a2 = 'decoding', curve = 'euc'):
     
     #  analysis: [amplitude, pvalue]
     A = {'manifold': [f'amp_{curve}',f'p_{curve}'], 
-         'decoding': ['median_vals','combined_p-values'], 
+         'decoding': ['values_median','combined_p-value'], 
          'single-cell': ['fra', 0],
          'glm': ['frac_of_sig_cells', 0]}
     
@@ -197,8 +198,11 @@ def bulk_per_reg():
         for a2 in ['decoding', 'single-cell']:
             if a1 == a2:
                 continue
-            for split in align:    
-                cor_res(split, a1 = a1, a2 = a2)
+            for split in align:
+                try:    
+                    cor_per_reg(split, a1 = a1, a2 = a2)
+                except:
+                    print(split, a1, a2, 'no data')
             plt.close()
                
 
@@ -363,10 +367,13 @@ def motor_block_eid(sig_lev = 0.01):
     eids = list(set(db['eid'].values
                 ).intersection(set(dm['eid'].values)))
     
+    print(len(eids), 'eids in common')
+    
     # for each eid count number of significant regions and significant 
     # behaviors
     
-    cols = ['eid','sig_beh', 'frac_beh', 'sig_regs', 'frac_regs'] 
+    cols = ['eid','sig_beh', 'frac_beh', 'sig_regs', 'frac_regs',
+            'min_p_beh', 'min_p_dec', 'max_acc', 'scores', 'regs'] 
     r = []
     for eid in eids:
     
@@ -381,11 +388,81 @@ def motor_block_eid(sig_lev = 0.01):
                  
         sig_regs = list(x[x['p-value'] < sig_lev]['region'].values)
         
+        # get minimal p-value across behaviors
+        min_p_beh = min([y[ps[i]].values[0] for i in range(len(ps))])
+        min_p_dec = min(x['p-value'].values)
+        max_acc = max(x['score'].values)
+        scores = x['score'].values
+        regs = x['region'].values
+        
         r.append([eid, sig_beh, len(sig_beh)/len(ps), 
-                       sig_regs, len(sig_regs)/len(x)])
+                       sig_regs, len(sig_regs)/len(x),
+                       min_p_beh, min_p_dec, max_acc, scores, regs])
     
     df = pd.DataFrame(columns = cols, data = r)
+    
+    # print contingency table
+
+    df['at_least1_reg'] = df['sig_regs'].map(lambda d: len(d)) > 0
+    df['at_least1_beh'] = df['sig_beh'].map(lambda d: len(d)) > 0
+    ct = pd.crosstab(index=df['at_least1_reg'], columns=df['at_least1_beh'])
+    print(ct)
+    print('fisher_exact:', fisher_exact(ct,alternative="two-sided"))
+    print('barnard_exact:', barnard_exact(ct,alternative="two-sided"))
+    print('boschloo_exact:', boschloo_exact(ct,alternative="two-sided"))    
+    #mosaic(myDataframe, ['size', 'length'])
+    
+    #return df
+
+
+    # Unpaired t-test between max decoding across regions; 
+    # one of those that have at_least1_beh 
+    a = np.concatenate(df[~df['at_least1_beh']]['scores'].values)
+    b = np.concatenate(df[df['at_least1_beh']]['scores'].values)
+    t, p = ttest_ind(a,b)
+
+    fig, ax = plt.subplots()
+    ax.hist(a, label='dec. scores without 1 beh', color='r')
+    ax.hist(b, label='dec. scores with at least 1 beh', color='b')
+    ax.set_xlabel('decoding scores')
+    ax.set_ylabel('frequency')
+    ax.set_title(f't-test statistic, p = ({np.round(t,2)}, {np.round(p,2)})')
+    ax.legend()
+    
+    '''
+    plot scatter per session
+    '''   
+    
+    # column keys to scatter
+    a = ['min_p_beh','min_p_dec']#'max_acc'
+
+    fig, ax = plt.subplots(ncols=2)
+    ax[0].scatter(np.log(df[a[0]]), np.log(df[a[1]]))
+    ax[0].set_xlabel(f'log({a[0]})')
+    ax[0].set_ylabel(f'log({a[1]})')
+    
+    c,p = spearmanr(np.log(df[a[0]]),np.log(df[a[1]]))
+ 
+    ax[0].set_title(f'Point = session; Spearman: {np.round(c,2)}, {np.round(p,2)}')
+    
+    ax[1].scatter(df[a[0]], df[a[1]])
+    ax[1].set_xlabel(f'{a[0]}')
+    ax[1].set_ylabel(f'{a[1]}')
+    c,p = spearmanr(df[a[0]],df[a[1]])
+ 
+    ax[1].set_title(f'Point = session; Spearman: {np.round(c,2)}, {np.round(p,2)}')    
+
+    fig = plt.gcf()
+    fig.tight_layout()
+    
+# 
+#    ax = sns.lmplot(x=a[0],y=a[1],data=df,fit_reg=True)       
+#    
+#    ax = plt.gca()
+    
     return df        
+
+
 
 
 
