@@ -7,6 +7,7 @@ from brainwidemap import (
     download_aggregate_tables)
 import sys
 
+# number of jobs which should be submited by a .sh file to parallelize data caching
 N_PARA = 50
 para_index = int(sys.argv[1])-1
 
@@ -18,6 +19,7 @@ USER INPUTS
 # Whether to remove data based on number of probes and units per region, good trials (see below for specifics)
 regions_filter = True
 trials_filter = True
+min_trials = 150
 # Whether to download wheel and whisker data as well
 wheel_data = True
 whisker_data = True
@@ -36,16 +38,7 @@ else:
     one = ONE(base_url='https://alyx.internationalbrainlab.org', mode='remote')
     cache_dir = one.cache_dir
 
-BAD_PIDS = ['367ea4c4-d1b7-47a6-9f18-5d0df9a3f4de',
-            '9b3ad89a-177f-4242-9a96-2fd98721e47f',
-            '485b50c8-71e1-4654-9a07-64395c15f5ed',
-            '0aafb6f1-6c10-4886-8f03-543988e02d9e',
-            'b976e816-bc24-42e3-adf4-2801f1a52657',
-            'dac5defe-62b8-4cc0-96cb-b9f923957c7f',
-            'e9cf749b-85dc-4b59-834b-325cec608c48',
-            'f84f36c9-88f8-4d80-ba34-7f7a2b254ece',
-            '96c816ad-9a48-46a4-8a84-9a73cc153d69']
-BAD_PIDS = []
+BAD_PIDS = [] # can exclude a list of PIDS here, but currently not necessary
 BAD_EIDS = [one.pid2eid(p)[0] for p in BAD_PIDS]
 
 # Get the dataframe of all included sessions and probe insertions, use frozen query
@@ -63,13 +56,11 @@ if regions_filter:
 if trials_filter:
     # Download the latest trials table and filter for sessions that have at least 200 trials fulfilling BWM criteria
     trials_table = download_aggregate_tables(one, type='trials', target_path=cache_dir)
-    eids = filter_sessions(bwm_df['eid'], trials_table=trials_table, min_trials=200)
+    eids = filter_sessions(bwm_df['eid'], trials_table=trials_table, min_trials=min_trials)
     bwm_df = bwm_df[bwm_df['eid'].isin(eids)]
 
 # Download cluster information and spike trains for all good units.
-count = -1
-for pid in bwm_df['pid']:
-    count += 1
+for count, pid in enumerate(bwm_df['pid']):
     if not (count%N_PARA == para_index):
         continue
     elif pid in BAD_PIDS:
@@ -79,9 +70,7 @@ for pid in bwm_df['pid']:
        spikes, clusters = load_good_units(one, pid, compute_metrics=False)
 
 # Download trials for all sessions
-count = -1
-for eid in bwm_df['eid']:
-    count += 1
+for count, eid in enumerate(bwm_df['eid']):
     if not (count%N_PARA == para_index):
         continue
     else: # Oddly not problem with errors here, dont need BAD_EIDS like wheel or spike sorting
@@ -91,12 +80,10 @@ for eid in bwm_df['eid']:
 
 # Download wheel data for all sessions
 if wheel_data:
-    count = -1
-    for eid in bwm_df['eid']:
-        count += 1
+    for count, eid in enumerate(bwm_df['eid']):
         if not (count%N_PARA == para_index):
        	    continue
-
+        # the following eid, cc45c568..., produces "RuntimeWarning: Failed to connect"
         elif eid == 'cc45c568-c3b9-4f74-836e-c87762e898c8' or (eid in BAD_EIDS):
             continue
         else:
@@ -106,10 +93,8 @@ if wheel_data:
 
 # Download whisker data for all sessions
 if whisker_data:
-    count = -1
     me_err = []
-    for eid in bwm_df['eid']:
-        count += 1
+    for count, eid in enumerate(bwm_df['eid']):
         if not (count%N_PARA == para_index):
        	    continue
         else:

@@ -29,6 +29,8 @@ params['add_to_saving_path'] = (f"_binsize={1000 * params['binsize']}_lags={para
 ephys_str = '_beforeRecording' if not params['imposter_generate_from_ephys'] else ''
 imposter_file = RESULTS_DIR.joinpath('decoding', f"imposterSessions_{params['target']}{ephys_str}.pqt")
 
+min_trials = 150
+
 # Load ONE and the list of probe insertions and select probe(s)
 one = ONE(mode='local')
 bwm_df = bwm_query(freeze='2022_10_bwm_release')
@@ -46,7 +48,7 @@ region_df = filter_regions(
 print('completed region_df')
 # Download the latest trials table and filter for sessions that have at least 200 trials fulfilling BWM criteria
 trials_table = download_aggregate_tables(one, type='trials',)
-eids = filter_sessions(bwm_df['eid'], trials_table=trials_table, min_trials=200)
+eids = filter_sessions(bwm_df['eid'], trials_table=trials_table, min_trials=min_trials)
 
 # Remove probes and sessions based on those filters
 bwm_df = bwm_df[bwm_df['pid'].isin(region_df['pid'].unique())]
@@ -60,7 +62,7 @@ print(f'inside script, running slurm_job {slurm_job_id}')
 # sessions. This job_repeat is 0 for the first round, 1 for the second round and so on
 job_repeat = slurm_job_id // bwm_df.index.size
 # Don't go any further if we are already at the end of pseudo sessions for this probe/session
-if (job_repeat + 1) * params['n_pseudo_per_job'] > params['n_pseudo']: #TODO bb thinks this is wrong, bb flipped from <= to >, should be good now
+if (job_repeat + 1) * params['n_pseudo_per_job'] > params['n_pseudo']:
     print('ended because job counter', job_repeat+1, params['n_pseudo_per_job'], params['n_pseudo'])
     exit()
 # Otherwise use info to construct pseudo ids
@@ -101,6 +103,23 @@ trials_df, trials_mask = load_trials_and_mask(
     one=one, eid=eid, sess_loader=sess_loader, min_rt=params['min_rt'], max_rt=params['max_rt'],
     min_trial_len=params['min_len'], max_trial_len=params['max_len'],
     exclude_nochoice=True, exclude_unbiased=params['exclude_unbiased_trials'])
+_, trials_mask_without_minrt = load_trials_and_mask(
+    one=one, eid=eid, sess_loader=sess_loader, min_rt=None, max_rt=params['max_rt'],
+    min_trial_len=params['min_len'], max_trial_len=params['max_len'],
+    exclude_nochoice=True, exclude_unbiased=params['exclude_unbiased_trials'])
+_, trials_mask_without_maxrt = load_trials_and_mask(
+    one=one, eid=eid, sess_loader=sess_loader, min_rt=params['min_rt'], max_rt=None,
+    min_trial_len=params['min_len'], max_trial_len=params['max_len'],
+    exclude_nochoice=True, exclude_unbiased=params['exclude_unbiased_trials'])
+_, trials_mask_withonly_nochoice = load_trials_and_mask(
+    one=one, eid=eid, sess_loader=sess_loader, min_rt=None, max_rt=None,
+    min_trial_len=None, max_trial_len=None,
+    exclude_nochoice=True, exclude_unbiased=False)
+
+params['trials_mask_diagnostics'] = [trials_mask,
+                                     trials_mask_without_minrt,
+                                     trials_mask_without_maxrt,
+                                     trials_mask_withonly_nochoice]
 
 # load target data if necessary (will probably put this into a function eventually)
 if params['target'] in ['wheel-vel', 'wheel-speed', 'l-whisker-me', 'r-whisker-me']:

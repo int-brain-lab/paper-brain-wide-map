@@ -11,20 +11,23 @@ from sklearn.metrics import r2_score, balanced_accuracy_score
 
 def gini(x, weights=None):
     '''
+    Index that measures sparsity across a set of values, x.
+    If values in x are roughly constant, then this index is near 0.
+    If values in x have a large spread, then this index is near 1.
+
     Implementation copied from 
     https://stackoverflow.com/questions/48999542/more-efficient-weighted-gini-coefficient-in-python
 
     Parameters
     ----------
-    x : TYPE
-        DESCRIPTION.
-    weights : TYPE, optional
-        DESCRIPTION. The default is None.
+    x : 1-d array of values
+        .
+    weights : 1-d array, floats
+        weightings corresponding to values of x. The default is None.
 
     Returns
     -------
-    TYPE
-        DESCRIPTION.
+    float
 
     '''
     if weights is None:
@@ -37,6 +40,26 @@ def gini(x, weights=None):
     return 0.5 * rmad
 
 def fix_pd_regions(res):
+    '''
+    Takes a pandas dataframe and fixes the 'region' column.
+    Regions are often lists with single values which makes dataframe
+    manipulation difficult.  This function fixes that by removing 
+    the list and using the single value
+
+    If regions which are not of type list are not changed
+
+    A region list with multiple elements causes an assertion error
+
+    Parameters
+    ----------
+    res : pandas dataframe
+          must have a column called 'region'
+    Returns
+    -------
+    pandas dataframe
+
+    '''
+
     print('fixing pd regions')
     res = res.reset_index()
     l = len(res.loc[:,'region'])
@@ -49,6 +72,31 @@ def fix_pd_regions(res):
     return res
 
 def get_val_from_realsession(reseidreg, value_name, RUN_ID=1):
+    '''
+    helper function meant to take a pandas dataframe, reseidreg, of decoding results from
+    a single eid and a single region.  The value corresponding to the value_name column,
+    RUN_ID number, and pseudo_id=-1 is returned.  There should only be one such value, so 
+    if the dataframe contains mutliple, then None is returned.  If the value is None, then
+    None is returned.       
+
+    Parameters
+    ----------
+    reseidreg : pandas dataframe
+        Decoding results from a single eid and single region. 
+        .
+    value_name : str
+        the name of a column in reseidreg
+        .
+    RUN_ID=1 : int
+        The run id of the desired decoding value.  Decoding is often repeated multiple 
+        times to reduce variability, and run id indexes these repetitions. Default is 1.
+
+    Returns
+    -------
+    numpy array with a single value
+
+    '''
+
     my_vals = list(reseidreg.loc[(reseidreg['pseudo_id']==-1)&(reseidreg['run_id']==RUN_ID), value_name])
     if (len(my_vals) != 1) or (my_vals[0] is None):
         return None
@@ -56,10 +104,32 @@ def get_val_from_realsession(reseidreg, value_name, RUN_ID=1):
 
 def check_scores(my_preds, my_targets, score_name, real_scores):
     '''
-    returns boolean, True if the recored scores match the scores calculated
-    using predictions, targets, and score_name
+    checks whether the predictions produce the same performance 
+    scores as those that are given in the real_scores array.  
+    Compares predictions (my_preds) and targets (my_targets) to produce the
+    desired score_name and returns True if calculated scores all match the
+    recored scores
+
+    Parameters
+    ----------
+    my_preds : list of 2-d arrays
+        2-d arrays are decoder predictions across trials.  Assumed that 
+        second dimension has size 1 i.e. not wheel decoding.  The list indexes
+        across run ids
+    my_targets : 2-d array
+        Same format as my_preds, but not a list (targets are the same for all run ids).
+    score_name : str, 'balanced_acc_test' or 'R2_test'
+        These are the two test statistics used to quantify BWM decoding performance: 
+        balanced_accuracy_score and r2_score from sklearn.metrics. 
+    real_scores : 1-d array
+        The recored scores of decoding performance across run id.
+
+    Returns
+    -------
+    boolean
 
     '''
+
     my_targets_flat = my_targets[:,0]
     my_preds_flat = [my_preds[pi][:,0] for pi in range(my_preds.shape[0])]
     assert len(my_targets_flat.shape)==1
@@ -234,6 +304,12 @@ def create_pdtable_from_raw(res,
                 # load mask
                 my_masks = [get_val_from_realsession(reseidreg, 
                                                      'mask', 
+                                                     RUN_ID=runid) for runid in range(1,N_RUN+1)]
+                my_masks_trials_and_targets = [get_val_from_realsession(reseidreg,
+                                                     'mask_trials_and_targets',
+                                                     RUN_ID=runid) for runid in range(1,N_RUN+1)]
+                my_masks_diagnostics = [get_val_from_realsession(reseidreg,
+                                                     'mask_diagnostics',
                                                      RUN_ID=runid) for runid in range(1,N_RUN+1)] 
                 
                 if np.any(np.array([m is None for m in my_masks])):
@@ -278,6 +354,7 @@ def create_pdtable_from_raw(res,
                                  my_targets, 
                                  my_preds,
                                  my_mask,
+                                 (my_mask_trials_and_targets, my_mask_diagnostics),
                                  my_weights,
                                  my_params])
                 
@@ -297,6 +374,7 @@ def create_pdtable_from_raw(res,
                                                    'targets',
                                                    'predictions',
                                                    'mask',
+                                                   'mask_diagnostics',
                                                    'weights',
                                                    'params'])
         return res_table, xy_table

@@ -57,43 +57,40 @@ if params['target'] not in ['pLeft', 'signcont', 'feedback', 'choice']:
 
 all_trialsdf = []
 for i, eid in enumerate(eids):
-    if np.random.rand() > 1.1:
+    print('%i: %s' % (i, eid))
+    try:
+        sess_loader = SessionLoader(one=one, eid=eid)
+        sess_loader.load_trials()
+        trialsdf = sess_loader.trials
+    except Exception as e:
+        print('ERROR LOADING TRIALS DF')
+        print(e)
         continue
-    else:
-        print('%i: %s' % (i, eid))
+
+    # choose sessions that pass BWM criteria
+    # - more than 400 trials
+    # - better then 90% on highest contrasts trials
+    # TODO: compute mask with load_trials_and_mask()?
+    high_contrast_mask = (trialsdf.contrastLeft == 1) | (trialsdf.contrastRight == 1)
+    frac_correct_hc = (trialsdf[high_contrast_mask].feedbackType == 1).mean()
+    if (trialsdf.index.size > 400) \
+        and (frac_correct_hc > 0.9) \
+        and ((trialsdf.probabilityLeft == 0.5).sum() == 90) \
+        and (trialsdf.probabilityLeft.values[0] == 0.5):
         try:
-            sess_loader = SessionLoader(one=one, eid=eid)
-            sess_loader.load_trials()
-            trialsdf = sess_loader.trials
+            if add_behavior_col:
+                trialsdf = get_target_variable_in_df(one, eid, sess_loader=sess_loader, **params)
+            if trialsdf is None:
+                continue
+            else:
+                trialsdf.loc[:, 'eid'] = eid
+                trialsdf.loc[:, 'trial_id'] = trialsdf.index
+                trialsdf.loc[:, 'template_sess'] = i
+                all_trialsdf.append(trialsdf)
         except Exception as e:
-            print('ERROR LOADING TRIALS DF')
+            print('ERROR CREATING IMPOSTER SESSION')
             print(e)
             continue
-
-        # choose sessions that pass BWM criteria
-        # - more than 400 trials
-        # - better then 90% on highest contrasts trials
-        # TODO: compute mask with load_trials_and_mask()?
-        high_contrast_mask = (trialsdf.contrastLeft == 1) | (trialsdf.contrastRight == 1)
-        frac_correct_hc = (trialsdf[high_contrast_mask].feedbackType == 1).mean()
-        if (trialsdf.index.size > 400) \
-            and (frac_correct_hc > 0.9) \
-            and ((trialsdf.probabilityLeft == 0.5).sum() == 90) \
-            and (trialsdf.probabilityLeft.values[0] == 0.5):
-            try:
-                if add_behavior_col:
-                    trialsdf = get_target_variable_in_df(one, eid, sess_loader=sess_loader, **params)
-                if trialsdf is None:
-                    continue
-                else:
-                    trialsdf.loc[:, 'eid'] = eid
-                    trialsdf.loc[:, 'trial_id'] = trialsdf.index
-                    trialsdf.loc[:, 'template_sess'] = i
-                    all_trialsdf.append(trialsdf)
-            except Exception as e:
-                print('ERROR CREATING IMPOSTER SESSION')
-                print(e)
-                continue
 
 all_trialsdf = pd.concat(all_trialsdf)
 

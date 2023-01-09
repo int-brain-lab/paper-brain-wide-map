@@ -56,6 +56,8 @@ for fn in tqdm(finished):
             else:
                 side, stim, act, _ = format_data_mut(result["fit"][i_run]["df"])
                 mask = result["fit"][i_run]["mask"]  # np.all(result["fit"][i_run]["target"] == stim[mask])
+                mask_trials_and_targets = result["fit"][i_run]["mask_trials_and_targets"]
+                mask_diagnostics = result["fit"][i_run]["mask_diagnostics"]
                 #full_test_prediction = np.zeros(np.array(result["fit"][i_run]["target"]).size)
                 full_test_prediction = np.zeros(np.array(result["fit"][i_run]["target"]).shape)
                 for k in range(len(result["fit"][i_run]["idxes_test"])):
@@ -76,7 +78,9 @@ for fn in tqdm(finished):
                        'pseudo_id': result['pseudo_id'],
                        'N_units': result['N_units'],
                        'run_id': i_run + 1,
-                       'mask': ''.join([str(item) for item in list(result['fit'][i_run]['mask'].values * 1)]),
+                       'mask': ''.join([str(item) for item in list(mask.values * 1)]),
+                       'mask_trials_and_targets': mask_trials_and_targets,
+                       'mask_diagnostics': mask_diagnostics,
                        'R2_test': result['fit'][i_run]['Rsquared_test_full'],
                        'weights': result['fit'][i_run]['weights'],
                        'params': result['fit'][i_run]['best_params'],
@@ -112,34 +116,6 @@ for fn in tqdm(finished):
 print('loading of %i files failed' % failed_load)
 resultsdf = pd.DataFrame(resultslist)
 resultsdf = fix_pd_regions(resultsdf)
-
-'''
-resultsdf = resultsdf[resultsdf.subject == 'NYU-12']
-resultsdf = resultsdf[resultsdf.eid == 'a8a8af78-16de-4841-ab07-fde4b5281a03']
-resultsdf.region = resultsdf.region.apply(lambda x:x[0])
-resultsdf = resultsdf[resultsdf.region == 'CA1']
-resultsdf = resultsdf[resultsdf.probe == 'probe00']
-resultsdf = resultsdf[resultsdf.run_id == 1]
-subdf = resultsdf.set_index(['subject', 'eid', 'probe', 'region']).drop('fold', axis=1)
-
-estimatorstr = [estimator_strs[i] for i in range(len(estimator_options)) if ESTIMATOR == estimator_options[i]]
-assert len(estimatorstr)==1
-estimatorstr = estimatorstr[0] 
-start_tw, end_tw = TIME_WINDOW   
-    
-model_str = 'interIndividual' if isinstance(MODEL, str) else modeldispatcher[MODEL]
-
-fn = str(RESULTS_DIR.joinpath('decoding','results','neural','ephys', 
-                              '_'.join([DATE, 'decode', TARGET,
-                               model_str if TARGET in ['prior','pLeft'] else 'task',
-                               estimatorstr, 
-                               'align', ALIGN_TIME, 
-                               str(N_PSEUDO), 'pseudosessions', 
-                               'regionWise' if SINGLE_REGION else 'allProbes',
-                               'timeWindow', str(start_tw).replace('.', '_'), str(end_tw).replace('.', '_')])))
-if ADD_TO_SAVING_PATH != '':
-    fn = fn + '_' + ADD_TO_SAVING_PATH
-'''
 
 fn = SETTINGS_FORMAT_NAME
 
