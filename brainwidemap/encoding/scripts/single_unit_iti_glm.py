@@ -66,11 +66,12 @@ if __name__ == "__main__":
     parser.add_argument("--binwidth", type=float, default=0.3)
     parser.add_argument("--contiguous", action="store_true")
     parser.add_argument("--fileidx", type=int, default=-1)
+    parser.add_argument("--nthreads", type=int, default=-1)
     args = parser.parse_args()
 
     dsfn = Path(GLM_CACHE + f"{args.cachedate}_dataset_metadata.pkl")
     dataset = pd.read_pickle(dsfn)["dataset_filenames"]
-    parpool = Parallel(n_jobs=-1, verbose=10)
+    parpool = Parallel(n_jobs=agrs.nthreads, verbose=10)
 
     allscores = []
     allmeanscores = []
