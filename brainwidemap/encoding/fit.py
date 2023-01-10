@@ -105,14 +105,12 @@ def fit_stepwise_with_pseudoblocks(
     t_before,
     n_folds=5,
     contiguous=False,
-    null_target=None,
     seqsel_kwargs={},
     seqselfit_kwargs={},
     n_impostors=100,
     **kwargs
 ):
     with parallel_backend(backend="loky", n_jobs=-1, inner_max_num_threads=2):
-        print("context change worked")
         data_fit = fit_stepwise(
             design,
             spk_t,
@@ -130,25 +128,7 @@ def fit_stepwise_with_pseudoblocks(
             pseudoblock = pd.Series(
                 generate_pseudo_blocks(design.base_df.shape[0]), index=design.base_df.index
             )
-            if null_target is None:
-                pdesign = generate_design(design.base_df, pseudoblock, t_before, **kwargs)
-            elif null_target == "trial":
-                pdesign = generate_design(
-                    design.base_df,
-                    pseudoblock,
-                    t_before,
-                    iti_prior_val=design.base_df["probabilityLeft"],
-                    **kwargs
-                )
-            elif null_target == "iti":
-                pdesign = generate_design(
-                    design.base_df,
-                    design.base_df["probabilityLeft"],
-                    t_before,
-                    iti_prior_val=pseudoblock,
-                    **kwargs
-                )
-
+            pdesign = generate_design(design.base_df, pseudoblock, t_before, **kwargs)
             pfit = fit_stepwise(
                 pdesign,
                 spk_t,
