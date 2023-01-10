@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from ibllib.atlas import AllenAtlas
 from brainwidemap.encoding.scripts.impostor_fits.summary_time_plots_perkern import atlas_variable
-
+import seaborn as sns
 
 st.title("Examining Brain-Wide Map data results")
 
@@ -78,12 +78,12 @@ with st.form("plottingparams"):
                 "Select alpha for significance", min_value=0.0, max_value=0.1, value=0.01
             )
         if tailside == "bottom":
-            agg = df.groupby("region").apply(lambda x: np.sum(x[colname] <= alpha) / len(x))
+            agg = df.groupby("region").apply(lambda x: np.mean(x[colname] <= alpha))
         elif tailside == "upper":
-            agg = df.groupby("region").apply(lambda x: np.sum(x[colname] >= (1 - alpha)) / len(x))
+            agg = df.groupby("region").apply(lambda x: np.mean(x[colname] >= (1 - alpha)))
         else:
             folded = 2 * (df[colname] - 0.5).abs()
-            agg = folded.groupby("region").apply(lambda x: np.sum(x >= (1 - alpha) / len(x)))
+            agg = folded.groupby("region").apply(lambda x: np.mean(x >= (1 - alpha)))
     else:
         agg = df.groupby("region").agg(aggregators[aggregator])[colname]
     if rangetype == "quantile":
@@ -106,4 +106,9 @@ with st.form("plottingparams"):
             fig, ax, colorbar = atlas_variable(
                 agg, "viridis", vmin=vmin, vmax=vmax, cbar=True, fig=fig, axes=ax, atlas=atlas
             )
+        st.write(fig)
+        fig, ax = plt.subplots(1, 1)
+        sns.histplot(agg)
+        ax.set_xlabel(f"Region {aggregator}")
+        ax.set_ylabel(f"Number of regions")
         st.write(fig)
