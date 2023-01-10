@@ -1,0 +1,5 @@
+adjustText
+fitz
+pdf2image
+PyMuPDF
+umap
