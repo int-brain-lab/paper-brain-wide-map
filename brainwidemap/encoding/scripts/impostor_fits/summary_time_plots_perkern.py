@@ -64,7 +64,7 @@ def atlas_variable(df, cmap, vmin=0, vmax=1, axes=None, fig=None, cbar=False, at
         df.values.reshape(-1),
         cmap=cmap,
         hemisphere="left",
-        br=br,
+        br=atlas.regions,
         vmin=vmin,
         vmax=vmax,
         ax=axes[2],
