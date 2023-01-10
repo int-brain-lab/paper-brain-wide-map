@@ -94,10 +94,10 @@ if __name__ == "__main__":
             generate_pseudo_blocks(stdf.index.max() + 1)[stdf.index] for _ in range(args.pseudo)
         ]
         null_dfs = [stdf.copy().assign(probabilityLeft=t) for t in null_targets]
-        nullfits = parpool(
-            delayed(fit_target)(sspkt, sspkclu, nt, args.binwidth)
+        nullfits = [
+            fit_target(sspkt, sspkclu, nt, args.binwidth)
             for nt in null_dfs
-        )
+        ]
         nulldfs = [pd.concat(scores).assign(null=i) for i, scores in enumerate(nullfits)]
         nullscores = pd.concat(nulldfs)
         scores = pd.concat((basescores, nullscores))
