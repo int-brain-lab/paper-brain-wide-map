@@ -68,40 +68,42 @@ with col3:
         ["fixed", "quantile"],
         index=0 if aggregator == "Fraction significant" else 1,
     )
-if aggregator == "Fraction significant":
-    col1, col2 = st.columns(2)
-    with col1:
-        tailside = st.selectbox("Select tail side", ["both", "upper", "lower"])
-    with col2:
-        alpha = st.slider(
-            "Select alpha for significance", min_value=0.0, max_value=0.1, value=0.01
-        )
-    if tailside == "bottom":
-        agg = df.groupby("region").apply(lambda x: np.sum(x[colname] <= alpha) / len(x))
-    elif tailside == "upper":
-        agg = df.groupby("region").apply(lambda x: np.sum(x[colname] >= (1 - alpha)) / len(x))
+with st.form("plottingparams"):
+    if aggregator == "Fraction significant":
+        col1, col2 = st.columns(2)
+        with col1:
+            tailside = st.selectbox("Select tail side", ["both", "upper", "lower"])
+        with col2:
+            alpha = st.slider(
+                "Select alpha for significance", min_value=0.0, max_value=0.1, value=0.01
+            )
+        if tailside == "bottom":
+            agg = df.groupby("region").apply(lambda x: np.sum(x[colname] <= alpha) / len(x))
+        elif tailside == "upper":
+            agg = df.groupby("region").apply(lambda x: np.sum(x[colname] >= (1 - alpha)) / len(x))
+        else:
+            folded = 2 * (df[colname] - 0.5).abs()
+            agg = folded.groupby("region").apply(lambda x: np.sum(x >= (1 - alpha) / len(x)))
     else:
-        folded = 2 * (df[colname] - 0.5).abs()
-        agg = folded.groupby("region").apply(lambda x: np.sum(x >= (1 - alpha) / len(x)))
-else:
-    agg = df.groupby("region").agg(aggregators[aggregator])[colname]
-if rangetype == "quantile":
-    qmin, qmax = st.select_slider(
-        "Select color limit quantiles",
-        options=np.round(np.linspace(0, 1, 20), 4),
-        value=(0, 1),
-    )
-    vmin, vmax = np.quantile(agg, qmin), np.quantile(agg, qmax)
-elif rangetype == "fixed":
-    col1, col2 = st.columns(2)
-    with col1:
-        vmin = st.number_input("Minimum value of colormap", value=0)
-    with col2:
-        vmax = st.number_input("Maximum value of colormap", value=1.0)
-
-fig, ax = plt.subplots(3, 1, figsize=(6, 9))
-with st.spinner("Plotting..."):
-    fig, ax, colorbar = atlas_variable(
-        agg, "viridis", vmin=vmin, vmax=vmax, cbar=True, fig=fig, axes=ax, atlas=atlas
-    )
-st.write(fig)
+        agg = df.groupby("region").agg(aggregators[aggregator])[colname]
+    if rangetype == "quantile":
+        qmin, qmax = st.select_slider(
+            "Select color limit quantiles",
+            options=np.round(np.linspace(0, 1, 20), 4),
+            value=(0, 1),
+        )
+        vmin, vmax = np.quantile(agg, qmin), np.quantile(agg, qmax)
+    elif rangetype == "fixed":
+        col1, col2 = st.columns(2)
+        with col1:
+            vmin = st.number_input("Minimum value of colormap", value=0)
+        with col2:
+            vmax = st.number_input("Maximum value of colormap", value=1.0)
+    submitted = st.form_submit_button("Plot")
+    if submitted:
+        fig, ax = plt.subplots(3, 1, figsize=(6, 9))
+        with st.spinner("Plotting..."):
+            fig, ax, colorbar = atlas_variable(
+                agg, "viridis", vmin=vmin, vmax=vmax, cbar=True, fig=fig, axes=ax, atlas=atlas
+            )
+        st.write(fig)
