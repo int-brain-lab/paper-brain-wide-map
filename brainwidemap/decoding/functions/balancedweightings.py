@@ -14,7 +14,7 @@ from behavior_models.models.expSmoothing_stimside import expSmoothing_stimside
 
 from brainwidemap.decoding.functions.process_targets import optimal_Bayesian, check_bhv_fit_exists
 from brainwidemap.decoding.functions.nulldistributions import generate_imposter_session
-from brainwidemap.decoding.settings import modeldispatcher
+from brainwidemap.decoding.settings_template import modeldispatcher
 
 
 def pdf_from_histogram(x, out):

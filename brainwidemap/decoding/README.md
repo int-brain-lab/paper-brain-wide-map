@@ -13,7 +13,11 @@ You must save a 'settings.py' file in this directory before executing this pipel
 in the format of settings_template.py.  You may copy and rename that file and make the necessary settings 
 changes.  This file also determines where files will be saved and the file namings for this decoding run.  
 Note that the date is important for file naming, and if you change the date or any other settings related 
-to the variable 'SETTINGS_FORMAT_NAME', then the decoding is treated as a different run.  
+to the variable 'SETTINGS_FORMAT_NAME', then the decoding is treated as a different run. 
+
+For an example of how to perform decoding for a single session, see the file 
+`decoding_example_script.py` in this directory. The instructions below detail how to run a
+large-scale decoding analysis across the entire brainwide map. 
 
 ## Caching the data
 

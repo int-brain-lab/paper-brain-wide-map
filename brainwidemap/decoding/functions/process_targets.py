@@ -80,6 +80,7 @@ def optimal_Bayesian(act, side):
 
     return 1 - Pis
 
+
 def compute_target_mask(target, exclude_trials_within_values):
     """
     Computes a boolean array which is False where target indicies should be excluded
@@ -112,9 +113,8 @@ def compute_target_mask(target, exclude_trials_within_values):
         target_mask = np.ones(len(target), dtype=bool)
     return target_mask
 
-def compute_beh_target(trials_df, metadata, remove_old=False, 
-                       return_raw=False,
-                       **kwargs):
+
+def compute_beh_target(trials_df, metadata, return_raw=False, **kwargs):
     """
     Computes regression target for use with regress_target, using subject, eid, and a string
     identifying the target parameter to output a vector of N_trials length containing the target
@@ -172,7 +172,8 @@ def compute_beh_target(trials_df, metadata, remove_old=False,
     if return_raw:
         return tvec, tvec_raw
     return tvec
-    
+
+
 def get_beh_target(trials_df, metadata, remove_old=False, **kwargs):
     if kwargs['model_parameters'] is None:
         istrained, fullpath = check_bhv_fit_exists(

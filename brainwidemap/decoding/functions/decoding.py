@@ -91,7 +91,7 @@ def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo
 
     """
 
-    print(f'Working on eid : %s' % metadata['eid'])
+    print(f'Working on eid: %s' % metadata['eid'])
     filenames = []  # this will contain paths to saved decoding results for this eid
 
     if kwargs['use_imposter_session'] and not kwargs['stitching_for_imposter_session']:
@@ -153,12 +153,12 @@ def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo
     if kwargs['target'] in ['pLeft', 'signcont', 'strengthcont', 'choice', 'feedback']:
         target_vals_list, target_vals_to_mask = compute_beh_target(trials_df, metadata, 
                                                                    return_raw=True, **kwargs)
-        print('printing target_vals_list to debug', target_vals_list, type(target_vals_list))
+        #print('printing target_vals_list to debug', target_vals_list, type(target_vals_list))
         #print('printing target_vals_list to see if it is binary', target_vals_list)
         #print('printing binarization value', kwargs['binarization_value'])
         target_mask = compute_target_mask(target_vals_to_mask, 
                                           kwargs['exclude_trials_within_values'])
-        
+
     else:
         if dlc_dict is None or dlc_dict['times'] is None or dlc_dict['values'] is None:
             raise ValueError('dlc_dict does not contain any data')
@@ -231,8 +231,7 @@ def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo
                 add_to_saving_path=kwargs['add_to_saving_path']
             )
             if os.path.exists(save_path):
-                continue    
-           
+                continue
 
             # create pseudo/imposter session when necessary and corresponding mask
             # TODO: integrate single-/multi-bin code
