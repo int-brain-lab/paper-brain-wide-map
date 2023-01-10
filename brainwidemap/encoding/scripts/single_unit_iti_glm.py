@@ -71,7 +71,7 @@ if __name__ == "__main__":
 
     dsfn = Path(GLM_CACHE + f"{args.cachedate}_dataset_metadata.pkl")
     dataset = pd.read_pickle(dsfn)["dataset_filenames"]
-    parpool = Parallel(n_jobs=args.nthreads, verbose=10)
+    # parpool = Parallel(n_jobs=args.nthreads, verbose=10)
 
     allscores = []
     allmeanscores = []
