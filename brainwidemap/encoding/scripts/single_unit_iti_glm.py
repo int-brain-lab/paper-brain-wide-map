@@ -22,8 +22,8 @@ from brainwidemap.encoding.params import GLM_CACHE
 
 def gen_design(stdf, binwidth=0.3):
     newdf = stdf[["stimOn_times"]]
-    newdf["trial_start"] = newdf.loc["stimOn_times"] - 0.4
-    newdf["trial_end"] = newdf.loc["stimOn_times"] - 0.1
+    newdf["trial_start"] = newdf["stimOn_times"] - 0.4
+    newdf["trial_end"] = newdf["stimOn_times"] - 0.1
     newdf = newdf.assign(
         prior_last=pd.Series(np.roll(stdf["probabilityLeft"], 1), index=stdf.index)
     )
