@@ -22,9 +22,11 @@ from brainwidemap.encoding.params import GLM_CACHE
 
 def gen_design(stdf, binwidth=0.3):
     newdf = stdf[["stimOn_times"]]
-    newdf["trial_start"] = newdf["stimOn_times"] - 0.4
-    newdf["trial_end"] = newdf["stimOn_times"] - 0.1
-    newdf.assign(prior_last=pd.Series(np.roll(stdf["probabilityLeft"], 1), index=stdf.index))
+    newdf["trial_start"] = newdf.loc["stimOn_times"] - 0.4
+    newdf["trial_end"] = newdf.loc["stimOn_times"] - 0.1
+    newdf = newdf.assign(
+        prior_last=pd.Series(np.roll(stdf["probabilityLeft"], 1), index=stdf.index)
+    )
     vartypes = {
         "trial_start": "timing",
         "trial_end": "timing",
@@ -94,10 +96,7 @@ if __name__ == "__main__":
             generate_pseudo_blocks(stdf.index.max() + 1)[stdf.index] for _ in range(args.pseudo)
         ]
         null_dfs = [stdf.copy().assign(probabilityLeft=t) for t in null_targets]
-        nullfits = [
-            fit_target(sspkt, sspkclu, nt, args.binwidth)
-            for nt in null_dfs
-        ]
+        nullfits = [fit_target(sspkt, sspkclu, nt, args.binwidth) for nt in null_dfs]
         nulldfs = [pd.concat(scores).assign(null=i) for i, scores in enumerate(nullfits)]
         nullscores = pd.concat(nulldfs)
         scores = pd.concat((basescores, nullscores))
@@ -105,9 +104,11 @@ if __name__ == "__main__":
         scores.index.names = ["clu_id", "null", "fold"]
 
         meanscores = scores.groupby(["clu_id", "null"]).mean()
-        percentiles = meanscores.groupby("clu_id").apply(lambda df: df.rank(pct=True).loc[:, -1, :])
-        percentiles = percentiles.droplevel(0).to_frame()
-        meanscores = meanscores.to_frame()
+        percentiles = meanscores.groupby("clu_id").apply(
+            lambda df: df.rank(pct=True).loc[:, -1, :]
+        )
+        percentiles = percentiles.droplevel(0)
+        meanscores = meanscores
 
         scores["eid"] = eid
         scores["pid"] = pid
