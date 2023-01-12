@@ -143,7 +143,7 @@ SAVE_BINNED = True  # save binned neural predictors in output file for non-null 
 MOTOR_REGRESSORS = False  # add DLC data as additional regressors to neural activity
 MOTOR_REGRESSORS_ONLY = False  # *only* use motor regressors, no neural activity
 EXCLUDE_TRIALS_WITHIN_VALUES = (-0.01, 0.01) # Applies mask equally to target and control, only works for scalars
-
+MIN_SESS_PER_REG = 2
 
 """
 ----------
@@ -255,6 +255,7 @@ params = {
     'motor_regressors': MOTOR_REGRESSORS,
     'motor_regressors_only': MOTOR_REGRESSORS_ONLY,
     'imposterdf': None,
+    'min_sess_per_reg': MIN_SESS_PER_REG,
 }
 
 """

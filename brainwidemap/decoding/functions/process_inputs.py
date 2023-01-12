@@ -7,6 +7,7 @@ from brainbox.processing import bincount2D
 
 def preprocess_ephys(reg_clu_ids, neural_df, trials_df, **kwargs):
     """Format a single session-wide array of spikes into a list of trial-based arrays.
+       The ordering of clusters used in the output are also returned.
 
     Parameters
     ----------
@@ -32,6 +33,8 @@ def preprocess_ephys(reg_clu_ids, neural_df, trials_df, **kwargs):
     -------
     list
         each element is a 2D numpy.ndarray for a single trial of shape (n_bins, n_clusters)
+    array
+        cluster ids that account for axis 1 of the above 2D arrays. 
 
     """
 
@@ -45,6 +48,7 @@ def preprocess_ephys(reg_clu_ids, neural_df, trials_df, **kwargs):
     spikemask = np.isin(neural_df['spk_clu'], reg_clu_ids)
     regspikes = neural_df['spk_times'][spikemask]
     regclu = neural_df['spk_clu'][spikemask]
+    clusters_used_in_bins = np.unique(regclu)
 
     # for each trial, put spiking data into a 2D array; collect trials in a list
     trial_len = kwargs['time_window'][1] - kwargs['time_window'][0]
@@ -56,6 +60,7 @@ def preprocess_ephys(reg_clu_ids, neural_df, trials_df, **kwargs):
         binned, _ = get_spike_counts_in_bins(regspikes, regclu, intervals)
         binned = binned.T  # binned is a 2D array
         binned_list = [x[None, :] for x in binned]
+        
     else:
         # multiple vectors of neural activity per trial
         # moved interval_len definintion into this condition so that when n_bins_lag is None it doesn't cause error
@@ -70,7 +75,7 @@ def preprocess_ephys(reg_clu_ids, neural_df, trials_df, **kwargs):
             binsize=kwargs['binsize'])
         binned_list = [x.T for x in binned_array]
 
-    return binned_list
+    return binned_list, clusters_used_in_bins
 
 
 def get_spike_data_per_trial(times, clusters, interval_begs, interval_ends, interval_len, binsize):

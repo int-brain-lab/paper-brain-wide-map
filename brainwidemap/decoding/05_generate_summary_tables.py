@@ -34,7 +34,7 @@ res_table, xy_table = create_pdtable_from_raw(res,
                                                                         'r-whisker-me'] else True)
 
 # filter for valide regions, those that have at least two eids
-valid_reg = np.array([len(res_table.loc[res_table['region']==reg])>=2 for reg in res_table['region']])
+valid_reg = np.array([len(res_table.loc[res_table['region']==reg])>=MIN_SESS_PER_REG for reg in res_table['region']])
 res_table = res_table.loc[valid_reg]
 xy_table = xy_table.loc[valid_reg]
 
