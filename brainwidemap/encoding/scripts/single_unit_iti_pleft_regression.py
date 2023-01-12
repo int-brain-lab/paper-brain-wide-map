@@ -65,11 +65,11 @@ for i, row in dataset.iterrows():
     )
     binned = binned[::2]
     target = stdf["probabilityLeft"].values
-    basescores = parpool(
+    scores = parpool(
         delayed(fit_target)(binned, target, clu_idx) for clu_idx in range(binned.shape[1])
     )
-    basescores = pd.DataFrame([f[0] for f in basescores], index=clu_ids[:-1], columns=range(5))
-    basealphas = pd.DataFrame([f[1] for f in basescores], index=clu_ids[:-1], columns=range(5))
+    basescores = pd.DataFrame([f[0] for f in scores], index=clu_ids[:-1], columns=range(5))
+    basealphas = pd.DataFrame([f[1] for f in scores], index=clu_ids[:-1], columns=range(5))
     basescores["null"] = -1
     basealphas["null"] = -1
     basescores.set_index("null", append=True, inplace=True)
