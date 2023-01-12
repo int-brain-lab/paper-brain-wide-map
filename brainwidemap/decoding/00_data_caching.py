@@ -19,7 +19,9 @@ USER INPUTS
 # Whether to remove data based on number of probes and units per region, good trials (see below for specifics)
 regions_filter = True
 trials_filter = True
+
 min_trials = 0
+
 # Whether to download wheel and whisker data as well
 wheel_data = True
 whisker_data = True
@@ -83,6 +85,7 @@ if wheel_data:
     for count, eid in enumerate(bwm_df['eid']):
         if not (count%N_PARA == para_index):
        	    continue
+
         # The following eid, cc45c568..., produces "RuntimeWarning: Failed to connect"
         # This may be caused by two timestamp arrays, wheel.timestamps.npy and wheel.times.npy
         elif eid == 'cc45c568-c3b9-4f74-836e-c87762e898c8' or (eid in BAD_EIDS):

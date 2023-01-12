@@ -29,6 +29,8 @@ params['add_to_saving_path'] = (f"_binsize={1000 * params['binsize']}_lags={para
 ephys_str = '_beforeRecording' if not params['imposter_generate_from_ephys'] else ''
 imposter_file = RESULTS_DIR.joinpath('decoding', f"imposterSessions_{params['target']}{ephys_str}.pqt")
 
+min_trials = 150
+
 # Load ONE and the list of probe insertions and select probe(s)
 one = ONE(mode='local')
 bwm_df = bwm_query(freeze='2022_10_bwm_release')

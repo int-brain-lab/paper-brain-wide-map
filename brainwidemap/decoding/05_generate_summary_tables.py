@@ -9,6 +9,8 @@ score_name = 'balanced_acc_test' if estimatorstr=='LogisticsRegression' else 'R2
 print(f'Working on {DATE} {TARGET}')
 file_pre = SETTINGS_FORMAT_NAME
 
+MIN_SESS_PER_REG = 1
+
 # aggregate parallelized formatting
 res = pd.DataFrame()
 for i in range(50):
