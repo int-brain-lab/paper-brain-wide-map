@@ -18,18 +18,14 @@ from brainwidemap.encoding.params import GLM_CACHE, GLM_FIT_PATH
 from brainwidemap.encoding.utils import make_batch_slurm, make_batch_slurm_singularity
 
 # SLURM params
-BATCHFILE = "/home/gercek/bwm_stepwise_glm_leaveoneout.sh"
+BATCHFILE_BASE = "/home/gercek/bwm_stepwise_glm_leaveoneout_"
 JOBNAME = "bwm_GLMs_LOO"
 PARTITION = "shared-cpu"
 TIME = "12:00:00"
 SINGULARITY = True
 if SINGULARITY:
-    parfile = "paper-brain-wide-map/brainwidemap/encoding/params.py"
     SINGULARITY_MODULES = ["GCC/9.3.0", "Singularity/3.7.3-Go-1.14"]
     SINGULARITY_IMAGE = "~/iblcore.sif"
-    SINGULARITY_BIND = {
-        f"/home/gercek/Projects/{parfile}": f"/data/{parfile}",
-    }
     SINGULARITY_CONDA = "/opt/conda"
     SINGULARITY_ENV = "iblenv"
 
@@ -54,9 +50,9 @@ params = {
     "wheel_offset": -0.3,
     "contnorm": 5.0,
     "reduce_wheel_dim": False,
-    "dataset_fn": "2022-10-24_dataset_metadata.pkl",
+    "dataset_fn": "2022-12-22_dataset_metadata.pkl",
     "model": lm.LinearGLM,
-    "alpha_grid": {"alpha": np.logspace(-2, 1.5, 50)},
+    "alpha_grid": {"alpha": np.logspace(-3, 2, 50)},
     "contiguous": False,
     "prior_estimate": False,
     "null": None,
@@ -86,42 +82,27 @@ print("Parameters file located at:", parpath)
 print("Dataset file used:", datapath)
 
 # Generate batch script
-if SINGULARITY:
-    make_batch_slurm_singularity(
-        BATCHFILE,
-        Path(__file__).parents[1].joinpath("cluster_worker.py"),
-        job_name=JOBNAME,
-        partition=PARTITION,
-        time=TIME,
-        singularity_modules=SINGULARITY_MODULES,
-        container_image=SINGULARITY_IMAGE,
-        img_condapath=SINGULARITY_CONDA,
-        img_envname=SINGULARITY_ENV,
-        local_pathadd=Path(__file__).parents[3],
-        logpath=LOGPATH,
-        cores_per_job=JOB_CORES,
-        memory=MEM,
-        array_size=f"1-{njobs}",
-        f_args=[str(datapath), str(parpath), r"${SLURM_ARRAY_TASK_ID}", currdate],
-    )
-else:
-    make_batch_slurm(
-        BATCHFILE,
-        Path(__file__).parents[1].joinpath("cluster_worker.py"),
-        job_name=JOBNAME,
-        partition=PARTITION,
-        time=TIME,
-        condapath=CONDAPATH,
-        envname=ENVNAME,
-        logpath=LOGPATH,
-        cores_per_job=JOB_CORES,
-        memory=MEM,
-        array_size=f"1-{njobs}",
-        f_args=[str(datapath), str(parpath), r"${SLURM_ARRAY_TASK_ID}", currdate],
-    )
+make_batch_slurm_singularity(
+    BATCHFILE_BASE,
+    Path(__file__).parents[1].joinpath("cluster_worker.py"),
+    job_name=JOBNAME,
+    partition=PARTITION,
+    time=TIME,
+    singularity_modules=SINGULARITY_MODULES,
+    container_image=SINGULARITY_IMAGE,
+    img_condapath=SINGULARITY_CONDA,
+    img_envname=SINGULARITY_ENV,
+    local_pathadd=Path(__file__).parents[3],
+    logpath=LOGPATH,
+    cores_per_job=JOB_CORES,
+    memory=MEM,
+    array_size=f"1-{njobs}",
+    f_args=[str(datapath), str(parpath), r"${SLURM_ARRAY_TASK_ID}", currdate],
+)
 
 # If SUBMIT_BATCH, then actually execute the batch job
 if SUBMIT_BATCH:
-    os.system(f"sbatch {BATCHFILE}")
+    os.system(f"sbatch {BATCHFILE_BASE + '_batch.sh'}")
 else:
-    print(f"Batch file generated at {BATCHFILE}; user must submit it themselves. Good luck!")
+    print(f"Batch file generated at {BATCHFILE_BASE + '_batch.sh'};"
+          " user must submit it themselves. Good luck!")
