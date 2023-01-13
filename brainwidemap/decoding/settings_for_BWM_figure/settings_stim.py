@@ -16,9 +16,10 @@ RESULTS_DIR = Path("/scratch/users/bensonb/international-brain-lab/paper-brain-w
 SLURM_DIR = Path("/scratch/users/bensonb/international-brain-lab/paper-brain-wide-map/brainwidemap/logs/slurm")
 
 
-DATE = '29-11-2022' # date must be different if you do different runs of the same target
-                    # e.g. signcont side with LogisticRegression vs signcont with Lasso
+DATE = '29-11-2022'
 # Either current date for a fresh run, or date of the run you want to build on
+# Date must be different if you do different runs of the same target
+# e.g. signcont side with LogisticRegression vs signcont with Lasso
 
 TARGET = 'signcont'
 # single-bin targets:

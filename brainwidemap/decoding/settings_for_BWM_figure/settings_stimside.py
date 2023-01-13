@@ -16,9 +16,10 @@ RESULTS_DIR = Path("/scratch/users/bensonb/international-brain-lab/paper-brain-w
 SLURM_DIR = Path("/scratch/users/bensonb/international-brain-lab/paper-brain-wide-map/brainwidemap/logs/slurm")
 
 
-DATE = '29-11-2022' # date must be different if you do different runs of the same target
-                    # e.g. signcont side with LogisticRegression vs signcont with Lasso
+DATE = '30-11-2022'
 # Either current date for a fresh run, or date of the run you want to build on
+# Date must be different if you do different runs of the same target
+# e.g. signcont side with LogisticRegression vs signcont with Lasso
 
 TARGET = 'signcont'
 # single-bin targets:
@@ -59,8 +60,8 @@ elif TARGET == 'signcont':
     BINSIZE = 0.1
     N_BINS_LAG = None
     USE_IMPOSTER_SESSION = False
-    BINARIZATION_VALUE = None
-    TANH_TRANSFORM = True
+    BINARIZATION_VALUE = 0
+    TANH_TRANSFORM = False
     EXCLUDE_UNBIASED_TRIALS = False
     #raise NotImplementedError
 elif TARGET == 'choice':
@@ -95,7 +96,7 @@ elif TARGET in ['wheel-vel', 'wheel-speed', 'l-whisker-me', 'r-whisker-me']:
 
 
 # DECODER PARAMS
-ESTIMATOR = lm.Lasso
+ESTIMATOR = lm.LogisticRegression
 # A scikit learn linear_model class: LinearRegression, Lasso (linear + L1), Ridge (linear + L2) or LogisticRegression
 ESTIMATOR_KWARGS = {'tol': 0.0001, 'max_iter': 20000, 'fit_intercept': True}  # default args for decoder
 if ESTIMATOR == lm.LogisticRegression:
@@ -108,8 +109,8 @@ N_JOBS_PER_SESSION = N_PSEUDO // N_PSEUDO_PER_JOB  # number of cluster jobs to r
 N_RUNS = 10  # number of times to repeat full nested xv with different folds
 SHUFFLE = True  # true for interleaved xv, false for contiguous
 QUASI_RANDOM = False  # if True, decoding is launched in a quasi-random, reproducible way => it sets the seed
-BALANCED_WEIGHT = False  # seems to work better with BALANCED_WEIGHT=False, but putting True is important
-BALANCED_CONTINUOUS_TARGET = True  # is target continuous or discrete FOR BALANCED WEIGHTING
+BALANCED_WEIGHT = True  # seems to work better with BALANCED_WEIGHT=False, but putting True is important
+BALANCED_CONTINUOUS_TARGET = False  # is target continuous or discrete FOR BALANCED WEIGHTING
 
 # CLUSTER/UNIT PARAMS
 MIN_UNITS = 10  # regions with units below this threshold are skipped
@@ -141,7 +142,7 @@ SAVE_PREDICTIONS_PSEUDO = False  # save model predictions in output file from ps
 SAVE_BINNED = True  # save binned neural predictors in output file for non-null fits (causes large files)
 MOTOR_REGRESSORS = False  # add DLC data as additional regressors to neural activity
 MOTOR_REGRESSORS_ONLY = False  # *only* use motor regressors, no neural activity
-EXCLUDE_TRIALS_WITHIN_VALUES = (None, None) # Applies mask equally to target and control, only works for scalars
+EXCLUDE_TRIALS_WITHIN_VALUES = (-0.01, 0.01) # Applies mask equally to target and control, only works for scalars
 MIN_SESS_PER_REG = 2
 
 """

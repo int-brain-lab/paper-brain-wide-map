@@ -1,4 +1,5 @@
 import logging
+import os
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -17,6 +18,7 @@ from brainwidemap.decoding.functions.process_inputs import build_predictor_matri
 from brainwidemap.decoding.functions.process_inputs import select_ephys_regions
 from brainwidemap.decoding.functions.process_inputs import preprocess_ephys
 from brainwidemap.decoding.functions.process_targets import compute_beh_target
+from brainwidemap.decoding.functions.process_targets import compute_target_mask
 from brainwidemap.decoding.functions.process_targets import get_target_data_per_trial_wrapper
 from brainwidemap.decoding.functions.utils import save_region_results
 from brainwidemap.decoding.functions.utils import get_save_path
@@ -149,8 +151,14 @@ def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo
 
     # get target values
     if kwargs['target'] in ['pLeft', 'signcont', 'strengthcont', 'choice', 'feedback']:
-        target_vals_list = compute_beh_target(trials_df, metadata, **kwargs)
-        target_mask = np.ones(len(target_vals_list), dtype=bool)
+        target_vals_list, target_vals_to_mask = compute_beh_target(trials_df, metadata, 
+                                                                   return_raw=True, **kwargs)
+        print('printing target_vals_list to debug', target_vals_list, type(target_vals_list))
+        #print('printing target_vals_list to see if it is binary', target_vals_list)
+        #print('printing binarization value', kwargs['binarization_value'])
+        target_mask = compute_target_mask(target_vals_to_mask, 
+                                          kwargs['exclude_trials_within_values'])
+        
     else:
         if dlc_dict is None or dlc_dict['times'] is None or dlc_dict['values'] is None:
             raise ValueError('dlc_dict does not contain any data')
@@ -187,7 +195,8 @@ def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo
             continue
 
         # bin spikes from this region for each trial
-        msub_binned = preprocess_ephys(reg_clu_ids, neural_dict, trials_df, **kwargs)
+        msub_binned, cl_ids_used = preprocess_ephys(reg_clu_ids, neural_dict, trials_df, **kwargs)
+        #TODOuuids_used = [neural_dict['cluster_df'][cid,'uuid'] for cid in cl_ids_used]
 
         # add motor signal regressors
         if kwargs.get('motor_regressors', None):
@@ -211,12 +220,31 @@ def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo
         for pseudo_id in pseudo_ids:
             fit_results = []
 
-            # create pseudo/imposter session when necessary
+            # save out decoding results
+            save_path = get_save_path(
+                pseudo_id, metadata['subject'], metadata['eid'], 'ephys',
+                probe=metadata['probe_name'],
+                region=str(np.squeeze(region)) if kwargs['single_region'] else 'allRegions',
+                output_path=kwargs['neuralfit_path'],
+                time_window=kwargs['time_window'],
+                date=kwargs['date'],
+                target=kwargs['target'],
+                add_to_saving_path=kwargs['add_to_saving_path']
+            )
+            if os.path.exists(save_path):
+                continue    
+           
+
+            # create pseudo/imposter session when necessary and corresponding mask
             # TODO: integrate single-/multi-bin code
             if pseudo_id > 0:
                 if bins_per_trial == 1:
                     controlsess_df = generate_null_distribution_session(trials_df, metadata, **kwargs)
-                    controltarget_vals_list = compute_beh_target(controlsess_df, metadata, **kwargs)
+                    controltarget_vals_list, controltarget_vals_to_mask = compute_beh_target(controlsess_df, metadata, 
+                                                                                             return_raw=True, **kwargs)
+                    controltarget_mask = compute_target_mask(controltarget_vals_to_mask,
+                                                             kwargs['exclude_trials_within_values'])
+                    control_mask = trials_mask & controltarget_mask
                 else:
                     imposter_df = kwargs['imposter_df'].copy()
                     # remove current eid from imposter sessions
@@ -228,9 +256,11 @@ def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo
                     controlsess_df = df_clean.iloc[idx_beg:idx_beg + n_trials]
                     # grab target values from this dataframe
                     controltarget_vals_list = list(controlsess_df[kwargs['target']].to_numpy())
+                    control_mask = mask
 
                 save_predictions = kwargs.get('save_predictions_pseudo', kwargs['save_predictions'])
             else:
+                control_mask = mask
                 save_predictions = kwargs['save_predictions']
 
             # run decoders
@@ -246,14 +276,23 @@ def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo
 
                 if pseudo_id == -1:
                     # original session
-                    ys = [target_vals_list[m] for m in np.squeeze(np.where(mask))]
+                    ys_wmask = [target_vals_list[m] for m in np.squeeze(np.where(mask))]
+                    Xs_wmask = [Xs[m] for m in np.squeeze(np.where(mask))]
                 else:
                     # session for null dist
-                    ys = [controltarget_vals_list[m] for m in np.squeeze(np.where(mask))]
+                    ys_wmask = [controltarget_vals_list[m] for m in np.squeeze(np.where(control_mask))]
+                    Xs_wmask = [Xs[m] for m in np.squeeze(np.where(control_mask))]                
+
+                #if i_run == 0:
+                #    print('target, mask, and target after applying mask:', target_vals_list)
+                #    print(mask)
+                #    print(trials_mask)
+                #    print(target_mask)
+                #    print(ys_wmask)
 
                 fit_result = decode_cv(
-                    ys=ys,
-                    Xs=[Xs[m] for m in np.squeeze(np.where(mask))],                    
+                    ys=ys_wmask,
+                    Xs=Xs_wmask,                    
                     estimator=kwargs['estimator'],
                     use_openturns=kwargs['use_openturns'],
                     target_distribution=target_distribution,
@@ -261,29 +300,19 @@ def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo
                     balanced_continuous_target=kwargs['balanced_continuous_target'],
                     estimator_kwargs=kwargs['estimator_kwargs'],
                     hyperparam_grid=kwargs['hyperparam_grid'],
-                    save_binned=kwargs['save_binned'],
+                    save_binned=kwargs['save_binned'] if pseudo_id==-1 else False,
                     save_predictions=save_predictions,
                     shuffle=kwargs['shuffle'],
                     balanced_weight=kwargs['balanced_weight'],
                     rng_seed=rng_seed,
                 )
                 fit_result['mask'] = mask
+                fit_result['mask_trials_and_targets'] = [trials_mask, target_mask]
+                fit_result['mask_diagnostics'] = kwargs['trials_mask_diagnostics']
                 fit_result['df'] = trials_df if pseudo_id == -1 else controlsess_df
                 fit_result['pseudo_id'] = pseudo_id
                 fit_result['run_id'] = i_run
                 fit_results.append(fit_result)
-
-            # save out decoding results
-            save_path = get_save_path(
-                pseudo_id, metadata['subject'], metadata['eid'], 'ephys',
-                probe=metadata['probe_name'],
-                region=str(np.squeeze(region)) if kwargs['single_region'] else 'allRegions',
-                output_path=kwargs['neuralfit_path'],
-                time_window=kwargs['time_window'],
-                date=kwargs['date'],
-                target=kwargs['target'],
-                add_to_saving_path=kwargs['add_to_saving_path']
-            )
 
             filename = save_region_results(
                 fit_result=fit_results,

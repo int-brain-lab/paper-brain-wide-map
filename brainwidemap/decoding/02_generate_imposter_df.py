@@ -4,6 +4,7 @@ to create null distributions of certain variables.
 """
 
 import pandas as pd
+import numpy as np
 from pathlib import Path
 
 from one.api import ONE
@@ -27,7 +28,7 @@ one = ONE(mode='local')
 # Decide which eids to use
 if params['imposter_generate_from_ephys']:
     # ephys sessions from one of 12 templates
-    bwm_df = bwm_query()
+    bwm_df = bwm_query(freeze='2022_10_bwm_release')
     eids = bwm_df['eid'].unique()
 else:
     # no template, no neural activity
@@ -56,8 +57,6 @@ if params['target'] not in ['pLeft', 'signcont', 'feedback', 'choice']:
 
 all_trialsdf = []
 for i, eid in enumerate(eids):
-    if (i % 10) > 0:
-        continue
     print('%i: %s' % (i, eid))
     try:
         sess_loader = SessionLoader(one=one, eid=eid)
@@ -75,9 +74,9 @@ for i, eid in enumerate(eids):
     high_contrast_mask = (trialsdf.contrastLeft == 1) | (trialsdf.contrastRight == 1)
     frac_correct_hc = (trialsdf[high_contrast_mask].feedbackType == 1).mean()
     if (trialsdf.index.size > 400) \
-            and (frac_correct_hc > 0.9) \
-            and ((trialsdf.probabilityLeft == 0.5).sum() == 90) \
-            and (trialsdf.probabilityLeft.values[0] == 0.5):
+        and (frac_correct_hc > 0.9) \
+        and ((trialsdf.probabilityLeft == 0.5).sum() == 90) \
+        and (trialsdf.probabilityLeft.values[0] == 0.5):
         try:
             if add_behavior_col:
                 trialsdf = get_target_variable_in_df(one, eid, sess_loader=sess_loader, **params)

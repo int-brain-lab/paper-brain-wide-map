@@ -16,11 +16,12 @@ RESULTS_DIR = Path("/scratch/users/bensonb/international-brain-lab/paper-brain-w
 SLURM_DIR = Path("/scratch/users/bensonb/international-brain-lab/paper-brain-wide-map/brainwidemap/logs/slurm")
 
 
-DATE = '29-11-2022' # date must be different if you do different runs of the same target
-                    # e.g. signcont side with LogisticRegression vs signcont with Lasso
+DATE = '28-11-2022'
 # Either current date for a fresh run, or date of the run you want to build on
+# Date must be different if you do different runs of the same target
+# e.g. signcont side with LogisticRegression vs signcont with Lasso
 
-TARGET = 'signcont'
+TARGET = 'wheel-speed'
 # single-bin targets:
 #   'pLeft' - estimate of block prior
 #   'signcont' - signed contrast of stimulus
@@ -102,10 +103,10 @@ if ESTIMATOR == lm.LogisticRegression:
     HPARAM_GRID = {'C': np.array([0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 10])}  # hyperparameter values to search over
 else:
     HPARAM_GRID = {'alpha': np.array([0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 10])}
-N_PSEUDO = 200  # number of pseudo/imposter sessions to fit per session
+N_PSEUDO = 100  # number of pseudo/imposter sessions to fit per session
 N_PSEUDO_PER_JOB = 100  # number of pseudo/imposter sessions to assign per cluster job
 N_JOBS_PER_SESSION = N_PSEUDO // N_PSEUDO_PER_JOB  # number of cluster jobs to run per session
-N_RUNS = 10  # number of times to repeat full nested xv with different folds
+N_RUNS = 2  # number of times to repeat full nested xv with different folds
 SHUFFLE = True  # true for interleaved xv, false for contiguous
 QUASI_RANDOM = False  # if True, decoding is launched in a quasi-random, reproducible way => it sets the seed
 BALANCED_WEIGHT = False  # seems to work better with BALANCED_WEIGHT=False, but putting True is important

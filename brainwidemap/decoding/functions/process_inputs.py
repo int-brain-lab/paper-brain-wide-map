@@ -7,6 +7,7 @@ from brainbox.processing import bincount2D
 
 def preprocess_ephys(reg_clu_ids, neural_df, trials_df, **kwargs):
     """Format a single session-wide array of spikes into a list of trial-based arrays.
+       The ordering of clusters used in the output are also returned.
 
     Parameters
     ----------
@@ -32,6 +33,8 @@ def preprocess_ephys(reg_clu_ids, neural_df, trials_df, **kwargs):
     -------
     list
         each element is a 2D numpy.ndarray for a single trial of shape (n_bins, n_clusters)
+    array
+        cluster ids that account for axis 1 of the above 2D arrays. 
 
     """
 
@@ -40,28 +43,30 @@ def preprocess_ephys(reg_clu_ids, neural_df, trials_df, **kwargs):
         trials_df[kwargs['align_time']] + kwargs['time_window'][0],
         trials_df[kwargs['align_time']] + kwargs['time_window'][1]
     ]).T
-
-    # compute interval length
-    interval_len = (
-            kwargs['time_window'][1] - kwargs['time_window'][0]
-            + kwargs['n_bins_lag'] * kwargs['binsize'])
-
+    
     # subselect spikes for this region
     spikemask = np.isin(neural_df['spk_clu'], reg_clu_ids)
     regspikes = neural_df['spk_times'][spikemask]
     regclu = neural_df['spk_clu'][spikemask]
+    clusters_used_in_bins = np.unique(regclu)
 
     # for each trial, put spiking data into a 2D array; collect trials in a list
     trial_len = kwargs['time_window'][1] - kwargs['time_window'][0]
     binsize = kwargs.get('binsize', trial_len)
     # TODO: can likely combine get_spike_counts_in_bins and get_spike_data_per_trial
-    if trial_len / binsize == 1.0:
+    # added second condition in if statement if n_bins_lag is None, gives error otherwise (bensonb)
+    if trial_len / binsize == 1.0 or (kwargs['n_bins_lag'] is None):
         # one vector of neural activity per trial
         binned, _ = get_spike_counts_in_bins(regspikes, regclu, intervals)
         binned = binned.T  # binned is a 2D array
         binned_list = [x[None, :] for x in binned]
+        
     else:
         # multiple vectors of neural activity per trial
+        # moved interval_len definintion into this condition so that when n_bins_lag is None it doesn't cause error
+        interval_len = (
+            kwargs['time_window'][1] - kwargs['time_window'][0]
+            + kwargs['n_bins_lag'] * kwargs['binsize'])
         spike_times_list, binned_array = get_spike_data_per_trial(
             regspikes, regclu,
             interval_begs=intervals[:, 0] - kwargs['n_bins_lag'] * kwargs['binsize'],
@@ -70,7 +75,7 @@ def preprocess_ephys(reg_clu_ids, neural_df, trials_df, **kwargs):
             binsize=kwargs['binsize'])
         binned_list = [x.T for x in binned_array]
 
-    return binned_list
+    return binned_list, clusters_used_in_bins
 
 
 def get_spike_data_per_trial(times, clusters, interval_begs, interval_ends, interval_len, binsize):
