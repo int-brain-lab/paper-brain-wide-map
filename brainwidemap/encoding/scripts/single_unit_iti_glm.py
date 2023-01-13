@@ -47,7 +47,7 @@ def gen_design(stdf, binwidth=0.3):
 
 def fit_target(sspkt, sspkclu, stdf, binwidth):
     scores = []
-    estimator = GridSearchCV(lm.Ridge(), {"alpha": np.logspace(-2, 1.5, 50)})
+    estimator = GridSearchCV(lm.Ridge(), {"alpha": np.logspace(-3, 2, 50)})
     design = gen_design(stdf, binwidth=binwidth)
     nglm = nl.LinearGLM(
         design, sspkt, sspkclu, binwidth=binwidth, estimator=estimator, mintrials=0

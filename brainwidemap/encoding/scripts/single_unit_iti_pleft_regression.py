@@ -26,7 +26,7 @@ args = parser.parse_args()
 
 dsfn = Path(GLM_CACHE + f"{args.cachedate}_dataset_metadata.pkl")
 dataset = pd.read_pickle(dsfn)["dataset_filenames"]
-alphas = np.logspace(-2, 1.5, 50)
+alphas = np.logspace(-3, 2, 50)
 estimator = GridSearchCV(lm.Ridge(), {"alpha": alphas})
 parpool = Parallel(n_jobs=-1, verbose=10)
 
