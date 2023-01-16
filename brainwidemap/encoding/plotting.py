@@ -1,10 +1,8 @@
 # Third party libraries
 import matplotlib
 import matplotlib.pyplot as plt
-import models.utils as mut
 import numpy as np
 import seaborn as sns
-from models.expSmoothing_prevAction import expSmoothing_prevAction as exp_prevAct
 from scipy.stats import norm
 from sklearn.decomposition import PCA
 
@@ -14,41 +12,6 @@ from brainbox.plot import peri_event_time_histogram
 from brainbox.singlecell import calculate_peths
 from ibllib.atlas import AllenAtlas
 from one.api import ONE
-
-
-def fit_exp_prev_act(session_id, one=None):
-    if not one:
-        one = ONE()
-
-    subjects, _, _, sess_ids, _ = mut.get_bwm_ins_alyx(one)
-
-    mouse_name = one.get_details(session_id)['subject']
-    stimuli_arr, actions_arr, stim_sides_arr, session_uuids = [], [], [], []
-    mcounter = 0
-    for i in range(len(sess_ids)):
-        if subjects[i] == mouse_name:
-            data = mut.load_session(sess_ids[i])
-            if data['choice'] is not None and data['probabilityLeft'][0] == 0.5:
-                stim_side, stimuli, actions, pLeft_oracle = mut.format_data(data)
-                stimuli_arr.append(stimuli)
-                actions_arr.append(actions)
-                stim_sides_arr.append(stim_side)
-                session_uuids.append(sess_ids[i])
-            if sess_ids[i] == session_id:
-                j = mcounter
-            mcounter += 1
-    # format data
-    stimuli, actions, stim_side = mut.format_input(stimuli_arr, actions_arr, stim_sides_arr)
-    session_uuids = np.array(session_uuids)
-    model = exp_prevAct('./results/inference/', session_uuids, mouse_name, actions, stimuli,
-                        stim_side)
-    model.load_or_train(remove_old=False)
-    # compute signals of interest
-    signals = model.compute_signal(signal=['prior', 'prediction_error', 'score'], verbose=False)
-    if len(signals['prior'].shape) == 1:
-        return signals['prior']
-    else:
-        return signals['prior'][j, :]
 
 
 def peth_from_eid_blocks(eid, probe_idx, unit, one=None):
@@ -127,64 +90,6 @@ def peth_from_eid_blocks(eid, probe_idx, unit, one=None):
     ax[1].set_xticklabels([-0.6, 0, 0.6])
     ax[1].set_xlim([0, 60])
     return fig, ax
-
-
-def plot_rate_prior(eid,
-                    probe,
-                    clu_id,
-                    one=None,
-                    t_before=0.,
-                    t_after=0.1,
-                    binwidth=0.1,
-                    smoothing=0,
-                    ax=None):
-    if not one:
-        one = ONE()
-    trialsdf = bbone.load_trials_df(eid, one=one, t_before=t_before, t_after=t_after)
-    prior = fit_exp_prev_act(eid, one=one)
-    spikes, clusters, _ = bbone.load_spike_sorting_with_channel(eid, one=one, probe=probe)
-    _, binned = calculate_peths(spikes[probe].times,
-                                spikes[probe].clusters, [clu_id],
-                                trialsdf.stimOn_times,
-                                pre_time=t_before,
-                                post_time=t_after,
-                                bin_size=binwidth,
-                                smoothing=0.)
-    if not ax:
-        fig, ax = plt.subplots(1, 1)
-    if smoothing > 0:
-        filt = norm().pdf(np.linspace(0, 10, smoothing))
-        smoothed = np.convolve(binned.flat, filt)[:binned.size]
-        smoothed /= smoothed.max()
-    else:
-        smoothed = binned.flat / binned.max()
-    ax.plot(smoothed, label='Unit firing rate')
-    ax.plot(prior[trialsdf.index], color='orange', label='Prev act prior est')
-    ax.legend()
-    return ax
-
-
-def get_pca_prior(eid, probe, units, one=None, t_start=0., t_end=0.1):
-    if not one:
-        one = ONE()
-    trialsdf = bbone.load_trials_df(eid, one=one, t_before=-t_start, t_after=0.)
-    prior = fit_exp_prev_act(eid, one=one)
-    spikes, clusters, _ = bbone.load_spike_sorting_with_channel(eid, one=one, probe=probe)
-    targmask = np.isin(spikes[probe].clusters, units)
-    subset_spikes = spikes[probe].times[targmask]
-    subset_clu = spikes[probe].clusters[targmask]
-    _, binned = calculate_peths(subset_spikes,
-                                subset_clu,
-                                units,
-                                trialsdf.stimOn_times +
-                                t_start if t_start > 0 else trialsdf.stimOn_times,
-                                pre_time=-t_start if t_start < 0 else 0,
-                                post_time=t_end,
-                                bin_size=t_end - t_start,
-                                smoothing=0.,
-                                return_fr=False)
-    embeddings = PCA().fit_transform(np.squeeze(binned))
-    return binned, embeddings, prior
 
 
 def ridge_plot(df, xcol, ycol, palette=sns.cubehelix_palette(10, rot=-.25, light=.7)):
