@@ -10,6 +10,7 @@ from pathlib import Path
 from one.api import ONE
 from ibllib.atlas import AllenAtlas
 from ibllib.atlas.regions import BrainRegions
+from itertools import combinations
 
 pd.options.mode.chained_assignment = None
 
@@ -72,6 +73,41 @@ def manifold_to_csv():
                  f'meta/per_reg/manifold/{split}.csv')  
 
 
+def glm_to_csv():
+
+    t = pd.read_parquet('/home/mic/paper-brain-wide-map'
+                        '/meta/per_reg/glm/2023-01-16'
+                        '_glm_mean_drsq.parquet')
+                        
+    splits = ['stim', 'choice','fback','block']
+    res = [abs(t['stimonL'] - t['stimonR']),
+           abs(t['fmoveR']  - t['fmoveL']),
+           abs(t['correct']  - t['incorrect']),
+           abs(t['pLeft'])]
+
+    d0 = dict(zip(splits,res))
+    d = {i: d0[i].to_frame().reset_index() for i in d0}
+    
+    rr = t['region'].reset_index()
+    acs = rr['region'].values
+    
+    for split in d:
+        d[split]['region'] = acs
+        d[split] = d[split].groupby(['region']).mean()
+        d[split] = d[split].reset_index()
+        
+        if 'pLeft' in d[split].keys():
+            d[split] = d[split].rename(columns={'pLeft': 'abs_diff'})
+        else:
+            d[split] = d[split].rename(columns={0: 'abs_diff'})       
+        
+        d[split] = d[split].drop('clu_id', axis=1)
+               
+        d[split].to_csv('/home/mic/paper-brain-wide-map/'
+                 f'meta/per_reg/glm/{split}.csv')
+                 
+                 
+
 def get_allen_info():
     dfa = pd.read_csv('/home/mic/paper-brain-wide-map/'
                        'allen_structure_tree.csv')
@@ -106,9 +142,7 @@ def cor_per_reg(split, a1 = 'manifold', a2 = 'decoding', curve = 'euc'):
     A = {'manifold': [f'amp_{curve}',f'p_{curve}'], 
          'decoding': ['values_median','combined_p-value'], 
          'single-cell': ['fra', 0],
-         'glm': ['frac_of_sig_cells', 0]}
-    
-    assert a1 != 'single-cell', 'swap order as single-cell has no p'
+         'glm': ['abs_diff', 0]}   
     
     c1, p1 = A[a1]
     c2, p2 = A[a2]
@@ -125,13 +159,20 @@ def cor_per_reg(split, a1 = 'manifold', a2 = 'decoding', curve = 'euc'):
            
     cosregs = dict(zip(regsa,cosregs_))  # to make yellow labels black        
     
-    if p2 == 0:
+    if p1 == 0 and p2 != 0:
+        sigs2 = s[p2] < sig_level   
+        sigs = sigs2
+    
+    if p2 == 0 and p1 != 0:
         sigs = s[p1] < sig_level
         sigs2 = sigs
-    else:
-        if p1 == 0:
-            print('change order of analysis')
-            return
+        
+    if p2 == 0 and p1 == 0:
+        sigs = s['region'] != None
+        sigs2 = sigs        
+        
+    if p1 != 0 and p2 != 0:
+
         sigs = np.bitwise_and(s[p1] < sig_level,s[p2] < sig_level)
         sigs2 = np.bitwise_or(s[p1] < sig_level,s[p2] < sig_level)
         
@@ -151,8 +192,8 @@ def cor_per_reg(split, a1 = 'manifold', a2 = 'decoding', curve = 'euc'):
     ax.scatter(s[c1],s[c2],c=cols, s = 1,
                label = 'neither sig')
      
-    if p2 != 0:
-    
+    if p2 != 0 and p1 != 0:
+
         ax.scatter(s[c1][s[p1] < sig_level],s[c2][s[p1] < sig_level],
                    c=cols[s[p1] < sig_level], s = 10, 
                    marker = 'v', label = 'x only sig')    
@@ -163,6 +204,7 @@ def cor_per_reg(split, a1 = 'manifold', a2 = 'decoding', curve = 'euc'):
     
     ax.scatter(s[c1][sigs],s[c2][sigs],c=cols[sigs], s = 20, 
                label = 'both sig')
+               
     ax.set_title(f'{split}; #regs with amps [both p < {sig_level}]:'
                  f' {n_regs} [{n_sig_regs}] \n'
                  f' corr_all [p] = {co} [{p}], '
@@ -191,22 +233,20 @@ def cor_per_reg(split, a1 = 'manifold', a2 = 'decoding', curve = 'euc'):
 
     return s               
 
+
 def bulk_per_reg():
 
-    plt.ioff()
-    for a1 in ['manifold', 'decoding']:
-        for a2 in ['decoding', 'single-cell']:
-            if a1 == a2:
-                continue
-            for split in align:
-                try:    
-                    cor_per_reg(split, a1 = a1, a2 = a2)
-                except:
-                    print(split, a1, a2, 'no data')
-            plt.close()
-               
+    als = ['manifold','decoding','single-cell','glm']
 
-    
+    plt.ioff()
+    for a1, a2 in combinations(als,2):
+        for split in align:
+            try:    
+                cor_per_reg(split, a1 = a1, a2 = a2)
+            except:
+                print(split, a1, a2, 'no data')
+        plt.close()
+
  
 def cor_per_eid(split, get_merged = False, ptype=0):
 
@@ -461,6 +501,33 @@ def motor_block_eid(sig_lev = 0.01):
 #    ax = plt.gca()
     
     return df        
+
+
+def motor_res_to_df():
+
+          
+    # save results for plotting here
+    pth_res = Path(one.cache_dir, 'brain_wide_map', 'motor_correlates') 
+    pth_res.mkdir(parents=True, exist_ok=True)          
+
+
+    t = '0.6'  # lag = -0.6 sec
+    s = (pth_res / 'behave7{t}.npy')
+    R = np.load(s,allow_pickle=True).flat[0]
+    
+    columns = ['eid'] + list(np.concatenate([[x+'_p', x+'_amp'] for x in sr]))
+    r = []
+    for eid in R:
+        #print(eid)
+        try:  # there's one weird session, trials object nan
+            r.append([eid] + 
+                     list(np.concatenate([[R[eid][b][1],R[eid][b][0]] 
+                     for b in R[eid]])))
+        except:
+            continue
+
+    df = pd.DataFrame(columns = columns, data=r)
+    df.to_csv(path_res / 'motor_corr_0.6_0.2.csv')
 
 
 
