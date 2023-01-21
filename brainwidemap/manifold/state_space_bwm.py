@@ -78,21 +78,27 @@ nlicks = 50  # trial window length in licks
 # trial split types, see get_d_vars for details
 align = {'stim': 'stim on',
          'choice': 'motion on',
-         'fback': 'feedback',
-         'block': 'stim on'}
+         'fback': 'feedback'}
+         #'choice_restr': 'motion_on'}#
+         
+         
+         #,
+         #'block': 'stim on'}
 
 # contrasts: 0.    , 0.0625, 0.125 , 0.25  , 1.    ,    nan
 
 # [pre_time, post_time]
 pre_post = {'choice': [0.15, 0], 'stim': [0, 0.15],
-            'fback': [0, 0.7], 'block': [0.4, -0.1]}
+            'fback': [0, 0.7], 'block': [0.4, -0.1],
+            'choice_restr': [0.15, 0]}
 
 
 # labels for illustrative trajectory legend
 trial_split = {'choice': ['choice left', 'choice right', 'pseudo'],
                'stim': ['stim left', 'stim right', 'pseudo'],
                'fback': ['correct', 'false', 'pseudo'],
-               'block': ['pleft 0.8', 'pleft 0.2', 'pseudo']}
+               'block': ['pleft 0.8', 'pleft 0.2', 'pseudo'],
+               'choice_restr': ['choice left', 'choice right', 'pseudo']}
 
 one = ONE(base_url='https://openalyx.internationalbrainlab.org',
           password='international', silent=True)  # (mode='local')
@@ -175,13 +181,29 @@ def get_name(brainregion):
     return br.name[np.argwhere(br.id == regid)[0, 0]]
 
 
+def get_restricted_cells(split, pid, sig_lev=0.05):
+    '''
+    for a given insertion and a given split
+    get cell ids that are significant for single-cell
+    analysis, loading in csv results from Yanliang
+    '''
+    s1 = pd.read_csv('/home/mic/paper-brain-wide-map/'
+                  f'meta/per_eid/single-cell/{split}.csv')
+
+    # continue here: load sig cells, then feed as restr 
+    u = s1[np.bitwise_and(s1['pid'] == pid, 
+                          s1[f'p_value_{split}']<sig_lev)]
+                          
+    return u['cluster_id'].values
+
+
 def get_d_vars(split, pid, mapping='Beryl', control=True,
-               nrand=100, licka=False, contr=None):
+               nrand=1000, licka=False, contr=None, restr=False):
     '''
     for a given session, probe, bin neural activity
     cut into trials, compute d_var per region
     nrand: nuber of random trial splits
-
+    restr: restrict to certain cells, e.g. sig ones from decoding
     '''
 
     eid, probe = one.pid2eid(pid)
@@ -319,6 +341,8 @@ def get_d_vars(split, pid, mapping='Beryl', control=True,
                             BIN_w)
 
     else:
+        
+            
         bins = []
         for event in events:
 
@@ -357,8 +381,34 @@ def get_d_vars(split, pid, mapping='Beryl', control=True,
 
         wsc = np.concatenate(b, axis=1)
 
+    
+
     acs = br.id2acronym(clusters['atlas_id'], mapping=mapping)
     acs = np.array(acs)
+    
+    if restr:
+        # restrict to cells given in restr
+        
+        css = get_restricted_cells(split, pid)
+        
+
+        
+        inv_map = {v: k for k, v in 
+                   clusters['cluster_id'].to_dict().items()}
+                   
+                   
+        # shuf control
+        goodcells = random.sample(range(len(clusters['cluster_id'])),
+                                  len(css))
+                          
+        # map to index
+        #goodcells = [inv_map[cell_id] for cell_id in css]
+        
+        # restrict data
+        acs = acs[goodcells]
+        b = b[:, goodcells, :]
+        bins2 = [x[:, goodcells, :] for x in bins]
+        bins = bins2
 
     # discard ill-defined regions
     goodcells = ~np.bitwise_or.reduce([acs == reg for
@@ -545,7 +595,7 @@ def get_d_vars(split, pid, mapping='Beryl', control=True,
 '''
 
 
-def get_all_d_vars(split, eids_plus=None, control=True,
+def get_all_d_vars(split, eids_plus=None, control=True, restr=False,
                    mapping='Beryl', licka=False, contr=False):
     '''
     for all BWM insertions, get the PSTHs and acronyms,
@@ -563,8 +613,10 @@ def get_all_d_vars(split, eids_plus=None, control=True,
     # save results per insertion (eid_probe) in FlatIron folder
     if licka:
         ps = f'{split}_licka'
-    elif contr is not None:
+    elif (split == 'fback' and contr is not None):
         ps = f'{split}_{contr}'
+    elif restr:
+        ps = f'{split}_restr'    
     else:
         ps = split
 
@@ -580,7 +632,7 @@ def get_all_d_vars(split, eids_plus=None, control=True,
 
         time0 = time.perf_counter()
         try:
-            D_ = get_d_vars(split, pid, control=control,
+            D_ = get_d_vars(split, pid, control=control, restr=restr,
                             mapping=mapping, licka=licka, contr=contr)
 
             eid_probe = eid + '_' + probe
@@ -617,7 +669,8 @@ def d_var_stacked(split, min_reg=100, uperms_=False, licka=False):
     For lickalignment (licka = True), only get regional means
     '''
 
-    print(split)
+    print(split)    
+    
     pth = Path(one.cache_dir, 'manifold', f'{split}_licka'
                if licka else split)
     ss = os.listdir(pth)  # get insertions
@@ -679,10 +732,11 @@ def d_var_stacked(split, min_reg=100, uperms_=False, licka=False):
 
         # get PCA for 3d trajectories
         dat = ws[:, acs == reg, :]
+        res['ws'] = dat[:2,:,:]
 
         pca = PCA(n_components=3)
         wsc = pca.fit_transform(np.concatenate(dat, axis=1).T).T
-
+        
         res['pcs'] = wsc
         res['nclus'] = regs[reg]
 
@@ -704,9 +758,11 @@ def d_var_stacked(split, min_reg=100, uperms_=False, licka=False):
             loc = np.where(res['d_var'] == np.inf)[0]
         else:
             loc = np.where(res['d_var'] > 0.7 * (np.max(res['d_var'])))[0]
-
+     
+        
         if 'choice' in split:
             split0 = 'choice'
+            
         else:
             split0 = split
         res['lat_var'] = np.linspace(-pre_post[split0][0],
@@ -794,6 +850,7 @@ def get_average_peth():
             allow_pickle=True)
 
 
+
 '''
 #####################################################
 ### plotting
@@ -845,6 +902,7 @@ def plot_all(curve='euc', amp_number=False, intro=True,
     intro: if False, don't plot schematics of method and contrast
     only3d: only 3d plots
     '''
+
 
     nrows = 12
 
@@ -901,7 +959,7 @@ def plot_all(curve='euc', amp_number=False, intro=True,
 
     cosregs = dict(zip(regsa, cosregs_))
 
-    v = 0 if intro else 3  # indexing rows
+    v = 0 #if intro else 3  # indexing rows
 
     '''
     example regions per split for embedded space and line plots
@@ -914,9 +972,14 @@ def plot_all(curve='euc', amp_number=False, intro=True,
 #                  ).intersection(set(tops_p[split])))
 #                  for split in align}
 
-    exs = {'stim': ['VISp', 'LP', 'LGd', 'VISpm', 'VISam',
-                    'SCm', 'CP', 'MRN', 'GRN', 'GPe'],
-           'choice': ['PRM', 'CA3', 'LP', 'ACAv', 'PRNr', 'IRN'],
+    exs = {'stim': ['PRNr','LGd', 'LP', 'VISpm', 'VISp', 
+                    'VISam', 'MRN', 'SCm', 'IP', 'IRN'],
+                    
+           'choice': ['ACAv', 'PRNr', 'LP', 'SIM', 'APN',
+                      'MRN', 'RT', 'IRN', 'IP', 'GRN'],
+                      
+           'choice_restr': ['ACAv', 'PRNr', 'LP', 'SIM', 'APN',
+                      'MRN', 'RT', 'IRN', 'IP', 'GRN'],                      
 
            'fback': ['IRN', 'SSp-m', 'PRNr', 'IC', 'MV', 'AUDp',
                      'CENT3', 'SSp-ul', 'GPe'],
@@ -959,14 +1022,14 @@ def plot_all(curve='euc', amp_number=False, intro=True,
                 d = np.load(Path(pth_res, f'{split}.npy'),
                             allow_pickle=True).flat[0][split]
 
-            # pick example region
-            reg = exs[split][0]
+                # pick example region
+                reg = exs[split][0]
 
             if only3d:
                 axs.append(fig.add_subplot(gs[:, c],
                                            projection='3d'))
             else:
-                axs.append(fig.add_subplot(gs[3 - v:6 - v, c],
+                axs.append(fig.add_subplot(gs[0 - v:4 - v, c],
                                            projection='3d'))
 
             npcs, allnobs = d['pcs'].shape
@@ -1019,10 +1082,10 @@ def plot_all(curve='euc', amp_number=False, intro=True,
 
         for split in align:
             if c == 0:
-                axs.append(fig.add_subplot(gs[6 - v:8 - v, c]))
+                axs.append(fig.add_subplot(gs[4 - v:6 - v, c]))
                 # axs[-1].set_ylim(0, 4.5/b_size)
             else:  # to share y axis
-                axs.append(fig.add_subplot(gs[6 - v:8 - v, c]))
+                axs.append(fig.add_subplot(gs[4 - v:6 - v, c]))
                 # ,sharey=axs[len(axs)-1]))
 
             d = np.load(Path(pth_res, f'{split}.npy'),
@@ -1110,18 +1173,14 @@ def plot_all(curve='euc', amp_number=False, intro=True,
         figs = [plt.subplots(figsize=(10, 10))
                 for split in align]
 
-    c = 0
+    c = 0  # column idx
+    r = 0  # row idx
+    
     for split in align:
 
         if not single_scat:
 
-            if c == 0:
-                axs.append(fig.add_subplot(gs[8 - v:, c]))
-            else:
-                axs.append(fig.add_subplot(gs[8 - v:, c]))
-                # ,sharey=axs[len(axs)-1]
-
-            axs[-1].set_ylim(0, 4.5)
+            axs.append(fig.add_subplot(gs[6 +r : 6 +r +2, :]))
 
         else:
             axs.append(figs[c][1])
@@ -1236,6 +1295,7 @@ def plot_all(curve='euc', amp_number=False, intro=True,
 
         c += 1
         k += 1
+        r += 2
 
     fig = plt.gcf()
 #    fig.tight_layout()
@@ -1444,33 +1504,12 @@ def inspect_regional_PETH(reg, split):
     '''
     mapping = 'Beryl'
     print(split)
-    R = np.load('/mnt/8cfe1683-d974-40f3-a20b-b217cad4722a/manifold/'
-                f'single_d_vars_{split}_{mapping}.npy',
-                allow_pickle=True).flat[0]
+    
+    R = np.load(Path(pth_res, f'{split}.npy'),
+                            allow_pickle=True).flat[0]
 
-    # get stderror across cells for max-min/max+min
-    # pool data for illustrative PCA
-    acs = []
-    ws = []
-    sess = []
+    dat = R[reg]['ws']
 
-    k = 0
-    for D_ in R['D_s']:
-
-        acs.append(D_['acs'])
-        ws.append(D_['ws'][:2])
-        sess.append([R['eid_probe'][k]] * len(D_['acs']))
-        k += 1
-
-    sess = np.concatenate(sess)
-    acs = np.concatenate(acs)
-    ws = np.concatenate(ws, axis=1)
-
-    # for the region under consideration plot temp plot
-    dat = ws[:, acs == reg, :]
-    sess0 = sess[acs == reg]
-
-    # return dat
     fig, axs = plt.subplots(ncols=2, nrows=1)
 
     vmax = np.amax(dat)
@@ -1480,9 +1519,9 @@ def inspect_regional_PETH(reg, split):
         axs[i].imshow(dat[i], cmap='Greys', aspect="auto",
                       interpolation='none', vmax=vmax, vmin=vmin)
 
-        for s in Counter(sess0):
-            axs[i].axhline(y=np.where(sess0 == s)[0][0], c='r',
-                           linestyle='--')
+#        for s in Counter(sess0):
+#            axs[i].axhline(y=np.where(sess0 == s)[0][0], c='r',
+#                           linestyle='--')
             # axs[i].annotate(s, (0, np.where(sess0==s)[0][0]), c = 'r')
 
         axs[i].set_ylabel('cells')
