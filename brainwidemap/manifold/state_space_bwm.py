@@ -596,7 +596,7 @@ def get_d_vars(split, pid, mapping='Beryl', control=True,
 
 
 def get_all_d_vars(split, eids_plus=None, control=True, restr=False,
-                   mapping='Beryl', licka=False, contr=False):
+                   mapping='Beryl', licka=False, contr=None):
     '''
     for all BWM insertions, get the PSTHs and acronyms,
     '''
