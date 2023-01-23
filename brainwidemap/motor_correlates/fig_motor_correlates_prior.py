@@ -646,8 +646,8 @@ def paw_position_onframe(ax=None, fig=None):
     behave = 'paw_pos_l'
 
     eid = '15f742e1-1043-45c9-9504-f1e8a53c1744'
-    r = np.load(pth_res /
-                '15f742e1-1043-45c9-9504-f1e8a53c1744_left.npy')[0]
+    img_file = os.path.join(os.getcwd(), '15f742e1-1043-45c9-9504-f1e8a53c1744_left.npy')
+    r = np.load(img_file)[0]
 
     if ax is None:
         fig, ax = plt.subplots(figsize=(5, 4))

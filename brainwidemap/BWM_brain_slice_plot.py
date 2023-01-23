@@ -23,6 +23,9 @@ from ibllib.atlas import AllenAtlas
 
 # atlas of 10um resolution #
 ba = AllenAtlas(10)
+# compute ba.top 
+ba.compute_surface()
+
 
 ################# input: list_region_id, list_region_value ###############################
 #################  list_region_id: numpy array of Beryl region id ########################
@@ -44,6 +47,20 @@ ba = AllenAtlas(10)
 
 
 
+######## create slieces %%%%%%%%%%%
+def _take(vol, ind, axis, mode):
+            if mode == 'clip':
+                ind = np.minimum(np.maximum(ind, 0), vol.shape[axis] - 1)
+            if axis == 0:
+                return vol[ind, :, :]
+            elif axis == 1:
+                return vol[:, ind, :]
+            elif axis == 2:
+                return vol[:, :, ind]
+
+def _take_remap(vol, ind, axis, mapping, mode):
+            # For the labels, remap the regions indices according to the mapping
+            return ba._get_mapping(mapping=mapping)[_take(vol, ind, axis, mode)] 
 
 
 
@@ -62,7 +79,7 @@ def sag_slice_RGB(list_region_id, list_region_value,ML_coordinate,color_range=0)
     
     mode='raise'
     mapping='Beryl'
-    sag_slice_ind=_take_remap(ba.label, index_1, ba.xyz2dims[axis], mapping)
+    sag_slice_ind=_take_remap(ba.label, index_1, ba.xyz2dims[axis], mapping, mode)
     sag_slice_b=ba.slice( coordinate, axis=0, volume='boundary', mode='raise', region_values=None, mapping='Beryl', bc=None)
 
     #### 2D slices 
@@ -312,6 +329,11 @@ coord_1=(-4000+100*21)
 coord_2=(-4000+100*31)
 coord_3=(-4000+100*37)
 
+###### inputs #################
+# list_region_id: np array of region-id, integers 
+# list_region_id: np array of values in associated regions, double float
+
+
 #### generate sag slices 
 im_sag_1=sag_slice_RGB(list_region_id, list_region_value,coord_1,1)
 im_sag_2=sag_slice_RGB(list_region_id, list_region_value,coord_2,1)
@@ -319,15 +341,19 @@ im_sag_3=sag_slice_RGB(list_region_id, list_region_value,coord_3,1)
 
 
 #### generate cortex top view slice 
-im_ctx_1=ctx_slice_RGB(list_region_id, list_region_value,1)
+im_ctx_1=ctx_slice_RGB(list_region_id, list_region_value)
 
 
+
+
+
+# plot sag slices:
 
 make_sag_plot(im_sag_1,im_sag_2,im_sag_3)
 
 
-# In[ ]:
 
+# plot top view slices:
 
 make_ctx_plot(im_ctx_1)
 
