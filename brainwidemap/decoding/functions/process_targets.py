@@ -419,6 +419,14 @@ def get_target_variable_in_df(
         max_len, exclude_unbiased_trials):
     """Return a trials dataframe with additional behavioral data as one array per trial.
 
+    Note that the returned trials are masked:
+    * trial masking: trials are removed if reaction times are too short/long, the animal did not
+      make a choice, etc. See brainwidemap.bwm_loading import load_trials_and_mask for more
+      documentation
+    * target masking: trials are removed if the target data contains nans, etc. See
+      brainwidemap.decoding.functions.process_targets.get_target_data_per_trial_wrapper for more
+      documentation
+    
     Parameters
     ----------
     one : ONE object
