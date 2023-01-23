@@ -121,4 +121,5 @@ they are combined in the next step
 
 The final step of aggregating the data is to combine the dataframes from the previous step (e.g. 50) into a 
 single dataframe which is useful for plotting.  The type of table saved depends on the variable being 
-decoded (see settings.py).
+decoded (see settings.py).  NB, wheel-speed summary table takes a lot of memory to construct, so set the
+slurm run to have 128GB.

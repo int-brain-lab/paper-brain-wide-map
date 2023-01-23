@@ -23,7 +23,7 @@ ephys_str = '_beforeRecording' if not params['imposter_generate_from_ephys'] els
 filename = decoding_dir.joinpath(f"imposterSessions_{params['target']}{ephys_str}.pqt")
 
 # Initiate ONE
-one = ONE(mode='local')
+one = ONE(base_url='https://openalyx.internationalbrainlab.org', mode='local')
 
 # Decide which eids to use
 if params['imposter_generate_from_ephys']:

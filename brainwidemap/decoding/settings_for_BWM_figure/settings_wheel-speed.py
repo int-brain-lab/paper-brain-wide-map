@@ -16,7 +16,7 @@ RESULTS_DIR = Path("/scratch/users/bensonb/international-brain-lab/paper-brain-w
 SLURM_DIR = Path("/scratch/users/bensonb/international-brain-lab/paper-brain-wide-map/brainwidemap/logs/slurm")
 
 
-DATE = '28-11-2022'
+DATE = '18-01-2023'
 # Either current date for a fresh run, or date of the run you want to build on
 # Date must be different if you do different runs of the same target
 # e.g. signcont side with LogisticRegression vs signcont with Lasso
@@ -98,13 +98,14 @@ elif TARGET in ['wheel-vel', 'wheel-speed', 'l-whisker-me', 'r-whisker-me']:
 # DECODER PARAMS
 ESTIMATOR = lm.Lasso
 # A scikit learn linear_model class: LinearRegression, Lasso (linear + L1), Ridge (linear + L2) or LogisticRegression
-ESTIMATOR_KWARGS = {'tol': 0.0001, 'max_iter': 20000, 'fit_intercept': True}  # default args for decoder
+ESTIMATOR_KWARGS = {'tol': 0.001, 'max_iter': 1000, 'fit_intercept': True}  # default args for decoder
 if ESTIMATOR == lm.LogisticRegression:
+    ESTIMATOR_KWARGS = {**ESTIMATOR_KWARGS, 'penalty': 'l1', 'solver': 'liblinear'}
     HPARAM_GRID = {'C': np.array([0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 10])}  # hyperparameter values to search over
 else:
     HPARAM_GRID = {'alpha': np.array([0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 10])}
 N_PSEUDO = 100  # number of pseudo/imposter sessions to fit per session
-N_PSEUDO_PER_JOB = 100  # number of pseudo/imposter sessions to assign per cluster job
+N_PSEUDO_PER_JOB = 50  # number of pseudo/imposter sessions to assign per cluster job
 N_JOBS_PER_SESSION = N_PSEUDO // N_PSEUDO_PER_JOB  # number of cluster jobs to run per session
 N_RUNS = 2  # number of times to repeat full nested xv with different folds
 SHUFFLE = True  # true for interleaved xv, false for contiguous

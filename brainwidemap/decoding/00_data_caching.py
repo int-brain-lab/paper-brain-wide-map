@@ -35,9 +35,12 @@ CACHE DATA
 """
 # For caching, we use an online instance.
 if cache_dir:
-    one = ONE(cache_dir=cache_dir, base_url='https://openalyx.internationalbrainlab.org', mode='remote')
+    one = ONE(cache_dir=cache_dir, 
+              base_url='https://openalyx.internationalbrainlab.org',
+              mode='remote')
 else:
-    one = ONE(base_url='https://openalyx.internationalbrainlab.org', mode='remote')
+    one = ONE(base_url='https://openalyx.internationalbrainlab.org',
+              mode='remote')
     cache_dir = one.cache_dir
 
 BAD_PIDS = [] # can exclude a list of PIDS here, but currently not necessary
@@ -51,7 +54,8 @@ if regions_filter:
     clusters_table = download_aggregate_tables(one, type='clusters', target_path=cache_dir)
     # Map probes to regions (here: Beryl mapping) and filter according to QC, number of units and probes per region
     region_df = filter_regions(bwm_df['pid'], clusters_table=clusters_table, mapping='Beryl', min_qc=1,
-                               min_units_region=10, min_probes_region=None, min_sessions_region=2)
+                               min_units_region=10, min_probes_region=None, 
+                               min_sessions_region=1)
     # Remove probes and sessions based on this filters
     bwm_df = bwm_df[bwm_df['pid'].isin(region_df['pid'].unique())]
 
@@ -69,7 +73,10 @@ for count, pid in enumerate(bwm_df['pid']):
         continue
     else:
        print(f"Downloading spike sorting data for {pid}")
-       spikes, clusters = load_good_units(one, pid, compute_metrics=False)
+       try:
+           spikes, clusters = load_good_units(one, pid, compute_metrics=False)
+       except:
+           print(f"Downloading spike sorting failed for pid {pid}, skipping")
 
 # Download trials for all sessions
 for count, eid in enumerate(bwm_df['eid']):
@@ -77,8 +84,11 @@ for count, eid in enumerate(bwm_df['eid']):
         continue
     else: # Oddly not problem with errors here, dont need BAD_EIDS like wheel or spike sorting
         print(f"Downloading trials data for {eid}")
-        sess_loader = SessionLoader(one, eid)
-        sess_loader.load_trials()
+        try:
+            sess_loader = SessionLoader(one, eid)
+            sess_loader.load_trials()
+        except:
+            print(f"Downloading trials data failed for eid {eid}, skipping")
 
 # Download wheel data for all sessions
 if wheel_data:

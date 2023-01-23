@@ -58,6 +58,7 @@ for fn in tqdm(finished):
                 mask = result["fit"][i_run]["mask"]  # np.all(result["fit"][i_run]["target"] == stim[mask])
                 mask_trials_and_targets = result["fit"][i_run]["mask_trials_and_targets"]
                 mask_diagnostics = result["fit"][i_run]["mask_diagnostics"]
+                cluster_uuids = result["fit"][i_run]["cluster_uuids"]
                 #full_test_prediction = np.zeros(np.array(result["fit"][i_run]["target"]).size)
                 full_test_prediction = np.zeros(np.array(result["fit"][i_run]["target"]).shape)
                 for k in range(len(result["fit"][i_run]["idxes_test"])):
@@ -81,6 +82,7 @@ for fn in tqdm(finished):
                        'mask': ''.join([str(item) for item in list(mask.values * 1)]),
                        'mask_trials_and_targets': mask_trials_and_targets,
                        'mask_diagnostics': mask_diagnostics,
+                       'cluster_uuids': cluster_uuids,
                        'R2_test': result['fit'][i_run]['Rsquared_test_full'],
                        'weights': result['fit'][i_run]['weights'],
                        'params': result['fit'][i_run]['best_params'],
