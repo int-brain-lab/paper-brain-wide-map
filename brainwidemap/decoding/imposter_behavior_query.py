@@ -19,14 +19,14 @@ qc_pass = (
     '~session__extended_qc___task_wheel_integrity__lt,1.0,'
     'n_trials__gte,400'
 )
-sessions = list(one.alyx.rest(
+sessions = one.alyx.rest(
     'sessions', 'list',
     task_protocol='biasedChoiceWorld',
     project='ibl_neuropixel_brainwide_01',
     dataset_types=['wheel.position'],
     performance_gte=70,
     django=qc_pass,
-))
+)
 eids = [s['id'] for s in sessions]
 
 df = pd.DataFrame(columns=['eid'], data=eids)

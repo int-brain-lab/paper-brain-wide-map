@@ -42,7 +42,7 @@ The 01_imposter_caching.py script does this and is run in parallel (default of 5
 with the command:
 
 ```
-sbatch slurm_imposter_caching.sh
+sbatch 01_slurm_imposter_caching.sh
 ```
 
 ## Generate imposter dataframe
@@ -52,7 +52,7 @@ by the rest of the pipeline.  This is done by 02_generate_imposter_df.py.  This 
 nevertheless, can be summited to a slurm cluster using
 
 ```
-sbatch slurm_generate_imposter_df.py
+sbatch 02_slurm_generate_imposter_df.py
 ```
 
 ## Decoding sessions
@@ -65,13 +65,13 @@ where X is an integer which indexes across jobs.  Each sessions gets at least 1 
 hundreds of jobs.  These jobs are submitted in parallel using 
 
 ```
-sbatch slurm_decode.sh
+sbatch 03_slurm_decode.sh
 ```
 
 NB: some slurm clusters have a maximum number of jobs, which means you will have to submit multiple 
 times.  For example, if you cannot sumbit more than 1000 jobs but require 1100, run
 ```
-sbatch slurm_decode.sh
+sbatch 03_slurm_decode.sh
 ```
 where the script contains the line 
 ```
@@ -83,9 +83,9 @@ Then, when you are allowed to submit more jobs run the same but change the line 
 ```
 .  The total number of jobs required will be the number of sessions * ceil(n_pseudo / n_pseudo_per_job).
 
-The prefix of the filenames of output and error files found in slurm_decode.sh (lines '#SBATCH --output' 
+The prefix of the filenames of output and error files found in 03_slurm_decode.sh (lines '#SBATCH --output' 
 and '#SBATCH --error') is used for post-processing.  For example, if your error filename in 
-slurm_decode.sh, excluding directory, is 'ds_bwmrelease_3_.%a.err', then you will want to remember the 
+03_slurm_decode.sh, excluding directory, is 'ds_bwmrelease_3_.%a.err', then you will want to remember the 
 prefix 'ds_bwmrelease_3_' because it is used in the next step.  Also, note the directory in which these 
 files are saved and change if necessary. 
 
@@ -112,7 +112,7 @@ Dealing with the files saved for individual decoding runs can be unweildy.  Here
 results and aggregate the most important information into a pandas dataframe using '04_format_results.py'.  
 This can take awhile so it is parallelized and submitted using
 ```
-sbatch slurm_format.sh
+sbatch 04_slurm_format.sh
 ```
 , where the default is to parallelize 50 ways (N_PARA=50).  In that case 50 dataframes will be saved, and 
 they are combined in the next step

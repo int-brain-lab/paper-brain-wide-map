@@ -79,7 +79,13 @@ for i, eid in enumerate(eids):
         and (trialsdf.probabilityLeft.values[0] == 0.5):
         try:
             if add_behavior_col:
-                trialsdf = get_target_variable_in_df(one, eid, sess_loader=sess_loader, **params)
+                trialsdf = get_target_variable_in_df(
+                    one=one, eid=eid, sess_loader=sess_loader, target=params['target'],
+                    align_time=params['align_time'], time_window=params['time_window'],
+                    binsize=params['binsize'], min_rt=params['min_rt'], max_rt=params['max_rt'],
+                    min_len=params['min_len'], max_len=params['max_len'],
+                    exclude_unbiased_trials=params['exclude_unbiased_trials'],
+                )
             if trialsdf is None:
                 continue
             else:

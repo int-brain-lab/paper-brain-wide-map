@@ -136,13 +136,13 @@ if params['merged_probes']:
     clusters_list = []
     spikes_list = []
     for pid, probe_name in zip(pids, probe_names):
-        tmp_spikes, tmp_clusters = load_good_units(one, pid, eid=eid, pname=probe_name, compute_metrics=True)
+        tmp_spikes, tmp_clusters = load_good_units(one, pid, eid=eid, pname=probe_name)
         tmp_clusters['pid'] = pid
         spikes_list.append(tmp_spikes)
         clusters_list.append(tmp_clusters)
     spikes, clusters = merge_probes(spikes_list, clusters_list)
 else:
-    spikes, clusters = load_good_units(one, pid, eid=eid, pname=probe_name, compute_metrics=True)
+    spikes, clusters = load_good_units(one, pid, eid=eid, pname=probe_name)
 
 # Put everything into the input format fit_eid still expects at this point
 neural_dict = {

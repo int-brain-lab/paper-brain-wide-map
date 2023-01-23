@@ -22,7 +22,7 @@ if params['imposter_generate_from_ephys']:
     eids = bwm_df['eid'].unique()
 else:
     # no template, no neural activity
-    one = ONE(mode='remote')
+    one = ONE(mode='remote')  # TODO: cannot currently use openalyx for this
     # eids = one.search(project='ibl_neuropixel_brainwide_01', task_protocol='biasedChoiceWorld')
     qc_pass = (
         '~session__extended_qc___task_stimOn_goCue_delays__lt,0.9,'
@@ -38,46 +38,20 @@ else:
         '~session__extended_qc___task_wheel_integrity__lt,1.0,'
         'n_trials__gte,400'
     )
-    sessions = list(one.alyx.rest(
+    sessions = one.alyx.rest(
         'sessions', 'list',
         task_protocol='biasedChoiceWorld',
         project='ibl_neuropixel_brainwide_01',
         dataset_types=['wheel.position'],
         performance_gte=70,
         django=qc_pass,
-    ))
+    )
     eids = [s['id'] for s in sessions]
 
-# basic columns that we want to keep
-columns = [
-    'probabilityLeft',
-    'contrastRight',
-    'feedbackType',
-    'choice',
-    'contrastLeft',
-    'eid',
-    'template_sess',
-    'firstMovement_times',
-    'goCue_times',
-    'stimOn_times',
-    'feedback_times',
-]
-
-# add additional columns if necessary
-add_behavior_col = False
-if (params['target'] != 'pLeft') \
-        and (params['target'] != 'signcont') \
-        and (params['target'] != 'feedback') \
-        and (params['target'] != 'choice'):
-    add_behavior_col = True
-    columns += [params['target']]
-
-all_trialsdf = []
 for i, eid in enumerate(eids):
-    if not (i%N_PARA == PARAINDEX):
+    if not (i % N_PARA == PARAINDEX):
         continue
     else:
-        det = one.get_details(eid, full=True)
         print('%i: %s' % (i, eid))
         try:
             sess_loader = SessionLoader(one=one, eid=eid)
@@ -87,4 +61,3 @@ for i, eid in enumerate(eids):
             print('ERROR LOADING TRIALS DF')
             print(e)
             continue
-    

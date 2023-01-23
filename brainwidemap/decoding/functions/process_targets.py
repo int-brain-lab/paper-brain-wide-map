@@ -3,6 +3,7 @@ from pathlib import Path
 import numpy as np
 import torch
 import pandas as pd
+from scipy.interpolate import interp1d
 
 from behavior_models.models.utils import format_data as format_data_mut
 from behavior_models.models.utils import format_input as format_input_mut
@@ -243,24 +244,26 @@ def get_beh_target(trials_df, metadata, remove_old=False, **kwargs):
     return tvec
 
 
-def get_target_data_per_trial(
-        target_times, target_data, interval_begs, interval_ends, interval_len, binsize,
+def get_target_data_per_trial_wrapper(
+        target_times, target_vals, trials_df, align_event, align_interval, binsize,
         allow_nans=False):
-    """Select wheel data for specified interval on each trial.
+    """Format a single session-wide array of target data into a list of trial-based arrays.
 
     Parameters
     ----------
     target_times : array-like
         time in seconds for each sample
-    target_data : array-like
+    target_vals : array-like
         data samples
-    interval_begs : array-like
-        beginning of each interval in seconds
-    interval_ends : array-like
-        end of each interval in seconds
-    interval_len : float
+    trials_df : pd.DataFrame
+        requires a column that matches `align_event`
+    align_event : str
+        event to align interval to
+        firstMovement_times | stimOn_times | feedback_times
+    align_interval : tuple
+        (align_begin, align_end); time in seconds relative to align_event
     binsize : float
-        width of each bin in seconds
+        size of individual bins in interval
     allow_nans : bool, optional
         False to skip trials with >0 NaN values in target data
 
@@ -269,14 +272,18 @@ def get_target_data_per_trial(
     tuple
         - (list): time in seconds for each trial
         - (list): data for each trial
-        - (np.ndarray): mask; True=good trial, False=bad trial
+        - (array-like): mask of good trials (True) and bad trials (False)
 
     """
 
-    from scipy.interpolate import interp1d
+    align_times = trials_df[align_event].values
+    interval_begs = align_times + align_interval[0]
+    interval_ends = align_times + align_interval[1]
+    interval_len = align_interval[1] - align_interval[0]
 
+    # split data by trial
     if np.all(np.isnan(interval_begs)) or np.all(np.isnan(interval_ends)):
-        print('bad trial data')
+        print('interval times all nan')
         good_trial = np.nan * np.ones(interval_begs.shape[0])
         target_times_list = []
         target_data_list = []
@@ -289,7 +296,7 @@ def get_target_data_per_trial(
     idxs_beg = np.searchsorted(target_times, interval_begs, side='right')
     idxs_end = np.searchsorted(target_times, interval_ends, side='left')
     target_times_og_list = [target_times[ib:ie] for ib, ie in zip(idxs_beg, idxs_end)]
-    target_data_og_list = [target_data[ib:ie] for ib, ie in zip(idxs_beg, idxs_end)]
+    target_data_og_list = [target_vals[ib:ie] for ib, ie in zip(idxs_beg, idxs_end)]
 
     # interpolate and store
     target_times_list = []
@@ -349,49 +356,7 @@ def get_target_data_per_trial(
         target_data_list.append(y_interp)
         good_trial[i] = True
 
-    return target_times_list, target_data_list, np.array(good_trial)
-
-
-def get_target_data_per_trial_wrapper(
-        target_times, target_vals, trials_df, align_event, align_interval, binsize):
-    """Format a single session-wide array of target data into a list of trial-based arrays.
-
-    Parameters
-    ----------
-    target_times : array-like
-        time in seconds for each sample
-    target_vals : array-like
-        data samples
-    trials_df : pd.DataFrame
-        requires a column that matches `align_event`
-    align_event : str
-        event to align interval to
-        firstMovement_times | stimOn_times | feedback_times
-    align_interval : tuple
-        (align_begin, align_end); time in seconds relative to align_event
-    binsize : float
-        size of individual bins in interval
-
-    Returns
-    -------
-    tuple
-        - (list): time in seconds for each trial
-        - (list): data for each trial
-        - (array-like): mask of good trials (True) and bad trials (False)
-
-    """
-
-    align_times = trials_df[align_event].values
-    interval_beg_times = align_times + align_interval[0]
-    interval_end_times = align_times + align_interval[1]
-    interval_len = align_interval[1] - align_interval[0]
-
-    # split data by trial
-    target_times_list, target_val_list, good_trials = get_target_data_per_trial(
-        target_times, target_vals, interval_beg_times, interval_end_times,
-        interval_len, binsize)
-
-    return target_times_list, target_val_list, good_trials
+    return target_times_list, target_val_list, np.array(good_trial)
 
 
 def load_behavior(target, sess_loader):
@@ -450,18 +415,24 @@ def load_behavior(target, sess_loader):
 
 
 def get_target_variable_in_df(
-        one, eid, target, align_time, time_window, binsize, sess_loader, **kwargs):
+        one, eid, sess_loader, target, align_time, time_window, binsize, min_rt, max_rt, min_len,
+        max_len, exclude_unbiased_trials):
     """Return a trials dataframe with additional behavioral data as one array per trial.
 
     Parameters
     ----------
     one : ONE object
     eid : str
+    sess_loader : brainbox.io.one.SessionLoader object
     target : str
     align_time : str
     time_window : array-like
     binsize : float
-    sess_loader : brainbox.io.one.SessionLoader object
+    min_rt : float
+    max_rt : float
+    min_len : float
+    max_len : float
+    exclude_unbiased_trials : bool
 
     Returns
     -------
@@ -472,9 +443,8 @@ def get_target_variable_in_df(
     # load trial data
     trials_df, trials_mask = load_trials_and_mask(
         one=one, eid=eid, sess_loader=sess_loader,
-        min_rt=kwargs['min_rt'], max_rt=kwargs['max_rt'],
-        min_trial_len=kwargs['min_len'], max_trial_len=kwargs['max_len'],
-        exclude_nochoice=True, exclude_unbiased=kwargs['exclude_unbiased_trials'])
+        min_rt=min_rt, max_rt=max_rt, min_trial_len=min_len, max_trial_len=max_len,
+        exclude_nochoice=True, exclude_unbiased=exclude_unbiased_trials)
 
     # load behavior data
     beh_dict = load_behavior(target=target, sess_loader=sess_loader)

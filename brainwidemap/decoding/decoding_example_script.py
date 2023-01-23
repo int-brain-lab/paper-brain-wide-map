@@ -34,6 +34,9 @@ one = ONE(
 User input
 --------------------------------
 """
+# where results are saved
+# results_dir = Path('/media/mattw/ibl/tmp')
+results_dir = Path().home().joinpath('bwm_decoding_example')
 
 # select example eid for decoding analysis
 eid = 'b658bc7d-07cd-4203-8a25-7b16b549851b'
@@ -47,9 +50,6 @@ pseudo_ids = np.array([-1, 1, 2, 3, 4, 5])
 # 03_decode_single_session.py for more detailed information
 params['target'] = 'pLeft'
 params['tanh_transform'] = False  # only True for target=='signcont'
-
-# where results are saved
-results_dir = Path('/media/mattw/ibl/tmp')
 
 """
 --------------------------------
@@ -99,7 +99,7 @@ else:
     params['imposter_df'] = None
 
 # Load spike sorting data
-spikes, clusters = load_good_units(one, pid, eid=eid, pname=probe_name, compute_metrics=True)
+spikes, clusters = load_good_units(one, pid, eid=eid, pname=probe_name)
 
 # Put everything into the input format fit_eid still expects at this point
 neural_dict = {
@@ -166,5 +166,5 @@ ax.legend(loc='upper right')
 plt.tight_layout()
 fig_path = save_path.parent.joinpath('example_result.png')
 plt.savefig(fig_path)
-plt.close()
+plt.show()
 print('find result figure at %s' % fig_path)

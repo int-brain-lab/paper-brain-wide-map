@@ -16,7 +16,8 @@ para_index = int(sys.argv[1])-1
 USER INPUTS
 -----------
 """
-# Whether to remove data based on number of probes and units per region, good trials (see below for specifics)
+# Whether to remove data based on number of probes and units per region, good trials
+# (see below for specifics)
 regions_filter = True
 trials_filter = True
 
@@ -40,7 +41,7 @@ else:
     one = ONE(base_url='https://openalyx.internationalbrainlab.org', mode='remote')
     cache_dir = one.cache_dir
 
-BAD_PIDS = [] # can exclude a list of PIDS here, but currently not necessary
+BAD_PIDS = []  # can exclude a list of PIDS here, but currently not necessary
 BAD_EIDS = [one.pid2eid(p)[0] for p in BAD_PIDS]
 
 # Get the dataframe of all included sessions and probe insertions, use frozen query
@@ -83,12 +84,9 @@ for count, eid in enumerate(bwm_df['eid']):
 # Download wheel data for all sessions
 if wheel_data:
     for count, eid in enumerate(bwm_df['eid']):
-        if not (count%N_PARA == para_index):
-       	    continue
-
-        # The following eid, cc45c568..., produces "RuntimeWarning: Failed to connect"
-        # This may be caused by two timestamp arrays, wheel.timestamps.npy and wheel.times.npy
-        elif eid == 'cc45c568-c3b9-4f74-836e-c87762e898c8' or (eid in BAD_EIDS):
+        if not (count % N_PARA == para_index):
+            continue
+        elif eid in BAD_EIDS:
             continue
         else:
             print(f"Downloading wheel data for {eid}")
@@ -99,8 +97,8 @@ if wheel_data:
 if whisker_data:
     me_err = []
     for count, eid in enumerate(bwm_df['eid']):
-        if not (count%N_PARA == para_index):
-       	    continue
+        if not (count % N_PARA == para_index):
+            continue
         else:
             try:
                 print(f"Downloading motion energy data for {eid}")

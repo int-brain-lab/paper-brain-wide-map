@@ -232,17 +232,22 @@ def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo
                 add_to_saving_path=kwargs['add_to_saving_path']
             )
             if os.path.exists(save_path):
+                print(
+                    f'results for region {region}, pseudo_id {pseudo_id} already exist at '
+                    f'{save_path}')
+                filenames.append(save_path)
                 continue
 
             # create pseudo/imposter session when necessary and corresponding mask
             # TODO: integrate single-/multi-bin code
             if pseudo_id > 0:
                 if bins_per_trial == 1:
-                    controlsess_df = generate_null_distribution_session(trials_df, metadata, **kwargs)
-                    controltarget_vals_list, controltarget_vals_to_mask = compute_beh_target(controlsess_df, metadata, 
-                                                                                             return_raw=True, **kwargs)
-                    controltarget_mask = compute_target_mask(controltarget_vals_to_mask,
-                                                             kwargs['exclude_trials_within_values'])
+                    controlsess_df = generate_null_distribution_session(
+                        trials_df, metadata, **kwargs)
+                    controltarget_vals_list, controltarget_vals_to_mask = compute_beh_target(
+                        controlsess_df, metadata, return_raw=True, **kwargs)
+                    controltarget_mask = compute_target_mask(
+                        controltarget_vals_to_mask, kwargs['exclude_trials_within_values'])
                     control_mask = trials_mask & controltarget_mask
                 else:
                     imposter_df = kwargs['imposter_df'].copy()
@@ -325,6 +330,8 @@ def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo
             )
 
             filenames.append(filename)
+
+    print(f'Finished eid: %s' % metadata['eid'])
 
     return filenames
 
