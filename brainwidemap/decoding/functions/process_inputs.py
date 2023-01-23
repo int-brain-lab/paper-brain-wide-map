@@ -4,7 +4,6 @@ import scipy
 from brainbox.population.decode import get_spike_counts_in_bins
 from brainbox.processing import bincount2D
 
-
 def preprocess_ephys(reg_clu_ids, neural_df, trials_df, **kwargs):
     """Format a single session-wide array of spikes into a list of trial-based arrays.
        The ordering of clusters used in the output are also returned.

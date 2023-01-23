@@ -29,15 +29,13 @@ params['add_to_saving_path'] = (f"_binsize={1000 * params['binsize']}_lags={para
 ephys_str = '_beforeRecording' if not params['imposter_generate_from_ephys'] else ''
 imposter_file = RESULTS_DIR.joinpath('decoding', f"imposterSessions_{params['target']}{ephys_str}.pqt")
 
-min_trials = 150
-
 # Load ONE and the list of probe insertions and select probe(s)
-one = ONE(mode='local')
+one = ONE(base_url="https://openalyx.internationalbrainlab.org", mode='local')
 bwm_df = bwm_query(freeze='2022_10_bwm_release')
 
 # used for only running pipeline on a few subjects
-mysubs = [sys.argv[2], sys.argv[3], sys.argv[4]]
-bwm_df = bwm_df[bwm_df["subject"].isin(mysubs)] 
+# mysubs = [sys.argv[2], sys.argv[3], sys.argv[4]]
+# bwm_df = bwm_df[bwm_df["subject"].isin(mysubs)] 
 
 # Download the latest clusters table, we use the same cache as above
 clusters_table = download_aggregate_tables(one, type='clusters')

@@ -272,7 +272,17 @@ def create_pdtable_from_raw(res,
                 if my_regressors is None:
                     print(f'did not find regressors for {eid} {reg}')
                     continue
-                
+
+                # load cluster uuids
+                my_cuuids = [get_val_from_realsession(reseidreg,
+                                                     'cluster_uuids',
+                                                     RUN_ID=runid) for runid in range(1,N_RUN+1)]
+                if np.any(np.array([c is None for c in my_cuuids])):
+                    print(f'did not find cluster uuids for {eid} {reg}')
+                    continue
+                assert np.all([np.all(np.array(my_cuuids[0])==np.array(c)) for c in my_cuuids])
+                my_cuuids = my_cuuids[0]
+              
                 # load targets
                 my_targets = get_val_from_realsession(reseidreg, 'target')
                 if my_targets is None:
@@ -326,6 +336,8 @@ def create_pdtable_from_raw(res,
                 assert my_targets.shape == my_preds[0].shape
                 assert my_regressors.shape[0] == my_targets.shape[0]
                 assert np.sum(my_mask) == my_targets.shape[0]
+                if SAVE_REGRESSORS: # TODO, hack for wheel, check why this fails for wheel
+                    assert len(my_cuuids) == my_regressors.shape[-1]
                 if np.any(np.array([len(np.unique(my_preds[pi]))==1 for pi in range(my_preds.shape[0])])):
                     print(f'at least one pred is constant {eid} {reg}')
                     continue
@@ -354,9 +366,10 @@ def create_pdtable_from_raw(res,
                                  my_targets, 
                                  my_preds,
                                  my_mask,
-                                 (my_mask_trials_and_targets, my_mask_diagnostics),
+                                 (my_masks_trials_and_targets, my_masks_diagnostics),
                                  my_weights,
-                                 my_params])
+                                 my_params,
+                                 my_cuuids])
                 
     res_table = pd.DataFrame(res_table, columns=['subject',
                                                  'eid',
@@ -376,7 +389,8 @@ def create_pdtable_from_raw(res,
                                                    'mask',
                                                    'mask_diagnostics',
                                                    'weights',
-                                                   'params'])
+                                                   'params',
+                                                   'cluster_uuids'])
         return res_table, xy_table
     
     return res_table

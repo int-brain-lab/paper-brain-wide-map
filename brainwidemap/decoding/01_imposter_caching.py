@@ -17,12 +17,12 @@ PARAINDEX = int(sys.argv[1])-1
 
 if params['imposter_generate_from_ephys']:
     # ephys sessions from from one of 12 templates
-    one = ONE(mode='local')
+    one = ONE(base_url='https://openalyx.internationalbrainlab.org', mode='local')
     bwm_df = bwm_query(freeze='2022_10_bwm_release')
     eids = bwm_df['eid'].unique()
 else:
     # no template, no neural activity
-    one = ONE(mode='remote')  # TODO: cannot currently use openalyx for this
+    one = ONE(base_url='https://openalyx.internationalbrainlab.org', mode='remote')
     # eids = one.search(project='ibl_neuropixel_brainwide_01', task_protocol='biasedChoiceWorld')
     qc_pass = (
         '~session__extended_qc___task_stimOn_goCue_delays__lt,0.9,'

@@ -9,7 +9,9 @@ score_name = 'balanced_acc_test' if estimatorstr=='LogisticsRegression' else 'R2
 print(f'Working on {DATE} {TARGET}')
 file_pre = SETTINGS_FORMAT_NAME
 
-MIN_SESS_PER_REG = 1
+#MIN_SESS_PER_REG = 1
+CONT_TARGET = (TARGET in ['wheel-vel', 'wheel-speed', 'l-whisker-me', 'r-whisker-me'])
+
 
 # aggregate parallelized formatting
 res = pd.DataFrame()
@@ -26,16 +28,10 @@ res_table, xy_table = create_pdtable_from_raw(res,
                                     N_PSEUDO=N_PSEUDO,
                                     N_RUN=N_RUNS,
                                     RETURN_X_Y=True,
-                                    SCALAR_PER_TRIAL=False if TARGET in ['wheel-vel', 
-                                                                         'wheel-speed', 
-                                                                         'l-whisker-me', 
-                                                                         'r-whisker-me'] else True,
-                                    SAVE_REGRESSORS=False if TARGET in ['wheel-vel',
-                                                                        'wheel-speed',
-                                                                        'l-whisker-me',
-                                                                        'r-whisker-me'] else True)
+                                    SCALAR_PER_TRIAL=False if CONT_TARGET else True,
+                                    SAVE_REGRESSORS=False if CONT_TARGET else True)
 
-# filter for valide regions, those that have at least two eids
+# filter for valid regions, those that have at least two eids
 valid_reg = np.array([len(res_table.loc[res_table['region']==reg])>=MIN_SESS_PER_REG for reg in res_table['region']])
 res_table = res_table.loc[valid_reg]
 xy_table = xy_table.loc[valid_reg]

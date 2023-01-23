@@ -195,8 +195,8 @@ def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo
             continue
 
         # bin spikes from this region for each trial
-        msub_binned, cl_ids_used = preprocess_ephys(reg_clu_ids, neural_dict, trials_df, **kwargs)
-        #TODOuuids_used = [neural_dict['cluster_df'][cid,'uuid'] for cid in cl_ids_used]
+        msub_binned, cl_inds_used = preprocess_ephys(reg_clu_ids, neural_dict, trials_df, **kwargs)
+        cl_uuids_used = list(neural_dict['clu_df'].iloc[cl_inds_used]['uuids'])
 
         # add motor signal regressors
         if kwargs.get('motor_regressors', None):
@@ -316,6 +316,7 @@ def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo
                 fit_result['df'] = trials_df if pseudo_id == -1 else controlsess_df
                 fit_result['pseudo_id'] = pseudo_id
                 fit_result['run_id'] = i_run
+                fit_result['cluster_uuids'] = cl_uuids_used
                 fit_results.append(fit_result)
 
             filename = save_region_results(
