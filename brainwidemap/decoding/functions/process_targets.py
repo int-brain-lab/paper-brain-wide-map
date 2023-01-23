@@ -286,8 +286,8 @@ def get_target_data_per_trial_wrapper(
         print('interval times all nan')
         good_trial = np.nan * np.ones(interval_begs.shape[0])
         target_times_list = []
-        target_data_list = []
-        return target_times_list, target_data_list, good_trial
+        target_vals_list = []
+        return target_times_list, target_vals_list, good_trial
 
     # np.ceil because we want to make sure our bins contain all data
     n_bins = int(np.ceil(interval_len / binsize))
@@ -296,43 +296,43 @@ def get_target_data_per_trial_wrapper(
     idxs_beg = np.searchsorted(target_times, interval_begs, side='right')
     idxs_end = np.searchsorted(target_times, interval_ends, side='left')
     target_times_og_list = [target_times[ib:ie] for ib, ie in zip(idxs_beg, idxs_end)]
-    target_data_og_list = [target_vals[ib:ie] for ib, ie in zip(idxs_beg, idxs_end)]
+    target_vals_og_list = [target_vals[ib:ie] for ib, ie in zip(idxs_beg, idxs_end)]
 
     # interpolate and store
     target_times_list = []
-    target_data_list = []
+    target_vals_list = []
     good_trial = [None for _ in range(len(target_times_og_list))]
-    for i, (target_time, target_vals) in enumerate(zip(target_times_og_list, target_data_og_list)):
+    for i, (target_time, target_vals) in enumerate(zip(target_times_og_list, target_vals_og_list)):
 
         if len(target_vals) == 0:
             print('target data not present on trial %i; skipping' % i)
             good_trial[i] = False
             target_times_list.append(None)
-            target_data_list.append(None)
+            target_vals_list.append(None)
             continue
         if np.sum(np.isnan(target_vals)) > 0 and not allow_nans:
             print('nans in target data on trial %i; skipping' % i)
             good_trial[i] = False
             target_times_list.append(None)
-            target_data_list.append(None)
+            target_vals_list.append(None)
             continue
         if np.isnan(interval_begs[i]) or np.isnan(interval_ends[i]):
             print('bad trial interval data on trial %i; skipping' % i)
             good_trial[i] = False
             target_times_list.append(None)
-            target_data_list.append(None)
+            target_vals_list.append(None)
             continue
         if np.abs(interval_begs[i] - target_time[0]) > binsize:
             print('target data starts too late on trial %i; skipping' % i)
             good_trial[i] = False
             target_times_list.append(None)
-            target_data_list.append(None)
+            target_vals_list.append(None)
             continue
         if np.abs(interval_ends[i] - target_time[-1]) > binsize:
             print('target data ends too early on trial %i; skipping' % i)
             good_trial[i] = False
             target_times_list.append(None)
-            target_data_list.append(None)
+            target_vals_list.append(None)
             continue
 
         # resample signal in desired bins
@@ -353,10 +353,10 @@ def get_target_data_per_trial_wrapper(
                 target_time, target_vals, kind='linear', fill_value='extrapolate')(x_interp)
 
         target_times_list.append(x_interp)
-        target_data_list.append(y_interp)
+        target_vals_list.append(y_interp)
         good_trial[i] = True
 
-    return target_times_list, target_val_list, np.array(good_trial)
+    return target_times_list, target_vals_list, np.array(good_trial)
 
 
 def load_behavior(target, sess_loader):
