@@ -70,8 +70,6 @@ idx = bwm_df[bwm_df.eid == eid].index[1]  # take single probe
 subject = bwm_df.iloc[idx]['subject']
 pid = bwm_df.iloc[idx]['pid']
 probe_name = bwm_df.iloc[idx]['probe_name']
-print(f"Running eid: {eid}")
-print(f"Running probe: {pid}")
 
 """
 --------------------------------
@@ -122,6 +120,7 @@ Run decoding
 """
 # perform full nested xv decoding
 # for pLeft, 5 pseudo-sessions, should take ~1 minute on a cpu
+print(f'saving results to {results_dir}')
 results_fit_eid = fit_eid(
     neural_dict=neural_dict,
     trials_df=trials_df,

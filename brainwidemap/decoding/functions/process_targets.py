@@ -426,7 +426,7 @@ def get_target_variable_in_df(
     * target masking: trials are removed if the target data contains nans, etc. See
       brainwidemap.decoding.functions.process_targets.get_target_data_per_trial_wrapper for more
       documentation
-    
+
     Parameters
     ----------
     one : ONE object
