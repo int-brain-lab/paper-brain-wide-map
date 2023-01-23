@@ -23,6 +23,8 @@ from ibllib.atlas import AllenAtlas
 
 # atlas of 10um resolution #
 ba = AllenAtlas(10)
+# compute ba.top 
+ba.compute_surface()
 
 ################# input: list_region_id, list_region_value ###############################
 #################  list_region_id: numpy array of Beryl region id ########################
@@ -43,6 +45,22 @@ ba = AllenAtlas(10)
 ################ Define custom colors by changing S_color
 
 
+######## create slieces %%%%%%%%%%%
+def _take(vol, ind, axis, mode):
+            if mode == 'clip':
+                ind = np.minimum(np.maximum(ind, 0), vol.shape[axis] - 1)
+            if axis == 0:
+                return vol[ind, :, :]
+            elif axis == 1:
+                return vol[:, ind, :]
+            elif axis == 2:
+                return vol[:, :, ind]
+
+def _take_remap(vol, ind, axis, mapping, mode):
+            # For the labels, remap the regions indices according to the mapping
+            return ba._get_mapping(mapping=mapping)[_take(vol, ind, axis, mode)] 
+        
+        
 
 
 
@@ -62,7 +80,7 @@ def sag_slice_RGB(list_region_id, list_region_value,ML_coordinate,color_range=0)
     
     mode='raise'
     mapping='Beryl'
-    sag_slice_ind=_take_remap(ba.label, index_1, ba.xyz2dims[axis], mapping)
+    sag_slice_ind=_take_remap(ba.label, index_1, ba.xyz2dims[axis], mapping, mode)
     sag_slice_b=ba.slice( coordinate, axis=0, volume='boundary', mode='raise', region_values=None, mapping='Beryl', bc=None)
 
     #### 2D slices 
