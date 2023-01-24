@@ -10,41 +10,12 @@ from brainbox.task.closed_loop import generate_pseudo_blocks
 import neurencoding.utils as mut
 
 # Brainwide repo imports
-from .design import generate_design, sample_impostor
+from .design import generate_design
 
 
 def fit(design, spk_t, spk_clu, binwidth, model, estimator, n_folds=5, contiguous=False, **kwargs):
     """
     Function to fit a model using a cross-validated design matrix.
-
-    Parameters
-    ----------
-    design : neurencoding
-        _description_
-    spk_t : _type_
-        _description_
-    spk_clu : _type_
-        _description_
-    binwidth : _type_
-        _description_
-    model : _type_
-        _description_
-    estimator : _type_
-        _description_
-    n_folds : int, optional
-        _description_, by default 5
-    contiguous : bool, optional
-        _description_, by default False
-
-    Returns
-    -------
-    _type_
-        _description_
-
-    Raises
-    ------
-    TypeError
-        _description_
     """
     trials_idx = design.trialsdf.index
     nglm = model(design, spk_t, spk_clu, binwidth=binwidth, estimator=estimator)

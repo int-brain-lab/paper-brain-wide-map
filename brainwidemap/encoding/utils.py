@@ -257,7 +257,7 @@ def load_trials_df(
     trialsdf["trial_start"] = trialsdf["stimOn_times"] - t_before
     trialsdf["trial_end"] = trialsdf["feedback_times"] + t_after
     tdiffs = trialsdf["trial_end"] - np.roll(trialsdf["trial_start"], -1)
-    if np.any(tdiffs[:-1] > 0):
+    if np.any(tdiffs.iloc[:-1] > 0):
         logging.warning(
             f"{sum(tdiffs[:-1] > 0)} trials overlapping due to t_before and t_after "
             "values. Try reducing one or both!"

@@ -49,15 +49,32 @@ def generate_design(
     bases : dict
         Dictionary of basis functions for each regressor. Needs keys 'stim', 'feedback', 'fmove',
         (first movement) and 'wheel'.
-    iti_prior : list, optional
+    iti_prior_win : list, optional
         Two element list defining bounds relative to stimulus on which step function for ITI prior
         is applied, by default [-0.4, -0.1]
+    iti_prior_val : float, optional
+        Value to use for ITI prior, by default None. If None, uses prior.
+    fmove_offset : float, optional
+        Offset, in seconds, to apply to first movement regressor, by default -0.4. This is relative
+        to the movement onset time, and if you want a purely anti-causal kernel should be
+        equivalent to the basis function length.
+    wheel_offset : float, optional
+        Offset, in seconds, to apply to wheel regressor, by default -0.4. See above.
     contnorm : float, optional
         Normalization factor for contrast, by default 5.
         Applied as tanh(contrast * contnorm) / tanh(contnorm)
     binwidth : float, optional
         Size of bins to use for design matrix, in seconds, by default 0.02. This must match
         the binwidth of the neural glm object later used to fit the design matrix.
+    reduce_wheel_dim : bool, optional
+        Whether to reduce the dimensionality of the wheel regressor, by default True. If True,
+        will use enough principal components to capture 99.999% of the variance. Smooths out
+        very high frequency fluctuations in the wheel velocity.
+    addtl_vars : dict, optional
+        Dictionary of additional variables in the trialsdf along with their variable types. These
+        are columns that are not normally part of the output of load_trials_df, and will therefore
+        raise an error if the design matrix building doesn't find a type specification for them.
+        See neurencoding.design.DesignMatrix for more details on variable types, by default None.
     """
     if len(kwargs) > 0:
         _logger.info(

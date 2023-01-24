@@ -22,7 +22,7 @@ def predict(
         List of regressors in the model which will be included in the prediction. None causes all
         regressors to be included, by default None
     trials : array-like, optional
-        List of trial numbers to include in prediction, passing None causes all trials to be 
+        List of trial numbers to include in prediction, passing None causes all trials to be
         used in computing the prediction, by default None
     retlab : bool, optional
         Whether to return the trial labels for each time bin in the prediction, by default False
@@ -106,7 +106,7 @@ def pred_psth(
     tbef_bin = nglm.binf(t_before)
     taft_bin = nglm.binf(t_after)
     pred, labels = predict(nglm, targ_regressors, trials, retlab=True, incl_bias=incl_bias)
-    t_inds = [np.searchsorted(labels, tr) + times[tr] - 1 for tr in trials]
+    t_inds = [np.searchsorted(labels, tr) + times[tr] for tr in trials]
     winds = [(t - tbef_bin, t + taft_bin) for t in t_inds]
     psths = {}
     for cell in pred.keys():
@@ -123,6 +123,7 @@ class GLMPredictor:
     """
     Class to generate PETHs for a given GLM model and spiking data, and plot.
     """
+
     def __init__(self, trialsdf, nglm, spk_t, spk_clu):
         """
         Generate a predictor object, which can then use the internally stored model and spikes to
@@ -221,11 +222,18 @@ class GLMPredictor:
                 )
         for cov in self.covar:
             ax[2].plot(self.combweights[cov].loc[unit])
-        x = np.arange(-t_before, t_after, self.nglm.binwidth) + 0.01
-        ax[0].plot(x, self.full_psths[keytuple][unit][0], color="orange", label="Model prediction")
+        ax[2].set_title("Individual kernels (not PSTH contrib)")
+        x = np.arange(-t_before, t_after, self.nglm.binwidth)
+        ax[0].step(
+            x,
+            self.full_psths[keytuple][unit][0],
+            where="post",
+            color="orange",
+            label="Model prediction",
+        )
         ax[0].legend()
         for cov in self.covar:
-            ax[1].plot(x, self.cov_psths[keytuple][cov][unit][0], label=cov)
+            ax[1].step(x, self.cov_psths[keytuple][cov][unit][0], where="post", label=cov)
         ax[1].set_title("Individual component contributions")
         ax[1].legend()
         if hasattr(self.nglm, "clu_regions"):
