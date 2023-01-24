@@ -6,7 +6,7 @@ The pipelines used for the processing of the entire dataset are located in the `
 
 ## Installation
 
-There are several steps that are necessary to get the code in this section of the repo to run. First and foremost the user must install the `neurencoding` package upon which the models are build. Currently this is done by cloning [the neurencoding repo](https://github.com/berkgercek/neurencoding.git) into a local directory, and installing the package either using python's pip package manager (`pip install -e ./neurencoding`) or conda's development command (`conda develop ./neurencoding`).
+There are several steps that are necessary to get the code in this section of the repo to run. First and foremost the user must install the `neurencoding` package upon which the models are built. Currently this is done by cloning [the neurencoding repo](https://github.com/berkgercek/neurencoding.git) into a local directory, and installing the package either using python's pip package manager (`pip install -e ./neurencoding`) or conda's development command (`conda develop ./neurencoding`).
 
 Users must also adjust the paths for storage in the `params.py` file. These are the paths where the code will store cached results, `GLM_CACHE`, and the fit results for the brain-wide map, `GLM_FIT_PATH`. As long as the top-level directory that is specified already exists the code will handle subfolder generation etc.
 
@@ -24,7 +24,9 @@ The `pipelines/` folder, as mentioned, contains all of the scripts necessary for
 
 Singularity is a containerization system, much like Docker (and in fact can build containers from docker images), which is intended for use in HPC environments. This reduces the load on network file systems that are used in HPC environments and can often bottleneck complicated python environments such as the one in `iblenv`, as was the case when these analyses were run. Singularity does this in a manner where, unlike Docker, root permissions are not necessary to run a container. This is useful in a limited-permissions environment like those found on mose HPC clusters.
 
-The `Dockerfile`, found in the top level of the `paper-brain-wide-map` repository, specifies the docker image used to run these analyses. For convenience, a built image of this container can be found on DockerHub as well under `bdgercek/iblcore` which contains all the necessary packages (including `neurencoding`) to run the pipeline. From that package a simple `singularity build ./<your_image_name>.sif docker://bdgercek/iblcore` will suffice to compile a local singularity image. This image will then be passed to the scripts in `pipelines/` which must be modified with the path to said image. Be warned that the image is quite large due to the heavy dependencies of `iblenv`, often reaching 3GB.
+The `Dockerfile`, found in this folder, specifies the docker image used to run these analyses. For convenience, a built image of this container can be found on DockerHub as well under `bdgercek/iblcore` which contains all the necessary packages (including `neurencoding`) to run the pipeline. From that package a simple `singularity build ./<your_image_name>.sif docker://bdgercek/iblcore` will suffice to compile a local singularity image. This image will then be passed to the scripts in `pipelines/` which must be modified with the path to said image. 
+
+Be warned that the image is quite large due to the heavy dependencies of `iblenv`, often reaching 3GB. This is because it is a swiss-army-knife container that also includes `pytorch` and CUDA. In the future I will likely upload a pared-down version built on simple ubuntu, but even that will still be large because of the python libraries.
 
 Users will also have to install the `dask`, `distributed`, and `dask-jobqueue` packages for the SLURM pipelines to work properly.
 
