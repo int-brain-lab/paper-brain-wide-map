@@ -1,6 +1,7 @@
 # Standard library
 import os
 import pickle
+import argparse
 from datetime import date
 from pathlib import Path
 
@@ -17,25 +18,40 @@ import neurencoding.utils as mut
 from brainwidemap.encoding.params import GLM_CACHE, GLM_FIT_PATH
 from brainwidemap.encoding.utils import make_batch_slurm, make_batch_slurm_singularity
 
-# SLURM params
-BATCHFILE_BASE = "/home/gercek/bwm_stepwise_glm_leaveoneout_"
-JOBNAME = "bwm_GLMs_LOO"
-PARTITION = "shared-cpu"
-TIME = "12:00:00"
-SINGULARITY = True
-if SINGULARITY:
-    SINGULARITY_MODULES = ["GCC/9.3.0", "Singularity/3.7.3-Go-1.14"]
-    SINGULARITY_IMAGE = "~/iblcore.sif"
-    SINGULARITY_CONDA = "/opt/conda"
-    SINGULARITY_ENV = "iblenv"
-
-CONDAPATH = Path("/home/gercek/mambaforge/")
-ENVNAME = "iblenv"
-LOGPATH = Path("/home/gercek/worker-logs/")
-JOB_CORES = 32
-MEM = "12GB"
-SUBMIT_BATCH = False
-
+parser = argparse.ArgumentParser(description="Produce batch scripts for fitting GLMs"
+                                 " on a SLURM cluster. Requires a compiled ibl singularity image."
+                                 " This image can be generated using the image uploaded at"
+                                 " docker://bdgercek/iblcore:latest. See your cluster admin"
+                                 " for more info about using singularity images.")
+parser.add_argument("--basefilepath", type=Path,
+                    default=Path("~/").expanduser().joinpath("bwm_stepwise_glm_leaveoneout_"),
+                    help="Base filename for batch scripts")
+parser.add_argument("--jobname", type=str, default="bwm_GLMs_LOO",)
+parser.add_argument("--partition", type=str, default="shared-cpu",)
+parser.add_argument("--timelimit", type=str, default="12:00:00",)
+parser.add_argument("--singularity_modules", type=str, nargs="+",
+                    default=["GCC/9.3.0", "Singularity/3.7.3-Go-1.14"],
+                    help="Modules to load when using singularity containers.")
+parser.add_argument("--singularity_image", type=Path,
+                    default=Path("~/").expanduser().joinpath("iblcore.sif"),
+                    help="Path to singularity image with iblenv installed.")
+parser.add_argument("--singularity_conda", type=str,
+                    default="/opt/conda",
+                    help="Path to conda installation within singularity image.")
+parser.add_argument("--singularity_env", type=str,
+                    default="iblenv",
+                    help="Name of conda environment within singularity image.")
+parser.add_argument("--logpath", type=str,
+                    default=Path("~/").expanduser().joinpath("worker-logs/"),
+                    help="Path to store log files from workers.")
+parser.add_argument("--job_cores", type=int, default=32,
+                    help="Number of cores to request per job.")
+parser.add_argument("--mem", type=str, default="12GB",
+                    help="Memory to request per job.")
+parser.add_argument("--submit_batch", action="store_true", default=False,
+                    help="Submit batch jobs to SLURM cluster using the script.")
+    
+parser.parse_args()
 
 # Model parameters
 def tmp_binf(t):
@@ -83,26 +99,26 @@ print("Dataset file used:", datapath)
 
 # Generate batch script
 make_batch_slurm_singularity(
-    BATCHFILE_BASE,
+    parser.basefilepath,
     Path(__file__).parents[1].joinpath("cluster_worker.py"),
-    job_name=JOBNAME,
-    partition=PARTITION,
-    time=TIME,
-    singularity_modules=SINGULARITY_MODULES,
-    container_image=SINGULARITY_IMAGE,
-    img_condapath=SINGULARITY_CONDA,
-    img_envname=SINGULARITY_ENV,
+    job_name=parser.jobname,
+    partition=parser.partition,
+    time=parser.timelimit,
+    singularity_modules=parser.singularity_modules,
+    container_image=parser.singularity_image,
+    img_condapath=parser.singularity_conda,
+    img_envname=parser.singularity_env,
     local_pathadd=Path(__file__).parents[3],
-    logpath=LOGPATH,
-    cores_per_job=JOB_CORES,
-    memory=MEM,
+    logpath=parser.logpath,
+    cores_per_job=parser.job_cores,
+    memory=parser.mem,
     array_size=f"1-{njobs}",
     f_args=[str(datapath), str(parpath), r"${SLURM_ARRAY_TASK_ID}", currdate],
 )
 
 # If SUBMIT_BATCH, then actually execute the batch job
-if SUBMIT_BATCH:
-    os.system(f"sbatch {BATCHFILE_BASE + '_batch.sh'}")
+if parser.submit_batch:
+    os.system(f"sbatch {parser.basefilepath + '_batch.sh'}")
 else:
-    print(f"Batch file generated at {BATCHFILE_BASE + '_batch.sh'};"
+    print(f"Batch file generated at {parser.basefilepath + '_batch.sh'};"
           " user must submit it themselves. Good luck!")

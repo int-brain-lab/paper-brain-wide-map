@@ -1,5 +1,7 @@
 """
-Script to use new neuralGLM object from brainbox rather than complicated matlab calls
+Master script for running GLM fits on the cluster. Can handle several different types of fits,
+but sacrifices readibility of the code in favor of flexibility.
+
 
 Berk, May 2020
 """
@@ -77,25 +79,6 @@ def save_stepwise_pseudoblocks(
     return fn
 
 
-def save_impostor(
-    subject, session_id, sessfit, nullfits, params, probes, input_fn, clu_reg, clu_df, fitdate
-):
-    sesspath = _create_sub_sess_path(GLM_FIT_PATH, subject, session_id)
-    fn = sesspath.joinpath(f"{fitdate}_{probes}_impostor_regression.pkl")
-    outdict = {
-        "params": params,
-        "probes": probes,
-        "model_input_fn": input_fn,
-        "clu_regions": clu_reg,
-        "clu_df": clu_df,
-        "fitdata": sessfit,
-        "nullfits": nullfits,
-    }
-    with open(fn, "wb") as fw:
-        pickle.dump(outdict, fw)
-    return fn
-
-
 def fit_save_inputs(
     subject,
     eid,
@@ -105,7 +88,6 @@ def fit_save_inputs(
     t_before,
     fitdate,
     null=None,
-    impostor_path=None,
 ):
     stdf, sspkt, sspkclu, sclureg, scluqc = get_cached_regressors(eidfn)
     stdf_nona = filter_nan(stdf)
@@ -115,23 +97,6 @@ def fit_save_inputs(
         sessfit = fit_stepwise(sessdesign, sspkt, sspkclu, **params)
         outputfn = save_stepwise(
             subject, eid, sessfit, params, probes, eidfn, sclureg, scluqc, fitdate
-        )
-    elif null == "impostor":
-        if impostor_path is None:
-            raise ValueError("Must provide path to main impostor df file if using impostors")
-        impdf = filter_nan(pd.read_pickle(impostor_path))
-        sessfit, nullfits = fit_impostor(
-            sessdesign, impdf, sspkt, sspkclu, t_before=t_before, **params
-        )
-        outputfn = save_impostor(
-            subject, eid, sessfit, nullfits, params, probes, eidfn, sclureg, scluqc, fitdate
-        )
-    elif null == "pseudosession_pleft":
-        sessfit, nullfits = fit_stepwise_with_pseudoblocks(
-            sessdesign, sspkt, sspkclu, t_before=t_before, **params
-        )
-        outputfn = save_stepwise_pseudoblocks(
-            subject, eid, sessfit, nullfits, params, probes, eidfn, sclureg, scluqc, fitdate
         )
     elif null == "pseudosession_pleft_iti":
         sessfit, nullfits = fit_stepwise_with_pseudoblocks(
@@ -150,14 +115,18 @@ def fit_save_inputs(
 
     else:
         raise ValueError(
-            f"Null model {null} not recognized. Must be one of None, 'impostor', "
-            "or 'pseudosession_pleft'"
+            f"Null model {null} not recognized. Must be one of None, 'pseudosession_pleft_iti',"
+            "or 'pseudosession_pleft_trial'"
         )
     return outputfn
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Cluster GLM fitter")
+    parser = argparse.ArgumentParser(description="Cluster GLM fitter. This script is called by"
+                                                 "the batch script generated in "
+                                                 "pipelines/02_fit_sessions.py and should in most "
+                                                 "cases beyond debugging not be used in a "
+                                                 "standalone fashion.")
     parser.add_argument(
         "datafile",
         type=Path,

@@ -1,3 +1,12 @@
+"""
+This module contains functions for synthetic data generation and analysis for testing purposes
+on the encoding models. The functions are not intended to be used in the main analysis pipeline.
+
+"""
+# TODO: Honestly this module is a mess, and should be cleaned up and reorganized. It started as
+# a crappy script just to make sure everything works but I can't bring myself to delete it
+# since it's very important to verifying the model.
+
 # Third party libraries
 import numpy as np
 import pandas as pd

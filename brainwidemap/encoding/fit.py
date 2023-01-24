@@ -14,6 +14,38 @@ from .design import generate_design, sample_impostor
 
 
 def fit(design, spk_t, spk_clu, binwidth, model, estimator, n_folds=5, contiguous=False, **kwargs):
+    """
+    Function to fit a model using a cross-validated design matrix.
+
+    Parameters
+    ----------
+    design : neurencoding
+        _description_
+    spk_t : _type_
+        _description_
+    spk_clu : _type_
+        _description_
+    binwidth : _type_
+        _description_
+    model : _type_
+        _description_
+    estimator : _type_
+        _description_
+    n_folds : int, optional
+        _description_, by default 5
+    contiguous : bool, optional
+        _description_, by default False
+
+    Returns
+    -------
+    _type_
+        _description_
+
+    Raises
+    ------
+    TypeError
+        _description_
+    """
     trials_idx = design.trialsdf.index
     nglm = model(design, spk_t, spk_clu, binwidth=binwidth, estimator=estimator)
     splitter = KFold(n_folds, shuffle=not contiguous)
@@ -53,6 +85,56 @@ def fit_stepwise(
     seqselfit_kwargs={},
     **kwargs
 ):
+    """
+    Fit a stepwise regression model using a cross-validated design matrix.
+
+    This function will fit a regression model sequentially, adding or removing one group
+    of covariates at a time to observe the impact of the change on the model score. The model
+    can be fit either in a forward or backward direction, such that the full model is being built
+    one regressor at a time or one regressor is being removed at a time. This relies on the 
+    neurencoding.utils.SequentialSelector class, for which the seqsel_kwargs and seqselfit_kwargs
+    are passed to the constructor and fit methods respectively.
+
+    Parameters
+    ----------
+    design : neurencoding.DesignMatrix
+        The design matrix for the model.
+    spk_t : np.ndarray
+        N x 1 array of spike times.
+    spk_clu : np.ndarray
+        N x 1 array of same shape as spk_t containing cluster IDs for each spike.
+    binwidth : float
+        Width of bins in which to place spikes
+    model : neurencoding model class
+        The type of model to fit, such as neurencoding.linear.LinearGLM
+    estimator : sklearn estimator
+        The estimator which will be passed to the model instance for actual fitting.
+    n_folds : int, optional
+        Number of cross validation folds, by default 5
+    contiguous : bool, optional
+        Whether or not to shuffle trial indices for cross validation, equivalent to
+        the flip of sklearn's shuffle argument, by default False
+    seqsel_kwargs : dict, optional
+        Arguments to pass to neurencoding.SequentialSelector at construction, by default {}
+    seqselfit_kwargs : dict, optional
+        Arguments to pass to the `.fit` method of the SequentialSelector class, by default {}
+
+    Returns
+    -------
+    dict
+        Dictionary containing the following keys: ['scores', 'deltas', 'sequences', 'splits']:
+            scores: list of dicts containing the test and train scores for each fold. If using
+                backwards selection, the 'basescores' key will also be present, containing the
+                scores for the model without any regressors removed.
+            deltas: list of dicts containing the test and train deltas for each fold. This is
+                the difference in score between the current model and the previous model fit. For
+                the first regressor added in forward selection, this will be the same as the score
+                of the model fit. For the first regressor removed in backwards selection, this will
+                be the difference to the full model score.
+            sequences: list of lists containing the sequence in which regressors were added or
+                removed for each fold.
+            splits: list of dicts containing the test and train indices for each fold.
+    """
     trials_idx = design.trialsdf.index
     nglm = model(design, spk_t, spk_clu, binwidth=binwidth, estimator=estimator)
     splitter = KFold(n_folds, shuffle=not contiguous)
@@ -110,6 +192,19 @@ def fit_stepwise_with_pseudoblocks(
     n_impostors=100,
     **kwargs
 ):
+    """
+    Wrapper around fit_stepwise that uses pseudoblocks on the prior term to estimate the effect
+    of spurious correlations on the model score.
+
+    Takes the same arguments (see docstring for fit_stepwise) except for the following:
+
+    n_impostors : int, optional
+        Number of pseudoblock fits to perform, by default 100
+    
+    returns a dictionary and a list of dictionaries, the first containing the results of the
+    base model fit (see fit_stepwise), and the second containing the results of the pseudoblock
+    control model fits.
+    """
     with parallel_backend(backend="loky", n_jobs=-1, inner_max_num_threads=2):
         data_fit = fit_stepwise(
             design,
@@ -142,34 +237,4 @@ def fit_stepwise_with_pseudoblocks(
                 seqselfit_kwargs,
             )
             null_fits.append(pfit)
-    return data_fit, null_fits
-
-
-def fit_impostor(
-    design,
-    impdf,
-    spk_t,
-    spk_clu,
-    binwidth,
-    model,
-    estimator,
-    t_before,
-    n_impostors=100,
-    n_folds=5,
-    contiguous=False,
-    **kwargs
-):
-    data_fit = fit(design, spk_t, spk_clu, binwidth, model, estimator, n_folds, contiguous)
-
-    target_length = design.base_df.trial_end.max()
-    null_fits = []
-    while len(null_fits) < n_impostors:
-        sampledf = sample_impostor(impdf, target_length, **kwargs)
-        prior = sampledf["probabilityLeft"]
-        try:
-            pdesign = generate_design(sampledf, prior, t_before, **kwargs)
-        except IndexError:
-            continue
-        pfit = fit(pdesign, spk_t, spk_clu, binwidth, model, estimator, n_folds, contiguous)
-        null_fits.append(pfit)
     return data_fit, null_fits

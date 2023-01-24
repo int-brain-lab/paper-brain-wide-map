@@ -1,6 +1,8 @@
-# TODO: This needs to be updated and changed with a more elegant system for determining paths that
-#      are user specified for caching and outputting results.
+"""
+This file is referenced for storing cached data from the brain-wide map and the outputs of fits.
+Users must change these paths to valid locations on their own system for most of the code base to
+work.
+"""
 
 GLM_CACHE = "/mnt/Storage/glm_cache/"
 GLM_FIT_PATH = "/mnt/Storage/results/glms/"
-BEH_MOD_PATH = "/mnt/Storage/results/inference/"

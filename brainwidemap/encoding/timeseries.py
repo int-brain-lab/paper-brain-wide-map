@@ -1,3 +1,9 @@
+"""
+Utilities for taking time series with uneven sampling or irregular time stamps and resampling
+down to a fixed sample rate. This is primarily used in the context of the encoding models as a
+means of adjusting the sampling of the wheel data to match the binning of the neural data.
+"""
+
 # Third party libraries
 import numpy as np
 from scipy import interpolate

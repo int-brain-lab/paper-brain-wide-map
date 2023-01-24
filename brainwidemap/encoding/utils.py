@@ -20,79 +20,10 @@ from brainwidemap.encoding.timeseries import TimeSeries, sync
 _logger = logging.getLogger("brainwide")
 
 
-def get_impostor_df(
-    subject, one, ephys=False, tdf_kwargs={}, progress=False, ret_template=False, max_sess=10000
-):
-    """
-    Produce an impostor DF for a given subject, i.e. a dataframe which joins all trials from
-    ephys sessions for that mouse. Will have an additional column listing the source EID of each
-    trial.
-
-    Parameters
-    ----------
-    subject : str
-        Subject nickname
-    one : oneibl.one.ONE instance
-        ONE instance to use for data loading
-    ephys : bool
-        Whether to use ephys sessions (True) or behavior sessions (False)
-    tdf_kwargs : dict
-        Dictionary of keyword arguments for brainbox.io.one.load_trials_df
-    progress : bool
-        Whether or not to display a progress bar of sessions processed
-    ret_template : bool
-        Whether to return the template session identity (for ephys sessions)
-    """
-    if ephys:
-        sessions = one.alyx.rest(
-            "insertions",
-            "list",
-            django="session__project__name__icontains,"
-            "ibl_neuropixel_brainwide_01,"
-            "session__subject__nickname__icontains,"
-            f"{subject},"
-            "session__task_protocol__icontains,"
-            "_iblrig_tasks_ephysChoiceWorld,"
-            "session__qc__lt,50,"
-            "session__extended_qc__behavior,1",
-        )
-        eids = [item["session_info"]["id"] for item in sessions]
-    else:
-        eids = one.search(
-            project="ibl_neuropixel_brainwide_01",
-            task_protocol="biasedChoiceWorld",
-            subject=[subject] if len(subject) > 0 else [],
-        )
-    if len(eids) > max_sess:
-        rng = np.random.default_rng()
-        eids = rng.choice(eids, size=max_sess, replace=False)
-
-    dfs = []
-    timing_vars = [
-        "feedback_times",
-        "goCue_times",
-        "stimOn_times",
-        "trial_start",
-        "trial_end",
-        "firstMovement_times",
-    ]
-    for eid in tqdm(eids, desc="Eid :", leave=False, disable=not progress):
-        try:
-            tmpdf = load_trials_df(eid, one=one, **tdf_kwargs)
-        except Exception as e:
-            _logger.warning(f"eid {eid} df load failed with exception {e}.")
-            continue
-        if ret_template and ephys:
-            det = one.get_details(eid, full=True)
-            tmpdf["template"] = det["json"]["SESSION_ORDER"][det["json"]["SESSION_IDX"]]
-        tmpdf[timing_vars] = tmpdf[timing_vars].subtract(tmpdf["trial_start"], axis=0)
-        tmpdf["orig_eid"] = eid
-        tmpdf["duration"] = tmpdf["trial_end"] - tmpdf["trial_start"]
-        dfs.append(tmpdf)
-    return pd.concat(dfs).reset_index()
-
-
 def remap(ids, source="Allen", dest="Beryl", output="acronym", br=BrainRegions()):
+    """
+    Remap a set of brain region IDs from one atlas to another.
+    """
     _, inds = ismember(ids, br.id[br.mappings[source]])
     ids = br.id[br.mappings[dest][inds]]
     if output == "id":
@@ -102,10 +33,28 @@ def remap(ids, source="Allen", dest="Beryl", output="acronym", br=BrainRegions()
 
 
 def get_id(acronym, brainregions=BrainRegions()):
+    """
+    Get the ID of a brain region from its acronym
+    """
     return brainregions.id[np.argwhere(brainregions.acronym == acronym)[0, 0]]
 
 
 def sessions_with_region(acronym, one=None):
+    """
+    Wrapper on an alyx query to figure out which sessions have a given brain region, defined by
+    it's acronym in the Allen atlas.
+
+    Parameters
+    ----------
+    acronym : str
+        Allen brain region acronym
+    one : ONE instance, optional
+        Instance of ONE to use for querying database. Will create new if None, by default None
+
+    Returns
+    -------
+    tuple of eids, session info, probe names
+    """
     if one is None:
         one = ONE()
     query_str = (
@@ -121,53 +70,6 @@ def sessions_with_region(acronym, one=None):
     sessinfo = [i["session"] for i in traj]
     probes = np.array([i["probe_name"] for i in traj])
     return eids, sessinfo, probes
-
-
-def melt_masterscores_stepwise(masterscores, n_cov, exclude_cols=[]):
-    tmp_master = masterscores.reset_index()
-    rawpoints = tmp_master.melt(
-        value_vars=(vv := [f"{i}cov_diff" for i in range(1, n_cov + 1)]),
-        id_vars=tmp_master.columns.difference([*vv, *exclude_cols]),
-    )
-    rawpoints["covname"] = rawpoints.apply(
-        lambda x: x[str(int(x.variable[0])) + "cov_name"], axis=1
-    )
-    rawpoints["position"] = rawpoints.apply(lambda x: int(x.variable[0]), axis=1)
-    rawpoints = rawpoints.drop(columns=[f"{i}cov_name" for i in range(1, n_cov + 1)])
-    rawpoints["percentile"] = rawpoints.groupby(["covname", "region"]).value.rank(pct=True)
-    return rawpoints
-
-
-def make_batch_slurm(
-    filename,
-    scriptpath,
-    job_name="brainwide",
-    partition="shared-cpu",
-    time="01:00:00",
-    condapath=Path("~/mambaforge/"),
-    envname="iblenv",
-    logpath=Path("~/worker-logs/"),
-    cores_per_job=4,
-    memory="16GB",
-    array_size="1-100",
-    f_args=[],
-):
-    fw = open(filename, "wt")
-    fw.write("#!/bin/sh\n")
-    fw.write(f"#SBATCH --job-name={job_name}\n")
-    fw.write(f"#SBATCH --time={time}\n")
-    fw.write(f"#SBATCH --partition={partition}\n")
-    fw.write(f"#SBATCH --array={array_size}\n")
-    fw.write(f"#SBATCH --output={logpath.joinpath(job_name)}.%a.out\n")
-    fw.write("#SBATCH --ntasks=1\n")
-    fw.write(f"#SBATCH --cpus-per-task={cores_per_job}\n")
-    fw.write(f"#SBATCH --mem={memory}\n")
-    fw.write("\n")
-    fw.write(f"source {condapath}/bin/activate\n")
-    fw.write(f"conda activate {envname}\n")
-    fw.write(f'python {scriptpath} {" ".join(f_args)}\n')
-    fw.close()
-    return
 
 
 def make_batch_slurm_singularity(
@@ -192,7 +94,9 @@ def make_batch_slurm_singularity(
     Make a batch file for slurm to run a singularity container.
 
     Filebase is used to generate a _batch.sh and _workerscript.sh file, the former of which
-    is submitted via sbatch, and the latter of which is run by the worker nodes.
+    is submitted via sbatch, and the latter of which is run by the worker nodes. Important to note
+    is that the _workerscript file should absolutely not be modified during a run, as it would
+    result in different workers running different code.
 
     Parameters
     ----------
