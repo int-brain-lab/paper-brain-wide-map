@@ -18,39 +18,76 @@ import neurencoding.utils as mut
 from brainwidemap.encoding.params import GLM_CACHE, GLM_FIT_PATH
 from brainwidemap.encoding.utils import make_batch_slurm, make_batch_slurm_singularity
 
-parser = argparse.ArgumentParser(description="Produce batch scripts for fitting GLMs"
-                                 " on a SLURM cluster. Requires a compiled ibl singularity image."
-                                 " This image can be generated using the image uploaded at"
-                                 " docker://bdgercek/iblcore:latest. See your cluster admin"
-                                 " for more info about using singularity images.")
-parser.add_argument("--basefilepath", type=Path,
-                    default=Path("~/").expanduser().joinpath("bwm_stepwise_glm_leaveoneout_"),
-                    help="Base filename for batch scripts")
-parser.add_argument("--jobname", type=str, default="bwm_GLMs_LOO",)
-parser.add_argument("--partition", type=str, default="shared-cpu",)
-parser.add_argument("--timelimit", type=str, default="12:00:00",)
-parser.add_argument("--singularity_modules", type=str, nargs="+",
-                    default=["GCC/9.3.0", "Singularity/3.7.3-Go-1.14"],
-                    help="Modules to load when using singularity containers.")
-parser.add_argument("--singularity_image", type=Path,
-                    default=Path("~/").expanduser().joinpath("iblcore.sif"),
-                    help="Path to singularity image with iblenv installed.")
-parser.add_argument("--singularity_conda", type=str,
-                    default="/opt/conda",
-                    help="Path to conda installation within singularity image.")
-parser.add_argument("--singularity_env", type=str,
-                    default="iblenv",
-                    help="Name of conda environment within singularity image.")
-parser.add_argument("--logpath", type=str,
-                    default=Path("~/").expanduser().joinpath("worker-logs/"),
-                    help="Path to store log files from workers.")
-parser.add_argument("--job_cores", type=int, default=32,
-                    help="Number of cores to request per job.")
-parser.add_argument("--mem", type=str, default="12GB",
-                    help="Memory to request per job.")
-parser.add_argument("--submit_batch", action="store_true", default=False,
-                    help="Submit batch jobs to SLURM cluster using the script.")
-    
+parser = argparse.ArgumentParser(
+    description="Produce batch scripts for fitting GLMs"
+    " on a SLURM cluster. Requires a compiled ibl singularity image."
+    " This image can be generated using the image uploaded at"
+    " docker://bdgercek/iblcore:latest. See your cluster admin"
+    " for more info about using singularity images."
+)
+parser.add_argument(
+    "--basefilepath",
+    type=Path,
+    default=Path("~/").expanduser().joinpath("bwm_stepwise_glm_leaveoneout_"),
+    help="Base filename for batch scripts",
+)
+parser.add_argument(
+    "--jobname",
+    type=str,
+    default="bwm_GLMs_LOO",
+)
+parser.add_argument(
+    "--partition",
+    type=str,
+    default="shared-cpu",
+)
+parser.add_argument(
+    "--timelimit",
+    type=str,
+    default="12:00:00",
+)
+parser.add_argument(
+    "--singularity_modules",
+    type=str,
+    nargs="+",
+    default=["GCC/9.3.0", "Singularity/3.7.3-Go-1.14"],
+    help="Modules to load when using singularity containers.",
+)
+parser.add_argument(
+    "--singularity_image",
+    type=Path,
+    default=Path("~/").expanduser().joinpath("iblcore.sif"),
+    help="Path to singularity image with iblenv installed.",
+)
+parser.add_argument(
+    "--singularity_conda",
+    type=str,
+    default="/opt/conda",
+    help="Path to conda installation within singularity image.",
+)
+parser.add_argument(
+    "--singularity_env",
+    type=str,
+    default="iblenv",
+    help="Name of conda environment within singularity image.",
+)
+parser.add_argument(
+    "--logpath",
+    type=str,
+    default=Path("~/").expanduser().joinpath("worker-logs/"),
+    help="Path to store log files from workers.",
+)
+parser.add_argument(
+    "--job_cores", type=int, default=32, help="Number of cores to request per job."
+)
+parser.add_argument("--mem", type=str, default="12GB", help="Memory to request per job.")
+parser.add_argument(
+    "--submit_batch",
+    action="store_true",
+    default=False,
+    help="Submit batch jobs to SLURM cluster using the script.",
+)
+
 parser.parse_args()
 
 # Model parameters
@@ -120,5 +157,7 @@ make_batch_slurm_singularity(
 if parser.submit_batch:
     os.system(f"sbatch {parser.basefilepath + '_batch.sh'}")
 else:
-    print(f"Batch file generated at {parser.basefilepath + '_batch.sh'};"
-          " user must submit it themselves. Good luck!")
+    print(
+        f"Batch file generated at {parser.basefilepath + '_batch.sh'};"
+        " user must submit it themselves. Good luck!"
+    )

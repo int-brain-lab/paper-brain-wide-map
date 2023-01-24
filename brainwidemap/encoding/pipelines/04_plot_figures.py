@@ -44,6 +44,7 @@ ANNOTATE = False
 IMGFMT = "pdf"
 
 fitfile = Path(GLM_FIT_PATH).joinpath(FITDATE + "_glm_fit.pkl")
+fitfolder = Path(GLM_FIT_PATH).joinpath("merged_results").joinpath(FITDATE)
 
 if not fitfile.exists():
     raise FileNotFoundError(f"Fit folder {fitfile} does not exist")
@@ -96,7 +97,6 @@ sns.kdeplot(meanscores[VARIABLES], clip=[-0.015, 0.04])
 ax = plt.gca()
 ax.set_xlim(-0.015, 0.03)
 plt.tight_layout()
-
 
 
 for variable in VARIABLES:

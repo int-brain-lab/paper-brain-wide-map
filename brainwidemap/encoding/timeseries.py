@@ -35,8 +35,9 @@ class TimeSeries(dict):
                                notes=("Look, matey, I know a dead mouse when I see one, "
                                       'and I'm looking at one right now."))
         """
-        super(TimeSeries, self).__init__(times=np.array(times), values=np.array(values),
-                                         columns=columns, *args, **kwargs)
+        super(TimeSeries, self).__init__(
+            times=np.array(times), values=np.array(values), columns=columns, *args, **kwargs
+        )
         self.__dict__ = self
         self.columns = columns
         if self.values.ndim == 1:
@@ -44,13 +45,13 @@ class TimeSeries(dict):
 
         # Enforce times dict key which contains a list or array of timestamps
         if len(self.times) != len(values):
-            raise ValueError('Time and values must be of the same length')
+            raise ValueError("Time and values must be of the same length")
 
         # If column labels are passed ensure same number of labels as columns, then expose
         # each column label using the dot syntax of a Bunch
         if isinstance(self.values, np.ndarray) and columns is not None:
             if self.values.shape[1] != len(columns):
-                raise ValueError('Number of column labels must equal number of columns in values')
+                raise ValueError("Number of column labels must equal number of columns in values")
             self.update({col: self.values[:, i] for i, col in enumerate(columns)})
 
     def copy(self):
@@ -58,8 +59,9 @@ class TimeSeries(dict):
         return TimeSeries(super(TimeSeries, self).copy())
 
 
-def sync(dt, times=None, values=None, timeseries=None, offsets=None, interp='zero',
-         fillval=np.nan):
+def sync(
+    dt, times=None, values=None, timeseries=None, offsets=None, interp="zero", fillval=np.nan
+):
     """
     Function for resampling a single or multiple time series to a single, evenly-spaced, delta t
     between observations. Uses interpolation to find values.
@@ -105,17 +107,21 @@ def sync(dt, times=None, values=None, timeseries=None, offsets=None, interp='zer
         timeseries = [timeseries]
     # Yell at the user if they try to pass stuff to timeseries that isn't a TimeSeries object
     elif not all([isinstance(ts, TimeSeries) for ts in timeseries]):
-        raise TypeError('All elements of \'timeseries\' argument must be brainbox.TimeSeries '
-                        'objects. Please uses \'times\' and \'values\' for np.ndarray args.')
+        raise TypeError(
+            "All elements of 'timeseries' argument must be brainbox.TimeSeries "
+            "objects. Please uses 'times' and 'values' for np.ndarray args."
+        )
     # Check that if something is passed to times or values, there is a corresponding equal-length
     # argument for the other element.
     if (times is not None) or (values is not None):
         if len(times) != len(values):
-            raise ValueError('\'times\' and \'values\' must have the same number of elements.')
+            raise ValueError("'times' and 'values' must have the same number of elements.")
         if type(times[0]) is np.ndarray:
             if not all([t.shape == v.shape for t, v in zip(times, values)]):
-                raise ValueError('All arrays in \'times\' must match the shape of the'
-                                 ' corresponding entry in \'values\'.')
+                raise ValueError(
+                    "All arrays in 'times' must match the shape of the"
+                    " corresponding entry in 'values'."
+                )
             # If all checks are passed, convert all times and values args into TimeSeries objects
             timeseries.extend([TimeSeries(t, v) for t, v in zip(times, values)])
         else:
@@ -144,17 +150,21 @@ def sync(dt, times=None, values=None, timeseries=None, offsets=None, interp='zer
     if not np.all(np.isfinite(tbounds)):
         # If there is a np.inf or np.nan in the time stamps for any of the timeseries this will
         # break any further code so we check for all finite values and throw an informative error.
-        raise ValueError('NaN or inf encountered in passed timeseries.\
-                          Please either drop or fill these values.')
+        raise ValueError(
+            "NaN or inf encountered in passed timeseries.\
+                          Please either drop or fill these values."
+        )
     tmin, tmax = np.amin(tbounds[:, 0]), np.amax(tbounds[:, 1])
-    if fillval == 'extrapolate':
+    if fillval == "extrapolate":
         # If extrapolation is enabled we can ensure we have a full coverage of the data by
         # extending the t max to be an whole integer multiple of dt above tmin.
         # The 0.01% fudge factor is to account for floating point arithmetic errors.
         newt = np.arange(tmin, tmax + 1.0001 * (dt - (tmax - tmin) % dt), dt)
     else:
         newt = np.arange(tmin, tmax, dt)
-    tsinterps = [interpolate.interp1d(ts.times, ts.values, kind=interp, fill_value=fillval, axis=0)
-                 for ts in timeseries]
+    tsinterps = [
+        interpolate.interp1d(ts.times, ts.values, kind=interp, fill_value=fillval, axis=0)
+        for ts in timeseries
+    ]
     syncd = TimeSeries(newt, np.hstack([tsi(newt) for tsi in tsinterps]), columns=colnames)
     return syncd

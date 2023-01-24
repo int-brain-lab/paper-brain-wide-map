@@ -1,10 +1,11 @@
 """
 Functions for examining the predictions of a fit GLM model against the actual data.
 """
-import numpy as np
+# Third party libraries
 import matplotlib.pyplot as plt
-from neurencoding import linear
-from neurencoding import poisson
+import numpy as np
+
+# IBL libraries
 from brainbox.plot import peri_event_time_histogram
 
 

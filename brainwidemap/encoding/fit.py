@@ -1,16 +1,16 @@
 # Third party libraries
-from joblib import parallel_backend
 import pandas as pd
+from joblib import parallel_backend
 from sklearn.base import RegressorMixin
 from sklearn.model_selection import GridSearchCV, KFold
 from tqdm import tqdm
 
 # IBL libraries
-from brainbox.task.closed_loop import generate_pseudo_blocks
 import neurencoding.utils as mut
+from brainbox.task.closed_loop import generate_pseudo_blocks
 
-# Brainwide repo imports
-from .design import generate_design
+# Brainwidemap repo imports
+from brainwidemap.encoding.design import generate_design
 
 
 def fit(design, spk_t, spk_clu, binwidth, model, estimator, n_folds=5, contiguous=False, **kwargs):
@@ -62,7 +62,7 @@ def fit_stepwise(
     This function will fit a regression model sequentially, adding or removing one group
     of covariates at a time to observe the impact of the change on the model score. The model
     can be fit either in a forward or backward direction, such that the full model is being built
-    one regressor at a time or one regressor is being removed at a time. This relies on the 
+    one regressor at a time or one regressor is being removed at a time. This relies on the
     neurencoding.utils.SequentialSelector class, for which the seqsel_kwargs and seqselfit_kwargs
     are passed to the constructor and fit methods respectively.
 
@@ -171,7 +171,7 @@ def fit_stepwise_with_pseudoblocks(
 
     n_impostors : int, optional
         Number of pseudoblock fits to perform, by default 100
-    
+
     returns a dictionary and a list of dictionaries, the first containing the results of the
     base model fit (see fit_stepwise), and the second containing the results of the pseudoblock
     control model fits.

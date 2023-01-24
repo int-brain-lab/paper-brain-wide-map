@@ -15,6 +15,8 @@ from brainbox.io.one import SessionLoader
 from ibllib.atlas import BrainRegions
 from iblutil.numerical import ismember
 from one.api import ONE
+
+# Brainwidemap repo imports
 from brainwidemap.encoding.timeseries import TimeSeries, sync
 
 _logger = logging.getLogger("brainwide")
@@ -157,9 +159,7 @@ def make_batch_slurm_singularity(
     fw.write(f"module load {' '.join(singularity_modules)}\n")
     bindstr = "" if len(mount_paths) == 0 else "-B "
     mountpairs = ",".join([f"{k}:{v}" for k, v in mount_paths.items()])
-    fw.write(
-        f"singularity run {bindstr} {mountpairs} {container_image} /bin/bash {workerscript}"
-    )
+    fw.write(f"singularity run {bindstr} {mountpairs} {container_image} /bin/bash {workerscript}")
     fw.close()
 
     fw = open(workerscript, "wt")

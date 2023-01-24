@@ -20,17 +20,19 @@ from brainwidemap.encoding.params import GLM_CACHE
 from brainwidemap.encoding.utils import load_trials_df
 from brainwidemap.bwm_loading import load_trials_and_mask, bwm_query
 
-_logger = logging.getLogger('brainwide')
+_logger = logging.getLogger("brainwide")
 
 
-def load_regressors(session_id,
-                    pid,
-                    t_before=0.,
-                    t_after=0.,
-                    binwidth=0.02,
-                    abswheel=False,
-                    clu_criteria='bwm',
-                    one=None):
+def load_regressors(
+    session_id,
+    pid,
+    t_before=0.0,
+    t_after=0.0,
+    binwidth=0.02,
+    abswheel=False,
+    clu_criteria="bwm",
+    one=None,
+):
     """
     Load in regressors for given session and probe. Returns a dictionary with the following keys:
 
@@ -73,7 +75,7 @@ def load_regressors(session_id,
         wheel_binsize=binwidth,
         ret_abswheel=abswheel,
         ret_wheel=not abswheel,
-        addtl_types=['firstMovement_times'],
+        addtl_types=["firstMovement_times"],
         one=one,
         trials_mask=mask,
     )
@@ -81,15 +83,15 @@ def load_regressors(session_id,
     clusters = {}
     ssl = bbone.SpikeSortingLoader(one=one, pid=pid)
     origspikes, tmpclu, channels = ssl.load_spike_sorting()
-    if 'metrics' not in tmpclu:
-        tmpclu['metrics'] = np.ones(tmpclu['channels'].size)
+    if "metrics" not in tmpclu:
+        tmpclu["metrics"] = np.ones(tmpclu["channels"].size)
     clusters[pid] = ssl.merge_clusters(origspikes, tmpclu, channels)
-    clu_df = pd.DataFrame(clusters[pid]).set_index(['cluster_id'])
-    clu_df['pid'] = pid
+    clu_df = pd.DataFrame(clusters[pid]).set_index(["cluster_id"])
+    clu_df["pid"] = pid
 
-    if clu_criteria == 'bwm':
+    if clu_criteria == "bwm":
         keepclu = clu_df.index[clu_df.label == 1]
-    elif clu_criteria == 'all':
+    elif clu_criteria == "all":
         keepclu = clu_df.index
     else:
         raise ValueError("clu_criteria must be 'bwm' or 'all'")
@@ -104,8 +106,9 @@ def load_regressors(session_id,
     return trialsdf, spk_times, spk_clu, clu_regions, clu_df
 
 
-def cache_regressors(subject, session_id, pid, regressor_params, trialsdf, spk_times, spk_clu,
-                     clu_regions, clu_df):
+def cache_regressors(
+    subject, session_id, pid, regressor_params, trialsdf, spk_times, spk_clu, clu_regions, clu_df
+):
     """
     Take outputs of load_regressors() and cache them to disk in the folder defined in the params.py
     file in this repository, using a nested subject -> session folder structure.
@@ -123,25 +126,20 @@ def cache_regressors(subject, session_id, pid, regressor_params, trialsdf, spk_t
         os.mkdir(sesspath)
     curr_t = dt.now()
     fnbase = str(curr_t.date())
-    metadata_fn = sesspath.joinpath(fnbase + f'_{pid}_metadata.pkl')
-    data_fn = sesspath.joinpath(fnbase + f'_{pid}_regressors.pkl')
+    metadata_fn = sesspath.joinpath(fnbase + f"_{pid}_metadata.pkl")
+    data_fn = sesspath.joinpath(fnbase + f"_{pid}_regressors.pkl")
     regressors = {
-        'trialsdf': trialsdf,
-        'spk_times': spk_times,
-        'spk_clu': spk_clu,
-        'clu_regions': clu_regions,
-        'clu_df': clu_df,
+        "trialsdf": trialsdf,
+        "spk_times": spk_times,
+        "spk_clu": spk_clu,
+        "clu_regions": clu_regions,
+        "clu_df": clu_df,
     }
-    metadata = {
-        'subject': subject,
-        'session_id': session_id,
-        'pid': pid,
-        **regressor_params
-    }
+    metadata = {"subject": subject, "session_id": session_id, "pid": pid, **regressor_params}
 
-    with open(metadata_fn, 'wb') as fw:
+    with open(metadata_fn, "wb") as fw:
         pickle.dump(metadata, fw)
-    with open(data_fn, 'wb') as fw:
+    with open(data_fn, "wb") as fw:
         pickle.dump(regressors, fw)
     return metadata_fn, data_fn
 
@@ -153,7 +151,7 @@ def delayed_loadsave(subject, session_id, pid, params):
 
 
 # Parameters
-SESS_CRITERION = 'resolved-behavior'
+SESS_CRITERION = "resolved-behavior"
 DATE = str(dt.now().date())
 T_BEF = 0.6
 T_AFT = 0.6
@@ -161,16 +159,16 @@ BINWIDTH = 0.02
 ABSWHEEL = True
 QC = True
 EPHYS_IMPOSTOR = False
-CLU_CRITERIA = 'bwm'
+CLU_CRITERIA = "bwm"
 # End parameters
 
 # Construct params dict from above
 params = {
-    't_before': T_BEF,
-    't_after': T_AFT,
-    'binwidth': BINWIDTH,
-    'abswheel': ABSWHEEL,
-    'clu_criteria': CLU_CRITERIA,
+    "t_before": T_BEF,
+    "t_after": T_AFT,
+    "binwidth": BINWIDTH,
+    "abswheel": ABSWHEEL,
+    "clu_criteria": CLU_CRITERIA,
 }
 
 one = ONE()
@@ -185,20 +183,22 @@ for pid, rec in sessdf.iterrows():
     dataset_futures.append([subject, eid, pid, save_future])
 
 N_CORES = 2
-cluster = SLURMCluster(cores=N_CORES,
-                       memory='32GB',
-                       processes=1,
-                       queue="shared-cpu",
-                       walltime="01:15:00",
-                       log_directory='/home/gercek/dask-worker-logs',
-                       interface='ib0',
-                       worker_extra_args=["--lifetime", "60m", "--lifetime-stagger", "10m"],
-                       job_cpu=N_CORES,
-                       job_script_prologue=[
-                           f'export OMP_NUM_THREADS={N_CORES}',
-                           f'export MKL_NUM_THREADS={N_CORES}',
-                           f'export OPENBLAS_NUM_THREADS={N_CORES}'
-                       ])
+cluster = SLURMCluster(
+    cores=N_CORES,
+    memory="32GB",
+    processes=1,
+    queue="shared-cpu",
+    walltime="01:15:00",
+    log_directory="/home/gercek/dask-worker-logs",
+    interface="ib0",
+    worker_extra_args=["--lifetime", "60m", "--lifetime-stagger", "10m"],
+    job_cpu=N_CORES,
+    job_script_prologue=[
+        f"export OMP_NUM_THREADS={N_CORES}",
+        f"export MKL_NUM_THREADS={N_CORES}",
+        f"export OPENBLAS_NUM_THREADS={N_CORES}",
+    ],
+)
 cluster.scale(40)
 client = Client(cluster)
 
@@ -211,15 +211,19 @@ tmp_futures = [client.compute(future[3]) for future in dataset_futures]
 #     ret_template=True)
 
 # Run below code AFTER futures have finished!
-dataset = [{
-    'subject': x[0],
-    'eid': x[1],
-    'probes': x[2],
-    'meta_file': tmp_futures[i].result()[0],
-    'reg_file': tmp_futures[i].result()[1]
-} for i, x in enumerate(dataset_futures) if tmp_futures[i].status == 'finished']
+dataset = [
+    {
+        "subject": x[0],
+        "eid": x[1],
+        "probes": x[2],
+        "meta_file": tmp_futures[i].result()[0],
+        "reg_file": tmp_futures[i].result()[1],
+    }
+    for i, x in enumerate(dataset_futures)
+    if tmp_futures[i].status == "finished"
+]
 dataset = pd.DataFrame(dataset)
 
-outdict = {'params': params, 'dataset_filenames': dataset}
-with open(Path(GLM_CACHE).joinpath(DATE + '_dataset_metadata.pkl'), 'wb') as fw:
+outdict = {"params": params, "dataset_filenames": dataset}
+with open(Path(GLM_CACHE).joinpath(DATE + "_dataset_metadata.pkl"), "wb") as fw:
     pickle.dump(outdict, fw)

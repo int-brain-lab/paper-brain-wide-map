@@ -1,5 +1,7 @@
-# Third party libraries
+# Standard library
 from functools import cache
+
+# Third party libraries
 import numpy as np
 import pandas as pd
 
@@ -7,6 +9,7 @@ import pandas as pd
 from ibllib.atlas import BrainRegions
 from iblutil.numerical import ismember
 
+# Brainwidemap repo imports
 from brainwidemap.encoding.utils import get_id, remap
 
 
@@ -49,6 +52,7 @@ if __name__ == "__main__":
     import pickle
     from pathlib import Path
 
+    # Brainwidemap repo imports
     # Brainwide repo imports
     from brainwidemap.encoding.params import GLM_CACHE, GLM_FIT_PATH
 

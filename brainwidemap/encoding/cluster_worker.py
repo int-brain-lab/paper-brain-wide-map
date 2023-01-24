@@ -16,9 +16,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-# Brainwide repo imports
+# Brainwidemap repo imports
 from brainwidemap.encoding.design import generate_design
-from brainwidemap.encoding.fit import fit_stepwise, fit_impostor, fit_stepwise_with_pseudoblocks
+from brainwidemap.encoding.fit import fit_stepwise, fit_stepwise_with_pseudoblocks
 from brainwidemap.encoding.params import GLM_FIT_PATH
 
 
