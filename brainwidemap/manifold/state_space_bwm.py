@@ -6,6 +6,8 @@ from ibllib.atlas.regions import BrainRegions
 from brainbox.io.one import SessionLoader
 from brainbox.behavior.dlc import plot_lick_raster
 import ibllib
+from one.remote import aws
+from one.webclient import AlyxClient
 
 from scipy import signal
 from scipy.interpolate import interp1d
@@ -78,9 +80,10 @@ nlicks = 50  # trial window length in licks
 # trial split types, see get_d_vars for details
 align = {'stim': 'stim on',
          'choice': 'motion on',
-         'fback': 'feedback'}
+         'fback': 'feedback'},
+         #'block': 'stim on'}
          #'choice_restr': 'motion_on'}#
-         
+         #'stim': 'stim on'
          
          #,
          #'block': 'stim on'}
@@ -90,7 +93,10 @@ align = {'stim': 'stim on',
 # [pre_time, post_time]
 pre_post = {'choice': [0.15, 0], 'stim': [0, 0.15],
             'fback': [0, 0.7], 'block': [0.4, -0.1],
-            'choice_restr': [0.15, 0]}
+            'choice_restr': [0.15, 0],
+            'stim_restr': [0, 0.15],
+            'fback_restr': [0, 0.7],
+            'block_restr': [0.4, -0.1]}
 
 
 # labels for illustrative trajectory legend
@@ -98,7 +104,11 @@ trial_split = {'choice': ['choice left', 'choice right', 'pseudo'],
                'stim': ['stim left', 'stim right', 'pseudo'],
                'fback': ['correct', 'false', 'pseudo'],
                'block': ['pleft 0.8', 'pleft 0.2', 'pseudo'],
-               'choice_restr': ['choice left', 'choice right', 'pseudo']}
+               'choice_restr': ['choice left', 'choice right', 'pseudo'],
+               'stim_restr': ['stim left', 'stim right', 'pseudo'],
+               'fback_restr': ['correct', 'false', 'pseudo'],
+               'block_restr': ['pleft 0.8', 'pleft 0.2', 'pseudo']}
+
 
 one = ONE(base_url='https://openalyx.internationalbrainlab.org',
           password='international', silent=True)  # (mode='local')
@@ -181,21 +191,37 @@ def get_name(brainregion):
     return br.name[np.argwhere(br.id == regid)[0, 0]]
 
 
-def get_restricted_cells(split, pid, sig_lev=0.05):
+def get_restricted_cells(split, pid, sig_lev=0.05, alys='decoding'):
     '''
     for a given insertion and a given split
     get cell ids that are significant for single-cell
     analysis, loading in csv results from Yanliang
     '''
-    s1 = pd.read_csv('/home/mic/paper-brain-wide-map/'
-                  f'meta/per_eid/single-cell/{split}.csv')
+    
+    if alys == 'single-cell':
+        s1 = pd.read_csv('/home/mic/paper-brain-wide-map/'
+                      f'meta/per_eid/single-cell/{split}.csv')
 
-    # continue here: load sig cells, then feed as restr 
-    u = s1[np.bitwise_and(s1['pid'] == pid, 
-                          s1[f'p_value_{split}']<sig_lev)]
+        # load sig cells, then feed as restr 
+        u = s1[np.bitwise_and(s1['pid'] == pid, 
+                              s1[f'p_value_{split}']<sig_lev)]
+                              
+        return u['cluster_id'].values
+        
+    elif alys == 'decoding':
+
+        
+        s1 = pd.read_csv('/home/mic/paper-brain-wide-map/meta/'
+                        f'per_cell/decoding/{split}_weights.csv')
+                        
+        thresh = np.percentile(s1['abs_weight'],70)
                           
-    return u['cluster_id'].values
-
+        # continue here: load sig cells, then feed as restr 
+        u = s1[np.bitwise_and(s1['pid'] == pid,
+                  s1[f'abs_weight']<thresh)]
+                  
+        return u['cluster_id'].values
+                        
 
 def get_d_vars(split, pid, mapping='Beryl', control=True,
                nrand=1000, licka=False, contr=None, restr=False):
@@ -604,7 +630,7 @@ def get_all_d_vars(split, eids_plus=None, control=True, restr=False,
     time00 = time.perf_counter()
 
     print('split', split, 'control', control,
-          'licka', licka, 'contr', contr)
+          'licka', licka, 'contr', contr, 'restr', restr)
 
     if eids_plus is None:
         df = bwm_query(one)
@@ -709,6 +735,29 @@ def d_var_stacked(split, min_reg=100, uperms_=False, licka=False):
 
     acs = np.concatenate(acs)
     ws = np.concatenate(ws, axis=0 if licka else 1)
+       
+    print('computing grand average metrics ...')
+    ntr, ncells, nt = ws.shape
+
+    ga = {}
+    ga['m0'] = np.mean(ws[0], axis=0)
+    ga['m1'] = np.mean(ws[1], axis=0)
+    ga['ms'] = np.mean(ws[2:], axis=(0, 1))
+
+    ga['v0'] = np.std(ws[0], axis=0) / (ncells**0.5)
+    ga['v1'] = np.std(ws[1], axis=0) / (ncells**0.5)
+    ga['vs'] = np.std(ws[2:], axis=(0, 1)) / (ncells**0.5)
+
+    ga['euc'] = np.mean((ws[0] - ws[1])**2, axis=0)**0.5
+    ga['nclus'] = ncells
+
+    pca = PCA(n_components=3)
+    wsc = pca.fit_transform(np.concatenate(ws, axis=1).T).T
+    ga['pcs'] = wsc
+    
+    np.save(Path(pth_res, f'{split}_grand_averages.npy'), ga,
+                allow_pickle=True)
+
     regs0 = Counter(acs)
     regs = {reg: regs0[reg] for reg in regs0 if regs0[reg] > min_reg}
 
@@ -719,6 +768,7 @@ def d_var_stacked(split, min_reg=100, uperms_=False, licka=False):
         regde = {reg: (np.nansum(regde0[reg], axis=0) / regs[reg])**0.5
                  for reg in regs}
 
+    print('computing regional metrics ...')
     r = {}
     for reg in regs:
         res = {}
@@ -796,58 +846,15 @@ def d_var_stacked(split, min_reg=100, uperms_=False, licka=False):
             if licka else f'{split}.npy'),
             r, allow_pickle=True)
 
+
     time1 = time.perf_counter()
-    print('total time:', time1 - time0, 'sec')
+    print('total time:', np.round(time1 - time0,0), 'sec')
 
 
 def curves_params_all(split):
 
     get_all_d_vars(split)
     d_var_stacked(split)
-
-
-def get_average_peth():
-
-    res = {}
-
-    for split in align:
-        r = {}
-
-        pth = Path(one.cache_dir, 'manifold', split)
-        ss = os.listdir(pth)  # get insertions
-
-        ws = []
-
-        # group results across insertions
-        for s in ss:
-
-            D_ = np.load(Path(pth, s),
-                         allow_pickle=True).flat[0]
-
-            ws.append(D_['ws'])
-
-        ws = np.concatenate(ws, axis=1)
-        ntr, ncells, nt = ws.shape
-
-        r['m0'] = np.mean(ws[0], axis=0)
-        r['m1'] = np.mean(ws[1], axis=0)
-        r['ms'] = np.mean(ws[2:], axis=(0, 1))
-
-        r['v0'] = np.std(ws[0], axis=0) / (ncells**0.5)
-        r['v1'] = np.std(ws[1], axis=0) / (ncells**0.5)
-        r['vs'] = np.std(ws[2:], axis=(0, 1)) / (ncells**0.5)
-
-        r['euc'] = np.mean((ws[0] - ws[1])**2, axis=0)**0.5
-        r['nclus'] = ncells
-
-        pca = PCA(n_components=3)
-        wsc = pca.fit_transform(np.concatenate(ws, axis=1).T).T
-        r['pcs'] = wsc
-
-        res[split] = r
-
-    np.save(Path(pth_res, 'grand_averages.npy'), res,
-            allow_pickle=True)
 
 
 
@@ -1016,8 +1023,8 @@ def plot_all(curve='euc', amp_number=False, intro=True,
         for split in align:
 
             if ga_pcs:
-                d = np.load(Path(pth_res, 'grand_averages.npy'),
-                            allow_pickle=True).flat[0][split]
+                d = np.load(Path(pth_res, '{split}_grand_averages.npy'),
+                            allow_pickle=True).flat[0]
             else:
                 d = np.load(Path(pth_res, f'{split}.npy'),
                             allow_pickle=True).flat[0][split]
@@ -1541,6 +1548,11 @@ def plot_custom_lines(regs=None, curve='euc', split='choice',
     distance line plots for select regions;
     Welch psd as insets for each
 
+    Supp
+    plot_custom_lines(regs = ['APN', 'IRN','GRN','ACAv', 'PRNr','LP','AUDp
+     ...: ','PO','ILA'],split='choice',contr_=True)
+
+
     for supp figure on oscillations
     '''
 
@@ -1603,7 +1615,7 @@ def plot_custom_lines(regs=None, curve='euc', split='choice',
                 # quanitfy contr stratification
                 m = sum(sum(np.diff(np.array(end_pts[reg]), axis=0)))
                 end_pts[reg] = m
-                ss = f"{reg} {d[reg]['nclus']}, {np.round(m,4)}"
+                ss = f"{reg} {d[reg]['nclus']}" #, {np.round(m,4)}"
                 axs[k].spines['top'].set_visible(False)
                 axs[k].spines['right'].set_visible(False)
                 axs[k].set_ylabel('distance')
@@ -1691,26 +1703,27 @@ def plot_grand_average():
     fig, axs = plt.subplots(nrows=3,
                             ncols=len(align))
 
-    res = np.load(Path(pth_res, 'grand_averages.npy'),
-                  allow_pickle=True).flat[0]
+
 
     cols = {'0': blue_left,
             '1': red_right,
             's': 'gray'}
 
     k = 0
-    for split in res:
+    for split in align:
+        ga = np.load(Path(pth_res, '{split}_grand_averages.npy'),
+              allow_pickle=True).flat[0]
         r = 0
         for t in ['0', '1', 's']:
-            yy = res[split][f'm{t}']
+            yy = ga[f'm{t}']
             xx = np.linspace(-pre_post[split][0],
                              pre_post[split][1],
                              len(yy))
 
             axs[r, k].plot(xx, yy, c=cols[t])
             axs[r, k].fill_between(xx,
-                                   yy + res[split][f'v{t}'] / 2,
-                                   yy - res[split][f'v{t}'] / 2,
+                                   yy + ga[f'v{t}'] / 2,
+                                   yy - ga[f'v{t}'] / 2,
                                    color=cols[t],
                                    alpha=0.2)
 
@@ -1724,7 +1737,7 @@ def plot_grand_average():
 
         r = 1
 
-        yy = res[split]['euc']
+        yy = ga['euc']
         xx = np.linspace(-pre_post[split][0],
                          pre_post[split][1],
                          len(yy))
