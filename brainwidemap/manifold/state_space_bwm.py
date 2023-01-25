@@ -27,6 +27,25 @@ import matplotlib as mpl
 import seaborn as sns
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
+'''
+script to process the BWM dataset for manifold analysis,
+saving intermediate results (PETHs), computing
+metrics and plotting them (plot_all, also supp figures)
+
+A split is a variable, such as stim, where the trials are
+disected by it - e.g. left stim side and right stim side
+
+To compute all from scratch, including data download, run:
+
+##################
+for split in ['choice', 'stim','fback','block']:
+    get_all_d_vars(split)  # computes PETHs, distance sums
+    d_var_stacked(split)  # combine results across insertions
+    
+plot_all()  # plot main figure    
+##################    
+'''
+
 
 np.set_printoptions(threshold=sys.maxsize)
 
@@ -481,18 +500,8 @@ def get_d_vars(split, pid, mapping='Beryl', control=True,
 
     regs = Counter(acs)
 
-    # Keep single cell d_var in extra file for computation of mean
-    # Can't be done with control data as files become too large
-    # strictly standardized mean difference
-    d_var = (((ws[0] - ws[1]) /
-              ((ss[0] + ss[1])**0.5))**2)
-
-    d_euc = (ws[0] - ws[1])**2
-
     D_ = {}
     D_['acs'] = acs
-    D_['d_vars'] = d_var
-    D_['d_eucs'] = d_euc
     D_['ws'] = ws[:ntravis]
 
     if not control:
@@ -508,10 +517,13 @@ def get_d_vars(split, pid, mapping='Beryl', control=True,
         ws_ = [y[acs == reg] for y in ws]
         ss_ = [y[acs == reg] for y in ss]
 
+        # keep track of neuron numbers for averaging later
         res['nclus'] = sum(acs == reg)
+
         d_vars = []
         d_eucs = []
 
+        # first two trajectories are real, other pseudo
         for j in range(len(ws_) // 2):
 
             # strictly standardized mean difference
@@ -677,6 +689,7 @@ def d_var_stacked(split, min_reg=100, uperms_=False):
     np.save(Path(pth_res, f'{split}_grand_averages.npy'), ga,
             allow_pickle=True)
 
+    print('computing regional metrics ...')
     regs0 = Counter(acs)
     regs = {reg: regs0[reg] for reg in regs0 if regs0[reg] > min_reg}
 
@@ -686,7 +699,6 @@ def d_var_stacked(split, min_reg=100, uperms_=False):
     regde = {reg: (np.nansum(regde0[reg], axis=0) / regs[reg])**0.5
              for reg in regs}
 
-    print('computing regional metrics ...')
     r = {}
     for reg in regs:
         res = {}
