@@ -195,7 +195,7 @@ def get_restricted_cells(split, pid, sig_lev=0.05, alys='decoding'):
 
         thresh = np.percentile(s1['abs_weight'], 70)
 
-        # continue here: load sig cells, then feed as restr
+        # load sig cells, then feed as restr
         u = s1[np.bitwise_and(s1['pid'] == pid,
                               s1['abs_weight'] < thresh)]
 
@@ -810,8 +810,8 @@ def put_panel_label(ax, k):
                 ha='right', weight='bold')
 
 
-def plot_all(curve='euc', amp_number=False,
-             sigl=0.01, ga_pcs=True, splits=None):
+def plot_all(splits=None, curve='euc', amp_number=False,
+             sigl=0.01, ga_pcs=True):
     '''
     main manifold figure:
     1. plot example 3D trajectories,
@@ -863,13 +863,17 @@ def plot_all(curve='euc', amp_number=False,
 
         print(split, curve)
         print(f'{len(maxsf)}/{len(d)} are significant')
-        tops[split + '_s'] = f'{len(maxsf)}/{len(d)}'
+        tops[split + '_s'] = (f'{len(maxsf)}/{len(d)}='
+                             f'{np.round(len(maxsf)/len(d),2)}')
         regs_a = [tops[split][0][j] for j in range(len(tops[split][0]))
                   if tops[split][1][j] < sigl]
 
         regsa.append(regs_a)
         print(regs_a)
         print(' ')
+
+    for split in splits:
+        print(split, tops[split + '_s'])
 
     #  get Cosmos parent region for yellow color adjustment
     regsa = np.unique(np.concatenate(regsa))
@@ -896,7 +900,8 @@ def plot_all(curve='euc', amp_number=False,
 
     exs = exs0.copy()
     for split in exs0:
-        exs[f'{split}_restr'] = exs[split]
+        exs[f'{split}_restr'] = exs0[split]
+        exs[f'{split}_restr_shuf'] = exs0[split]
 
     '''
     Trajectories for example regions in PCA embedded 3d space
@@ -970,6 +975,11 @@ def plot_all(curve='euc', amp_number=False,
 
         texts = []
         for reg in regs:
+            if reg not in d:
+                print(f'{reg} not in d:'
+                       'revise example regions for line plots')
+                continue
+        
             if any(np.isinf(d[reg][f'd_{curve}'])):
                 print(f'inf in {curve} of {reg}')
                 continue
