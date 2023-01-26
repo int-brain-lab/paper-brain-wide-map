@@ -6,14 +6,14 @@ from datetime import date
 
 from one.api import ONE
 from ibllib.atlas import AllenAtlas
-from iblutil.util import get_logger
+from iblutil.util import setup_logger
 
 from neuropixel import trace_header
 from iblutil.numerical import ismember2d
 from brainwidemap import bwm_query
 from brainbox.io.one import SpikeSortingLoader
 
-logger = get_logger('brainbox')
+logger = setup_logger('brainbox')
 
 ba = AllenAtlas()
 
@@ -63,7 +63,7 @@ for i, pid in enumerate(pids):
             _clusters[k] = df_clusters[k].values
         clusters = _clusters
     else:
-        clusters = ss.merge_clusters(spikes, clusters, channels, compute_metrics=False, cache_dir=cache_dir_cluster)
+        clusters = ss.merge_clusters(spikes, clusters, channels, compute_metrics=False)
     df_probes['spike_sorter'][i] = ss.collection
     df_probes['histology'][i] = ss.histology
     if not spikes:
@@ -113,7 +113,6 @@ df_probes.to_parquet(STAGING_PATH.joinpath('probes.pqt'))
 df_depths.to_parquet(STAGING_PATH.joinpath('depths.pqt'))
 
 print(f'cp {STAGING_PATH.joinpath("*")} {STAGING_PATH.parent}')
-print(f'aws s3 sync "{STAGING_PATH}" s3://ibl-brain-wide-map-private/aggregates/2022_Q4_IBL_et_al_BWM/{STAGING_PATH.name}')
-print(f'aws s3 sync "{STAGING_PATH}" s3://ibl-brain-wide-map-private/aggregates/2022_Q4_IBL_et_al_BWM')
+print(f'aws s3 sync "{STAGING_PATH.parent}" s3://ibl-brain-wide-map-private/aggregates/2022_Q4_IBL_et_al_BWM')
 print(errorkey)
 print(error404)
