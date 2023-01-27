@@ -1,9 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[1]:
-
-
 import numpy as np
 #from oneibl.one import ONE
 from one.api import ONE
@@ -18,7 +12,7 @@ import pandas as pd
 
 from scipy.stats import rankdata
 
-import matplotlib.pyplot as plt
+
 
 ######
 
@@ -35,12 +29,33 @@ from ibllib.atlas import AllenAtlas
 ba = AllenAtlas()
 
 
-# In[2]:
+from brainbox.task.closed_loop import generate_pseudo_blocks
+
+
+
+######## using loading function in brain-wide-map repository ###############
+
+from brainwidemap import bwm_query
+
+from pathlib import Path
+from brainbox.io.one import SessionLoader
+
+from brainwidemap import bwm_query, load_good_units, load_trials_and_mask, filter_regions, filter_sessions, \
+    download_aggregate_tables
+
+# Specify a path to download the cluster and trials tables
+local_path = Path.home().joinpath('bwm_examples')
+local_path.mkdir(exist_ok=True)
+
+
+
+
+
 
 
 ################## Condition-combined test for indivdiual block, control time drift effect #####################
 
-######## Two-side Mann Whiteny U test ############
+
 def Time_TwoNmannWhitneyUshuf(x,y,bx,by,nShuf):
     
     nx=len(x)
@@ -135,20 +150,12 @@ def Time_TwoNmannWhitneyUshuf(x,y,bx,by,nShuf):
 
 
 
-########### p-value for single-cell correlates with visual stimulus-side ############
+########### p-value for visual stimulus-side############
 
 
 def get_stim_time_shuffle(rate,c_L,c_R,block_label,choice_label,nShuf=3000):
-    # rate=spike_count(num_neuron, num_trial)
-    # c_L=contrast_L(num_trial)
-    # c_R=contrast_R(num_trial)
-    # block_label (num_trial)  [0.8,0.2]
-    # choice_label=(num_trial) [1,-1]
-    # nShuf= number of shuffle for null distribution
-    # output: p=p-value for stim side(num_neuron)
-
     
-    
+    #nShuf=10000;
    # nShuf=5000;
     
     num_neuron=len(rate[:,0])
@@ -266,13 +273,13 @@ def get_stim_time_shuffle(rate,c_L,c_R,block_label,choice_label,nShuf=3000):
     
     
     
-        ########### combine all conditions ################
+    
         nTotal=  numer2+numer3+numer5+numer6
    
         dTotal = nA2*nB2 +nA3*nB3+ nA5*nB5 +nA6*nB6    
  
    
-        ######## compute discrimination probability and p-value for each cell ###########
+   
         cp = nTotal/dTotal
 
         t = rankdata(cp)
@@ -282,266 +289,144 @@ def get_stim_time_shuffle(rate,c_L,c_R,block_label,choice_label,nShuf=3000):
     return p
 
 
-# In[8]:
 
 
-def single_trial_PSTH(eid, probe, TimeWindow=np.array([-0.4, 0.3]), BinSize=0.01):
+
+
+
+#def BWM_choice_test(pid, eid, TimeWindow=np.array([-0.1, 0.0])):
+def BWM_stim_test(pid, eid, TimeWindow=np.array([0.0, 0.1])):
 
     
-    
-    
-     
     # load spike data
     # spikes.times
     # spikes.clusters
     # clusters.brain location
     # list(clusters[probe])= ['mlapdv','brainLocationIds_ccf_2017','depths','brainLocationAcronyms_ccf_2017','metrics','channels','acronym','atlas_id','x','y','z']
-    spikes, clusters, channels = bbone.load_spike_sorting_with_channel(eid, one=one)
+    #spikes, clusters, channels = bbone.load_spike_sorting_with_channel(eid, one=one)
     
+    
+    #sl = SpikeSortingLoader(pid=pid, one=one, atlas=ba)
+    #spikes, clusters, channels = sl.load_spike_sorting()
+    #clusters = sl.merge_clusters(spikes, clusters, channels)
 
+    spikes, clusters = load_good_units(one, pid, compute_metrics=True)
+    
+    
+    
 
     # load trial data
-
-    collections = one.list_collections(eid, filename='_ibl_trials*')
-    trials = one.load_object(eid, collection=collections[0],obj='trials')
-
-    stim_on=trials.stimOn_times
-    response=trials.response_times
-    feedback=trials.feedback_times
-    contrast_R=trials.contrastRight
-    contrast_L=trials.contrastLeft
-    choice=trials.choice
-    block=trials.probabilityLeft
-    first_move=trials.firstMovement_times
     
-    # compute first movement time, if =NaN, replace it by response time.
+    
+    
+    trials, mask = load_trials_and_mask(one, eid, min_rt=0.08, max_rt=2., nan_exclude='default')
+    # select good trials 
+    trials=trials.loc[mask == True]
 
-    #goCueRTs = []
-    #stimOnRTs = []
-    #trials = TrialData(eid)
-    #wheel  = WheelData(eid)
-    #if wheel.data_error == False:
-    #            wheel.calc_trialwise_wheel(trials.stimOn_times, trials.feedback_times)
-    #            wheel.calc_movement_onset_times(trials.stimOn_times)
-    #            first_move= wheel.first_movement_onset_times        
-    nan_index=np.argwhere(np.isnan(first_move))
-    first_move[nan_index[:,0]]=response[nan_index[:,0]]
+    stim_on=trials.stimOn_times.to_numpy()
+    response=trials.response_times.to_numpy()
+    feedback=trials.feedback_times.to_numpy()
+    contrast_R=trials.contrastRight.to_numpy()
+    contrast_L=trials.contrastLeft.to_numpy()
+    choice=trials.choice.to_numpy()
+    block=trials.probabilityLeft.to_numpy()
+    first_move=trials.firstMovement_times.to_numpy()
+
+
     
 
                  
 
 
-    num_neuron=len(np.unique(spikes[probe]['clusters']))
+    num_neuron=len(np.unique(spikes['clusters']))
     num_trial =len(stim_on)
 
 
 
-
-    # compute correct choice of trial (include correct trials or trials with zero contrast)
-    left_stim_index=np.argwhere(contrast_L>0)
-    right_stim_index=np.argwhere(contrast_R>0)
-
-    trial_answer=np.zeros(len(choice))
-    trial_answer[left_stim_index[:,0]]=1
-    trial_answer[right_stim_index[:,0]]=-1
-
+    ########## Time bins %%%%%%%%%%%%%%%%%%%%
     
+    # TimeWindow[0]=-0.2
+    # TimeWindow[1]= 1
+    # BinSize=0.02
     
-    
-
+    #num_bin=np.floor((TimeWindow[1]-TimeWindow[0])/BinSize).astype(int)
 
     
-    
-    
-    num_bin=np.floor((TimeWindow[1]-TimeWindow[0])/BinSize).astype(int)
-    
-    
-    spike_rate=np.zeros((num_neuron,num_trial,num_bin))
-    spike_rate_2=np.zeros((num_neuron,num_trial,num_bin))
-    spike_rate_3=np.zeros((num_neuron,num_trial,num_bin))
-    
-    
+    # pre-move
+    spike_rate=np.zeros((num_neuron,num_trial))
 
+
+    ############ compute firing rate ###################
     
     
     
         
     T_1= TimeWindow[0]
     T_2= TimeWindow[1]
-        
-
-        
-    for i_bin in range(num_bin):
     
-        T_1= TimeWindow[0]+i_bin*BinSize
-        T_2= TimeWindow[0]+(i_bin+1)*BinSize
 
-        raw_events=np.array([stim_on+T_1, stim_on+T_2]).T
-        events=raw_events
-            
-            
-        raw_events_2=np.array([first_move+T_1, first_move+T_2]).T
-        events_2=raw_events_2
-            
-            
-        raw_events_3=np.array([feedback+T_1, feedback+T_2]).T
-        events_3=raw_events_3
-        #num_trial_cond=len(events[:,0])
-        # spike_count.shape(num_neuron,num_trial_cond)
-        #  cluster_id.shape(num_neuron,1)
         
-        spike_count, cluster_id = get_spike_counts_in_bins(spikes[probe]['times'],spikes[probe]['clusters'],events)
+
+
+
+    
+    raw_events=np.array([stim_on+T_1, stim_on+T_2]).T
+    events=raw_events
+    
+    
+    
+
+    spike_count, cluster_id = get_spike_counts_in_bins(spikes['times'],spikes['clusters'],events)
         # firing_rate.shape=(num_neuron,num_bin,num_condition) 
         #count_number[i_bin]=   np.nansum(spike_count,axis=1)
+
             
 
-        spike_rate[:,:,i_bin]=   spike_count/(T_2-T_1)
-        #num_trial_cond=len(events[:,0])
-        # spike_count.shape(num_neuron,num_trial_cond)
-        #  cluster_id.shape(num_neuron,1)
-        
-        
-        
+    spike_rate = spike_count/(T_2-T_1)
 
-        
-        
-        spike_count_2, cluster_id = get_spike_counts_in_bins(spikes[probe]['times'],spikes[probe]['clusters'],events_2)
-            # firing_rate.shape=(num_neuron,num_bin,num_condition) 
-            #count_number[i_bin]=   np.nansum(spike_count,axis=1)
-            
-        spike_rate_2[:,:,i_bin]=   spike_count_2/(T_2-T_1)
         #num_trial_cond=len(events[:,0])
         # spike_count.shape(num_neuron,num_trial_cond)
         #  cluster_id.shape(num_neuron,1)
         
 
-        spike_count_3, cluster_id = get_spike_counts_in_bins(spikes[probe]['times'],spikes[probe]['clusters'],events_3)
-            # firing_rate.shape=(num_neuron,num_bin,num_condition) 
-            #count_number[i_bin]=   np.nansum(spike_count,axis=1)
-            
-        spike_rate_3[:,:,i_bin]=   spike_count_3/(T_2-T_1)
-        #num_trial_cond=len(events[:,0])
-        # spike_count.shape(num_neuron,num_trial_cond)
-        #  cluster_id.shape(num_neuron,1)
-        
-        
-        
-        
-        
-    
     # rate_1=(num_neuron,)
     #rate_1=np.nanmean(np.nanmean(firing_rate,axis=1),axis=1)
     #rate_1=(np.nanmean(firing_rate[:,:,0],axis=1)
-    area_label_1=clusters[probe]['atlas_id'][cluster_id] 
+    area_label=clusters['atlas_id'][cluster_id].to_numpy()
+
+    ############ return cluster id ########################
+    QC_cluster_id=clusters['cluster_id'][cluster_id].to_numpy()
+   
+    
+    ############ compute p-value for block ###################
+    
+    ########## Pre-move, time_shuffle_test #############
+    
+    rate=spike_rate
 
     
-
-     
+    p_1=get_stim_time_shuffle(rate,contrast_L,contrast_R,block,choice,3000)
     
-    # only include units pass single unit QC criterion
-    ks2_id=np.zeros(0)
-    for i in range(len(cluster_id)):
-        if clusters[probe]['metrics']['amp_median'][cluster_id[i]]>50/1000000:
-            if clusters[probe]['metrics']['slidingRP_viol'][cluster_id[i]]==1 and clusters[probe]['metrics']['noise_cutoff'][cluster_id[i]]<20:
-                ks2_id=np.append(ks2_id,[i])
-    ks2_id=ks2_id.astype(int)        
-        
-    #included_units=np.intersect1d(rate_good, ks2_id)
-    #included_units=rate_good
-    included_units=ks2_id
-    included_units=included_units.astype(int)
+
+    ########## Pre-move, MW_test #############
+
+
+    #p_2=get_choice(rate,contrast_L,contrast_R,block,choice,3000)
     
-    ######### rate=(num_neuron,trials,time_bin) firing rate aligned to stimulus onset ############
-    ######### rate_2=(num_neuron,trials,time_bin) firing rate aligned to first-movement onset ############
-    ######### rate_3=(num_neuron,trials,time_bin) firing rate aligned to feedback onset ############
-    rate=spike_rate[included_units,:,:]
-    rate_2=spike_rate_2[included_units,:,:]
-    rate_3=spike_rate_3[included_units,:,:]
+    ########### computate all units ######################
     
-    area_label=area_label_1[included_units]
+    #sl = SpikeSortingLoader(pid=pid, one=one, atlas=ba)
+    #spikes_2, clusters_2, channels_2 = sl.load_spike_sorting()
+    #clusters_2 = sl.merge_clusters(spikes_2, clusters_2, channels_2)
+    
+    #list_cluster=np.unique(spikes_2['clusters'])
+    #num_total_neuron=len(np.unique(spikes_2['clusters']))
+    #total_area_label=clusters_2['atlas_id'][list_cluster]
 
-    return rate, rate_2, rate_3, block, choice, contrast_L, contrast_R
-
-
-# In[4]:
-
-
-####### Example session ###############
-eid='15f742e1-1043-45c9-9504-f1e8a53c1744'
-
-
-# In[9]:
-
-
-rate_stim_1, rate_move_1, rate_feedback_1, block, choice, contrast_L, contrast_R = single_trial_PSTH(eid, 'probe00')
-
-
-# In[10]:
-
-
-rate_stim_2, rate_move_2, rate_feedback_2, block, choice, contrast_L, contrast_R = single_trial_PSTH(eid, 'probe01')
-
-
-# In[11]:
-
-
-rate_stim=np.append(rate_stim_1,rate_stim_2,axis=0)
-rate_move=np.append(rate_move_1,rate_move_2,axis=0)
-rate_feedback=np.append(rate_feedback_1,rate_feedback_2,axis=0)
-
-
-# In[12]:
-
-
-########### test p-value of single-cell correlates with visual stim side  ###############
-###### Timewindow=[50,100]ms after stimulus onset %%%%%%%%
-spike_count=np.nanmean(rate_stim[:,:,45:49],axis=2)
-p=get_stim_time_shuffle(spike_count,contrast_L,contrast_R,block,choice,2000)
-
-
-# In[13]:
-
-
-import matplotlib.pyplot as plt
-
-
-# In[50]:
-
-
-######## Example of single-cell PSTH and associated p-value #############
-time_bin = np.arange(-0.4, 0.3, 0.01)
-###### neuron 1: (significant)
-index_1=48 
-
-PSTH_L_1=np.nanmean(rate_stim[index_1,np.argwhere(contrast_L>0)[:,0],:],axis=0)
-PSTH_R_1=np.nanmean(rate_stim[index_1,np.argwhere(contrast_R>0)[:,0],:],axis=0)
-
-###### neuron 2:  (insignificant)
-index_2=59
-
-PSTH_L_2=np.nanmean(rate_stim[index_2,np.argwhere(contrast_L>0)[:,0],:],axis=0)
-PSTH_R_2=np.nanmean(rate_stim[index_2,np.argwhere(contrast_R>0)[:,0],:],axis=0)
-
-
-
-fig, (ax0, ax1) = plt.subplots(nrows=1, ncols=2, sharex=True,
-                                    figsize=(12, 6))
-
-ax0.set_title('p='+np.array2string(p[index_1]))
-ax0.plot(time_bin, PSTH_L_1)
-ax0.plot(time_bin, PSTH_R_1)
-
-ax1.set_title('p='+np.array2string(p[index_2]))
-ax1.plot(time_bin, PSTH_L_2)
-ax1.plot(time_bin, PSTH_R_2)
-
-
-fig.suptitle('Example of singel-cell PSTH and associated p-value')
-plt.show()
-
-
-# In[ ]:
-
-
+    
+    
+    
+    
+    return p_1, area_label,  QC_cluster_id
 
 
