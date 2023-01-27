@@ -24,7 +24,18 @@ from ibllib.atlas import AllenAtlas
 # atlas of 10um resolution #
 ba = AllenAtlas(10)
 # compute ba.top 
-ba.compute_surface()
+#ba.compute_surface()
+def compute_top(ba):
+    axz = ba.xyz2dims[2]  # this is the dv axis
+    _surface = (ba.label == 0).astype(np.int8) * 2
+    l0 = np.diff(_surface, axis=axz, append=2)
+    _top = np.argmax(l0 == -2, axis=axz).astype(float)
+    _top[_top == 0] = np.nan
+    ba.top = ba.bc.i2z(_top + 1)
+
+    return ba
+
+ba = compute_top(ba)
 
 
 ################# input: list_region_id, list_region_value ###############################
