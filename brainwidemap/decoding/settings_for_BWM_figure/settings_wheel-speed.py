@@ -63,7 +63,6 @@ elif TARGET == 'signcont':
     BINARIZATION_VALUE = None
     TANH_TRANSFORM = True
     EXCLUDE_UNBIASED_TRIALS = False
-    #raise NotImplementedError
 elif TARGET == 'choice':
     ALIGN_TIME = 'firstMovement_times'
     TIME_WINDOW = (-0.1, 0.0)
@@ -73,7 +72,6 @@ elif TARGET == 'choice':
     BINARIZATION_VALUE = 0 # choice vals are -1 and 1
     TANH_TRANSFORM = False
     EXCLUDE_UNBIASED_TRIALS = False
-    #raise NotImplementedError
 elif TARGET == 'feedback':
     ALIGN_TIME = 'feedback_times'
     TIME_WINDOW = (0.0, 0.2)
@@ -83,7 +81,6 @@ elif TARGET == 'feedback':
     BINARIZATION_VALUE = 0 # feedback vals are -1 and 1
     TANH_TRANSFORM = False
     EXCLUDE_UNBIASED_TRIALS = False
-    #raise NotImplementedError
 elif TARGET in ['wheel-vel', 'wheel-speed', 'l-whisker-me', 'r-whisker-me']:
     ALIGN_TIME = 'firstMovement_times'
     TIME_WINDOW = (-0.2, 1.0)
@@ -115,7 +112,6 @@ BALANCED_CONTINUOUS_TARGET = True  # is target continuous or discrete FOR BALANC
 
 # CLUSTER/UNIT PARAMS
 MIN_UNITS = 10  # regions with units below this threshold are skipped
-QC_CRITERIA = 3 / 3  # fraction of qc criteria each unit needs to pass for inclusion
 SINGLE_REGION = True  # perform decoding on region-wise or whole-brain decoding
 MERGED_PROBES = True  # merge probes before performing analysis
 
@@ -141,8 +137,6 @@ BIN_SIZE_KDE = 0.05
 SAVE_PREDICTIONS = True  # save model predictions in output file
 SAVE_PREDICTIONS_PSEUDO = False  # save model predictions in output file from pseudo/imposter/synthetic sessions
 SAVE_BINNED = True  # save binned neural predictors in output file for non-null fits (causes large files)
-MOTOR_REGRESSORS = False  # add DLC data as additional regressors to neural activity
-MOTOR_REGRESSORS_ONLY = False  # *only* use motor regressors, no neural activity
 EXCLUDE_TRIALS_WITHIN_VALUES = (None, None) # Applies mask equally to target and control, only works for scalars
 MIN_SESS_PER_REG = 2
 
@@ -226,7 +220,6 @@ params = {
     'balanced_continuous_target': BALANCED_CONTINUOUS_TARGET,
     # CLUSTER/UNIT
     'min_units': MIN_UNITS,
-    'qc_criteria': QC_CRITERIA,
     'single_region': SINGLE_REGION,
     'merged_probes': MERGED_PROBES,
     # SESSION/BEHAVIOR
@@ -253,8 +246,6 @@ params = {
     'save_predictions_pseudo': SAVE_PREDICTIONS_PSEUDO,
     'save_binned': SAVE_BINNED,
     'add_to_saving_path': ADD_TO_SAVING_PATH,
-    'motor_regressors': MOTOR_REGRESSORS,
-    'motor_regressors_only': MOTOR_REGRESSORS_ONLY,
     'imposterdf': None,
     'min_sess_per_reg': MIN_SESS_PER_REG,
 }
