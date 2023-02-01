@@ -11,6 +11,11 @@ from one.api import ONE
 from ibllib.atlas import AllenAtlas
 from ibllib.atlas.regions import BrainRegions
 from itertools import combinations
+from one.remote import aws
+from one.webclient import AlyxClient
+from brainwidemap import download_aggregate_tables
+import os
+
 
 pd.options.mode.chained_assignment = None
 
@@ -106,7 +111,55 @@ def glm_to_csv():
         d[split].to_csv('/home/mic/paper-brain-wide-map/'
                  f'meta/per_reg/glm/{split}.csv')
                  
-                 
+
+def brandon_weights(split):
+
+    '''
+    transform Brandons csv to get cluster id, pid   
+    '''
+
+    file_ = download_aggregate_tables(one)
+    df = pd.read_parquet(file_)
+    
+    # decoding weights
+    s0 = pd.read_csv('/home/mic/paper-brain-wide-map/meta/'
+                    f'per_cell/decoding/18-01-2023_{split}_'
+                    'clusteruuids_weights.csv')
+                    
+    # get cluster_id and pid per cell
+    uuids_b = s0['cluster_uuids'].values
+    uuids_t = df['uuids'].values
+    uuids = pd.Series(list(set(uuids_b).intersection(set(uuids_t))))
+    y = df.set_index('uuids').loc[uuids,['cluster_id', 'pid']]
+    y = y.reset_index()
+    
+    print(split, 'len b', len(uuids_b), 'len intersect', len(uuids))
+    
+    ws = []
+    for i in range(len(s0)):
+        ws.append(abs(s0.loc[i,'ws_fold0_runid0':].mean()))
+        
+    dd = pd.DataFrame()
+    dd['uuids'] = s0['cluster_uuids']
+    dd['abs_weight'] = ws          
+    
+    ddd = pd.merge(y,dd, on =['uuids'])
+
+    # load in firing rates
+    pth = Path(one.cache_dir, 'manifold', f'{split}_fr')
+    ss = os.listdir(pth)  # get insertions
+    us = []
+    for s in ss:
+        u = np.load(Path(pth,s), allow_pickle=True).flat[0]    
+        us.append(pd.DataFrame.from_dict(u))
+        
+    us = pd.concat(us, axis=0)
+    us.rename(columns = {'cluster_ids':'cluster_id'}, inplace = True)
+    d3 = pd.merge(us,ddd, on =['pid','cluster_id'])
+    d3.reset_index()
+    d3.to_csv('/home/mic/paper-brain-wide-map/'
+             f'meta/per_cell/decoding/{split}_weights.csv')             
+                     
 
 def get_allen_info():
     dfa = pd.read_csv('/home/mic/paper-brain-wide-map/'
