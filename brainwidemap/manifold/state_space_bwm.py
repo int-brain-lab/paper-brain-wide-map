@@ -68,6 +68,15 @@ align = {'stim': 'stim on',
          'fback': 'feedback',
          'block': 'stim on'}
 
+one = ONE(base_url='https://openalyx.internationalbrainlab.org',
+          password='international', silent=True)
+ba = AllenAtlas()
+br = BrainRegions()
+
+# save results here
+pth_res = Path(one.cache_dir, 'manifold', 'res')
+pth_res.mkdir(parents=True, exist_ok=True)
+
 
 def pre_post(split):
     '''
@@ -86,17 +95,6 @@ def pre_post(split):
     else:
         return pre_post0[split]
 
-
-one = ONE(base_url='https://openalyx.internationalbrainlab.org',
-          password='international', silent=True)
-ba = AllenAtlas()
-br = BrainRegions()
-
-# save results here
-pth_res = Path(one.cache_dir, 'manifold', 'res')
-pth_res.mkdir(parents=True, exist_ok=True)
-
-
 def grad(c, nobs, fr=1):
     '''
     color gradient for plotting trajectories
@@ -109,14 +107,12 @@ def grad(c, nobs, fr=1):
     return [cmap(fr * (nobs - p) / nobs) for p in range(nobs)]
 
 
-def find_nearest(array, value):
-    idx = np.searchsorted(array, value, side="left")
-    if idx > 0 and (idx == len(array) or math.fabs(
-            value - array[idx - 1]) < math.fabs(value - array[idx])):
-        return idx - 1
-    else:
-        return idx
+def eid_probe2pid(eid, probe_name):
 
+    df = bwm_query(one)    
+    return df[np.bitwise_and(df['eid'] == eid, 
+                             df['probe_name'] == probe_name)]['pid']
+                         
 
 def generate_pseudo_blocks(
         n_trials,
@@ -168,7 +164,7 @@ def get_name(brainregion):
     return br.name[np.argwhere(br.id == regid)[0, 0]]
 
 
-def get_restricted_cells(split, pid, sig_lev=0.05, alys='decoding'):
+def get_restricted_cells(split, pid, sigl=0.05, alys='decoding'):
     '''
     for a given insertion (pid) and a given split
     get cell ids that are significant for single-cell
@@ -184,7 +180,7 @@ def get_restricted_cells(split, pid, sig_lev=0.05, alys='decoding'):
 
         # load sig cells, then feed as restr
         u = s1[np.bitwise_and(s1['pid'] == pid,
-                              s1[f'p_value_{split}'] < sig_lev)]
+                              s1[f'p_value_{split}'] < sigl)]
 
         return u['cluster_id'].values
 
@@ -192,17 +188,21 @@ def get_restricted_cells(split, pid, sig_lev=0.05, alys='decoding'):
 
         s1 = pd.read_csv('/home/mic/paper-brain-wide-map/meta/'
                          f'per_cell/decoding/{split}_weights.csv')
+        
+        # multiply firing rates with decoding weights                 
+        s1['fr_x_weight'] = (s1['abs_weight'].values *
+                             s1['f_rates'].values)                
 
-        thresh = np.percentile(s1['abs_weight'], 70)
+        thresh = np.percentile(s1['fr_x_weight'], 70)
 
         # load sig cells, then feed as restr
         u = s1[np.bitwise_and(s1['pid'] == pid,
-                              s1['abs_weight'] < thresh)]
+                              s1['fr_x_weight'] < thresh)]
 
         return u['cluster_id'].values
 
 
-def get_d_vars(split, pid, mapping='Beryl', control=True,
+def get_d_vars(split, pid, mapping='Beryl', control=True, get_fr=False,
                nrand=1000, contr=None, restr=False, shuf=False):
     '''
     for a given variable and insertion,
@@ -218,6 +218,7 @@ def get_d_vars(split, pid, mapping='Beryl', control=True,
     contr: contrast as a float, only for split = choice
     restr: restrict cells to those from other analysis (decoding)
     shuf: if True, load random sample of cells
+    get_fr: get firing rates only
 
     returns:
     Dictionary D_ with entries
@@ -360,14 +361,24 @@ def get_d_vars(split, pid, mapping='Beryl', control=True,
 
     ntr, nclus, nbins = b.shape
 
-    wsc = np.concatenate(b, axis=1)
+    wsc = np.concatenate(b, axis=1)  # all trials, all bins
 
     acs = br.id2acronym(clusters['atlas_id'], mapping=mapping)
     acs = np.array(acs)
 
+    if get_fr:
+        # return firing rates per cell
+        
+        dr = {'pid':pid,
+              'eid':eid,
+              'probe':probe,
+              'cluster_ids':clusters['cluster_id'].values, 
+              'f_rates': np.mean(wsc,axis=1)}
+        return dr
+
+
     if restr:
         # restrict to cells given in restr
-
         css = get_restricted_cells(split, pid)
 
         inv_map = {v: k for k, v in
@@ -380,7 +391,7 @@ def get_d_vars(split, pid, mapping='Beryl', control=True,
                                       len(css))
 
         else:
-            # map to index
+            # map cluster id to index
             goodcells = [inv_map[cell_id] for cell_id in css]
 
         # restrict data
@@ -558,7 +569,7 @@ def get_d_vars(split, pid, mapping='Beryl', control=True,
 
 
 def get_all_d_vars(split, eids_plus=None, control=True, restr=False,
-                   mapping='Beryl', contr=None, shuf=False):
+                   mapping='Beryl', contr=None, shuf=False, get_fr=False):
     '''
     for all BWM insertions, get the PSTHs and acronyms,
     i.e. run get_d_vars
@@ -581,7 +592,7 @@ def get_all_d_vars(split, eids_plus=None, control=True, restr=False,
     else:
         ps = split
 
-    pth = Path(one.cache_dir, 'manifold', ps)
+    pth = Path(one.cache_dir, 'manifold', f'{ps}_fr' if get_fr else ps)
 
     pth.mkdir(parents=True, exist_ok=True)
 
@@ -594,11 +605,18 @@ def get_all_d_vars(split, eids_plus=None, control=True, restr=False,
         time0 = time.perf_counter()
         try:
             D_ = get_d_vars(split, pid, control=control, restr=restr,
-                            mapping=mapping, contr=contr, shuf=shuf)
-
-            eid_probe = eid + '_' + probe
-
-            np.save(Path(pth, f'{eid_probe}.npy'), D_, allow_pickle=True)
+                            mapping=mapping, contr=contr, shuf=shuf,
+                            get_fr=get_fr)
+                            
+            if get_fr:
+                eid_probe = eid + '_' + probe
+                np.save(Path(pth, f'{eid_probe}_fr.npy'), D_, 
+                        allow_pickle=True)
+                                
+            else:
+                eid_probe = eid + '_' + probe
+                np.save(Path(pth, f'{eid_probe}.npy'), D_, 
+                        allow_pickle=True)
 
             gc.collect()
             print(k + 1, 'of', len(eids_plus), 'ok')
@@ -1246,3 +1264,117 @@ def plot_custom_lines(regs=None, curve='euc', split='choice',
 
         jj += 1
     fig.savefig(f'{"_".join(regs)}.png')
+    
+    
+def plot_swanson_supp(curve = 'euc', sigl=0.01):
+ 
+    '''
+    swanson maps for maxes
+    '''
+    from matplotlib.gridspec import GridSpec   
+    from ibllib.atlas.flatmaps import plot_swanson
+    
+    figs = plt.figure(figsize=(10, 9), constrained_layout=True)
+    nrows = 3
+    ncols = len(align) 
+    gs = GridSpec(nrows, ncols, figure=figs)
+
+    
+    axs = []
+    k = 0
+    '''
+    plot Swanson flatmap with labels and colors
+    '''
+    axs.append(figs.add_subplot(gs[0,:]))
+    plot_swanson(annotate=True, ax=axs[k])
+    axs[k].axis('off')
+    put_panel_label(axs[k], k)
+    k += 1
+   
+    '''
+    max dist_split onto swanson flat maps
+    (only regs with p < 0.01)
+    '''
+    
+    c = 0
+    for split in align:
+    
+        axs.append(figs.add_subplot(gs[1,c]))   
+        c += 1
+
+        d = np.load(Path(pth_res, f'{split}.npy'),
+                    allow_pickle=True).flat[0]
+                    
+
+        # get significant regions only
+        acronyms = [reg for reg in d
+                if d[reg][f'p_{curve}'] < sigl]
+
+        values = np.array([d[x][f'amp_{curve}'] for x in acronyms])
+        
+        print(split, acronyms, values)
+
+        plot_swanson(np.array(acronyms), np.array(values), cmap='Blues', 
+                     ax=axs[k], br=br)#, orientation='portrait')
+        axs[k].axis('off')
+        axs[k].set_title(f'{split} \n amplitude')
+        put_panel_label(axs[k], k)
+        k += 1
+
+    '''
+    lat onto swanson flat maps
+    (only regs with p < 0.01)
+    '''
+
+    c = 0
+    for split in align:
+    
+        axs.append(figs.add_subplot(gs[2,c]))   
+        c += 1
+        d = np.load(Path(pth_res, f'{split}.npy'),
+                    allow_pickle=True).flat[0]
+                    
+        # get significant regions only
+        acronyms = [reg for reg in d
+                if d[reg][f'p_{curve}'] < sigl]
+
+#        #  compute latencies (inverted, shorter latency is darker)
+#        for x in acronyms:
+
+#            xs = np.linspace(0, 
+#                             pre_post[split][0] + pre_post[split][1],
+#                             len(d[x][curve]))            
+
+#            d[x][f'lat_{curve}'] = xs[-1] - xs[loc[0]]
+
+        values = np.array([d[x][f'lat_{curve}'] for x in acronyms])
+                         
+        plot_swanson(np.array(acronyms),np.array(values), cmap='Blues', 
+                     ax=axs[k], br=br)#, orientation='portrait')
+        axs[k].axis('off')
+        axs[k].set_title(f'{split} \n latency (dark = late)')
+        put_panel_label(axs[k], k)
+        k += 1
+
+
+        '''
+        general subplots settings
+        '''
+
+
+    figs.subplots_adjust(top=0.89,
+bottom=0.018,
+left=0.058,
+right=0.985,
+hspace=0.3,
+wspace=0.214)
+                       
+
+    font = {'size'   : 10}
+    mpl.rc('font', **font)       
+    
+    
+    
+    
+    
+    
