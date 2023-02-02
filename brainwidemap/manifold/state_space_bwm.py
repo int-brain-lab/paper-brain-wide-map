@@ -916,10 +916,14 @@ def plot_all(splits=None, curve='euc', amp_number=False,
                       'CENT3', 'SSp-ul', 'GPe'],
             'block': ['Eth', 'IC']}
 
+    # use same example regions for variant splits
     exs = exs0.copy()
-    for split in exs0:
-        exs[f'{split}_restr'] = exs0[split]
-        exs[f'{split}_restr_shuf'] = exs0[split]
+    for split in splits:
+        for split0 in  exs0:
+            if split0 in split:
+                exs[split] = exs0[split0]
+        
+        
 
     '''
     Trajectories for example regions in PCA embedded 3d space
@@ -1266,11 +1270,17 @@ def plot_custom_lines(regs=None, curve='euc', split='choice',
     fig.savefig(f'{"_".join(regs)}.png')
     
     
-def plot_swanson_supp(curve = 'euc', sigl=0.01):
+def plot_swanson_supp(splits = None, curve = 'euc', sigl=0.01,
+                      show_legend = False):
  
     '''
     swanson maps for maxes
     '''
+    
+    if splits is None:
+        splits = align
+    
+    
     from matplotlib.gridspec import GridSpec   
     from ibllib.atlas.flatmaps import plot_swanson
     
@@ -1282,14 +1292,15 @@ def plot_swanson_supp(curve = 'euc', sigl=0.01):
     
     axs = []
     k = 0
-    '''
-    plot Swanson flatmap with labels and colors
-    '''
-    axs.append(figs.add_subplot(gs[0,:]))
-    plot_swanson(annotate=True, ax=axs[k])
-    axs[k].axis('off')
-    put_panel_label(axs[k], k)
-    k += 1
+    if show_legend:
+        '''
+        plot Swanson flatmap with labels and colors
+        '''
+        axs.append(figs.add_subplot(gs[0,:]))
+        plot_swanson(annotate=True, ax=axs[k])
+        axs[k].axis('off')
+        put_panel_label(axs[k], k)
+        k += 1
    
     '''
     max dist_split onto swanson flat maps
