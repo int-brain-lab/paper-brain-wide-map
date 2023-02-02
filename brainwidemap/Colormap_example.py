@@ -28,95 +28,8 @@ def plot_examples(colormaps):
     plt.show()
 
 
-# In[3]:
-
-
-cmap = ListedColormap(["darkorange", "gold", "lawngreen", "lightseagreen"])
-plot_examples([cmap])
-
-
-# In[4]:
-
-
-colors = ["#ffffcc", "#a1dab4", "#41b6c4", "#2c7fb8", "#253494"]
-my_cmap = ListedColormap(colors, name="my_cmap")
-
-my_cmap_r = my_cmap.reversed()
-
-plot_examples([my_cmap, my_cmap_r])
-
-
-# In[5]:
-
-
-colors = ["darkorange", "gold", "lawngreen", "lightseagreen"]
-cmap1 = LinearSegmentedColormap.from_list("mycmap", colors)
-
-
-# In[6]:
-
-
-nodes = [0.0, 0.4, 0.8, 1.0]
-cmap2 = LinearSegmentedColormap.from_list("mycmap", list(zip(nodes, colors)))
-
-plot_examples([cmap1, cmap2])
-
-
-# In[ ]:
-
-
-
-
-
-# In[26]:
-
-
-nodes = [0.0, 0.4, 0.8, 1.0]
-cmap2 = LinearSegmentedColormap.from_list("mycmap", list(zip(nodes, colors)))
-
-plot_examples([cmap1, cmap2])
-
-
-# In[148]:
-
-
-colors = ["#ffffff","#86AF40"]
-cmap1 = LinearSegmentedColormap.from_list("mycmap", colors)
-plot_examples([cmap1])
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[170]:
-
+### The LinearSegmentedColormap class specifies colormaps using anchor points between which RGB(A) values are interpolated.
+### Example of colorbar ###
 
 ### Stimulus ###
 colors = ["#ffffff","#D5E1A0","#A3C968","#86AF40","#517146"]
@@ -169,19 +82,7 @@ cmap6 = LinearSegmentedColormap.from_list("mycmap", colors)
 plot_examples([cmap6])
 
 
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[161]:
+################ Colormap for Swanson flatmap #########################
 
 
 import numpy as np
@@ -189,8 +90,6 @@ from ibllib.atlas.flatmaps import plot_swanson
 from ibllib.atlas import BrainRegions
 br = BrainRegions()
 
-
-# In[162]:
 
 
 # prepare array of acronyms
@@ -249,7 +148,7 @@ values = np.array([ 7.76948616, 15.51506047, 11.31094194, 13.11353701, 16.180711
         8.62486916])
 
 
-# In[164]:
+
 
 
 ### Stimulus ###
@@ -258,7 +157,7 @@ cmap1 = LinearSegmentedColormap.from_list("mycmap", colors)
 ax=plot_swanson(acronyms, values, cmap=cmap1, br=br)
 
 
-# In[165]:
+
 
 
 ### Choice ###
@@ -267,7 +166,7 @@ cmap2 = LinearSegmentedColormap.from_list("mycmap", colors)
 ax=plot_swanson(acronyms, values, cmap=cmap2, br=br)
 
 
-# In[166]:
+
 
 
 ### Block ###
@@ -276,7 +175,7 @@ cmap3 = LinearSegmentedColormap.from_list("mycmap", colors)
 ax=plot_swanson(acronyms, values, cmap=cmap3, br=br)
 
 
-# In[167]:
+
 
 
 ### Feedback ###
@@ -285,7 +184,7 @@ cmap4 = LinearSegmentedColormap.from_list("mycmap", colors)
 ax=plot_swanson(acronyms, values, cmap=cmap4, br=br)
 
 
-# In[168]:
+
 
 
 ### Movement/Wheel Speed ###
@@ -294,7 +193,7 @@ cmap5 = LinearSegmentedColormap.from_list("mycmap", colors)
 ax=plot_swanson(acronyms, values, cmap=cmap5, br=br)
 
 
-# In[169]:
+
 
 
 ### Task response ###
@@ -303,7 +202,7 @@ cmap6 = LinearSegmentedColormap.from_list("mycmap", colors)
 ax=plot_swanson(acronyms, values, cmap=cmap6, br=br)
 
 
-# In[ ]:
+
 
 
 
