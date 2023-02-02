@@ -753,6 +753,20 @@ def d_var_stacked(split, min_reg=100, uperms_=False):
         res['lat_var'] = np.linspace(-pre_post(split)[0],
                                      pre_post(split)[1],
                                      len(res['d_var']))[loc[0]]
+                                     
+        # same for null_d normalised curve
+        res['p_varn'] = res['p_var']                              
+        res['d_varn'] = regdv[reg][0] - np.mean(regdv[reg][1:], axis=0)
+        res['d_varn'] = res['d_varn'] - min(res['d_varn'])
+        res['amp_varn'] = max(res['d_varn'])
+        
+        # latency
+        loc = np.where(res['d_varn'] > 0.7 * (np.max(res['d_varn'])))[0]
+
+        res['lat_varn'] = np.linspace(-pre_post(split)[0],
+                                     pre_post(split)[1],
+                                     len(res['d_varn']))[loc[0]]
+                                     
         '''
         euc
         '''
@@ -764,7 +778,8 @@ def d_var_stacked(split, min_reg=100, uperms_=False):
 
         # full curve
         res['d_euc'] = regde[reg][0] - min(regde[reg][0])
-        res['mean_rand'] = np.mean(regde[reg][1:], axis=0)
+
+        # amplitude
         res['amp_euc'] = max(res['d_euc'])
 
         # latency
@@ -773,7 +788,21 @@ def d_var_stacked(split, min_reg=100, uperms_=False):
         res['lat_euc'] = np.linspace(-pre_post(split)[0],
                                      pre_post(split)[1],
                                      len(res['d_euc']))[loc[0]]
+                                     
+        # same for null_d normalised curve
+        res['p_eucn'] = res['p_euc']                              
+        res['d_eucn'] = regde[reg][0] - np.mean(regde[reg][1:], axis=0)
+        res['d_eucn'] = res['d_eucn'] - min(res['d_eucn'])
+        res['amp_eucn'] = max(res['d_eucn'])
+        
+        # latency
+        loc = np.where(res['d_eucn'] > 0.7 * (np.max(res['d_eucn'])))[0]
 
+        res['lat_eucn'] = np.linspace(-pre_post(split)[0],
+                                     pre_post(split)[1],
+                                     len(res['d_eucn']))[loc[0]]        
+        
+        
         r[reg] = res
 
     np.save(Path(pth_res, f'{split}.npy'),
