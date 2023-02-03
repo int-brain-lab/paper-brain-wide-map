@@ -129,7 +129,6 @@ MAX_NUMBER_TRIALS_WHEN_NO_STITCHING_FOR_IMPOSTER_SESSION = 700
 
 # MISC PARAMS
 USE_OPENTURNS = False  # uses openturns to perform kernel density estimation
-BIN_SIZE_KDE = 0.05
 SAVE_PREDICTIONS = True  # save model predictions in output file
 SAVE_PREDICTIONS_PSEUDO = False  # save model predictions in output file from pseudo/imposter/synthetic sessions
 SAVE_BINNED = True  # save binned neural predictors in output file for non-null fits (causes large files)
@@ -234,7 +233,6 @@ params = {
         MAX_NUMBER_TRIALS_WHEN_NO_STITCHING_FOR_IMPOSTER_SESSION,
     # MISC
     'use_openturns': USE_OPENTURNS,
-    'bin_size_kde': BIN_SIZE_KDE,
     'save_predictions': SAVE_PREDICTIONS,
     'save_predictions_pseudo': SAVE_PREDICTIONS_PSEUDO,
     'save_binned': SAVE_BINNED,

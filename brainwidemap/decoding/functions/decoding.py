@@ -13,7 +13,6 @@ from behavior_models.models.utils import format_input as format_input_mut
 from ibllib.atlas import BrainRegions
 
 from brainwidemap.decoding.functions.balancedweightings import balanced_weighting
-from brainwidemap.decoding.functions.balancedweightings import get_balanced_weighting
 from brainwidemap.decoding.functions.process_inputs import build_predictor_matrix
 from brainwidemap.decoding.functions.process_inputs import select_ephys_regions
 from brainwidemap.decoding.functions.process_inputs import preprocess_ephys
@@ -143,7 +142,10 @@ def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo
             if not istrained:
                 behmodel.load_or_train(remove_old=False)
 
-    target_distribution = get_balanced_weighting(trials_df, metadata, **kwargs)
+    if kwargs['balanced_weight'] and kwargs['balanced_continuous_target']:
+        raise NotImplementedError("see tag `decoding_biasCWnull` for a previous implementation.")
+    else:
+        target_distribution = None
 
     # get target values
     if kwargs['target'] in ['pLeft', 'signcont', 'strengthcont', 'choice', 'feedback']:
@@ -280,7 +282,6 @@ def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo
                     estimator=kwargs['estimator'],
                     use_openturns=kwargs['use_openturns'],
                     target_distribution=target_distribution,
-                    bin_size_kde=kwargs['bin_size_kde'],
                     balanced_continuous_target=kwargs['balanced_continuous_target'],
                     estimator_kwargs=kwargs['estimator_kwargs'],
                     hyperparam_grid=kwargs['hyperparam_grid'],
@@ -324,7 +325,6 @@ def decode_cv(
         estimator_kwargs,
         use_openturns,
         target_distribution,
-        bin_size_kde,
         balanced_continuous_target=True,
         balanced_weight=False,
         hyperparam_grid=None,
@@ -359,8 +359,6 @@ def decode_cv(
         additional arguments for sklearn estimator
     use_openturns : bool
     target_distribution : ?
-        ?
-    bin_size_kde : float
         ?
     balanced_weight : ?
         ?
@@ -499,7 +497,6 @@ def decode_cv(
                             vec=y_train_inner,
                             continuous=balanced_continuous_target,
                             use_openturns=use_openturns,
-                            bin_size_kde=bin_size_kde,
                             target_distribution=target_distribution)
                     else:
                         sample_weight = None
@@ -531,7 +528,6 @@ def decode_cv(
                     vec=y_train_array,
                     continuous=balanced_continuous_target,
                     use_openturns=use_openturns,
-                    bin_size_kde=bin_size_kde,
                     target_distribution=target_distribution)
             else:
                 sample_weight = None
