@@ -22,17 +22,17 @@ decoding_dir.mkdir(exist_ok=True, parents=True)
 ephys_str = '_beforeRecording' if not params['imposter_generate_from_ephys'] else ''
 filename = decoding_dir.joinpath(f"imposterSessions_{params['target']}{ephys_str}.pqt")
 
-# Initiate ONE
-one = ONE(base_url='https://openalyx.internationalbrainlab.org', mode='local')
-
 # Decide which eids to use
 if params['imposter_generate_from_ephys']:
     # ephys sessions from one of 12 templates
+    one = ONE(base_url='https://openalyx.internationalbrainlab.org', mode='local')
     bwm_df = bwm_query(freeze='2022_10_bwm_release')
     eids = bwm_df['eid'].unique()
 else:
     # no template, no neural activity
-    eids = pd.read_parquet(Path(__file__).resolve().parent.joinpath('imposter_behavior_sessions.pqt'))['eid']
+    one = ONE(base_url='https://alyx.internationalbrainlab.org', mode='local')
+    # eids = pd.read_parquet(Path(__file__).resolve().parent.joinpath('imposter_behavior_sessions.pqt'))['eid']
+    eids = pd.read_parquet(decoding_dir.joinpath('imposter_behavior_sessions.pqt'))['eid']    
 
 # basic columns that we want to keep
 columns = [
@@ -50,9 +50,8 @@ columns = [
 ]
 
 # add additional columns if necessary
-add_behavior_col = False
-if params['target'] not in ['pLeft', 'signcont', 'feedback', 'choice']:
-    add_behavior_col = True
+add_behavior_col = params['target'] not in ['pLeft', 'signcont', 'feedback', 'choice']
+if add_behavior_col:    
     columns += [params['target']]
 
 all_trialsdf = []

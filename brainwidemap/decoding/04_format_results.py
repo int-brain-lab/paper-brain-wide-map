@@ -84,6 +84,7 @@ for fn in tqdm(finished):
                        'mask_diagnostics': mask_diagnostics,
                        'cluster_uuids': cluster_uuids,
                        'R2_test': result['fit'][i_run]['Rsquared_test_full'],
+                       'idxes_test': result['fit'][i_run]['idxes_test'],
                        'weights': result['fit'][i_run]['weights'],
                        'params': result['fit'][i_run]['best_params'],
                        'intercepts': result['fit'][i_run]['intercepts'],

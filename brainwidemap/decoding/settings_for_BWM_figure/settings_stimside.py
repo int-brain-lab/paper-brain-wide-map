@@ -12,9 +12,9 @@ ADAPT AT LEAST THESE IN YOUR COPY OF SETTINGS.PY
 ------------------------------------------------
 """
 RESULTS_DIR = Path("/scratch/users/bensonb/international-brain-lab/paper-brain-wide-map")
-# Directory to which to save all outputs, including models. Will be created if it doesn't exist.
+# Directory to which to save all results outputs, including models. Will be created if it doesn't exist.
 SLURM_DIR = Path("/scratch/users/bensonb/international-brain-lab/paper-brain-wide-map/brainwidemap/logs/slurm")
-
+# Directory where slurm output and error files will be saved
 
 DATE = '30-11-2022'
 # Either current date for a fresh run, or date of the run you want to build on

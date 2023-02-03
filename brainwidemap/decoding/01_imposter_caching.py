@@ -11,42 +11,27 @@ from brainbox.io.one import SessionLoader
 
 from brainwidemap import bwm_query
 from brainwidemap.decoding.settings import params
+from brainwidemap.decoding.settings import RESULTS_DIR
 
+# Prepare where to store imposter sessions eid list if using biased choice world
+decoding_dir = RESULTS_DIR.joinpath('decoding')
+#decoding_dir.mkdir(exist_ok=True, parents=True)
+
+# Cache data in N_PARA jobs in the 01_slurm*.sh file
 N_PARA = 500
+# PARAINDEX indicates which of the N_PARA jobs this is. PARAINDEX is in [0,N_PARA-1]
 PARAINDEX = int(sys.argv[1])-1
 
 if params['imposter_generate_from_ephys']:
     # ephys sessions from from one of 12 templates
     one = ONE(base_url='https://openalyx.internationalbrainlab.org', mode='local')
+    one.load_cache(clobber=True)
     bwm_df = bwm_query(freeze='2022_10_bwm_release')
     eids = bwm_df['eid'].unique()
 else:
-    # no template, no neural activity
-    one = ONE(base_url='https://openalyx.internationalbrainlab.org', mode='remote')
-    # eids = one.search(project='ibl_neuropixel_brainwide_01', task_protocol='biasedChoiceWorld')
-    qc_pass = (
-        '~session__extended_qc___task_stimOn_goCue_delays__lt,0.9,'
-        '~session__extended_qc___task_response_feedback_delays__lt,0.9,'
-        '~session__extended_qc___task_wheel_move_before_feedback__lt,0.9,'
-        '~session__extended_qc___task_wheel_freeze_during_quiescence__lt,0.9,'
-        '~session__extended_qc___task_error_trial_event_sequence__lt,0.9,'
-        '~session__extended_qc___task_correct_trial_event_sequence__lt,0.9,'
-        '~session__extended_qc___task_reward_volumes__lt,0.9,'
-        '~session__extended_qc___task_reward_volume_set__lt,0.9,'
-        '~session__extended_qc___task_stimulus_move_before_goCue__lt,0.9,'
-        '~session__extended_qc___task_audio_pre_trial__lt,0.9,'
-        '~session__extended_qc___task_wheel_integrity__lt,1.0,'
-        'n_trials__gte,400'
-    )
-    sessions = one.alyx.rest(
-        'sessions', 'list',
-        task_protocol='biasedChoiceWorld',
-        project='ibl_neuropixel_brainwide_01',
-        dataset_types=['wheel.position'],
-        performance_gte=70,
-        django=qc_pass,
-    )
-    eids = [s['id'] for s in sessions]
+    one = ONE(base_url='https://alyx.internationalbrainlab.org', mode='remote')
+    one.load_cache(clobber=True)
+    eids = pd.read_parquet(decoding_dir.joinpath('imposter_behavior_sessions.pqt'))['eid']
 
 for i, eid in enumerate(eids):
     if not (i % N_PARA == PARAINDEX):

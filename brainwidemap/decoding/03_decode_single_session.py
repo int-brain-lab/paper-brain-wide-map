@@ -33,9 +33,12 @@ imposter_file = RESULTS_DIR.joinpath('decoding', f"imposterSessions_{params['tar
 one = ONE(base_url="https://openalyx.internationalbrainlab.org", mode='local')
 bwm_df = bwm_query(freeze='2022_10_bwm_release')
 
-# used for only running pipeline on a few subjects
-# mysubs = [sys.argv[2], sys.argv[3], sys.argv[4]]
-# bwm_df = bwm_df[bwm_df["subject"].isin(mysubs)] 
+# Feature to run a subset of BWM dataset filtering by subjects.
+# To use this, add subject names to the end of the line that calls this script in 03_slurm*.sh.
+# See 03_slurm*.sh for an examples which is commented out.
+if len(sys.argv) > 2:
+    mysubs = [sys.argv[i] for i in range(2, len(sys.argv))]
+    bwm_df = bwm_df[bwm_df["subject"].isin(mysubs)] 
 
 # Download the latest clusters table, we use the same cache as above
 clusters_table = download_aggregate_tables(one, type='clusters')
