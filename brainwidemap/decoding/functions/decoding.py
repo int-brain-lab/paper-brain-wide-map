@@ -147,13 +147,10 @@ def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo
 
     # get target values
     if kwargs['target'] in ['pLeft', 'signcont', 'strengthcont', 'choice', 'feedback']:
-        target_vals_list, target_vals_to_mask = compute_beh_target(trials_df, metadata, 
-                                                                   return_raw=True, **kwargs)
-        #print('printing target_vals_list to debug', target_vals_list, type(target_vals_list))
-        #print('printing target_vals_list to see if it is binary', target_vals_list)
-        #print('printing binarization value', kwargs['binarization_value'])
-        target_mask = compute_target_mask(target_vals_to_mask, 
-                                          kwargs['exclude_trials_within_values'])
+        target_vals_list, target_vals_to_mask = compute_beh_target(
+            trials_df, metadata, return_raw=True, **kwargs)
+        target_mask = compute_target_mask(
+            target_vals_to_mask, kwargs['exclude_trials_within_values'])
 
     else:
         if dlc_dict is None or dlc_dict['times'] is None or dlc_dict['values'] is None:
@@ -223,7 +220,6 @@ def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo
                 continue
 
             # create pseudo/imposter session when necessary and corresponding mask
-            # TODO: integrate single-/multi-bin code
             if pseudo_id > 0:
                 if bins_per_trial == 1:
                     controlsess_df = generate_null_distribution_session(

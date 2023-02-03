@@ -26,8 +26,7 @@ params['neuralfit_path'] = RESULTS_DIR.joinpath('decoding', 'results', 'neural')
 params['neuralfit_path'].mkdir(parents=True, exist_ok=True)
 params['add_to_saving_path'] = (f"_binsize={1000 * params['binsize']}_lags={params['n_bins_lag']}_"
                                 f"mergedProbes_{params['merged_probes']}")
-ephys_str = '_beforeRecording' if not params['imposter_generate_from_ephys'] else ''
-imposter_file = RESULTS_DIR.joinpath('decoding', f"imposterSessions_{params['target']}{ephys_str}.pqt")
+imposter_file = RESULTS_DIR.joinpath('decoding', f"imposterSessions_{params['target']}.pqt")
 
 # Load ONE and the list of probe insertions and select probe(s)
 one = ONE(base_url="https://openalyx.internationalbrainlab.org", mode='local')

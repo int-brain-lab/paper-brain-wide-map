@@ -122,7 +122,6 @@ MIN_LEN = None  # remove trials with length (feedback_time-goCue_time) above/bel
 MAX_LEN = None
 
 # NULL DISTRIBUTION PARAMS
-IMPOSTER_GENERATE_FROM_EPHYS = True  # True to just use ephys sessions, False to use training sessions (more templates)
 CONSTRAIN_NULL_SESSION_WITH_BEH = False  # TODO
 STITCHING_FOR_IMPOSTER_SESSION = True  # If true, stitches sessions to create imposters
 USE_IMPOSTER_SESSION_FOR_BALANCING = False  # Not currently implemented, so it will be forced to be False
@@ -231,7 +230,6 @@ params = {
     'exclude_trials_within_values': EXCLUDE_TRIALS_WITHIN_VALUES,
     # NULL DISTRIBUTION
     'use_imposter_session': USE_IMPOSTER_SESSION,
-    'imposter_generate_from_ephys': IMPOSTER_GENERATE_FROM_EPHYS,
     'constrain_null_session_with_beh': CONSTRAIN_NULL_SESSION_WITH_BEH,
     'stitching_for_imposter_session': STITCHING_FOR_IMPOSTER_SESSION,
     'use_imposter_session_for_balancing': False,
