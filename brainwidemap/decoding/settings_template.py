@@ -123,7 +123,6 @@ MAX_LEN = None
 # NULL DISTRIBUTION PARAMS
 CONSTRAIN_NULL_SESSION_WITH_BEH = False  # TODO
 STITCHING_FOR_IMPOSTER_SESSION = True  # If true, stitches sessions to create imposters
-USE_IMPOSTER_SESSION_FOR_BALANCING = False  # Not currently implemented, so it will be forced to be False
 MAX_NUMBER_TRIALS_WHEN_NO_STITCHING_FOR_IMPOSTER_SESSION = 700
 # Constrain the number of trials per session to have more potential imposter sessions to use in the null distribution
 
@@ -230,7 +229,6 @@ params = {
     'use_imposter_session': USE_IMPOSTER_SESSION,
     'constrain_null_session_with_beh': CONSTRAIN_NULL_SESSION_WITH_BEH,
     'stitching_for_imposter_session': STITCHING_FOR_IMPOSTER_SESSION,
-    'use_imposter_session_for_balancing': False,
     'max_number_trials_when_no_stitching_for_imposter_session':
         MAX_NUMBER_TRIALS_WHEN_NO_STITCHING_FOR_IMPOSTER_SESSION,
     # MISC
