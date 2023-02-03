@@ -73,10 +73,6 @@ def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo
             True for interleaved cross-validation, False for contiguous blocks
         min_units : int
             minimum units per region to use for decoding
-        qc_criteria : float
-            fraction between 0 and 1 that describes the number of qc tests that need to be passed
-            in order to use each unit. 0 means all units are used; 1 means a unit has to pass
-            every qc test in order to be used
         min_behav_trials : int
             minimum number of trials (after filtering) that must be present to proceed with fits
         min_rt : float
@@ -197,18 +193,6 @@ def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo
         # bin spikes from this region for each trial
         msub_binned, cl_inds_used = preprocess_ephys(reg_clu_ids, neural_dict, trials_df, **kwargs)
         cl_uuids_used = list(neural_dict['clu_df'].iloc[cl_inds_used]['uuids'])
-
-        # add motor signal regressors
-        if kwargs.get('motor_regressors', None):
-            print('motor regressors')
-            from braindelphi.decoding.functions.process_motors import preprocess_motors
-            # size (n_trials, n_motor_regressors) => one bin per trial
-            motor_binned = preprocess_motors(metadata['eid'], kwargs)
-            
-            if kwargs['motor_regressors_only']:
-                msub_binned = motor_binned
-            else:
-                msub_binned = np.concatenate([msub_binned, motor_binned], axis=2)
 
         # make design matrix
         bins_per_trial = msub_binned[0].shape[0]

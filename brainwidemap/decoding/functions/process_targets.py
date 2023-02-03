@@ -249,6 +249,11 @@ def get_target_data_per_trial_wrapper(
         allow_nans=False):
     """Format a single session-wide array of target data into a list of trial-based arrays.
 
+    Note: the bin size of the returned data will only be equal to the input `binsize` if that value
+    evenly divides `align_interval`; for example if `align_interval=(0, 0.2)` and `binsize=0.10`,
+    then the returned data will have the correct binsize. If `align_interval=(0, 0.2)` and
+    `binsize=0.06` then the returned data will not have the correct binsize.
+
     Parameters
     ----------
     target_times : array-like
