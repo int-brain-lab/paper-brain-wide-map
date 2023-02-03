@@ -145,7 +145,7 @@ if TARGET not in target_options:
     raise NotImplementedError(f"Provided target option '{TARGET}' invalid; must be in {target_options}")
 
 if BINARIZATION_VALUE and TANH_TRANSFORM:
-   raise ValueError("Binarization can be done without tanh_transform; do not choose both")
+    raise ValueError("Binarization can be done without tanh_transform; do not choose both")
 
 modeldispatcher = {
     expSmoothing_prevAction: expSmoothing_prevAction.name,
