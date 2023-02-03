@@ -252,13 +252,11 @@ def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo
             # run decoders
             for i_run in range(kwargs['n_runs']):
 
-                if kwargs['quasi_random']:
-                    if pseudo_id == -1:
-                        rng_seed = i_run
-                    else:
-                        rng_seed = pseudo_id * kwargs['n_runs'] + i_run
+                # set seed for reproducibility
+                if pseudo_id == -1:
+                    rng_seed = i_run
                 else:
-                    rng_seed = None
+                    rng_seed = pseudo_id * kwargs['n_runs'] + i_run
 
                 if pseudo_id == -1:
                     # original session

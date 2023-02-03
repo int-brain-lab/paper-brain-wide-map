@@ -106,7 +106,6 @@ N_PSEUDO_PER_JOB = 100  # number of pseudo/imposter sessions to assign per clust
 N_JOBS_PER_SESSION = N_PSEUDO // N_PSEUDO_PER_JOB  # number of cluster jobs to run per session
 N_RUNS = 10  # number of times to repeat full nested xv with different folds
 SHUFFLE = True  # true for interleaved xv, false for contiguous
-QUASI_RANDOM = False  # if True, decoding is launched in a quasi-random, reproducible way => it sets the seed
 BALANCED_WEIGHT = False  # seems to work better with BALANCED_WEIGHT=False, but putting True is important
 BALANCED_CONTINUOUS_TARGET = True  # is target continuous or discrete FOR BALANCED WEIGHTING
 
@@ -211,7 +210,6 @@ params = {
     'n_pseudo_per_job': N_PSEUDO_PER_JOB,
     'n_runs': N_RUNS,
     'shuffle': SHUFFLE,
-    'quasi_random': QUASI_RANDOM,
     'balanced_weight': BALANCED_WEIGHT,
     'balanced_continuous_target': BALANCED_CONTINUOUS_TARGET,
     # CLUSTER/UNIT
