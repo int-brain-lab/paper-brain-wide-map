@@ -299,7 +299,10 @@ def create_pdtable_from_raw(res,
                 if np.any(np.array([mps is None for mps in my_preds])):
                     print(f'did not find predictions for {eid} {reg}')
                     continue
-                
+
+                my_intercepts = np.stack(list(reseidreg.loc[reseidreg['pseudo_id']==-1, 'intercepts']))
+                my_idxes = np.stack(list(reseidreg.loc[reseidreg['pseudo_id']==-1, 'idxes_test']))
+
                 # load parameters
                 my_params = [get_val_from_realsession(reseidreg, 
                                                      'params', 
@@ -368,6 +371,8 @@ def create_pdtable_from_raw(res,
                                  my_mask,
                                  (my_masks_trials_and_targets, my_masks_diagnostics),
                                  my_weights,
+                                 my_intercepts,
+                                 my_idxes,
                                  my_params,
                                  my_cuuids])
                 
@@ -389,6 +394,8 @@ def create_pdtable_from_raw(res,
                                                    'mask',
                                                    'mask_diagnostics',
                                                    'weights',
+                                                   'intercepts',
+                                                   'idxes',
                                                    'params',
                                                    'cluster_uuids'])
         return res_table, xy_table

@@ -13,7 +13,11 @@ You must save a `settings.py` file in this directory before executing this pipel
 in the format of settings_template.py.  You may copy and rename that file and make the necessary settings 
 changes.  This file also determines where files will be saved and the file namings for this decoding run.  
 Note that the date is important for file naming, and if you change the date or any other settings related 
-to the variable 'SETTINGS_FORMAT_NAME', then the decoding is treated as a different run. 
+to the variable 'SETTINGS_FORMAT_NAME', then the decoding is treated as a different run.
+
+Additionally, you will often be submitting "*.sh" files to slurm.  The slurm settings within these files may
+need to be adapted for your cluster.  The file names and directories for the "*.out" and "*.err" files will
+also need to be changed to your desired names and directories. 
 
 For an example of how to perform decoding for a single session, see the file 
 `decoding_example_script.py` in this directory. The `settings.py` file does not need to be copied 
@@ -24,14 +28,17 @@ brainwide map.
 
 ## Caching the data
 
-We do not want to load data from ONE remotely, so we first cache all the data we need.  Subsequent pipeline calls 
-to ONE can then be done in the `local` mode.
+We do not want to load data from ONE every time we run decoding analysis.  In particular, we are concerned 
+about remotely connecting to ONE with many parralel jobs such that we overload the system.  To mitigate any 
+issues, we first cache all the data we need.  Subsequent pipeline calls to ONE can then be done in the 
+`local` mode.
 
-Run the `00_data_caching.py` file to do this.  Caching takes many hours, and so should be done in parallel.  We
-submit 50 jobs (see `N_PARA` and `para_index` in script) using 
+Run the `00_data_caching.py` file to do this.  Caching takes many hours, and so should be done in parallel.  
+Be careful not to do this with too many jobs so as to not overload the server.  We submit 50 jobs 
+(see `N_PARA` and `para_index` in script) which is not too many. Submit these jobs using 
 
 ```
-sbatch slurm_data_caching.py
+sbatch 00_slurm_data_caching.py
 ```
 
 ## Caching imposter sessions

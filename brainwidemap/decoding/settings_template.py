@@ -12,9 +12,9 @@ ADAPT AT LEAST THESE IN YOUR COPY OF SETTINGS.PY
 ------------------------------------------------
 """
 RESULTS_DIR = Path("/scratch/users/bensonb/international-brain-lab/paper-brain-wide-map")
-# Directory to which to save all outputs, including models. Will be created if it doesn't exist.
+# Directory to which to save all results and outputs, including models. Will be created if it doesn't exist.
 SLURM_DIR = Path("/scratch/users/bensonb/international-brain-lab/paper-brain-wide-map/brainwidemap/logs/slurm")
-
+# Directory where slurm output and error files will be saved
 
 DATE = '29-11-2022' # date must be different if you do different runs of the same target
                     # e.g. signcont side with LogisticRegression vs signcont with Lasso
