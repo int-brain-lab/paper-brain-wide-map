@@ -3,12 +3,9 @@ import torch
 from behavior_models.models.utils import format_input as mut_format_input
 from brainbox.task.closed_loop import generate_pseudo_session
 from brainwidemap.decoding.functions.process_targets import optimal_Bayesian, check_bhv_fit_exists
-from sklearn.metrics import mutual_info_score
 
 
 def generate_null_distribution_session(trials_df, metadata, **kwargs):
-    sess_abs_contrast = trials_df.contrastLeft.abs().fillna(value=0) + trials_df.contrastRight.abs().fillna(value=0)
-    sess_abs_contrast = sess_abs_contrast.replace(1, 4).replace(0.0625, 1).replace(0.125, 2).replace(0.25, 3).values
     if 'signedContrast' in trials_df.columns:
         out = np.nan_to_num(trials_df.contrastLeft.values) - np.nan_to_num(trials_df.contrastRight.values)
         assert(np.all(np.nan_to_num(trials_df.signedContrast.values) == out))
@@ -36,26 +33,18 @@ def generate_null_distribution_session(trials_df, metadata, **kwargs):
             pseudosess = pseudosess_s[np.argmin(
                 np.abs(np.array(feedback_pseudo_0cont) - feedback_0contrast))]
     else:
-        if kwargs['filter_pseudosessions_on_mutualInformation']:
-            while True:
-                pseudosess = generate_pseudo_session(trials_df, generate_choices=False)
-                pseudo_abs_contrast = pseudosess.signed_contrast.abs().replace(1, 4).replace(0.0625, 1).replace(0.125, 2).replace(0.25, 3).values
-                valid_pseudoSess = (
-                        mutual_info_score(pseudo_abs_contrast[1:], pseudo_abs_contrast[:-1]) >
-                        mutual_info_score(sess_abs_contrast[1:], sess_abs_contrast[:-1])
-                )
-                if valid_pseudoSess:
-                    break
-        else:
-            pseudosess = generate_pseudo_session(trials_df, generate_choices=False)
+        pseudosess = generate_pseudo_session(trials_df, generate_choices=False)
         if kwargs['model'] is not None and kwargs['model'] != optimal_Bayesian and kwargs['model'].name == 'actKernel':
             subjModel = {
                 **metadata,
                 'modeltype': kwargs['model'],
                 'behfit_path': kwargs['behfit_path'],
             }
-            pseudosess['choice'] = generate_choices(pseudosess, trials_df, subjModel, kwargs['modeldispatcher'],
-                                                    kwargs['constrain_null_session_with_beh'], kwargs['model_parameters'])
+            pseudosess['choice'] = generate_choices(
+                pseudosess, trials_df, subjModel,
+                kwargs['modeldispatcher'],
+                kwargs['constrain_null_session_with_beh'],
+                kwargs['model_parameters'])
             pseudosess['feedbackType'] = np.where(pseudosess['choice'] == pseudosess['stim_side'], 1, -1)
         else:
             pseudosess['choice'] = trials_df.choice
