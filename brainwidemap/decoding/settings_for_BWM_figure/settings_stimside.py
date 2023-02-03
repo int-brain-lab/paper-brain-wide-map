@@ -121,7 +121,6 @@ MIN_LEN = None  # remove trials with length (feedback_time-goCue_time) above/bel
 MAX_LEN = None
 
 # NULL DISTRIBUTION PARAMS
-CONSTRAIN_NULL_SESSION_WITH_BEH = False  # TODO
 STITCHING_FOR_IMPOSTER_SESSION = True  # If true, stitches sessions to create imposters
 MAX_NUMBER_TRIALS_WHEN_NO_STITCHING_FOR_IMPOSTER_SESSION = 700
 # Constrain the number of trials per session to have more potential imposter sessions to use in the null distribution
@@ -178,7 +177,7 @@ if not SINGLE_REGION and not MERGED_PROBES:
 ADD_TO_SAVING_PATH = (
         f'imposterSess_{int(USE_IMPOSTER_SESSION)}_balancedWeight_{int(BALANCED_WEIGHT)}_'
         f'RegionLevel_{int(SINGLE_REGION)}_mergedProbes_{int(MERGED_PROBES)}_behMouseLevelTraining_'
-        f'{int(BEH_MOUSELEVEL_TRAINING)}_constrainNullSess_{int(CONSTRAIN_NULL_SESSION_WITH_BEH)}'
+        f'{int(BEH_MOUSELEVEL_TRAINING)}'
 )
 
 """
@@ -225,7 +224,6 @@ params = {
     'exclude_trials_within_values': EXCLUDE_TRIALS_WITHIN_VALUES,
     # NULL DISTRIBUTION
     'use_imposter_session': USE_IMPOSTER_SESSION,
-    'constrain_null_session_with_beh': CONSTRAIN_NULL_SESSION_WITH_BEH,
     'stitching_for_imposter_session': STITCHING_FOR_IMPOSTER_SESSION,
     'max_number_trials_when_no_stitching_for_imposter_session':
         MAX_NUMBER_TRIALS_WHEN_NO_STITCHING_FOR_IMPOSTER_SESSION,
