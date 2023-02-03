@@ -168,7 +168,6 @@ def build_predictor_matrix(array, n_lags, return_valid=True):
 
 def select_ephys_regions(regressors, beryl_reg, region, **kwargs):
     """Select units based on QC criteria and brain region."""
-    qc_pass = (regressors['clu_qc']['label'] >= kwargs['qc_criteria'])
     reg_mask = np.isin(beryl_reg, region)
-    reg_clu_ids = np.argwhere(reg_mask & qc_pass).flatten()
+    reg_clu_ids = np.argwhere(reg_mask).flatten()
     return reg_clu_ids
