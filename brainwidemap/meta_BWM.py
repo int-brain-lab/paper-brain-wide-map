@@ -49,29 +49,23 @@ def manifold_to_csv():
                f'p_var', f'amp_var', f'lat_var',
                f'p_euc', f'amp_euc', f'lat_euc']
 
-    b = np.load(Path(pth_res,f'beryl.npy'))
     for split in align:        
         r = []
-        
-        regs =br.id2acronym(b,mapping='Beryl')
 
         d = np.load(Path(pth_res,f'{split}.npy'),
                     allow_pickle=True).flat[0] 
         
-        for reg in regs:
+        for reg in d:
 
-            if reg in d:
-                r.append([reg, get_name(reg), d[reg]['nclus'],
-                          d[reg][f'p_var'], 
-                          np.max(d[reg]['d_var'][:48]) 
-                          if split == 'stim' else d[reg][f'amp_var'],
-                          d[reg][f'lat_var'],                          
-                          d[reg][f'p_euc'],
-                          np.max(d[reg]['d_euc'][:48]) 
-                          if split == 'stim' else d[reg][f'amp_euc'],
-                          d[reg][f'lat_euc']]) 
-            else:
-                r.append([reg, get_name(reg), '','', '','', '', '','']) 
+            r.append([reg, get_name(reg), d[reg]['nclus'],
+                      d[reg][f'p_var'], 
+                      np.max(d[reg]['d_var'][:48]) 
+                      if split == 'stim' else d[reg][f'amp_var'],
+                      d[reg][f'lat_var'],                          
+                      d[reg][f'p_euc'],
+                      np.max(d[reg]['d_euc'][:48]) 
+                      if split == 'stim' else d[reg][f'amp_euc'],
+                      d[reg][f'lat_euc']]) 
                       
         df  = pd.DataFrame(data=r,columns=columns)        
         df.to_csv('/home/mic/paper-brain-wide-map/'
@@ -159,6 +153,39 @@ def brandon_weights(split):
     d3.reset_index()
     d3.to_csv('/home/mic/paper-brain-wide-map/'
              f'meta/per_cell/decoding/{split}_weights.csv')             
+
+
+def histograms_of_decoding_weights():
+    
+    '''
+    across all bwm cells included in decoding analysis (20 k)
+    plot histograms of weights, firing rates, weights * firing rates
+    for each split
+    '''
+    
+    splits = ['choice', 'stim','fback','block']
+    
+    fig, axs = plt.subplots(nrows=len(splits), ncols=3)
+    
+    
+    r = 0
+    for split in splits:
+        s1 = pd.read_csv('/home/mic/paper-brain-wide-map/meta/'
+                         f'per_cell/decoding/{split}_weights.csv')
+        
+        # multiply firing rates with decoding weights                 
+        s1['fr_x_weight'] = (s1['abs_weight'].values *
+                             s1['f_rates'].values)    
+    
+        c = 0
+        for htype in ['f_rates', 'abs_weight', 'fr_x_weight']:
+            s1.hist(htype, ax = axs[r,c],bins = 1000)
+            axs[r,c].set_title(' '.join([split, htype]))
+            axs[r,c].set_xlabel(htype)
+            
+            c += 1
+        r += 1        
+
                      
 
 def get_allen_info():
