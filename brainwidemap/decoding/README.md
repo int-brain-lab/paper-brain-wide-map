@@ -10,10 +10,14 @@ the real data and for a non-parametric null distribution), and save the results 
 accessible for plotting.
 
 You must save a `settings.py` file in this directory before executing this pipeline.  The file needs to be 
-in the format of settings_template.py.  You may copy and rename that file and make the necessary settings 
-changes.  This file also determines where files will be saved and the file namings for this decoding run.  
-Note that the date is important for file naming, and if you change the date or any other settings related 
-to the variable 'SETTINGS_FORMAT_NAME', then the decoding is treated as a different run.
+in the format of `settings_template.py`.  You may copy and rename that file, making any desired settings 
+changes.  This file also determines where results will be saved and the file namings for this decoding run.  
+`SETTINGS_FORMAT_NAME` plays a central role in identifying a particular decoding run.  If this variable does 
+not change and the decoding pipeline is run multiple times, decoding computation which has already been 
+completed will not be re-computed i.e. previous computations will be skipped.  But if this variable is 
+changed then all decoding will be re-run with the pipeline.  
+Notably, the `SETTINGS_FORMAT_NAME` variable can be changed simply by changin the date.  
+*It is recommended, therefore, that you change the date for a fresh decoding run of a given target variable.*
 
 Additionally, you will often be submitting "*.sh" files to slurm.  The slurm settings within these files may
 need to be adapted for your cluster.  The file names and directories for the "*.out" and "*.err" files will
