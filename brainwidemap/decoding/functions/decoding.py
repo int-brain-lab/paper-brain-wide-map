@@ -2,10 +2,9 @@ import logging
 import os
 import numpy as np
 import pandas as pd
-from pathlib import Path
 from sklearn import linear_model as sklm
 from sklearn.metrics import accuracy_score, balanced_accuracy_score, r2_score
-from sklearn.model_selection import GridSearchCV, KFold, train_test_split
+from sklearn.model_selection import KFold, train_test_split
 from tqdm import tqdm
 from behavior_models.models.utils import format_data as format_data_mut
 from behavior_models.models.utils import format_input as format_input_mut
@@ -86,7 +85,7 @@ def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo
 
     """
 
-    print(f'Working on eid: %s' % metadata['eid'])
+    print(f'Working on eid: {metadata["eid"]}')
     filenames = []  # this will contain paths to saved decoding results for this eid
 
     if kwargs['use_imposter_session'] and not kwargs['stitching_for_imposter_session']:
@@ -101,8 +100,8 @@ def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo
 
     if kwargs['model'] == optimal_Bayesian and np.any(trials_df.probabilityLeft.values[:90] != 0.5):
         raise ValueError(
-            f'The optimal Bayesian model assumes 90 unbiased trials at the beginning of the '
-            f'session, which is not the case here.')
+            'The optimal Bayesian model assumes 90 unbiased trials at the beginning of the '
+            'session, which is not the case here.')
 
     # check if is trained
     eids_train = (
@@ -110,8 +109,9 @@ def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo
     if 'eids_train' not in metadata.keys():
         metadata['eids_train'] = eids_train
     elif metadata['eids_train'] != eids_train:
-        raise ValueError(f'eids_train are not supported yet. If you do not understand this error, '
-                         f'just take out the eids_train key in the metadata to solve it')
+        raise ValueError(
+            'eids_train are not supported yet. If you do not understand this error, '
+            'just take out the eids_train key in the metadata to solve it')
 
     if isinstance(kwargs['model'], str):
         import pickle
@@ -265,25 +265,18 @@ def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo
                 else:
                     # session for null dist
                     ys_wmask = [controltarget_vals_list[m] for m in np.squeeze(np.where(control_mask))]
-                    Xs_wmask = [Xs[m] for m in np.squeeze(np.where(control_mask))]                
-
-                #if i_run == 0:
-                #    print('target, mask, and target after applying mask:', target_vals_list)
-                #    print(mask)
-                #    print(trials_mask)
-                #    print(target_mask)
-                #    print(ys_wmask)
+                    Xs_wmask = [Xs[m] for m in np.squeeze(np.where(control_mask))]
 
                 fit_result = decode_cv(
                     ys=ys_wmask,
-                    Xs=Xs_wmask,                    
+                    Xs=Xs_wmask,
                     estimator=kwargs['estimator'],
                     use_openturns=kwargs['use_openturns'],
                     target_distribution=target_distribution,
                     balanced_continuous_target=kwargs['balanced_continuous_target'],
                     estimator_kwargs=kwargs['estimator_kwargs'],
                     hyperparam_grid=kwargs['hyperparam_grid'],
-                    save_binned=kwargs['save_binned'] if pseudo_id==-1 else False,
+                    save_binned=kwargs['save_binned'] if pseudo_id == -1 else False,
                     save_predictions=save_predictions,
                     shuffle=kwargs['shuffle'],
                     balanced_weight=kwargs['balanced_weight'],
@@ -311,7 +304,7 @@ def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo
 
             filenames.append(filename)
 
-    print(f'Finished eid: %s' % metadata['eid'])
+    print(f'Finished eid: {metadata["eid"]}')
 
     return filenames
 
@@ -628,4 +621,3 @@ def decode_cv(
         print("The model is trained on the full (train + validation) set.")
 
     return outdict
-

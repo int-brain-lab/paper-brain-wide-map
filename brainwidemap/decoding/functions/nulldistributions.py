@@ -8,7 +8,7 @@ from brainwidemap.decoding.functions.process_targets import optimal_Bayesian, ch
 def generate_null_distribution_session(trials_df, metadata, **kwargs):
     if 'signedContrast' in trials_df.columns:
         out = np.nan_to_num(trials_df.contrastLeft.values) - np.nan_to_num(trials_df.contrastRight.values)
-        assert(np.all(np.nan_to_num(trials_df.signedContrast.values) == out))
+        assert np.all(np.nan_to_num(trials_df.signedContrast.values) == out)
     if kwargs['use_imposter_session']:
         # note: if you want to constrain null session with behavior on 0-contrast trials, see this function
         # in github tag `decoding_biasCWnull`
@@ -172,4 +172,3 @@ def generate_imposter_session(imposterdf,
     # imposter_sess = sub_imposterdf.iloc[random_number:(random_number + trials_df.index.size)].reset_index(drop=True)
     imposter_sess = sub_imposterdf.iloc[:nbtrials].reset_index(drop=True)
     return imposter_sess
-
