@@ -176,7 +176,7 @@ if not SINGLE_REGION and not MERGED_PROBES:
 ADD_TO_SAVING_PATH = (
         f'imposterSess_{int(USE_IMPOSTER_SESSION)}_balancedWeight_{int(BALANCED_WEIGHT)}_'
         f'RegionLevel_{int(SINGLE_REGION)}_mergedProbes_{int(MERGED_PROBES)}_behMouseLevelTraining_'
-        f'{int(BEH_MOUSELEVEL_TRAINING)}'
+        f'{int(BEH_MOUSELEVEL_TRAINING)}_constrainNullSess_0'
 )
 
 """
