@@ -37,7 +37,7 @@ bwm_df = bwm_query(freeze='2022_10_bwm_release')
 # See 03_slurm*.sh for an examples which is commented out.
 if len(sys.argv) > 2:
     mysubs = [sys.argv[i] for i in range(2, len(sys.argv))]
-    bwm_df = bwm_df[bwm_df["subject"].isin(mysubs)] 
+    bwm_df = bwm_df[bwm_df["subject"].isin(mysubs)]
 
 # Download the latest clusters table, we use the same cache as above
 clusters_table = download_aggregate_tables(one, type='clusters')
@@ -63,7 +63,7 @@ print(f'inside script, running slurm_job {slurm_job_id}')
 job_repeat = slurm_job_id // bwm_df.index.size
 # Don't go any further if we are already at the end of pseudo sessions for this probe/session
 if (job_repeat + 1) * params['n_pseudo_per_job'] > params['n_pseudo']:
-    print('ended because job counter', job_repeat+1, params['n_pseudo_per_job'], params['n_pseudo'])
+    print('ended because job counter', job_repeat + 1, params['n_pseudo_per_job'], params['n_pseudo'])
     exit()
 # Otherwise use info to construct pseudo ids
 pseudo_ids = np.arange(job_repeat * params['n_pseudo_per_job'], (job_repeat + 1) * params['n_pseudo_per_job']) + 1

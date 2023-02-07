@@ -3,17 +3,15 @@ Loop over eids and concatenate their information to form a block of data that we
 to create null distributions of certain variables.
 """
 
-import pandas as pd
-import numpy as np
-from pathlib import Path
-
-from one.api import ONE
 from brainbox.io.one import SessionLoader
+from one.api import ONE
+import pandas as pd
 
 from brainwidemap import bwm_query
 from brainwidemap.decoding.functions.process_targets import get_target_variable_in_df
 from brainwidemap.decoding.settings import params
 from brainwidemap.decoding.settings import RESULTS_DIR
+
 
 # Prepare where to store imposter sessions
 decoding_dir = RESULTS_DIR.joinpath('decoding')
@@ -43,7 +41,7 @@ columns = [
 
 # add additional columns if necessary
 add_behavior_col = params['target'] not in ['pLeft', 'signcont', 'feedback', 'choice']
-if add_behavior_col:    
+if add_behavior_col:
     columns += [params['target']]
 
 all_trialsdf = []
