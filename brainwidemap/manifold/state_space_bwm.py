@@ -26,6 +26,10 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import seaborn as sns
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+from matplotlib.colors import ListedColormap, LinearSegmentedColormap   
+from matplotlib.gridspec import GridSpec   
+from ibllib.atlas.flatmaps import plot_swanson
+
 
 '''
 script to process the BWM dataset for manifold analysis,
@@ -203,7 +207,7 @@ def get_restricted_cells(split, pid, sigl=0.05, alys='decoding'):
 
 
 def get_d_vars(split, pid, mapping='Beryl', control=True, get_fr=False,
-               nrand=1000, contr=None, restr=False, shuf=False):
+               nrand=2000, contr=None, restr=False, shuf=False):
     '''
     for a given variable and insertion,
     cut neural data into trials, bin the activity,
@@ -577,8 +581,11 @@ def get_all_d_vars(split, eids_plus=None, control=True, restr=False,
 
     time00 = time.perf_counter()
 
-    print('split', split, 'control', control,
-          'contr', contr, 'restr', restr)
+    if get_fr:
+        print('only computing firing rates')
+    else:    
+        print('split: ', split, 'control: ', control,
+              'contr: ', contr, 'restr: ', restr)
 
     if eids_plus is None:
         df = bwm_query(one)
@@ -646,11 +653,12 @@ def d_var_stacked(split, min_reg=100, uperms_=False):
     compute maxes, latencies and p-values
     '''
 
-    print(split)
+
 
     pth = Path(one.cache_dir, 'manifold', split)
     ss = os.listdir(pth)  # get insertions
-
+    print(f'combining {len(ss)} insertions for split {split}')
+    
     # pool data for illustrative PCA
     acs = []
     ws = []
@@ -708,6 +716,8 @@ def d_var_stacked(split, min_reg=100, uperms_=False):
             allow_pickle=True)
 
     print('computing regional metrics ...')
+    
+    
     regs0 = Counter(acs)
     regs = {reg: regs0[reg] for reg in regs0 if regs0[reg] > min_reg}
 
@@ -910,12 +920,14 @@ def plot_all(splits=None, curve='euc', amp_number=False,
 
         print(split, curve)
         print(f'{len(maxsf)}/{len(d)} are significant')
-        tops[split + '_s'] = (f'{len(maxsf)}/{len(d)}='
+        tops[split + '_s'] = (f'{len(maxsf)}/{len(d)} = '
                              f'{np.round(len(maxsf)/len(d),2)}')
+                             
+                             
         regs_a = [tops[split][0][j] for j in range(len(tops[split][0]))
                   if tops[split][1][j] < sigl]
 
-        regsa.append(regs_a)
+        regsa.append(list(d.keys()))
         print(regs_a)
         print(' ')
 
@@ -1297,10 +1309,26 @@ def plot_custom_lines(regs=None, curve='euc', split='choice',
 
         jj += 1
     fig.savefig(f'{"_".join(regs)}.png')
-    
+
+
+def get_cmap(split):
+    '''
+    for each split, get a colormap defined by Yanliang
+    '''
+    dc = {'stim': ["#ffffff","#D5E1A0","#A3C968",
+                   "#86AF40","#517146"],
+          'choice': ["#ffffff","#F8E4AA","#F9D766",
+                     "#E8AC22","#DA4727"],
+          'fback': ["#ffffff","#F1D3D0","#F5968A",
+                    "#E34335","#A23535"],
+          'block': ["#ffffff","#D0CDE4","#998DC3",
+                    "#6159A6","#42328E"]}
+
+    return LinearSegmentedColormap.from_list("mycmap", dc[split])
+   
     
 def plot_swanson_supp(splits = None, curve = 'euc', sigl=0.01,
-                      show_legend = False):
+                      show_legend = False, bina=False):
  
     '''
     swanson maps for maxes
@@ -1309,109 +1337,91 @@ def plot_swanson_supp(splits = None, curve = 'euc', sigl=0.01,
     if splits is None:
         splits = align
     
-    
-    from matplotlib.gridspec import GridSpec   
-    from ibllib.atlas.flatmaps import plot_swanson
-    
-    figs = plt.figure(figsize=(10, 9), constrained_layout=True)
-    nrows = 3
-    ncols = len(align) 
-    gs = GridSpec(nrows, ncols, figure=figs)
+    nrows = 2  # one for amplitudes, one for latencies
+    ncols = len(splits)  # one per variable
 
+
+    fig, axs = plt.subplots(nrows, ncols, figsize=(10, 10)) 
     
-    axs = []
-    k = 0
     if show_legend:
         '''
         plot Swanson flatmap with labels and colors
         '''
-        axs.append(figs.add_subplot(gs[0,:]))
-        plot_swanson(annotate=True, ax=axs[k])
-        axs[k].axis('off')
-        put_panel_label(axs[k], k)
-        k += 1
+        fig0, ax0 = plt.subplots()
+        plot_swanson(annotate=True, ax=ax0)
+        ax0.axis('off')
    
     '''
     max dist_split onto swanson flat maps
-    (only regs with p < 0.01)
+    (only regs with p < sigl)
     '''
     
-    c = 0
-    for split in align:
+    k = 0  # panel counter
+    c = 0  # column counter
     
-        axs.append(figs.add_subplot(gs[1,c]))   
-        c += 1
+    sws = []
+    for split in splits:
 
         d = np.load(Path(pth_res, f'{split}.npy'),
                     allow_pickle=True).flat[0]
                     
-
         # get significant regions only
         acronyms = [reg for reg in d
                 if d[reg][f'p_{curve}'] < sigl]
+                
+        print(split, len(acronyms), 'sig out of', len(d))        
 
-        values = np.array([d[x][f'amp_{curve}'] for x in acronyms])
+        # plot amplitudes
+        if bina:
+            # set all significant regions to 1, others zero
+            amps = np.array([1 for x in acronyms])
         
-        print(split, acronyms, values)
-
-        plot_swanson(np.array(acronyms), np.array(values), cmap='Blues', 
-                     ax=axs[k], br=br)#, orientation='portrait')
-        axs[k].axis('off')
-        axs[k].set_title(f'{split} \n amplitude')
-        put_panel_label(axs[k], k)
+        else:
+            amps = np.array([d[x][f'amp_{curve}'] for x in acronyms])
+            
+            
+        sws.append(plot_swanson(np.array(acronyms), np.array(amps), 
+                     cmap=get_cmap(split), 
+                     ax=axs[0,c], br=br, orientation='portrait'))
+        
+        #plt.colorbar(sws[k])#, ax=axs[0,c])             
+                     
+        axs[0,c].axis('off')
+        axs[0,c].set_title(f'{split} \n max dist')
+        put_panel_label(axs[0,c], k)
         k += 1
 
-    '''
-    lat onto swanson flat maps
-    (only regs with p < 0.01)
-    '''
-
-    c = 0
-    for split in align:
-    
-        axs.append(figs.add_subplot(gs[2,c]))   
-        c += 1
-        d = np.load(Path(pth_res, f'{split}.npy'),
-                    allow_pickle=True).flat[0]
-                    
-        # get significant regions only
-        acronyms = [reg for reg in d
-                if d[reg][f'p_{curve}'] < sigl]
-
-#        #  compute latencies (inverted, shorter latency is darker)
-#        for x in acronyms:
-
-#            xs = np.linspace(0, 
-#                             pre_post[split][0] + pre_post[split][1],
-#                             len(d[x][curve]))            
-
-#            d[x][f'lat_{curve}'] = xs[-1] - xs[loc[0]]
-
-        values = np.array([d[x][f'lat_{curve}'] for x in acronyms])
+        # plot latencies        
+        lats = np.array([d[x][f'lat_{curve}'] for x in acronyms])
                          
-        plot_swanson(np.array(acronyms),np.array(values), cmap='Blues', 
-                     ax=axs[k], br=br)#, orientation='portrait')
-        axs[k].axis('off')
-        axs[k].set_title(f'{split} \n latency (dark = late)')
-        put_panel_label(axs[k], k)
+        sws.append(plot_swanson(np.array(acronyms),np.array(lats), 
+                     cmap=get_cmap(split), 
+                     ax=axs[1,c], br=br, orientation='portrait'))
+                     
+        #plt.colorbar(sws[k])#, ax=axs[1,c])              
+        axs[1,c].axis('off')
+        axs[1,c].set_title(f'{split} \n latency (dark = late)')
+        put_panel_label(axs[1,c], k)
+        
+        
+        #print(split, acronyms, amps, lats)        
+        
         k += 1
+        c += 1
 
+    fig.tight_layout()
+    
+#    # general subplots settings
 
-        '''
-        general subplots settings
-        '''
+#    figs.subplots_adjust(top=0.89,
+#                         bottom=0.018,
+#                         left=0.058,
+#                         right=0.985,
+#                         hspace=0.3,
+#                         wspace=0.214)                       
 
-
-    figs.subplots_adjust(top=0.89,
-bottom=0.018,
-left=0.058,
-right=0.985,
-hspace=0.3,
-wspace=0.214)
-                       
-
-    font = {'size'   : 10}
-    mpl.rc('font', **font)       
+#    font = {'size'   : 10}
+#    mpl.rc('font', **font)       
     
     
     
