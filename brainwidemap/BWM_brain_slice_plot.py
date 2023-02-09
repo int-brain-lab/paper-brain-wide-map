@@ -41,20 +41,7 @@ ba = compute_top(ba)
 ################# input: list_region_id, list_region_value ###############################
 #################  list_region_id: numpy array of Beryl region id ########################
 #################  list_region_value: numpy array of values, ordered by list_region_id ###
-################# color_range=0:   
-#################   default: if  0<value<0.05    RGB= S_color[0,:]
-#################   default: if  0.05<value<0.1  RGB= S_color[1,:]
-#################   default: if  0.1<value<0.15  RGB= S_color[2,:]
-#################   default: if  0.15<value      RGB= S_color[3,:]
 
-
-################# color_range=1:   d=(max-min)/4
-#################    if  min<value<min+d        RGB= S_color[0,:]
-#################    if  min+d<value<min+2d     RGB= S_color[1,:]
-#################    if  min+2d<value<mind+3d    RGB= S_color[2,:]
-#################    if  min+3d<value            RGB= S_color[3,:]
-
-################ Define custom colors by changing S_color
 
 
 
@@ -77,7 +64,7 @@ def _take_remap(vol, ind, axis, mapping, mode):
 
 
 ######## create RGB image of sag view slice [pixel_x,pixel_y,3] ########
-def sag_slice_RGB(list_region_id, list_region_value,ML_coordinate,color_range=0):
+def sag_slice_RGB(list_region_id, list_region_value,ML_coordinate, c_map):
 
     
     #coordinate_1=(-4000+100*21)/1000000
@@ -99,65 +86,36 @@ def sag_slice_RGB(list_region_id, list_region_value,ML_coordinate,color_range=0)
     sag_slice_b=np.transpose(sag_slice_b)
 
 
-    ########## color of values ##############
-    S_color=np.array([ [249/255, 228/255, 183/255],[0.9882,0.8510,0.5020],[0.9294,0.6902,0.1294], [0.8510,0.3294,0.1020]])
     
     ##### color of Null vlaues white=[1,1,1]
-    N_color=[1,1,1]
+    N_color=[0.5,0.5,0.5]
     
-    #### set color range ######
-    # set the color of regions
-    # Local_value in [Range_0, Range_1]: color=S_color[0,:]
-    # Local_value in [Range_1, Range_2]: color=S_color[1,:]
-    # Local_value in [Range_2, Range_3]: color=S_color[2,:]
-    # Local_value > Range_3: color=S_color[3,:]
-    ## default color range ##
-    if color_range==0:
-        Range_0=0
-        Range_1=0.05
-        Range_2=0.1
-        Range_3=0.15
-           
-    ## range is determined by the max and min value ##     
-    elif color_range==1:
-        
-        d_value=(np.max(list_region_value)-np.min(list_region_value))/4
-        
-        Range_0=np.min(list_region_value)
-        Range_1=np.min(list_region_value)+d_value
-        Range_2=np.min(list_region_value)+2*d_value
-        Range_3=np.min(list_region_value)+3*d_value
-        
-    
-    
-    
+
 
     #initial color of image: white=[1,1,1]
     im_sag_1=np.ones((len(sag_slice[:,0]),len(sag_slice[0,:]),3))
 
+    min_value=np.min(list_region_value)
+    max_value=np.max(list_region_value)
+    
+    cmap_rgb_list=c_map(np.linspace(0, 1, 101))
+    
     
     for i_reg in range(len(list_region_id)):
-    
-        Local_value=list_region_value[i_reg]
-        Local_region_id=list_region_id[i_reg]
-    
-
-        # set the color of regions
-        # Local_value in [Range_0, Range_1]: color=S_color[0,:]
-        # Local_value in [Range_1, Range_2]: color=S_color[1,:]
-        # Local_value in [Range_2, Range_3]: color=S_color[2,:]
-        # Local_value > Range_3: color=S_color[3,:]
         
-        if Local_value<=Range_0:
+        #normalize local value to be an integer in the range [0,100]
+        Local_value=np.ceil(100*(list_region_value[i_reg]-min_value)/max_value)
+        Local_region_id=list_region_id[i_reg]
+        
+        Local_value=Local_value.astype(int)
+
+        
+        
+        if list_region_value[i_reg]<min_value:
             Local_color=N_color
-        elif Local_value<Range_1:
-            Local_color=S_color[0,:]
-        elif Local_value<Range_2:
-            Local_color=S_color[1,:]
-        elif Local_value<Range_3:
-            Local_color=S_color[2,:]
         else:
-            Local_color=S_color[3,:]
+            Local_color=cmap_rgb_list[Local_value,0:3][0]
+            
             
 
     
@@ -189,7 +147,7 @@ def sag_slice_RGB(list_region_id, list_region_value,ML_coordinate,color_range=0)
 
 
 ######## create RGB image of cortex top view slice [pixel_x,pixel_y,3] ########
-def ctx_slice_RGB(list_region_id, list_region_value,color_range=0):
+def ctx_slice_RGB(list_region_id, list_region_value,c_map):
 
     
     #### 2D cortex top view slice  
@@ -202,55 +160,39 @@ def ctx_slice_RGB(list_region_id, list_region_value,color_range=0):
     ctx_slice_b=ctx_b = ba.compute_boundaries(ctx_slice)
 
 
-    ########## color of values ##############
-    S_color=np.array([ [249/255, 228/255, 183/255],[0.9882,0.8510,0.5020],[0.9294,0.6902,0.1294], [0.8510,0.3294,0.1020]])
+   
     
     ##### color of Null vlaues white=[1,1,1]
-    N_color=[1,1,1]
+    N_color=[0.5,0.5,0.5]
     
-    #### set color range ######
-    ## default color range ##
-    if color_range==0:
-        Range_0=0
-        Range_1=0.05
-        Range_2=0.1
-        Range_3=0.15
-           
-    ## range is determined by the max and min value ##     
-    elif color_range==1:
-        
-        d_value=(np.max(list_region_value)-np.min(list_region_value))/4
-        
-        Range_0=np.min(list_region_value)
-        Range_1=np.min(list_region_value)+d_value
-        Range_2=np.min(list_region_value)+2*d_value
-        Range_3=np.min(list_region_value)+3*d_value
-        
-    
-    
-    
+
 
     #initial color of image: white=[1,1,1]
     im_ctx_1=np.ones((len(ctx_slice[:,0]),len(ctx_slice[0,:]),3))
+    
+    
+    min_value=np.min(list_region_value)
+    max_value=np.max(list_region_value)
+    
+    cmap_rgb_list=c_map(np.linspace(0, 1, 101))
 
     
     for i_reg in range(len(list_region_id)):
     
-        Local_value=list_region_value[i_reg]
+
+        #normalize local value to be an integer in the range [0,100]
+        Local_value=np.ceil(100*(list_region_value[i_reg]-min_value)/max_value)
         Local_region_id=list_region_id[i_reg]
-    
+        
+        Local_value=Local_value.astype(int)
+        
+        
 
         # set the color of regions
-        if Local_value<=Range_0:
+        if list_region_value[i_reg]<min_value:
             Local_color=N_color
-        elif Local_value<Range_1:
-            Local_color=S_color[0,:]
-        elif Local_value<Range_2:
-            Local_color=S_color[1,:]
-        elif Local_value<Range_3:
-            Local_color=S_color[2,:]
         else:
-            Local_color=S_color[3,:]
+            Local_color=cmap_rgb_list[Local_value,0:3][0]
             
 
     
@@ -335,7 +277,25 @@ def make_ctx_plot(im_1):
     
 
 
-###### ML coordinate ##########
+    
+
+
+    
+    
+    
+
+################ Custom Colormap #############
+
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+from matplotlib.colors import ListedColormap, LinearSegmentedColormap
+
+colors = ["#ffffff","#F8E4AA","#F9D766","#E8AC22","#DA4727"]
+cmap1 = LinearSegmentedColormap.from_list("mycmap", colors)
+
+#######################################
+
+
 coord_1=(-4000+100*21)
 coord_2=(-4000+100*31)
 coord_3=(-4000+100*37)
@@ -346,16 +306,13 @@ coord_3=(-4000+100*37)
 
 
 #### generate sag slices 
-im_sag_1=sag_slice_RGB(list_region_id, list_region_value,coord_1,1)
-im_sag_2=sag_slice_RGB(list_region_id, list_region_value,coord_2,1)
-im_sag_3=sag_slice_RGB(list_region_id, list_region_value,coord_3,1)
+im_sag_1=sag_slice_RGB(list_region_id, list_region_value,coord_1,cmap1)
+im_sag_2=sag_slice_RGB(list_region_id, list_region_value,coord_2,cmap1)
+im_sag_3=sag_slice_RGB(list_region_id, list_region_value,coord_3,cmap1)
 
 
 #### generate cortex top view slice 
-im_ctx_1=ctx_slice_RGB(list_region_id, list_region_value)
-
-
-
+im_ctx_1=ctx_slice_RGB(list_region_id, list_region_value,cmap1)
 
 
 # plot sag slices:
@@ -368,3 +325,7 @@ make_sag_plot(im_sag_1,im_sag_2,im_sag_3)
 
 make_ctx_plot(im_ctx_1)
 
+
+# plot custom colorbar
+
+cmap1
