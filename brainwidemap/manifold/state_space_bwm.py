@@ -207,7 +207,7 @@ def get_restricted_cells(split, pid, sigl=0.05, alys='decoding'):
 
 
 def get_d_vars(split, pid, mapping='Beryl', control=True, get_fr=False,
-               nrand=2000, contr=None, restr=False, shuf=False):
+               nrand=1000, contr=None, restr=False, shuf=False):
     '''
     for a given variable and insertion,
     cut neural data into trials, bin the activity,
