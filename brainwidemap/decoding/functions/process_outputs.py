@@ -209,18 +209,10 @@ def create_pdtable_from_raw(res,
         
         #print(reseid['region'])
         for reg in np.unique(reseid['region']):
-            # assert len(reg) == 1
-            # reg = reg[0]
             
             reseidreg = reseid.loc[reseid['region']==reg]
             eidreg_probes = np.unique(reseidreg['probe'])
-            if not (len(eidreg_probes)==1):
-                print(eidreg_probes)
-                assert (eidreg_probes[0]=='probe00') and (eidreg_probes[1]=='probe01')
-                assert len(eidreg_probes)==2
-                cur_p = np.random.choice(['probe00','probe01'])
-                reseidreg = reseidreg.loc[reseidreg['probe']==cur_p]
-                
+            assert len(eidreg_probes) == 1                
             
             pids = np.sort(np.unique(reseidreg['pseudo_id']))
             #print(reseidreg.head())

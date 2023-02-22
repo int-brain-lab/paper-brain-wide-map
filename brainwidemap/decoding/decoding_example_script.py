@@ -42,7 +42,7 @@ results_dir = Path().home().joinpath('bwm_decoding_example')
 eid = 'b658bc7d-07cd-4203-8a25-7b16b549851b'
 
 # perform decoding on original eid (-1 entry) and 5 pseudo-sessions
-pseudo_ids = np.array([-1, 1, 2, 3, 4, 5])
+pseudo_ids = np.array([-1])
 
 # select variable to decode
 # targets other than 'pLeft' and 'signcont' (stimulus) require more processing to obtain

@@ -35,7 +35,7 @@ bwm_df = bwm_query(freeze='2022_10_bwm_release')
 
 # Feature to run a subset of BWM dataset filtering by subjects.
 # To use this, add subject names to the end of the line that calls this script in 03_slurm*.sh.
-# See 03_slurm*.sh for an examples which is commented out.
+# See 03_slurm*.sh for an examples which is commented out or read the `03_*` section of the README.
 if len(sys.argv) > 2:
     mysubs = [sys.argv[i] for i in range(2, len(sys.argv))]
     bwm_df = bwm_df[bwm_df["subject"].isin(mysubs)] 
@@ -45,7 +45,7 @@ clusters_table = download_aggregate_tables(one, type='clusters')
 # Map probes to regions (here: Beryl mapping) and filter according to QC, number of units and probes per region
 region_df = filter_regions(
     bwm_df['pid'], clusters_table=clusters_table, mapping='Beryl',
-    min_qc=1, min_units_region=10, min_probes_region=None, min_sessions_region=2)
+    min_qc=1, min_units_region=params['min_units'], min_probes_region=None, min_sessions_region=params['min_sess_per_reg'])
 print('completed region_df')
 # Download the latest trials table and filter for sessions that have at least 200 trials fulfilling BWM criteria
 trials_table = download_aggregate_tables(one, type='trials',)

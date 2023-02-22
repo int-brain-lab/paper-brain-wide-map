@@ -554,10 +554,13 @@ def decode_cv(
             # evaluate model on test data
             y_true = np.concatenate(y_test, axis=0)
             y_pred = model.predict(np.vstack(X_test) - mean_X_train) + mean_y_train
-            if isinstance(estimator, sklm.LogisticRegression) and bins_per_trial == 1:
+            if isinstance(model, sklm.LogisticRegression) and bins_per_trial == 1:
+                print("predicting proba in decoding of logistic regression!")
                 y_pred_probs = model.predict_proba(
                     np.vstack(X_test) - mean_X_train)[:, 0] + mean_y_train
+                print(f"example of proba: {y_pred_probs[0]:.5f}")
             else:
+                print("did not predict proba", estimator, isinstance(model, sklm.LogisticRegression), bins_per_trial)
                 y_pred_probs = None
             scores_test.append(scoring_f(y_true, y_pred))
 
@@ -567,7 +570,7 @@ def decode_cv(
                 if bins_per_trial == 1:
                     # we already computed these estimates, take from above
                     predictions[i_global] = np.array([y_pred[i_fold]])
-                    if isinstance(estimator, sklm.LogisticRegression):
+                    if isinstance(model, sklm.LogisticRegression):
                         predictions_to_save[i_global] = np.array([y_pred_probs[i_fold]])
                     else:
                         predictions_to_save[i_global] = np.array([y_pred[i_fold]])
@@ -576,7 +579,7 @@ def decode_cv(
                     # recompute per-trial
                     predictions[i_global] = model.predict(
                         X_test[i_fold] - mean_X_train) + mean_y_train
-                    if isinstance(estimator, sklm.LogisticRegression):
+                    if isinstance(model, sklm.LogisticRegression):
                         predictions_to_save[i_global] = model.predict_proba(
                             X_test[i_fold] - mean_X_train)[:, 0] + mean_y_train
                     else:

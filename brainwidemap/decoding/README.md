@@ -16,7 +16,7 @@ changes.  This file also determines where results will be saved and the file nam
 not change and the decoding pipeline is run multiple times, decoding computation which has already been 
 completed will not be re-computed i.e. previous computations will be skipped.  But if this variable is 
 changed then all decoding will be re-run with the pipeline.  
-Notably, the `SETTINGS_FORMAT_NAME` variable can be changed simply by changin the date.  
+Notably, the `SETTINGS_FORMAT_NAME` variable can be changed simply by changing the date.  
 *It is recommended, therefore, that you change the date for a fresh decoding run of a given target variable.*
 
 Additionally, you will often be submitting "*.sh" files to slurm.  The slurm settings within these files may
@@ -81,7 +81,11 @@ hundreds of jobs.  These jobs are submitted in parallel using
 ```
 sbatch 03_slurm_decode.sh
 ```
-
+The `03_decode_single_session.py` script is meant to be run on the cluster and not alone.  Thus, it is not 
+recommended that you manipulate or control the `03_decode_single_session.py` input integers `X`, which 
+determine the session and subset of null sessions, in order to run only a subset of the BWM datset. 
+Rather, you can filter for a subset of subjects in the BWM dataset as discussed in the next section.  
+Additionally, to see an example of running a single session, see `decoding_example_script.py`.
 NB: some slurm clusters have a maximum number of jobs, which means you will have to submit multiple 
 times.  For example, if you cannot sumbit more than 1000 jobs but require 1100, run
 ```
@@ -141,3 +145,22 @@ sbatch 05_slurm_generate_summary.sh
 ```
 
 NB: wheel-speed summary table takes a lot of memory to construct, so set the slurm run to have 128GB.
+
+## Run a subset of the BWM dataset
+
+Running a subset of the BMW dataset can be helpful for debugging or quick analysis purposes.
+You can filter for a subset of subjects in the BWM dataset by adjusting `03_slurm_decode.sh`.
+Specifically, comment out this line of the file
+```
+python 03_decode_single_session.py $SLURM_ARRAY_TASK_ID
+```
+and uncomment the last line of the file.  This adds a series of subjects as inputs to
+the `03_decode_single_session.py` script, and you can add or remove any number of these subjects.  The scr$
+will filter for only BWM sessions of these subjects.
+
+To see where the filtering occurs in `03_decode*.py` look for the if statement `if len(sys.argv) > 2:` 
+and the comment above it.
+
+Additionally, to see an example of running a single sessions, see `decoding_example_script.py`.
+
+
