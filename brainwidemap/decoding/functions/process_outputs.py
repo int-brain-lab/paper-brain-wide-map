@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import r2_score, balanced_accuracy_score
 
+
 def gini(x, weights=None):
     '''
     Index that measures sparsity across a set of values, x.
@@ -38,6 +39,7 @@ def gini(x, weights=None):
     rmad = mad / np.average(x, weights=weights)
     # Gini equals half the relative mean absolute deviation.
     return 0.5 * rmad
+
 
 def fix_pd_regions(res):
     '''
@@ -71,6 +73,7 @@ def fix_pd_regions(res):
             res.loc[i,'region'] = r[0]
     return res
 
+
 def get_val_from_realsession(reseidreg, value_name, RUN_ID=1):
     '''
     helper function meant to take a pandas dataframe, reseidreg, of decoding results from
@@ -101,6 +104,7 @@ def get_val_from_realsession(reseidreg, value_name, RUN_ID=1):
     if (len(my_vals) != 1) or (my_vals[0] is None):
         return None
     return np.array(my_vals[0])
+
 
 def check_scores(my_preds, my_targets, score_name, real_scores):
     '''
@@ -142,7 +146,7 @@ def check_scores(my_preds, my_targets, score_name, real_scores):
     my_calc_real_scores = [calc_score(p) for p in my_preds_flat]
     isequal_scores = [my_calc_real_scores[i]==real_scores[i] for i in range(len(real_scores))]
     return np.all(np.array(isequal_scores))
-        
+
 
 def create_pdtable_from_raw(res, 
                             score_name='balanced_acc_test',

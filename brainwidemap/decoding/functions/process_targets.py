@@ -2,15 +2,11 @@ import os
 from pathlib import Path
 import numpy as np
 import torch
-import pandas as pd
 from scipy.interpolate import interp1d
 
 from behavior_models.models.utils import format_data as format_data_mut
 from behavior_models.models.utils import format_input as format_input_mut
 from behavior_models.models.utils import build_path as build_path_mut
-
-from brainbox.io.one import SessionLoader
-
 from brainwidemap.bwm_loading import load_trials_and_mask
 
 
@@ -44,11 +40,11 @@ def optimal_Bayesian(act, side):
     torch.flip(ref.double(), (0,))
     hazard = torch.cummax(
         ref / torch.flip(torch.cumsum(torch.flip(ref.double(), (0,)), 0) + eps, (0,)), 0)[0]
-    l = torch.cat(
+    tmp = torch.cat(
         (torch.unsqueeze(hazard, -1),
          torch.cat((torch.diag(1 - hazard[:-1]), torch.zeros(nb_blocklengths - 1)[None]), axis=0)),
         axis=-1)  # l_{t-1}, l_t
-    transition = eps + torch.transpose(l[:, :, None, None] * b[None], 1, 2).reshape(
+    transition = eps + torch.transpose(tmp[:, :, None, None] * b[None], 1, 2).reshape(
         nb_typeblocks * nb_blocklengths, -1)
 
     # likelihood
@@ -63,9 +59,10 @@ def optimal_Bayesian(act, side):
         # save priors
         if i_trial >= 0:
             if i_trial > 0:
-                alpha[i_trial] = torch.sum(torch.unsqueeze(h, -1) * transition, axis=0) * to_update[i_trial - 1] \
-                                 + alpha[i_trial - 1] * (1 - to_update[i_trial - 1])
-            #else:
+                alpha[i_trial] = torch.sum(torch.unsqueeze(h, -1) * transition, axis=0) \
+                    * to_update[i_trial - 1] \
+                    + alpha[i_trial - 1] * (1 - to_update[i_trial - 1])
+            # else:
             #    alpha = alpha.reshape(-1, nb_blocklengths, nb_typeblocks)
             #    alpha[i_trial, 0, 0] = 0.5
             #    alpha[i_trial, 0, -1] = 0.5
@@ -86,29 +83,26 @@ def compute_target_mask(target, exclude_trials_within_values):
     """
     Computes a boolean array which is False where target indicies should be excluded
     and True otherwise.
-    
+
     Parameters
     ----------
     target : array of scalar values for each trial.  does not allow for multiple values
              per trial
     exclude_trials_within_values: 2-tuple where each value is either a float of None
-             
-    
+
     Returns
     ----------
     boolean numpy array
+
     """
     valwin = exclude_trials_within_values
     target_mask_lb = None if valwin[0] is None else target < valwin[0]
     target_mask_ub = None if valwin[1] is None else target > valwin[1]
     if (not (target_mask_lb is None)) and (not (target_mask_ub is None)):
-        #print('choosing both lb and ub mask')
         target_mask = target_mask_lb | target_mask_ub
     elif not (target_mask_lb is None):
-        #print(f'choosing lb mask with value of {valwin[0]}')
         target_mask = target_mask_lb
     elif not (target_mask_ub is None):
-        #print(f'choosing ub mask with value of {valwin[1]}')
         target_mask = target_mask_ub
     else:
         target_mask = np.ones(len(target), dtype=bool)
@@ -142,7 +136,7 @@ def compute_beh_target(trials_df, metadata, return_raw=False, **kwargs):
         generation in the case of a 'prior' or 'prederr' target.
     beh_data : behavioral data feed to the model when using pseudo-sessions
     return_raw : bool, if True returns tuple where second element is the target without applying
-                 a transformation or binarization.  this is useful for computing a mask from target 
+                 a transformation or binarization.  this is useful for computing a mask from target
                  values
 
     Returns
@@ -162,12 +156,12 @@ def compute_beh_target(trials_df, metadata, return_raw=False, **kwargs):
                        if beh_data_test is explicited, the eid_test will not be considered
         target can be pLeft or signcont. If target=pLeft, it will return the prior predicted by modeltype
                                          if modetype=None, then it will return the actual pLeft (.2, .5, .8)
-    '''    
+    '''
 
     tvec = get_beh_target(trials_df, metadata, remove_old=False, **kwargs)
     tvec_raw = tvec.copy()
     if kwargs['tanh_transform']:
-        tvec = np.tanh(5*tvec)/np.tanh(5) 
+        tvec = np.tanh(5 * tvec) / np.tanh(5)
     if kwargs['binarization_value'] is not None:
         tvec = (tvec > kwargs['binarization_value']) * 1
     if return_raw:
@@ -466,7 +460,7 @@ def get_target_variable_in_df(
 
     # split behavior data into trials
     _, target_vals_list, target_mask = get_target_data_per_trial_wrapper(
-            beh_dict['times'], beh_dict['values'], trials_df, align_time, time_window, binsize)
+        beh_dict['times'], beh_dict['values'], trials_df, align_time, time_window, binsize)
 
     if len(target_vals_list) == 0:
         return None
