@@ -1,6 +1,6 @@
 from one.api import ONE
 from reproducible_ephys_processing import bin_spikes2D
-from brainwidemap import bwm_query, load_good_units
+from brainwidemap import bwm_query, load_good_units, load_trials_and_mask
 from ibllib.atlas import AllenAtlas
 from ibllib.atlas.regions import BrainRegions
 from brainbox.io.one import SessionLoader
@@ -20,6 +20,7 @@ import sys
 import math
 import string
 import os
+from scipy.stats import spearmanr
 
 from matplotlib.axis import Axis
 import matplotlib.pyplot as plt
@@ -168,46 +169,25 @@ def get_name(brainregion):
     return br.name[np.argwhere(br.id == regid)[0, 0]]
 
 
-def get_restricted_cells(split, pid, sigl=0.05, alys='decoding'):
+def get_restricted_cells(split, pid):
     '''
     for a given insertion (pid) and a given split
-    get cell ids that are significant for single-cell
-    analysis (alys = 'single-cell'),
-    or weights per cluster from Brandon (alys = 'decoding')
+    get cell ids that were used in Brandon's decoding
 
     Files converted via meta_bwm.py
     '''
 
-    if alys == 'single-cell':
-        s1 = pd.read_csv('/home/mic/paper-brain-wide-map/'
-                         f'meta/per_eid/single-cell/{split}.csv')
+    s1 = pd.read_csv('/home/mic/paper-brain-wide-map/meta/'
+                     f'per_cell/decoding/{split}_weights.csv')
+    
+    # load sig cells, then feed as restr
+    u = s1[s1['pid'] == pid]
 
-        # load sig cells, then feed as restr
-        u = s1[np.bitwise_and(s1['pid'] == pid,
-                              s1[f'p_value_{split}'] < sigl)]
-
-        return u['cluster_id'].values
-
-    elif alys == 'decoding':
-
-        s1 = pd.read_csv('/home/mic/paper-brain-wide-map/meta/'
-                         f'per_cell/decoding/{split}_weights.csv')
-        
-        # multiply firing rates with decoding weights                 
-        s1['fr_x_weight'] = (s1['abs_weight'].values *
-                             s1['f_rates'].values)                
-
-        thresh = np.percentile(s1['fr_x_weight'], 70)
-
-        # load sig cells, then feed as restr
-        u = s1[np.bitwise_and(s1['pid'] == pid,
-                              s1['fr_x_weight'] < thresh)]
-
-        return u['cluster_id'].values
+    return u['cluster_id'].values
 
 
 def get_d_vars(split, pid, mapping='Beryl', control=True, get_fr=False,
-               nrand=1000, contr=None, restr=False, shuf=False):
+               nrand=100, contr=None, restr=False, shuf=False):
     '''
     for a given variable and insertion,
     cut neural data into trials, bin the activity,
@@ -239,22 +219,9 @@ def get_d_vars(split, pid, mapping='Beryl', control=True, get_fr=False,
     # load in spikes
     spikes, clusters = load_good_units(one, pid)
 
-    # Load in trials data
-    sess_loader = SessionLoader(one, eid)
-    sess_loader.load_trials()
-    trials = sess_loader.trials
-
-    # remove certain trials
-    rs_range = [0.08, 2]  # discard [long/short] reaction time trials
-    stim_diff = trials['firstMovement_times'] - trials['stimOn_times']
-    rm_trials = np.bitwise_or.reduce([np.isnan(trials['stimOn_times']),
-                                      np.isnan(trials['choice']),
-                                      np.isnan(trials['feedback_times']),
-                                      np.isnan(trials['probabilityLeft']),
-                                      np.isnan(trials['firstMovement_times']),
-                                      np.isnan(trials['feedbackType']),
-                                      stim_diff > rs_range[-1],
-                                      stim_diff < rs_range[0]])
+    # Load in trials data and mask bad trials (False if bad)
+    trials, mask = load_trials_and_mask(one, eid) 
+                                     
     events = []
     trn = []
 
@@ -265,23 +232,23 @@ def get_d_vars(split, pid, mapping='Beryl', control=True, get_fr=False,
                 events.append(
                     trials['firstMovement_times'][
                         np.bitwise_and.reduce(
-                            [~rm_trials, trials['choice'] == choice])])
+                            [mask, trials['choice'] == choice])])
                 trn.append(
                     np.arange(len(trials['choice']))[np.bitwise_and.reduce(
-                        [~rm_trials, trials['choice'] == choice])])
+                        [mask, trials['choice'] == choice])])
 
             else:  # include only trials with given contrast
                 events.append(
                     trials['firstMovement_times'][
                         np.bitwise_and.reduce([
-                            ~rm_trials, trials['choice'] == choice,
+                            mask, trials['choice'] == choice,
                             np.bitwise_or(
                                 trials['contrastLeft'] == contr,
                                 trials['contrastRight'] == contr)])])
                 trn.append(
                     np.arange(len(trials['choice']))[
                         np.bitwise_and.reduce([
-                            ~rm_trials, trials['choice'] == choice,
+                            mask, trials['choice'] == choice,
                             np.bitwise_or(
                                 trials['contrastLeft'] == contr,
                                 trials['contrastRight'] == contr)])])
@@ -289,32 +256,57 @@ def get_d_vars(split, pid, mapping='Beryl', control=True, get_fr=False,
     elif split == 'stim':
         for side in ['Left', 'Right']:
             events.append(trials['stimOn_times'][np.bitwise_and.reduce(
-                [~rm_trials, ~np.isnan(trials[f'contrast{side}'])])])
+                [mask, ~np.isnan(trials[f'contrast{side}'])])])
             trn.append(
                 np.arange(len(trials['stimOn_times']))[
                     np.bitwise_and.reduce([
-                        ~rm_trials, ~np.isnan(trials[f'contrast{side}'])])])
+                        mask, ~np.isnan(trials[f'contrast{side}'])])])
+                        
+    elif split == 'stim_cl':  # restrict to left choice only
+        for side in ['Left', 'Right']:
+            events.append(trials['stimOn_times'][np.bitwise_and.reduce(
+                [mask, ~np.isnan(trials[f'contrast{side}']),
+                trials['choice'] == 1])])
+                
+            trn.append(
+                np.arange(len(trials['stimOn_times']))[
+                    np.bitwise_and.reduce([
+                        mask, ~np.isnan(trials[f'contrast{side}']),
+                        trials['choice'] == 1])])
+                
+    elif split == 'stim_cr':  # restrict to right choice only
+        for side in ['Left', 'Right']:
+            events.append(trials['stimOn_times'][np.bitwise_and.reduce(
+                [mask, ~np.isnan(trials[f'contrast{side}']),
+                trials['choice'] == -1])])
+            trn.append(
+                np.arange(len(trials['stimOn_times']))[
+                    np.bitwise_and.reduce([
+                        mask, ~np.isnan(trials[f'contrast{side}']),
+                        trials['choice'] == -1])])
+                        
+                        
 
     elif split == 'fback':
         for fb in [1, -1]:
             events.append(
                 trials['feedback_times'][np.bitwise_and.reduce([
-                    ~rm_trials, trials['feedbackType'] == fb])])
+                    mask, trials['feedbackType'] == fb])])
             trn.append(
                 np.arange(len(trials['choice']))[
                     np.bitwise_and.reduce([
-                        ~rm_trials, trials['feedbackType'] == fb])])
+                        mask, trials['feedbackType'] == fb])])
 
     elif split == 'block':
         for pleft in [0.8, 0.2]:
             events.append(
                 trials['stimOn_times'][
                     np.bitwise_and.reduce([
-                        ~rm_trials,
+                        mask,
                         trials['probabilityLeft'] == pleft])])
             trn.append(np.arange(len(trials['choice']))[
                 np.bitwise_and.reduce([
-                    ~rm_trials,
+                    mask,
                     trials['probabilityLeft'] == pleft])])
 
     else:
@@ -388,15 +380,8 @@ def get_d_vars(split, pid, mapping='Beryl', control=True, get_fr=False,
         inv_map = {v: k for k, v in
                    clusters['cluster_id'].to_dict().items()}
 
-        # shuf control
-        if shuf:
-            print('restr: RANDOM CONTROL')
-            goodcells = random.sample(range(len(clusters['cluster_id'])),
-                                      len(css))
-
-        else:
-            # map cluster id to index
-            goodcells = [inv_map[cell_id] for cell_id in css]
+        # map cluster id to index
+        goodcells = [inv_map[cell_id] for cell_id in css]
 
         # restrict data
         acs = acs[goodcells]
@@ -438,7 +423,7 @@ def get_d_vars(split, pid, mapping='Beryl', control=True, get_fr=False,
             if split == 'block':  # 'block' pseudo sessions
                 ys = generate_pseudo_blocks(ntr, first5050=0) == 0.8
 
-            elif split == 'stim':
+            elif 'stim' in split:
                 # shuffle stim sides within block and choice classes
 
                 # get real block labels
@@ -643,7 +628,7 @@ def get_all_d_vars(split, eids_plus=None, control=True, restr=False,
     print(Fs)
 
 
-def d_var_stacked(split, min_reg=100, uperms_=False):
+def d_var_stacked(split, min_reg=20, uperms_=False):
 
     time0 = time.perf_counter()
 
@@ -727,6 +712,7 @@ def d_var_stacked(split, min_reg=100, uperms_=False):
     regde = {reg: (np.nansum(regde0[reg], axis=0) / regs[reg])**0.5
              for reg in regs}
 
+
     r = {}
     for reg in regs:
         res = {}
@@ -770,13 +756,20 @@ def d_var_stacked(split, min_reg=100, uperms_=False):
         res['d_varn'] = res['d_varn'] - min(res['d_varn'])
         res['amp_varn'] = max(res['d_varn'])
         
-        # latency
-        loc = np.where(res['d_varn'] > 0.7 * (np.max(res['d_varn'])))[0]
-
+        # latency - exceptions for inf/nan     
+        if np.max(res['d_varn']) == np.inf:
+            loc = np.where(res['d_varn'] == np.inf)[0]
+            print('inf d_varn', reg)
+        elif np.isnan(np.max(res['d_varn'])):
+            print('nan d_varn', reg)
+            loc = [-1]
+        else:            
+            loc = np.where(res['d_varn'] > 0.7 * (np.max(res['d_varn'])))[0]
+                           
         res['lat_varn'] = np.linspace(-pre_post(split)[0],
                                      pre_post(split)[1],
                                      len(res['d_varn']))[loc[0]]
-                                     
+
         '''
         euc
         '''
@@ -867,7 +860,7 @@ def put_panel_label(ax, k):
                 ha='right', weight='bold')
 
 
-def plot_all(splits=None, curve='euc', amp_number=False,
+def plot_all(splits=None, curve='euc', 
              sigl=0.01, ga_pcs=True):
     '''
     main manifold figure:
@@ -945,9 +938,11 @@ def plot_all(splits=None, curve='euc', amp_number=False,
 
     '''
     example regions per split for embedded space and line plots
+    
+    first in list is used for pca illustration
     '''
 
-    exs0 = {'stim': ['PRNr', 'LGd', 'LP', 'VISpm', 'VISp',
+    exs0 = {'stim': ['LGd','VISp', 'LP', 'VISpm', 'PRNr',
                      'VISam', 'MRN', 'SCm', 'IP', 'IRN'],
 
             'choice': ['ACAv', 'PRNr', 'LP', 'SIM', 'APN',
@@ -963,8 +958,7 @@ def plot_all(splits=None, curve='euc', amp_number=False,
         for split0 in  exs0:
             if split0 in split:
                 exs[split] = exs0[split0]
-        
-        
+
 
     '''
     Trajectories for example regions in PCA embedded 3d space
@@ -974,25 +968,28 @@ def plot_all(splits=None, curve='euc', amp_number=False,
     for split in splits:
 
         if ga_pcs:
-            d = np.load(Path(pth_res, f'{split}_grand_averages.npy'),
+            dd = np.load(Path(pth_res, f'{split}_grand_averages.npy'),
                         allow_pickle=True).flat[0]
         else:
             d = np.load(Path(pth_res, f'{split}.npy'),
-                        allow_pickle=True).flat[0][split]
+                        allow_pickle=True).flat[0]
 
             # pick example region
             reg = exs[split][0]
+            dd = d[reg]
 
         axs.append(fig.add_subplot(gs[row, :3],
                                    projection='3d'))
 
-        npcs, allnobs = d['pcs'].shape
+
+
+        npcs, allnobs = dd['pcs'].shape
         nobs = allnobs // ntravis
 
         for j in range(ntravis):
 
             # 3d trajectory
-            cs = d['pcs'][:, nobs * j: nobs * (j + 1)].T
+            cs = dd['pcs'][:, nobs * j: nobs * (j + 1)].T
 
             if j == 0:
                 col = grad('Blues_r', nobs)
@@ -1029,6 +1026,10 @@ def plot_all(splits=None, curve='euc', amp_number=False,
     for split in splits:
 
         axs.append(fig.add_subplot(gs[row, 3:6]))
+
+#        if split == 'stim':
+#            fig00, ax00 = plt.subplots()
+#            axs[k] = ax00
 
         d = np.load(Path(pth_res, f'{split}.npy'),
                     allow_pickle=True).flat[0]
@@ -1097,11 +1098,6 @@ def plot_all(splits=None, curve='euc', amp_number=False,
     fsize = 7
     dsize = 4
 
-    if amp_number:
-        fig2 = plt.figure()
-        axss = []
-        fig2.suptitle(f'distance metric: {curve}')
-
     row = 0  # row idx
 
     for split in splits:
@@ -1120,16 +1116,9 @@ def plot_all(splits=None, curve='euc', amp_number=False,
         # stdes = np.array([d[x][f'stde_{curve}'] for x in acronyms])
         cols = [palette[reg] for reg in acronyms]
 
-        if amp_number:  # supp figure for correlation of nclus and maxes
-            axss.append(fig2.add_subplot(int(f'1{len(splits)}{row+1}')))
-            nums = [1 / d[reg]['nclus'] for reg in np.array(acronyms)[ac_sig]]
-
-            ll = list(zip(nums, np.array(maxes)[ac_sig],
-                          np.array(cols)[ac_sig]))
-            df = pd.DataFrame(ll, columns=['1/nclus', 'maxes', 'cols'])
-
-            sns.regplot(ax=axss[row], x="1/nclus", y="maxes", data=df)
-            axss[row].set_title(split)
+#        if split == 'stim':
+#            fig0, ax0 = plt.subplots()
+#            axs[k] = ax0
 
         # yerr = 100*maxes/d[reg]['nclus']
         axs[k].errorbar(lats, maxes, yerr=None, fmt='None',
@@ -1189,6 +1178,8 @@ def plot_all(splits=None, curve='euc', amp_number=False,
         axs[k].set_title(f"{tops[split+'_s']} sig")
 
         put_panel_label(axs[k], k)
+
+
 
         row += 1
         k += 1
@@ -1422,9 +1413,110 @@ def plot_swanson_supp(splits = None, curve = 'euc', sigl=0.01,
 
 #    font = {'size'   : 10}
 #    mpl.rc('font', **font)       
+
+
+
+def plot_corr(splits=None, curve='euc',sigl=0.01, 
+              x='nclus', y='f-rate'):
+
+    # supp figure for correlation of nclus and maxes
+    if splits is None:
+        splits = align    
+    dfa, palette = get_allen_info()    
+   
+      # to make yellow labels black  
+
+    
+    fig, axs = plt.subplots(ncols=len(splits), nrows=1)
+    fig.suptitle(f'distance metric: {curve}')    
+
+    row = 0
+    for split in splits:
+    
+        d = np.load(Path(pth_res, f'{split}.npy'),
+                         allow_pickle=True).flat[0]
+
+        cosregs_ = [dfa[dfa['id'] == 
+                    int(dfa[dfa['acronym']==reg]['structure_id_path']
+                    .values[0].split('/')[4])]['acronym']
+                    .values[0] for reg in d]
+        cosregs = dict(zip(list(d.keys()),cosregs_))
+    
+        ll = list(zip([d[reg]['nclus'] for reg in d], 
+                      np.array([d[x][f'amp_{curve}'] for x in d]),
+                      np.array([palette[reg] for reg in d]),
+                      [d[reg][f'p_{curve}'] for reg in d],
+                      [np.mean(d[reg]['ws']) for reg in d],
+                      list(d.keys())))
+        
+
+        df = pd.DataFrame(ll, columns=['nclus', 
+                                       'max dist', 
+                                       'col',
+                                       'p-value',
+                                       'f-rate',
+                                       'reg'])
+
+        # correlate results
+        co0,p0 = spearmanr(df[x],df[y])
+        co_sig0,p_sig0 = spearmanr(df[df['p-value'] < sigl][x],
+                                   df[df['p-value'] < sigl][y])
+        
+        co, p, co_sig, p_sig = [np.round(x,2) for x 
+                                in [co0, p0, co_sig0, p_sig0]]
+
+
+        axs[row].scatter(df[x],
+                         df[y],
+                         c=df['col'], s = 5, 
+                        marker = '.', label = f'p > {sigl}')
     
     
+        axs[row].scatter(df[df['p-value'] < sigl][x],
+                         df[df['p-value'] < sigl][y],
+                         c=df[df['p-value'] < sigl]['col'], s = 10, 
+                        marker = 'o', label = f'p < {sigl}')
+               
+
+        axs[row].set_title(f'{split} \n'
+                     f'n_regs_all/sig: {len(df)}/{sum(df["p-value"] < sigl)} \n'
+                     f' corr_all [p] = {co} [{p}], \n'
+                     f'corr_sig [p_sig]= {co_sig} [{p_sig}]')
+                     
+        axs[row].set_xlabel(x)
+        axs[row].set_ylabel(y) 
+        axs[row].legend()
+      
+      
+        for i in range(len(df)):
+            
+            if cosregs[df.iloc[i]['reg']] in ['CBX', 'CBN']:
+                axs[row].annotate('  ' + df.iloc[i]['reg'],
+                            (df.iloc[i][x], df.iloc[i][y]),
+                    fontsize=5,color='k')            
+            
+            axs[row].annotate('  ' + df.iloc[i]['reg'], 
+                (df.iloc[i][x], df.iloc[i][y]),
+                fontsize=5,color=palette[df.iloc[i]['reg']])   
+
+
+#        sns.regplot(ax=axs[row], 
+#                    x="nclus", 
+#                    y="f-rate",
+#                    data=df)
+#                    
+#        axs[row].set_title(split)   
+#    
+
+        row+=1
+
+    fig.tight_layout()
+
+
+
+
     
+
     
     
     
