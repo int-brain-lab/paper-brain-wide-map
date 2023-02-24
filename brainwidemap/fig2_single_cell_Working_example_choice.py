@@ -815,7 +815,7 @@ def get_choice_time_shuffle(rate,c_L,c_R,block_label,choice_label,nShuf=3000):
 # In[9]:
 
 
-def BWM_choice_test(pid, eid, probe, TimeWindow=np.array([-0.1, 0.0])):
+def BWM_choice_test(pid, eid, TimeWindow=np.array([-0.1, 0.0])):
 
     
     
@@ -991,5 +991,5 @@ probe='probe00'
 
 
 ### example session ###
-p_1, p_2, area_label,  QC_cluster_id = BWM_choice_test(pid, eid, probe)
+p_1, p_2, area_label,  QC_cluster_id = BWM_choice_test(pid, eid)
 
