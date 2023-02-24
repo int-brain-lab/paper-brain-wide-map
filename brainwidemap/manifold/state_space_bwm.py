@@ -3,8 +3,8 @@ from reproducible_ephys_processing import bin_spikes2D
 from brainwidemap import bwm_query, load_good_units, load_trials_and_mask
 from ibllib.atlas import AllenAtlas
 from ibllib.atlas.regions import BrainRegions
-from brainbox.io.one import SessionLoader
 import ibllib
+from ibllib.atlas.flatmaps import plot_swanson, plot_swanson_vector 
 
 from scipy import signal
 import pandas as pd
@@ -29,7 +29,7 @@ import seaborn as sns
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.colors import ListedColormap, LinearSegmentedColormap   
 from matplotlib.gridspec import GridSpec   
-from ibllib.atlas.flatmaps import plot_swanson
+
 
 
 '''
@@ -187,7 +187,7 @@ def get_restricted_cells(split, pid):
 
 
 def get_d_vars(split, pid, mapping='Beryl', control=True, get_fr=False,
-               nrand=100, contr=None, restr=False, shuf=False):
+               nrand=1000, contr=None, restr=False, shuf=False):
     '''
     for a given variable and insertion,
     cut neural data into trials, bin the activity,
@@ -284,8 +284,6 @@ def get_d_vars(split, pid, mapping='Beryl', control=True, get_fr=False,
                     np.bitwise_and.reduce([
                         mask, ~np.isnan(trials[f'contrast{side}']),
                         trials['choice'] == -1])])
-                        
-                        
 
     elif split == 'fback':
         for fb in [1, -1]:
@@ -638,8 +636,6 @@ def d_var_stacked(split, min_reg=20, uperms_=False):
     compute maxes, latencies and p-values
     '''
 
-
-
     pth = Path(one.cache_dir, 'manifold', split)
     ss = os.listdir(pth)  # get insertions
     print(f'combining {len(ss)} insertions for split {split}')
@@ -711,7 +707,6 @@ def d_var_stacked(split, min_reg=20, uperms_=False):
              for reg in regs}
     regde = {reg: (np.nansum(regde0[reg], axis=0) / regs[reg])**0.5
              for reg in regs}
-
 
     r = {}
     for reg in regs:
@@ -1332,14 +1327,14 @@ def plot_swanson_supp(splits = None, curve = 'euc', sigl=0.01,
     ncols = len(splits)  # one per variable
 
 
-    fig, axs = plt.subplots(nrows, ncols, figsize=(10, 10)) 
+    fig, axs = plt.subplots(nrows, ncols, figsize=(14, 11)) 
     
     if show_legend:
         '''
         plot Swanson flatmap with labels and colors
         '''
         fig0, ax0 = plt.subplots()
-        plot_swanson(annotate=True, ax=ax0)
+        plot_swanson_vector(annotate=True, ax=ax0)
         ax0.axis('off')
    
     '''
@@ -1370,28 +1365,48 @@ def plot_swanson_supp(splits = None, curve = 'euc', sigl=0.01,
         else:
             amps = np.array([d[x][f'amp_{curve}'] for x in acronyms])
             
-            
-        sws.append(plot_swanson(np.array(acronyms), np.array(amps), 
-                     cmap=get_cmap(split), 
-                     ax=axs[0,c], br=br, orientation='portrait'))
-        
-        #plt.colorbar(sws[k])#, ax=axs[0,c])             
-                     
+        plot_swanson_vector(np.array(acronyms), np.array(amps), 
+                            cmap=get_cmap(split), 
+                            ax=axs[0,c], br=br, 
+                            orientation='portrait')
+                            
+        # add colorbar
+        clevels = (np.nanmin(amps), np.nanmax(amps))
+        norm = mpl.colors.Normalize(vmin=clevels[0], 
+                                    vmax=clevels[1])
+                                    
+        cbar = fig.colorbar(mpl.cm.ScalarMappable(
+                                norm=norm, 
+                                cmap=get_cmap(split)), 
+                                ax=axs[0,c])
+    
+        cbar.set_label('effect size [spikes/second]')
+
+                            
         axs[0,c].axis('off')
-        axs[0,c].set_title(f'{split} \n max dist')
+        axs[0,c].set_title(f'{split} \n {len(acronyms)}/{len(d)} sig.')
         put_panel_label(axs[0,c], k)
         k += 1
 
-        # plot latencies        
-        lats = np.array([d[x][f'lat_{curve}'] for x in acronyms])
-                         
-        sws.append(plot_swanson(np.array(acronyms),np.array(lats), 
-                     cmap=get_cmap(split), 
-                     ax=axs[1,c], br=br, orientation='portrait'))
-                     
-        #plt.colorbar(sws[k])#, ax=axs[1,c])              
+        # plot latencies (cmap reversed, dark is early)    
+        lats = np.array([d[x][f'lat_{curve}'] for x in acronyms]) 
+        plot_swanson_vector(np.array(acronyms),np.array(lats), 
+                     cmap=get_cmap(split).reversed(), 
+                     ax=axs[1,c], br=br, orientation='portrait')
+
+        clevels = (np.nanmin(lats), np.nanmax(lats))
+        norm = mpl.colors.Normalize(vmin=clevels[0], 
+                                    vmax=clevels[1])
+                                    
+        cbar = fig.colorbar(mpl.cm.ScalarMappable(
+                                norm=norm, 
+                                cmap=get_cmap(split).reversed()), 
+                                ax=axs[1,c])
+        cbar.set_label('latency [second]')
+
+
         axs[1,c].axis('off')
-        axs[1,c].set_title(f'{split} \n latency (dark = late)')
+        axs[1,c].set_title(f'{split}')
         put_panel_label(axs[1,c], k)
         
         
@@ -1402,17 +1417,6 @@ def plot_swanson_supp(splits = None, curve = 'euc', sigl=0.01,
 
     fig.tight_layout()
     
-#    # general subplots settings
-
-#    figs.subplots_adjust(top=0.89,
-#                         bottom=0.018,
-#                         left=0.058,
-#                         right=0.985,
-#                         hspace=0.3,
-#                         wspace=0.214)                       
-
-#    font = {'size'   : 10}
-#    mpl.rc('font', **font)       
 
 
 
