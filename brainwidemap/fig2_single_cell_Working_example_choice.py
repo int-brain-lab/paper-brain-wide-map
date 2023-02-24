@@ -953,13 +953,17 @@ def BWM_choice_test(pid, eid, TimeWindow=np.array([-0.1, 0.0])):
     included_units=ks2_id
     included_units=included_units.astype(int)
     
-    rate=spike_rate[included_units,:]
+    #rate=spike_rate[included_units,:]
+    rate=spike_rate
     
 
-    area_label=area_label_1[included_units]
+    #area_label=area_label_1[included_units]
+    area_label=area_label_1
     
     ############ return cluster id ########################
-    QC_cluster_id=cluster_id[included_units]
+    #QC_cluster_id=cluster_id[included_units]
+    QC_cluster_id=cluster_id
+    
     
     ############ compute p-value for block ###################
     
