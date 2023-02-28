@@ -34,13 +34,13 @@ DIFFPAIRS = {
 }
 MIN_UNITS = 20  # Minimum num units in a region to be plotted on swanson
 COLOR_RANGE = [5, 95]  # Percentiles of observations to use for capping color map ranges
-GLOBAL_CMAP = False  # Whether to use a single, log scale global cmap for all variables
+GLOBAL_CMAP = True  # Whether to use a single, log scale global cmap for all variables
 DISTPLOTS = False  # Whether to plot distributions of variables
 DIFFPLOTS = True  # Whether to plot differences in drsq for paired variables
 ABSDIFF = False  # Whether to plot absolute value of difference or signed difference
 ANNOTATE = False  # Whether to annotate brain regions
-IMGFMT = "svg"  # Format of output image
-SAVEPATH = Path("/Users/berk/Documents/Projects/results/plots/swanson_maps/")  # Path to save plots
+IMGFMT = "png"  # Format of output image
+SAVEPATH = Path("/home/berk/Documents/Projects/results/plots/swanson_maps/")  # Path to save plots
 
 if not SAVEPATH.exists():
     SAVEPATH.mkdir()
@@ -68,8 +68,8 @@ if ANNOTATE:
         DIFFPATH.mkdir()
 
 if IMGFMT != "svg":
-    SAVEPATH.joinpath(IMGFMT + "_plots")
-    DIFFPATH.joinpath(IMGFMT + "_plots")
+    SAVEPATH = SAVEPATH.joinpath(IMGFMT + "_plots")
+    DIFFPATH = DIFFPATH.joinpath(IMGFMT + "_plots")
     if not SAVEPATH.exists():
         SAVEPATH.mkdir()
     if not DIFFPATH.exists():
@@ -204,11 +204,10 @@ if DIFFPLOTS:
         mask = varscores1.index.isin(keepreg, level="region")
         varscores1 = varscores1.loc[:, :, :, mask, :]
         varscores2 = varscores2.loc[:, :, :, mask, :]
-        regmeans1 = varscores1.groupby("region").mean()
-        regmeans2 = varscores2.groupby("region").mean()
-        diff = regmeans1 - regmeans2
+        indivdiff = varscores1 - varscores2
         if ABSDIFF:
-            diff = diff.abs()
+            indivdiff = indivdiff.abs()
+        diff = indivdiff.groupby("region").mean()
         if not GLOBAL_CMAP:
             cmin = np.percentile(diff, COLOR_RANGE[0])
             cmax = np.percentile(diff, COLOR_RANGE[1])

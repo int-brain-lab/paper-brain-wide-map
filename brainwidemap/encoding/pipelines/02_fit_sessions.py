@@ -16,7 +16,7 @@ import neurencoding.utils as mut
 
 # Brainwide repo imports
 from brainwidemap.encoding.params import GLM_CACHE, GLM_FIT_PATH
-from brainwidemap.encoding.utils import make_batch_slurm, make_batch_slurm_singularity
+from brainwidemap.encoding.utils import make_batch_slurm_singularity
 
 parser = argparse.ArgumentParser(
     description="Produce batch scripts for fitting GLMs"
