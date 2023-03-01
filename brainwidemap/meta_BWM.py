@@ -15,7 +15,7 @@ from one.remote import aws
 from one.webclient import AlyxClient
 from brainwidemap import download_aggregate_tables
 import os
-
+import ibllib
 
 pd.options.mode.chained_assignment = None
 
@@ -59,13 +59,14 @@ def manifold_to_csv():
 
             r.append([reg, get_name(reg), d[reg]['nclus'],
                       d[reg][f'p_var'], 
-                      np.max(d[reg]['d_var'][:48]) 
-                      if split == 'stim' else d[reg][f'amp_var'],
+                      d[reg][f'amp_var'],
                       d[reg][f'lat_var'],                          
                       d[reg][f'p_euc'],
-                      np.max(d[reg]['d_euc'][:48]) 
-                      if split == 'stim' else d[reg][f'amp_euc'],
+                      d[reg][f'amp_euc'], 
                       d[reg][f'lat_euc']]) 
+                      
+#                      np.max(d[reg]['d_euc'][:48]) 
+#                      if split == 'stim' else 
                       
         df  = pd.DataFrame(data=r,columns=columns)        
         df.to_csv('/home/mic/paper-brain-wide-map/'
@@ -189,21 +190,27 @@ def histograms_of_decoding_weights():
                      
 
 def get_allen_info():
-    dfa = pd.read_csv('/home/mic/paper-brain-wide-map/'
-                       'allen_structure_tree.csv')
-    
+    '''
+    Function to load Allen atlas info, like region colors
+    '''
+
+    p = (Path(ibllib.__file__).parent /
+         'atlas/allen_structure_tree.csv')
+
+    dfa = pd.read_csv(p)
+
     # get colors per acronym and transfomr into RGB
     dfa['color_hex_triplet'] = dfa['color_hex_triplet'].fillna('FFFFFF')
-    dfa['color_hex_triplet']  = dfa['color_hex_triplet'
-                                    ].replace('19399','19399a')
-    dfa['color_hex_triplet']  = dfa['color_hex_triplet'].replace('0','FFFFFF')
+    dfa['color_hex_triplet'] = dfa['color_hex_triplet'
+                                   ].replace('19399', '19399a')
+    dfa['color_hex_triplet'] = dfa['color_hex_triplet'] .replace('0', 'FFFFFF')
     dfa['color_hex_triplet'] = '#' + dfa['color_hex_triplet'].astype(str)
     dfa['color_hex_triplet'] = dfa['color_hex_triplet'
-                                ].apply(lambda x: 
-                                mpl.colors.to_rgba(x))
-                                
+                                   ].apply(lambda x:
+                                           mpl.colors.to_rgba(x))
+
     palette = dict(zip(dfa.acronym, dfa.color_hex_triplet))
-    
+
     return dfa, palette
       
  
@@ -611,7 +618,116 @@ def motor_res_to_df():
 
 
 
+def neuron_count(split = 'stim'):
 
+    '''
+    reformat results for table
+    '''
+
+    columns = ['reg Beryl', 'reg Cosmos', 'nclus']
+
+    r = []
+    d = np.load(Path(pth_res,f'{split}.npy'),
+                allow_pickle=True).flat[0]
+                
+    dfa, palette = get_allen_info()          
+    cosregs_ = {reg: dfa[dfa['id'] == int(dfa[dfa['acronym'] == reg][
+                'structure_id_path'].values[0].split('/')[4])][
+                'acronym'].values[0] for reg in d} 
+                           
+    for reg in d:
+
+        r.append([reg, cosregs_[reg],  d[reg]['nclus']]) 
+                  
+    df  = pd.DataFrame(data=r,columns=columns)
+    print(split, 'total neuron count', sum(df['nclus']))
+    #print(df.groupby('reg Cosmos').sum(numeric_only=True))   
+
+
+def plot_bar_neuron_count():
+
+    '''
+    bar plot for neuron count per region (omit < 10 neurons regs)
+    second bar for recording count per region
+    '''
+
+    file_ = download_aggregate_tables(one)
+    df = pd.read_parquet(file_)
+    dfa, palette = get_allen_info()
+    df['Beryl'] = br.id2acronym(df['atlas_id'], mapping='Beryl')
+    
+    # number of clusters per region, c0
+    # remove regions with < 10 or root, void
+    c = dict(Counter(df['Beryl']))
+    c0 = {reg : c[reg] for reg in c if c[reg] > 10}
+    del c0['root']
+    del c0['void']   
+    
+    # number of recordings per region
+    ps = list(set(['_'.join(x) for x in zip(df['Beryl'],df['pid'])]))    
+    n_ins = Counter([x.split('_')[0] for x in ps])
+
+    # order by beryl
+    regs0 = list(c0.keys()) 
+    p = (Path(ibllib.__file__).parent / 'atlas/beryl.npy')
+    regs = br.id2acronym(np.load(p), mapping='Beryl')
+    regs1 = []
+    for reg in regs:
+        if reg in regs0:
+            regs1.append(reg)
+
+    nclus_nins = [[c0[reg], n_ins[reg]] for reg in regs1]
+
+    
+    # get Cosmos regions to replace yelow by brown
+    cosregs = {reg: dfa[dfa['id'] == int(dfa[dfa['acronym'] == reg
+                                          ]['structure_id_path']
+               .values[0].split('/')[4])]['acronym']
+               .values[0] for reg in regs}
+                   
+    cols = [palette[reg]  
+            if cosregs[reg] not in ['CBX', 'CBN']
+            else mpl.colors.to_rgba('#757a3d') for reg in regs1]
+
+    # reverse numbers
+    cols.reverse()
+    nclus_nins.reverse()
+    regs1.reverse()
+    
+    nclus_nins = np.array(nclus_nins)
+    print(f'{len(regs1)} regions, {sum(nclus_nins[:,0])} neurons,'
+          f'{sum(nclus_nins[:,1])} recordings')
+
+    # plotting; figure options    
+    fig, ax = plt.subplots(ncols=2,sharey=True, figsize=(3,15))
+    fs = 4
+    
+    ax[0].barh(range(len(regs1)), nclus_nins[:,0],color=cols) 
+    ax[0].set_xscale("log")
+    ax[0].set_yticks(range(len(regs1)))
+    ax[0].set_yticklabels([reg + str(nins) 
+                           for reg, nins in 
+                           zip(regs1,nclus_nins[:,1])],fontsize=fs)
+    for ytick, color in zip(ax[0].get_yticklabels(), cols):
+        ytick.set_color(color)
+    
+    ax[0].set_xlabel('Neurons')
+    
+    ax[1].barh(range(len(regs1)), nclus_nins[:,0]/nclus_nins[:,1],color=cols)   
+    ax[1].set_yticks(range(len(regs1)))
+    #ax[1].set_yticklabels(regs1,fontsize=fs)
+    #ax[1].set_xscale("log")
+    for ytick, color in zip(ax[1].get_yticklabels(), cols):
+        ytick.set_color(color)
+
+    ax[1].set_xlabel('Yield #neur/#rec')
+
+    for k in range(2):
+        ax[k].spines['top'].set_visible(False)
+        ax[k].spines['right'].set_visible(False)
+        ax[k].spines['left'].set_visible(False)
+
+    fig.tight_layout()
 
 #    else:    
 #        # combine eid results from decoding and single-cell per region
