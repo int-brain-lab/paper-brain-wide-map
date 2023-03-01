@@ -647,8 +647,10 @@ def neuron_count(split = 'stim'):
 def plot_bar_neuron_count():
 
     '''
-    bar plot for neuron count per region (omit < 10 neurons regs)
+    bar plot for neuron count per region 
     second bar for recording count per region
+    
+    for BWM intro figure
     '''
 
     file_ = download_aggregate_tables(one)
@@ -658,8 +660,8 @@ def plot_bar_neuron_count():
     
     # number of clusters per region, c0
     # remove regions with < 10 or root, void
-    c = dict(Counter(df['Beryl']))
-    c0 = {reg : c[reg] for reg in c if c[reg] > 10}
+    c0 = dict(Counter(df['Beryl']))
+    #c0 = {reg : c[reg] for reg in c if c[reg] > 10}
     del c0['root']
     del c0['void']   
     
@@ -699,28 +701,40 @@ def plot_bar_neuron_count():
           f'{sum(nclus_nins[:,1])} recordings')
 
     # plotting; figure options    
-    fig, ax = plt.subplots(ncols=2,sharey=True, figsize=(3,15))
+    fig, ax = plt.subplots(ncols=2,sharey=True, figsize=(2,15))
     fs = 4
+    plt.rcParams.update({'font.size': fs})
+    
     
     ax[0].barh(range(len(regs1)), nclus_nins[:,0],color=cols) 
     ax[0].set_xscale("log")
+    ax[0].tick_params(left = False, pad=15)
     ax[0].set_yticks(range(len(regs1)))
-    ax[0].set_yticklabels([reg + str(nins) 
-                           for reg, nins in 
-                           zip(regs1,nclus_nins[:,1])],fontsize=fs)
+    ax[0].set_yticklabels([reg + '      ' for reg in regs1],
+                          fontsize=fs, ha = 'left')
     for ytick, color in zip(ax[0].get_yticklabels(), cols):
-        ytick.set_color(color)
-    
+        ytick.set_color(color)     
+        
     ax[0].set_xlabel('Neurons')
+    
+    # #recs
+    ax2 = ax[0].secondary_yaxis("right")
+    ax2.tick_params(right = False)
+    ax2.set_yticks(range(len(regs1)))
+    ax2.set_yticklabels(nclus_nins[:,1],fontsize=fs)
+    for ytick, color in zip(ax2.get_yticklabels(), cols):
+        ytick.set_color(color)
+    ax2.spines['right'].set_visible(False)    
     
     ax[1].barh(range(len(regs1)), nclus_nins[:,0]/nclus_nins[:,1],color=cols)   
     ax[1].set_yticks(range(len(regs1)))
-    #ax[1].set_yticklabels(regs1,fontsize=fs)
+    ax[1].tick_params(left = False)
+
     #ax[1].set_xscale("log")
     for ytick, color in zip(ax[1].get_yticklabels(), cols):
         ytick.set_color(color)
 
-    ax[1].set_xlabel('Yield #neur/#rec')
+    ax[1].set_xlabel('Yield')
 
     for k in range(2):
         ax[k].spines['top'].set_visible(False)
@@ -728,6 +742,18 @@ def plot_bar_neuron_count():
         ax[k].spines['left'].set_visible(False)
 
     fig.tight_layout()
+    
+    #plt.rcParams.update(plt.rcParamsDefault)
+
+
+
+
+
+
+
+
+
+
 
 #    else:    
 #        # combine eid results from decoding and single-cell per region
