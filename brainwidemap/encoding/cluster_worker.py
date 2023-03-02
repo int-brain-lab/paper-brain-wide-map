@@ -158,8 +158,7 @@ if __name__ == "__main__":
         params,
         t_before,
         args.fitdate,
-        null=params["null"],
-        impostor_path=args.impostor_path,
+        null=params["null"],,
     )
     print("Fitting completed successfully!")
     print(outputfn)
