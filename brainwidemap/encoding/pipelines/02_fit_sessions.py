@@ -137,7 +137,7 @@ print("Dataset file used:", datapath)
 # Generate batch script
 make_batch_slurm_singularity(
     str(args.basefilepath),
-    Path(__file__).parents[1].joinpath("cluster_worker.py"),
+    str(Path(__file__).parents[1].joinpath("cluster_worker.py")),
     job_name=args.jobname,
     partition=args.partition,
     time=args.timelimit,
