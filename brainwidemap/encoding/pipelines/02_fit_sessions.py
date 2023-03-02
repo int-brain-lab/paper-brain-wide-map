@@ -28,7 +28,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument(
     "--basefilepath",
     type=Path,
-    default=Path("~/").expanduser().joinpath("bwm_stepwise_glm_leaveoneout_"),
+    default=Path("~/").expanduser().joinpath("bwm_stepwise_glm_leaveoneout"),
     help="Base filename for batch scripts",
 )
 parser.add_argument(
