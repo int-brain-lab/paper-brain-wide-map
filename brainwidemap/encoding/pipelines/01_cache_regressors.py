@@ -174,7 +174,7 @@ params = {
 one = ONE()
 dataset_futures = []
 
-sessdf = bwm_query(freeze="2022_10_bwm_release").set_index("pid")
+sessdf = bwm_query().set_index("pid")
 
 for pid, rec in sessdf.iterrows():
     subject = rec.subject

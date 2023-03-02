@@ -88,7 +88,7 @@ parser.add_argument(
     help="Submit batch jobs to SLURM cluster using the script.",
 )
 
-parser.parse_args()
+args = parser.parse_args()
 
 # Model parameters
 def tmp_binf(t):
@@ -136,28 +136,28 @@ print("Dataset file used:", datapath)
 
 # Generate batch script
 make_batch_slurm_singularity(
-    parser.basefilepath,
+    args.basefilepath,
     Path(__file__).parents[1].joinpath("cluster_worker.py"),
-    job_name=parser.jobname,
-    partition=parser.partition,
-    time=parser.timelimit,
-    singularity_modules=parser.singularity_modules,
-    container_image=parser.singularity_image,
-    img_condapath=parser.singularity_conda,
-    img_envname=parser.singularity_env,
+    job_name=args.jobname,
+    partition=args.partition,
+    time=args.timelimit,
+    singularity_modules=args.singularity_modules,
+    container_image=args.singularity_image,
+    img_condapath=args.singularity_conda,
+    img_envname=args.singularity_env,
     local_pathadd=Path(__file__).parents[3],
-    logpath=parser.logpath,
-    cores_per_job=parser.job_cores,
-    memory=parser.mem,
+    logpath=args.logpath,
+    cores_per_job=args.job_cores,
+    memory=args.mem,
     array_size=f"1-{njobs}",
     f_args=[str(datapath), str(parpath), r"${SLURM_ARRAY_TASK_ID}", currdate],
 )
 
 # If SUBMIT_BATCH, then actually execute the batch job
-if parser.submit_batch:
-    os.system(f"sbatch {parser.basefilepath + '_batch.sh'}")
+if args.submit_batch:
+    os.system(f"sbatch {args.basefilepath + '_batch.sh'}")
 else:
     print(
-        f"Batch file generated at {parser.basefilepath + '_batch.sh'};"
+        f"Batch file generated at {args.basefilepath + '_batch.sh'};"
         " user must submit it themselves. Good luck!"
     )
