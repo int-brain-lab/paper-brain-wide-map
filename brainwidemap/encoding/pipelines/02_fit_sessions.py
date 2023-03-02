@@ -155,9 +155,9 @@ make_batch_slurm_singularity(
 
 # If SUBMIT_BATCH, then actually execute the batch job
 if args.submit_batch:
-    os.system(f"sbatch {args.basefilepath + '_batch.sh'}")
+    os.system(f"sbatch {str(args.basefilepath) + '_batch.sh'}")
 else:
     print(
-        f"Batch file generated at {args.basefilepath + '_batch.sh'};"
+        f"Batch file generated at {str(args.basefilepath) + '_batch.sh'};"
         " user must submit it themselves. Good luck!"
     )
