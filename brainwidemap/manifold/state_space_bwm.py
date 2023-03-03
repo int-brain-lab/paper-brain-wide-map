@@ -777,6 +777,10 @@ def d_var_stacked(split, min_reg=20, uperms_=False):
         # full curve
         res['d_euc'] = regde[reg][0] - min(regde[reg][0])
 
+        # pseudo curves
+        res['d_euc_p'] = [regde[reg][i] - min(regde[reg][i])
+                          for i in range(1, ntravis)]
+
         # amplitude
         res['amp_euc'] = max(res['d_euc'])
 
@@ -1483,9 +1487,9 @@ def plot_corr(splits=None, curve='euc',sigl=0.01,
                
 
         axs[row].set_title(f'{split} \n'
-                     f'n_regs_all/sig: {len(df)}/{sum(df["p-value"] < sigl)} \n'
-                     f' corr_all [p] = {co} [{p}], \n'
-                     f'corr_sig [p_sig]= {co_sig} [{p_sig}]')
+             f'n_regs_all/sig: {len(df)}/{sum(df["p-value"] < sigl)} \n'
+             f' corr_all [p] = {co} [{p}], \n'
+             f'corr_sig [p_sig]= {co_sig} [{p_sig}]')
                      
         axs[row].set_xlabel(x)
         axs[row].set_ylabel(y) 
@@ -1503,21 +1507,139 @@ def plot_corr(splits=None, curve='euc',sigl=0.01,
                 (df.iloc[i][x], df.iloc[i][y]),
                 fontsize=5,color=palette[df.iloc[i]['reg']])   
 
-
-#        sns.regplot(ax=axs[row], 
-#                    x="nclus", 
-#                    y="f-rate",
-#                    data=df)
-#                    
-#        axs[row].set_title(split)   
-#    
-
         row+=1
 
     fig.tight_layout()
 
 
+def plot_traj_and_dist(split, reg, ga_pcs=False, curve='euc'):
 
+    '''
+    for a given region, plot 3d trajectory and 
+    line plot below
+    '''
+    df, palette = get_allen_info()
+    
+    # get cosmos parent regions for Swanson acronyms
+    cosregs = {reg: df[df['id'] == int(df[df['acronym'] == reg
+               ]['structure_id_path']
+               .values[0].split('/')[4])]['acronym']
+               .values[0] for reg in [reg]}
+           
+    fig = plt.figure(figsize=(3,3.79))
+    axs = []
+    gs = fig.add_gridspec(5, 1) 
+    k = 0 
+      
+    # 3d trajectory plot
+    if ga_pcs:
+        dd = np.load(Path(pth_res, f'{split}_grand_averages.npy'),
+                    allow_pickle=True).flat[0]
+    else:
+        d = np.load(Path(pth_res, f'{split}.npy'),
+                    allow_pickle=True).flat[0]
+
+        # pick example region
+        dd = d[reg]
+
+    axs.append(fig.add_subplot(gs[:4, 0],
+                               projection='3d'))
+
+    npcs, allnobs = dd['pcs'].shape
+    nobs = allnobs // ntravis
+
+    for j in range(ntravis):
+
+        # 3d trajectory
+        cs = dd['pcs'][:, nobs * j: nobs * (j + 1)].T
+
+        if j == 0:
+            col = grad('Blues_r', nobs)
+        elif j == 1:
+            col = grad('Reds_r', nobs)
+        else:
+            col = grad('Greys_r', nobs)
+
+        axs[k].plot(cs[:, 0], cs[:, 1], cs[:, 2],
+                    color=col[len(col) // 2],
+                    linewidth=5 if j in [0, 1] else 1, alpha=0.5)
+
+        axs[k].scatter(cs[:, 0], cs[:, 1], cs[:, 2],
+                       color=col,
+                       edgecolors=col,
+                       s=20 if j in [0, 1] else 1,
+                       depthshade=False)
+
+    axs[k].set_title(f"{split}, {reg} {d[reg]['nclus']}"
+                     if not ga_pcs else split)
+    axs[k].grid(False)
+    axs[k].axis('off')
+
+    #put_panel_label(axs[k], k)
+
+    k += 1
+
+
+    # line plot 
+    axs.append(fig.add_subplot(gs[4:,0]))    
+    
+    if reg not in d:
+        print(f'{reg} not in d:'
+               'revise example regions for line plots')
+        return
+
+    if any(np.isinf(d[reg][f'd_{curve}'])):
+        print(f'inf in {curve} of {reg}')
+        return
+
+    xx = np.linspace(-pre_post(split)[0],
+                     pre_post(split)[1],
+                     len(d[reg][f'd_{curve}']))
+
+    # plot pseudo curves
+    yy_p = d[reg][f'd_{curve}_p']
+
+    for c in yy_p:
+        axs[k].plot(xx, c, linewidth=1,
+                    color='Gray')
+
+    # get curve
+    yy = d[reg][f'd_{curve}']
+
+    axs[k].plot(xx, yy, linewidth=2,
+                color=palette[reg],
+                label=f"{reg} {d[reg]['nclus']}")
+
+    # put region labels
+    y = yy[-1]
+    x = xx[-1]
+    ss = reg
+
+    if cosregs[reg] in ['CBX', 'CBN']:  # darken yellow
+        axs[k].text(x, y, ss, color='k', fontsize=8)
+        axs[k].text(x, c[-1], 'control', color='Gray', fontsize=8)
+    else:
+        axs[k].text(x, y, ss, color=palette[reg], fontsize=8)
+        axs[k].text(x, c[-1], 'control', color='Gray', fontsize=8)
+
+    axs[k].axvline(x=0, lw=0.5, linestyle='--', c='k')
+
+    if split in ['block', 'choice']:
+        ha = 'left'
+    else:
+        ha = 'right'
+
+    axs[k].spines['top'].set_visible(False)
+    axs[k].spines['right'].set_visible(False)
+
+    axs[k].set_ylabel('distance [Hz]')
+    axs[k].set_xlabel('time [sec]')
+
+    #put_panel_label(axs[k], k)
+
+    fig.tight_layout() 
+    fig.tight_layout()
+    
 
     
 
