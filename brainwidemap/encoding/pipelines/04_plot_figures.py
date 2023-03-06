@@ -34,12 +34,12 @@ DIFFPAIRS = {
 }
 MIN_UNITS = 20  # Minimum num units in a region to be plotted on swanson
 COLOR_RANGE = [5, 95]  # Percentiles of observations to use for capping color map ranges
-GLOBAL_CMAP = True  # Whether to use a single, log scale global cmap for all variables
+GLOBAL_CMAP = False  # Whether to use a single, log scale global cmap for all variables
 DISTPLOTS = False  # Whether to plot distributions of variables
 DIFFPLOTS = True  # Whether to plot differences in drsq for paired variables
 ABSDIFF = True  # Whether to plot absolute value of difference or signed difference
 ANNOTATE = False  # Whether to annotate brain regions
-IMGFMT = "svg"  # Format of output image
+IMGFMT = "png"  # Format of output image
 SAVEPATH = Path("/home/berk/Documents/Projects/results/plots/swanson_maps/")  # Path to save plots
 
 if not SAVEPATH.exists():

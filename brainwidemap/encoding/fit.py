@@ -18,7 +18,7 @@ def fit(design, spk_t, spk_clu, binwidth, model, estimator, n_folds=5, contiguou
     Function to fit a model using a cross-validated design matrix.
     """
     trials_idx = design.trialsdf.index
-    nglm = model(design, spk_t, spk_clu, binwidth=binwidth, estimator=estimator)
+    nglm = model(design, spk_t, spk_clu, binwidth=binwidth, estimator=estimator, mintrials=0)
     splitter = KFold(n_folds, shuffle=not contiguous)
     scores, weights, intercepts, alphas, splits = [], [], [], [], []
     for test, train in splitter.split(trials_idx):
@@ -107,7 +107,7 @@ def fit_stepwise(
             splits: list of dicts containing the test and train indices for each fold.
     """
     trials_idx = design.trialsdf.index
-    nglm = model(design, spk_t, spk_clu, binwidth=binwidth, estimator=estimator)
+    nglm = model(design, spk_t, spk_clu, binwidth=binwidth, estimator=estimator, mintrials=0)
     splitter = KFold(n_folds, shuffle=not contiguous)
     sequences, scores, deltas, splits = [], [], [], []
     for test, train in tqdm(splitter.split(trials_idx), desc="Fold", leave=False):
