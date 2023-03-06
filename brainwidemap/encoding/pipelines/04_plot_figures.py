@@ -15,7 +15,7 @@ from ibllib.atlas.flatmaps import plot_swanson
 # Brainwidemap repo imports
 from brainwidemap.encoding.params import GLM_FIT_PATH
 
-FITDATE = "2023-01-16"
+FITDATE = "2023-03-02"
 VARIABLES = [
     "stimonR",
     "stimonL",
@@ -37,9 +37,9 @@ COLOR_RANGE = [5, 95]  # Percentiles of observations to use for capping color ma
 GLOBAL_CMAP = True  # Whether to use a single, log scale global cmap for all variables
 DISTPLOTS = False  # Whether to plot distributions of variables
 DIFFPLOTS = True  # Whether to plot differences in drsq for paired variables
-ABSDIFF = False  # Whether to plot absolute value of difference or signed difference
+ABSDIFF = True  # Whether to plot absolute value of difference or signed difference
 ANNOTATE = False  # Whether to annotate brain regions
-IMGFMT = "png"  # Format of output image
+IMGFMT = "svg"  # Format of output image
 SAVEPATH = Path("/home/berk/Documents/Projects/results/plots/swanson_maps/")  # Path to save plots
 
 if not SAVEPATH.exists():
