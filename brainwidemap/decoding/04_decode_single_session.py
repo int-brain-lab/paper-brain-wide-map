@@ -27,10 +27,11 @@ params['neuralfit_path'].mkdir(parents=True, exist_ok=True)
 params['add_to_saving_path'] = (f"_binsize={1000 * params['binsize']}_lags={params['n_bins_lag']}_"
                                 f"mergedProbes_{params['merged_probes']}")
 imposter_file = RESULTS_DIR.joinpath('decoding', f"imposterSessions_{params['target']}.pqt")
+bwm_session_file = RESULTS_DIR.joinpath('decoding', 'bwm_cache_sessions.pqt')
 
-# Load ONE and the list of probe insertions and select probe(s)
+# Load ONE and bwm dataframe of sessions
 one = ONE(base_url="https://openalyx.internationalbrainlab.org", mode='local')
-bwm_df = bwm_query(freeze='2022_10_bwm_release')
+bwm_df = pd.read_parquet(bwm_session_file)
 
 # Feature to run a subset of BWM dataset filtering by subjects.
 # To use this, add subject names to the end of the line that calls this script in 03_slurm*.sh.
@@ -39,20 +40,6 @@ if len(sys.argv) > 2:
     mysubs = [sys.argv[i] for i in range(2, len(sys.argv))]
     bwm_df = bwm_df[bwm_df["subject"].isin(mysubs)]
 
-# Download the latest clusters table, we use the same cache as above
-clusters_table = download_aggregate_tables(one, type='clusters')
-# Map probes to regions (here: Beryl mapping) and filter according to QC, number of units and probes per region
-region_df = filter_regions(
-    bwm_df['pid'], clusters_table=clusters_table, mapping='Beryl',
-    min_qc=1, min_units_region=params['min_units'], min_probes_region=None, min_sessions_region=params['min_sess_per_reg'])
-print('completed region_df')
-# Download the latest trials table and filter for sessions that have at least 200 trials fulfilling BWM criteria
-trials_table = download_aggregate_tables(one, type='trials',)
-eids = filter_sessions(bwm_df['eid'], trials_table=trials_table, min_trials=params['min_behav_trials'])
-
-# Remove probes and sessions based on those filters
-bwm_df = bwm_df[bwm_df['pid'].isin(region_df['pid'].unique())]
-bwm_df = bwm_df[bwm_df['eid'].isin(eids)]
 
 # When creating the slurm jobs the (one-based) ID of the job in the array is passed to this script as an input.
 # Translate this into a zero-based index to select probes / sessions
@@ -78,14 +65,14 @@ if params['merged_probes']:
     subject = tmp_df.index[0]
     pids = tmp_df['pid'].to_list()  # Select all probes of this session
     probe_names = tmp_df['probe_name'].to_list()
-    print(f"Running merged probes session: {eid}")
+    print(f"Running merged probes for session eid: {eid}")
 else:
     idx = slurm_job_id % bwm_df['pid'].nunique()  # Select the same pid for two consecutive jobs
     eid = bwm_df.iloc[idx]['eid']
     subject = bwm_df.iloc[idx]['subject']
     pid = bwm_df.iloc[idx]['pid']
     probe_name = bwm_df.iloc[idx]['probe_name']
-    print(f"Running probe: {pid}")
+    print(f"Running probe pid: {pid}")
 
 
 """

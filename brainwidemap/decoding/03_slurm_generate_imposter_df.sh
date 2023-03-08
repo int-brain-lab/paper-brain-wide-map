@@ -14,4 +14,4 @@ export PYTHONPATH="$PWD":$PYTHONPATH
 
 echo
 # change to conda  => which python
-python 02_generate_imposter_df.py
+python 03_generate_imposter_df.py

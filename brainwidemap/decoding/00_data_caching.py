@@ -23,7 +23,7 @@ USER INPUTS
 regions_filter = True
 trials_filter = True
 
-min_trials = 0
+min_trials = 1
 
 # Whether to download wheel and whisker data as well
 wheel_data = True
@@ -58,7 +58,7 @@ if regions_filter:
     # Map probes to regions (here: Beryl mapping) and filter according to QC, number of units and probes per region
     region_df = filter_regions(
         bwm_df['pid'], clusters_table=clusters_table, mapping='Beryl', min_qc=1,
-        min_units_region=10, min_probes_region=None, min_sessions_region=1)
+        min_units_region=1, min_probes_region=None, min_sessions_region=1)
     # Remove probes and sessions based on this filters
     bwm_df = bwm_df[bwm_df['pid'].isin(region_df['pid'].unique())]
 
@@ -80,7 +80,7 @@ for count, pid in enumerate(bwm_df['pid']):
             spikes, clusters = load_good_units(one, pid, compute_metrics=False)
         except Exception as e:
             print(e)
-            print(f"Downloading spike sorting failed for pid {pid}, skipping")
+            print(f"Downloading failed for spike sorting data, pid {pid}, skipping")
 
 # Download trials for all sessions
 for count, eid in enumerate(bwm_df['eid']):
@@ -93,7 +93,7 @@ for count, eid in enumerate(bwm_df['eid']):
             sess_loader.load_trials()
         except Exception as e:
             print(e)
-            print(f"Downloading trials data failed for eid {eid}, skipping")
+            print(f"Downloading failed for trials data, eid {eid}, skipping")
 
 # Download wheel data for all sessions
 if wheel_data:
@@ -113,17 +113,15 @@ if whisker_data:
     for count, eid in enumerate(bwm_df['eid']):
         if not (count % N_PARA == para_index):
             continue
+        elif eid in BAD_EIDS:
+            continue
         else:
-            try:
-                print(f"Downloading motion energy data for {eid}")
-                sess_loader = SessionLoader(one, eid)
-                sess_loader.load_motion_energy(views=['left', 'right'])
-            except BaseException as e:
-                print(eid, e)
-                me_err.append((eid, e))
+            print(f"Downloading motion energy data for {eid}")
+            sess_loader = SessionLoader(one, eid)
+            sess_loader.load_motion_energy(views=['left', 'right'])
 
-# save BiasedChoiceWorld sessions, no template, no neural activity
 if para_index == 0:  # only need one job to save these sessions
+    # save BiasedChoiceWorld sessions, no template, no neural activity
 
     # Prepare where to store imposter sessions eid list if using biased choice world
     decoding_dir = RESULTS_DIR.joinpath('decoding')
@@ -157,3 +155,32 @@ if para_index == 0:  # only need one job to save these sessions
 
     eid_df = pd.DataFrame(columns=['eid'], data=eids)
     eid_df.to_parquet(decoding_dir.joinpath('imposter_behavior_sessions.pqt'))
+    
+    # save bwm dataframe of eids
+
+    one = ONE(base_url="https://openalyx.internationalbrainlab.org", mode='local')
+    bwm_df = bwm_query(freeze='2022_10_bwm_release')
+
+    # Feature to run a subset of BWM dataset filtering by subjects.
+    # To use this, add subject names to the end of the line that calls this script in 03_slurm*.sh.
+    # See 03_slurm*.sh for an examples which is commented out or read the `03_*` section of the README.
+    if len(sys.argv) > 2:
+        mysubs = [sys.argv[i] for i in range(2, len(sys.argv))]
+        bwm_df = bwm_df[bwm_df["subject"].isin(mysubs)]
+
+    # Download the latest clusters table, we use the same cache as above
+    clusters_table = download_aggregate_tables(one, type='clusters')
+    # Map probes to regions (here: Beryl mapping) and filter according to QC, number of units and probes per region
+    region_df = filter_regions(
+        bwm_df['pid'], clusters_table=clusters_table, mapping='Beryl',
+        min_qc=1, min_units_region=params['min_units'], min_probes_region=None, min_sessions_region=params['min_sess_per_reg'])
+    print('completed region_df')
+    # Download the latest trials table and filter for sessions that have at least 200 trials fulfilling BWM criteria
+    trials_table = download_aggregate_tables(one, type='trials',)
+    eids = filter_sessions(bwm_df['eid'], trials_table=trials_table, min_trials=params['min_behav_trials'])
+    
+    # Remove probes and sessions based on those filters
+    bwm_df = bwm_df[bwm_df['pid'].isin(region_df['pid'].unique())]
+    bwm_df = bwm_df[bwm_df['eid'].isin(eids)]
+
+

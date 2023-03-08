@@ -17,4 +17,4 @@ export PYTHONPATH="$PWD":$PYTHONPATH
 
 echo
 # change to conda  => which python
-python 01_imposter_caching.py $SLURM_ARRAY_TASK_ID
+python 02_imposter_caching.py $SLURM_ARRAY_TASK_ID

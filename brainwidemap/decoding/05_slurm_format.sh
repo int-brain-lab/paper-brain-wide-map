@@ -17,4 +17,4 @@ export PYTHONPATH="$PWD":$PYTHONPATH
 
 echo
 # change to conda  => which python
-python  04_format_results.py $SLURM_ARRAY_TASK_ID
+python  05_format_results.py $SLURM_ARRAY_TASK_ID

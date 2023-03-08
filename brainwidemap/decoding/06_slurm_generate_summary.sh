@@ -14,4 +14,4 @@ export PYTHONPATH="$PWD":$PYTHONPATH
 
 echo
 # change to conda  => which python
-python 05_generate_summary_tables.py
+python 06_generate_summary_tables.py

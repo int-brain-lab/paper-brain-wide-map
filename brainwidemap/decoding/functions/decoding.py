@@ -540,8 +540,12 @@ def decode_cv(
             if isinstance(model, sklm.LogisticRegression) and bins_per_trial == 1:
                 print("predicting proba in decoding of logistic regression!")
                 y_pred_probs = model.predict_proba(
-                    np.vstack(X_test) - mean_X_train)[:, 0] + mean_y_train
+                    np.vstack(X_test) - mean_X_train)[:, 1] + mean_y_train
                 print(f"example of proba: {y_pred_probs[0]:.5f}")
+                #print(y_pred_probs[:100], y_pred[:100])
+                #print(np.isclose(y_pred_probs[:100], y_pred[:100]))
+                y_comp_probs = ~(y_pred_probs == 0.5)
+                assert np.all((y_pred_probs[y_comp_probs] > 0.5) == y_pred[y_comp_probs])
             else:
                 print("did not predict proba", estimator, isinstance(model, sklm.LogisticRegression), bins_per_trial)
                 y_pred_probs = None

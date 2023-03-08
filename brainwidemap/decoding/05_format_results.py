@@ -32,7 +32,8 @@ for fn in tqdm(finished):
     tot_index += 1
     if not ((tot_index % N_PARA) == para_index):
         continue
-    try:
+    #try:
+    if True:
         print('file ', fn)
         fo = open(fn, 'rb')
         result = pickle.load(fo)
@@ -41,7 +42,7 @@ for fn in tqdm(finished):
             continue
 
         for i_run in range(len(result['fit'])):
-            if not re.match(".*pseudo_id_-1.*", fn):
+            if not (re.match(".*pseudo_id_-1.*", fn)):# or re.match(".*pseudo_id_1.*", fn)):
                 tmpdict = {
                     **{x: result[x] for x in indexers},
                     'fold': -1,
@@ -106,9 +107,9 @@ for fn in tqdm(finished):
                         'Best_regulCoef': result['fit'][i_run]['best_params'][kfold],
                     }
                     resultslist.append(tmpdict)
-    except EOFError:
-        failed_load += 1
-        pass
+    #except EOFError:
+    #    failed_load += 1
+    #    pass
 print('loading of %i files failed' % failed_load)
 resultsdf = pd.DataFrame(resultslist)
 resultsdf = fix_pd_regions(resultsdf)

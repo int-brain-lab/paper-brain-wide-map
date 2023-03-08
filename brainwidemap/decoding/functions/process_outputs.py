@@ -144,7 +144,7 @@ def check_scores(my_preds, my_targets, score_name, real_scores):
     elif score_name == 'R2_test':
         calc_score = lambda x: r2_score(my_targets_flat, x)
     my_calc_real_scores = [calc_score(p) for p in my_preds_flat]
-    isequal_scores = [my_calc_real_scores[i]==real_scores[i] for i in range(len(real_scores))]
+    isequal_scores = [np.isclose(my_calc_real_scores[i],real_scores[i]) for i in range(len(real_scores))]
     return np.all(np.array(isequal_scores))
 
 
@@ -234,7 +234,7 @@ def create_pdtable_from_raw(res,
             #     assert len(real_scores) >= N_RUN - 1
                 
             else:
-                print('not enough pseudo_ids', len(pids))
+                print('skipping eid ({eid}) and region ({reg}) because only {len(pids)} pseudo_ids are present')
                 continue
             
             ws = list(reseidreg.loc[reseidreg['pseudo_id']==-1, 'weights'])
@@ -252,7 +252,7 @@ def create_pdtable_from_raw(res,
             assert np.all(np.array(n_runs_per_p)==N_RUN)
             p_scores = [np.mean(reseidreg.loc[reseidreg['pseudo_id']==pid,score_name]) for pid in pids]#[1:]
             if np.any(np.isnan(p_scores)):
-                print(f'{eid}, region {reg} has {np.sum(np.isnan(p_scores))} scores which are nan')
+                print(f'skipping eid ({eid}) and region ({reg}) because {np.sum(np.isnan(p_scores))} scores are nan')
                 continue
             
             median_null = np.median(p_scores)
@@ -266,7 +266,7 @@ def create_pdtable_from_raw(res,
                 # load regressors
                 my_regressors = get_val_from_realsession(reseidreg, 'regressors')
                 if my_regressors is None:
-                    print(f'did not find regressors for {eid} {reg}')
+                    print(f'skipping eid ({eid}) and region ({reg}) because regressors are not present')
                     continue
 
                 # load cluster uuids
@@ -274,7 +274,7 @@ def create_pdtable_from_raw(res,
                                                      'cluster_uuids',
                                                      RUN_ID=runid) for runid in range(1,N_RUN+1)]
                 if np.any(np.array([c is None for c in my_cuuids])):
-                    print(f'did not find cluster uuids for {eid} {reg}')
+                    print(f'skipping eid ({eid}) and region ({reg}) becuase cluster uuids are not present')
                     continue
                 assert np.all([np.all(np.array(my_cuuids[0])==np.array(c)) for c in my_cuuids])
                 my_cuuids = my_cuuids[0]
@@ -282,7 +282,7 @@ def create_pdtable_from_raw(res,
                 # load targets
                 my_targets = get_val_from_realsession(reseidreg, 'target')
                 if my_targets is None:
-                    print(f'did not find targets for {eid} {reg}')
+                    print(f'skipping eid ({eid}) and region ({reg}) because targets are not present')
                     continue
                 
                 # load predictions
@@ -293,7 +293,7 @@ def create_pdtable_from_raw(res,
                 assert my_preds.shape[0] == N_RUN
                 
                 if np.any(np.array([mps is None for mps in my_preds])):
-                    print(f'did not find predictions for {eid} {reg}')
+                    print(f'skipping eid ({eid}) and region ({reg}) because predictions are not present')
                     continue
 
                 my_intercepts = np.stack(list(reseidreg.loc[reseidreg['pseudo_id']==-1, 'intercepts']))
@@ -304,7 +304,7 @@ def create_pdtable_from_raw(res,
                                                      'params', 
                                                      RUN_ID=runid) for runid in range(1,N_RUN+1)] 
                 if np.any(np.array([mps is None for mps in my_params])):
-                    print(f'did not find params for {eid} {reg}')
+                    print(f'skipping eid ({eid}) and region ({reg}) because params are not present')
                     continue
                 my_params = [[[(k,mp_fold[k]) for k in mp_fold.keys()] for mp_fold in mp_run] for mp_run in my_params]
                 my_params = np.stack(my_params)
@@ -322,7 +322,7 @@ def create_pdtable_from_raw(res,
                                                      RUN_ID=runid) for runid in range(1,N_RUN+1)] 
                 
                 if np.any(np.array([m is None for m in my_masks])):
-                    print(f'did not find mask for {eid} {reg}')
+                    print(f'skipping eid ({eid}) and region ({reg}) because mask is not present')
                     continue
                 assert np.all(np.array(my_masks)==my_masks[0])
                 #print(type(my_masks[0]), my_masks[0].shape)
@@ -337,15 +337,44 @@ def create_pdtable_from_raw(res,
                 assert np.sum(my_mask) == my_targets.shape[0]
                 if SAVE_REGRESSORS: # TODO, hack for wheel, check why this fails for wheel
                     assert len(my_cuuids) == my_regressors.shape[-1]
-                if np.any(np.array([len(np.unique(my_preds[pi]))==1 for pi in range(my_preds.shape[0])])):
-                    print(f'at least one pred is constant {eid} {reg}')
-                    continue
+                #if np.any(np.array([len(np.unique(my_preds[pi]))==1 for pi in range(my_preds.shape[0])])):
+                    #print(f'at least one pred is constant {eid} {reg}', )
+                    #continue
                 
                 if SCALAR_PER_TRIAL:
-                    if not check_scores(my_preds, 
+                    check_preds = (my_preds > 0.5) if score_name == 'balanced_acc_test' else my_preds
+                    
+                    #print('############# debugging ###################')
+                    #my_preds_flat = [my_preds[pi][:,0]>0.5 for pi in range(my_preds.shape[0])]
+                    #my_targets_flat = my_targets[:,0]
+                    #assert len(my_targets_flat.shape)==1
+                    #assert np.all(np.array([len(p.shape) for p in my_preds_flat])==1)
+
+                    #if score_name == 'balanced_acc_test':
+                    #calc_score = lambda x: balanced_accuracy_score(my_targets_flat, x)
+                    #elif score_name == 'R2_test':
+                    #    calc_score = lambda x: r2_score(my_targets_flat, x)
+                    
+                    #print('shapes')
+                    #print(my_preds_flat[0].shape, my_targets_flat.shape)
+                    #print('errors')
+                    #errs = (my_preds_flat[0] != my_targets_flat)
+                    #print(np.nonzero(errs))
+                    #print(my_preds_flat[0])
+                    #print(real_scores)
+                    
+                    #my_calc_real_scores = [calc_score(p) for p in my_preds_flat]
+                    #print(my_calc_real_scores)
+                    #isequal_scores = [np.isclose(my_calc_real_scores[i],real_scores[i]) for i in range(len(real_scores))]
+                    #print('return', np.all(np.array(isequal_scores)))
+                    
+                    
+                    
+                    if not check_scores(check_preds, 
                                         my_targets, 
                                         score_name, 
                                         real_scores):
+                        #print(my_preds, check_preds, my_targets, real_scores)
                         raise ValueError('recorded scores do not match calculated scores')
                 
             res_table.append([subject,
