@@ -457,14 +457,32 @@ def decode_cv(
             y_train = [ys[i] for i in train_idxs_outer]
             X_test = [Xs[i] for i in test_idxs_outer]
             y_test = [ys[i] for i in test_idxs_outer]
-
+            
             # now loop over inner folds
             idx_inner = np.arange(len(X_train))
-            inner_kfold = KFold(n_splits=n_folds, shuffle=shuffle).split(idx_inner)
+             
+            # produce inner_fold_iter such that logistic regression has at least 2 classes
+            if estimator == sklm.LogisticRegression:
+                # the folds used for training/validating must have enough of each class to
+                #     partition into train-validate fold which each have 2 classes
+                ytrain_uniquecounts = np.unique(y_train, return_counts=True)[0]
+                assert len(ytrain_uniquecounts) == 2 
+                assert np.min(ytrain_uniquecounts) >= n_folds
+            
+                # folds must be chosen such that 2 classes are present in each fold
+                nuniques = [0 for _ in range(n_folds)]
+                while not np.all(np.array(nuniques) == 2):
+                    inner_kfold = KFold(n_splits=n_folds, shuffle=shuffle).split(idx_inner)
+                    inner_fold_iter = [(train_idxs, test_idxs) for _, (train_idxs, test_idxs) in enumerate(inner_kfold)]
+                    nuniques = [len(np.unique(np.concatenate([y_train[i] for i in t_idxs], axis=0))) for t_idxs, _ in inner_fold_iter]
+
+            else:
+                inner_kfold = KFold(n_splits=n_folds, shuffle=shuffle).split(idx_inner)
+                inner_fold_iter = [(train_idxs, test_idxs) for _, (train_idxs, test_idxs) in enumerate(inner_kfold)]
 
             key = list(hyperparam_grid.keys())[0]  # TODO: make this more robust
             r2s = np.zeros([n_folds, len(hyperparam_grid[key])])
-            for ifold, (train_idxs_inner, test_idxs_inner) in enumerate(inner_kfold):
+            for ifold, (train_idxs_inner, test_idxs_inner) in enumerate(inner_fold_iter):
 
                 # inner fold data split
                 X_train_inner = np.vstack([X_train[i] for i in train_idxs_inner])

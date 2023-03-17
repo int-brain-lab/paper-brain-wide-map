@@ -16,7 +16,7 @@ RESULTS_DIR = Path("/scratch/users/bensonb/international-brain-lab/paper-brain-w
 SLURM_DIR = Path("/scratch/users/bensonb/international-brain-lab/paper-brain-wide-map/brainwidemap/logs/slurm")
 # Directory where slurm output and error files will be saved
 
-DATE = '30-11-2022'
+DATE = '09-03-2023'
 # Either current date for a fresh run, or date of the run you want to build on
 # Date must be different if you do different runs of the same target
 # e.g. signcont side with LogisticRegression vs signcont with Lasso
@@ -95,8 +95,9 @@ elif TARGET in ['wheel-vel', 'wheel-speed', 'l-whisker-me', 'r-whisker-me']:
 # DECODER PARAMS
 ESTIMATOR = lm.LogisticRegression
 # A scikit learn linear_model class: LinearRegression, Lasso (linear + L1), Ridge (linear + L2) or LogisticRegression
-ESTIMATOR_KWARGS = {'tol': 0.0001, 'max_iter': 20000, 'fit_intercept': True}  # default args for decoder
+ESTIMATOR_KWARGS = {'tol': 0.001, 'max_iter': 1000, 'fit_intercept': True}  # default args for decoder
 if ESTIMATOR == lm.LogisticRegression:
+    ESTIMATOR_KWARGS = {**ESTIMATOR_KWARGS, 'penalty': 'l1', 'solver': 'liblinear'}
     HPARAM_GRID = {'C': np.array([0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 10])}  # hyperparameter values to search over
 else:
     HPARAM_GRID = {'alpha': np.array([0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 10])}
@@ -109,12 +110,12 @@ BALANCED_WEIGHT = True  # seems to work better with BALANCED_WEIGHT=False, but p
 BALANCED_CONTINUOUS_TARGET = False  # is target continuous or discrete FOR BALANCED WEIGHTING
 
 # CLUSTER/UNIT PARAMS
-MIN_UNITS = 10  # regions with units below this threshold are skipped
+MIN_UNITS = 1  # regions with units below this threshold are skipped
 SINGLE_REGION = True  # perform decoding on region-wise or whole-brain decoding
 MERGED_PROBES = True  # merge probes before performing analysis
 
 # SESSION/BEHAVIOR PARAMS
-MIN_BEHAV_TRIAS = 200  # minimum number of behavioral trials completed in one session, that fulfill below criteria
+MIN_BEHAV_TRIAS = 1  # minimum number of behavioral trials completed in one session, that fulfill below criteria
 MIN_RT = 0.08  # remove trials with reaction times above/below these values (seconds), if None, don't apply
 MAX_RT = 2.0
 MIN_LEN = None  # remove trials with length (feedback_time-goCue_time) above/below these value, if None, don't apply
@@ -131,7 +132,7 @@ SAVE_PREDICTIONS = True  # save model predictions in output file
 SAVE_PREDICTIONS_PSEUDO = False  # save model predictions in output file from pseudo/imposter/synthetic sessions
 SAVE_BINNED = True  # save binned neural predictors in output file for non-null fits (causes large files)
 EXCLUDE_TRIALS_WITHIN_VALUES = (-0.01, 0.01) # Applies mask equally to target and control, only works for scalars
-MIN_SESS_PER_REG = 2
+MIN_SESS_PER_REG = 1
 
 """
 ----------

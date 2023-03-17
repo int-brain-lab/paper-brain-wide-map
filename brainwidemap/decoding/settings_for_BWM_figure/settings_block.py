@@ -16,7 +16,7 @@ RESULTS_DIR = Path("/scratch/users/bensonb/international-brain-lab/paper-brain-w
 SLURM_DIR = Path("/scratch/users/bensonb/international-brain-lab/paper-brain-wide-map/brainwidemap/logs/slurm")
 # Directory where slurm output and error files will be saved
 
-DATE = '01-18-2023'
+DATE = '09-03-2023'
 # Either current date for a fresh run, or date of the run you want to build on
 # Date must be different if you do different runs of the same target
 # e.g. signcont side with LogisticRegression vs signcont with Lasso
@@ -106,33 +106,39 @@ N_PSEUDO_PER_JOB = 100  # number of pseudo/imposter sessions to assign per clust
 N_JOBS_PER_SESSION = N_PSEUDO // N_PSEUDO_PER_JOB  # number of cluster jobs to run per session
 N_RUNS = 10  # number of times to repeat full nested xv with different folds
 SHUFFLE = True  # true for interleaved xv, false for contiguous
+QUASI_RANDOM = False  # if True, decoding is launched in a quasi-random, reproducible way => it sets the seed
 BALANCED_WEIGHT = True  # seems to work better with BALANCED_WEIGHT=False, but putting True is important
 BALANCED_CONTINUOUS_TARGET = False  # is target continuous or discrete FOR BALANCED WEIGHTING
 
 # CLUSTER/UNIT PARAMS
-MIN_UNITS = 10  # regions with units below this threshold are skipped
+MIN_UNITS = 1  # regions with units below this threshold are skipped
 SINGLE_REGION = True  # perform decoding on region-wise or whole-brain decoding
 MERGED_PROBES = True  # merge probes before performing analysis
 
 # SESSION/BEHAVIOR PARAMS
-MIN_BEHAV_TRIAS = 200  # minimum number of behavioral trials completed in one session, that fulfill below criteria
+MIN_BEHAV_TRIAS = 1  # minimum number of behavioral trials completed in one session, that fulfill below criteria
 MIN_RT = 0.08  # remove trials with reaction times above/below these values (seconds), if None, don't apply
 MAX_RT = 2.0
 MIN_LEN = None  # remove trials with length (feedback_time-goCue_time) above/below these value, if None, don't apply
 MAX_LEN = None
 
 # NULL DISTRIBUTION PARAMS
+IMPOSTER_GENERATE_FROM_EPHYS = True  # True to just use ephys sessions, False to use training sessions (more templates)
+CONSTRAIN_NULL_SESSION_WITH_BEH = False  # TODO
 STITCHING_FOR_IMPOSTER_SESSION = True  # If true, stitches sessions to create imposters
+USE_IMPOSTER_SESSION_FOR_BALANCING = False  # Not currently implemented, so it will be forced to be False
+FILTER_PSEUDOSESSIONS_ON_MUTUALINFORMATION = False  # TODO
 MAX_NUMBER_TRIALS_WHEN_NO_STITCHING_FOR_IMPOSTER_SESSION = 700
 # Constrain the number of trials per session to have more potential imposter sessions to use in the null distribution
 
 # MISC PARAMS
 USE_OPENTURNS = False  # uses openturns to perform kernel density estimation
+BIN_SIZE_KDE = 0.05
 SAVE_PREDICTIONS = True  # save model predictions in output file
 SAVE_PREDICTIONS_PSEUDO = False  # save model predictions in output file from pseudo/imposter/synthetic sessions
 SAVE_BINNED = True  # save binned neural predictors in output file for non-null fits (causes large files)
 EXCLUDE_TRIALS_WITHIN_VALUES = (None, None) # Applies mask equally to target and control, only works for scalars
-MIN_SESS_PER_REG = 2
+MIN_SESS_PER_REG = 1
 
 """
 ----------
@@ -145,7 +151,7 @@ if TARGET not in target_options:
     raise NotImplementedError(f"Provided target option '{TARGET}' invalid; must be in {target_options}")
 
 if BINARIZATION_VALUE and TANH_TRANSFORM:
-    raise ValueError("Binarization can be done without tanh_transform; do not choose both")
+   raise ValueError("Binarization can be done without tanh_transform; do not choose both")
 
 modeldispatcher = {
     expSmoothing_prevAction: expSmoothing_prevAction.name,
@@ -178,7 +184,7 @@ if not SINGLE_REGION and not MERGED_PROBES:
 ADD_TO_SAVING_PATH = (
         f'imposterSess_{int(USE_IMPOSTER_SESSION)}_balancedWeight_{int(BALANCED_WEIGHT)}_'
         f'RegionLevel_{int(SINGLE_REGION)}_mergedProbes_{int(MERGED_PROBES)}_behMouseLevelTraining_'
-        f'{int(BEH_MOUSELEVEL_TRAINING)}_constrainNullSess_0'
+        f'{int(BEH_MOUSELEVEL_TRAINING)}_constrainNullSess_{int(CONSTRAIN_NULL_SESSION_WITH_BEH)}'
 )
 
 """
@@ -209,6 +215,7 @@ params = {
     'n_pseudo_per_job': N_PSEUDO_PER_JOB,
     'n_runs': N_RUNS,
     'shuffle': SHUFFLE,
+    'quasi_random': QUASI_RANDOM,
     'balanced_weight': BALANCED_WEIGHT,
     'balanced_continuous_target': BALANCED_CONTINUOUS_TARGET,
     # CLUSTER/UNIT
@@ -225,11 +232,16 @@ params = {
     'exclude_trials_within_values': EXCLUDE_TRIALS_WITHIN_VALUES,
     # NULL DISTRIBUTION
     'use_imposter_session': USE_IMPOSTER_SESSION,
+    'imposter_generate_from_ephys': IMPOSTER_GENERATE_FROM_EPHYS,
+    'constrain_null_session_with_beh': CONSTRAIN_NULL_SESSION_WITH_BEH,
     'stitching_for_imposter_session': STITCHING_FOR_IMPOSTER_SESSION,
+    'use_imposter_session_for_balancing': False,
+    'filter_pseudosessions_on_mutualInformation': FILTER_PSEUDOSESSIONS_ON_MUTUALINFORMATION,
     'max_number_trials_when_no_stitching_for_imposter_session':
         MAX_NUMBER_TRIALS_WHEN_NO_STITCHING_FOR_IMPOSTER_SESSION,
     # MISC
     'use_openturns': USE_OPENTURNS,
+    'bin_size_kde': BIN_SIZE_KDE,
     'save_predictions': SAVE_PREDICTIONS,
     'save_predictions_pseudo': SAVE_PREDICTIONS_PSEUDO,
     'save_binned': SAVE_BINNED,
