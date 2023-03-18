@@ -234,7 +234,7 @@ def create_pdtable_from_raw(res,
             #     assert len(real_scores) >= N_RUN - 1
                 
             else:
-                print('skipping eid ({eid}) and region ({reg}) because only {len(pids)} pseudo_ids are present')
+                print(f'skipping eid ({eid}) and region ({reg}) because only {len(pids)} pseudo_ids are present')
                 continue
             
             ws = list(reseidreg.loc[reseidreg['pseudo_id']==-1, 'weights'])
