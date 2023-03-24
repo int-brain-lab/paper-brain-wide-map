@@ -282,6 +282,9 @@ def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo
                     balanced_weight=kwargs['balanced_weight'],
                     rng_seed=rng_seed,
                 )
+                if fit_result is None:
+                    print(f'decoding could not be done for region {region}, i_run {i_run}, and pseudo_id {pseudo_id}')
+                    continue
                 fit_result['mask'] = mask
                 fit_result['mask_trials_and_targets'] = [trials_mask, target_mask]
                 fit_result['mask_diagnostics'] = kwargs['trials_mask_diagnostics']
@@ -307,6 +310,20 @@ def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo
     print(f'Finished eid: {metadata["eid"]}')
 
     return filenames
+
+def sample_folds(ys, get_kfold, isfoldsat, max_iter=100):
+    sample_count = 0
+    ysatisfy = [False]
+    while not np.all(np.array(ysatisfy)):
+        if sample_count >= max_iter:
+            assert False
+        sample_count += 1
+        out_kfold = get_kfold()                                            
+        fold_iter = [(train_idxs, test_idxs) for _, (train_idxs, test_idxs) in enumerate(out_kfold)]
+        ysatisfy = [isfoldsat(np.concatenate([ys[i] for i in t_idxs], axis=0)) for t_idxs, _ in fold_iter]
+        
+    return sample_count, out_kfold, fold_iter
+
 
 
 def decode_cv(
@@ -430,11 +447,35 @@ def decode_cv(
     # when shuffle=False, the method will take the end of the dataset to create the test set
     if rng_seed is not None:
         np.random.seed(rng_seed)
+    # create indicies to loop over
     indices = np.arange(n_trials)
     if outer_cv:
-        outer_kfold = KFold(n_splits=n_folds, shuffle=shuffle).split(indices)
+        # create kfold function to loop over
+        get_kfold = lambda : KFold(n_splits=n_folds, shuffle=shuffle).split(indices)
+
+        if estimator == sklm.LogisticRegression:
+            
+            # target must have 2 classes and at least 3 of each class to allow 
+            #    for at least 2 classes in each of the train and validate sub-folds 
+            y_uniquecounts = np.unique(ys, return_counts=True)[1]
+            if not (len(y_uniquecounts)==2 and np.min(y_uniquecounts)>=3):
+                print('failed outer fold, target unique counts:', y_uniquecounts)
+                return None
+                #assert False
+        
+            # folds must be chosen such that 2 classes are present in each fold
+            isysat = lambda ys: len(np.unique(ys))==2 and np.min(np.unique(ys ,return_counts=True)[1])>=2
+            sample_count, _, outer_fold_iter = sample_folds(ys, get_kfold, isysat)
+            if sample_count > 1:
+                print(f'sampled outer folds {sample_count} times to ensure enough targets')
+
+        else:
+            outer_fold_iter = [(train_idxs, test_idxs) for _, (train_idxs, test_idxs) in enumerate(get_kfold())]
+
+
     else:
         outer_kfold = iter([train_test_split(indices, test_size=test_prop, shuffle=shuffle)])
+        outer_fold_iter = [(train_idxs, test_idxs) for _, (train_idxs, test_idxs) in enumerate(outer_kfold)]
 
     # scoring function; use R2 for linear regression, accuracy for logistic regression
     scoring_f = balanced_accuracy_score if (estimator == sklm.LogisticRegression) else r2_score
@@ -447,7 +488,7 @@ def decode_cv(
         raise NotImplementedError('the code does not support a CV-type estimator for the moment.')
     else:
         # loop over outer folds
-        for train_idxs_outer, test_idxs_outer in outer_kfold:
+        for train_idxs_outer, test_idxs_outer in outer_fold_iter:
             # outer fold data split
             # X_train = np.vstack([Xs[i] for i in train_idxs])
             # y_train = np.concatenate([ys[i] for i in train_idxs], axis=0)
@@ -458,28 +499,54 @@ def decode_cv(
             X_test = [Xs[i] for i in test_idxs_outer]
             y_test = [ys[i] for i in test_idxs_outer]
             
-            # now loop over inner folds
+            # create indicies and kfold function to loop over inner folds
             idx_inner = np.arange(len(X_train))
-             
+            get_kfold = lambda : KFold(n_splits=n_folds, shuffle=shuffle).split(idx_inner) 
+            
             # produce inner_fold_iter such that logistic regression has at least 2 classes
             if estimator == sklm.LogisticRegression:
+
+                #    for at least 2 classes in each	of the train and validate sub-folds
+                y_uniquecounts = np.unique(y_train, return_counts=True)[1]
+                if not (len(y_uniquecounts)==2 and np.min(y_uniquecounts)>=2):
+                    print('failed inner fold, target unique counts:', y_uniquecounts)
+                    assert False
+
+                # folds must be chosen such that 2 classes are present in each fold
+                isysat = lambda ys: len(np.unique(ys))==2 and np.min(np.unique(ys ,return_counts=True)[1])>=1
+                sample_count, _, inner_fold_iter = sample_folds(y_train, get_kfold, isysat)
+                if sample_count > 1:
+                    print(f'sampled inner folds {sample_count} times to ensure enough targets')
+
+                # old code
+                
                 # the folds used for training/validating must have enough of each class to
                 #     partition into train-validate fold which each have 2 classes
-                ytrain_uniquecounts = np.unique(y_train, return_counts=True)[0]
-                assert len(ytrain_uniquecounts) == 2 
-                assert np.min(ytrain_uniquecounts) >= n_folds
+                #ytrain_uniquecounts = np.unique(y_train, return_counts=True)[1]
+                #assert len(ytrain_uniquecounts) == 2 
+                #if np.min(ytrain_uniquecounts) < 2:
+                #    print('failed target unique counts:', np.unique(ys, return_counts=True)[1])
+                #    assert False
+                    
             
                 # folds must be chosen such that 2 classes are present in each fold
-                nuniques = [0 for _ in range(n_folds)]
-                while not np.all(np.array(nuniques) == 2):
-                    inner_kfold = KFold(n_splits=n_folds, shuffle=shuffle).split(idx_inner)
-                    inner_fold_iter = [(train_idxs, test_idxs) for _, (train_idxs, test_idxs) in enumerate(inner_kfold)]
-                    nuniques = [len(np.unique(np.concatenate([y_train[i] for i in t_idxs], axis=0))) for t_idxs, _ in inner_fold_iter]
-
+                #sample_count = 0
+                #nuniques = [0 for _ in range(n_folds)]
+                #while not np.all(np.array(nuniques) == 2):
+                #    sample_count += 1
+                #    inner_kfold = KFold(n_splits=n_folds, shuffle=shuffle).split(idx_inner)
+                #    inner_fold_iter = [(train_idxs, test_idxs) for _, (train_idxs, test_idxs) in enumerate(inner_kfold)]
+                #    nuniques = [len(np.unique(np.concatenate([y_train[i] for i in t_idxs], axis=0))) for t_idxs, _ in inner_fold_iter]
+                #if sample_count > 1:
+                #    print(f'sampled inner folds {sample_count} times to ensure enough targets')
+               
             else:
-                inner_kfold = KFold(n_splits=n_folds, shuffle=shuffle).split(idx_inner)
-                inner_fold_iter = [(train_idxs, test_idxs) for _, (train_idxs, test_idxs) in enumerate(inner_kfold)]
+                inner_fold_iter = [(train_idxs, test_idxs) for _, (train_idxs, test_idxs) in enumerate(get_kfold())]
 
+                #old code
+                #inner_kfold = KFold(n_splits=n_folds, shuffle=shuffle).split(idx_inner)
+                #inner_fold_iter = [(train_idxs, test_idxs) for _, (train_idxs, test_idxs) in enumerate(inner_kfold)]
+            
             key = list(hyperparam_grid.keys())[0]  # TODO: make this more robust
             r2s = np.zeros([n_folds, len(hyperparam_grid[key])])
             for ifold, (train_idxs_inner, test_idxs_inner) in enumerate(inner_fold_iter):

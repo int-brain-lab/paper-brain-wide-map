@@ -1,13 +1,13 @@
 #!/bin/bash
 #SBATCH --job-name=decoding
-#SBATCH --output=/scratch/users/bensonb/international-brain-lab/paper-brain-wide-map/brainwidemap/logs/slurm/dw_bwmmar_09_4_.%a.out
-#SBATCH --error=/scratch/users/bensonb/international-brain-lab/paper-brain-wide-map/brainwidemap/logs/slurm/dw_bwmmar_09_4_.%a.err
+#SBATCH --output=/scratch/users/bensonb/international-brain-lab/paper-brain-wide-map/brainwidemap/logs/slurm/df_bwmmar_09_6_.%a.out
+#SBATCH --error=/scratch/users/bensonb/international-brain-lab/paper-brain-wide-map/brainwidemap/logs/slurm/df_bwmmar_09_6_.%a.err
 #SBATCH --partition=normal
-#SBATCH --array=2714-2714
+#SBATCH --array=1001-1100
 #SBATCH --mem=16G
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=bensonb@stanford.edu
-#SBATCH --time=48:00:00
+#SBATCH --time=24:00:00
 
 #extracting settings from $SLURM_ARRAY_TASK_ID
 echo slurm_task $SLURM_ARRAY_TASK_ID
