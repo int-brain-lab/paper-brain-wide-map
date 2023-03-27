@@ -150,6 +150,9 @@ if __name__ == "__main__":
 
     subject, eid, probes, metafn, eidfn = dataset_fns.loc[args.index]
 
+    if "seed" in params:
+        np.random.seed(params["seed"])
+
     outputfn = fit_save_inputs(
         subject,
         eid,
