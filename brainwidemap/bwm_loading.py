@@ -500,7 +500,8 @@ def bwm_units(one=None, freeze='2022_10_bwm_release', rt_range=(0.08, 0.2), min_
     Returns
     -------
     unit_df: pandas.DataFrame
-        Dataframe with units that pass the current BWM inclusion criteria, columns ['cluster_uuid', 'eid', 'pid']
+        Dataframe with units that pass the current BWM inclusion criteria,
+        columns ['cluster_uuid', 'cluster_id', 'pid', 'eid']
     """
 
     # Get sessions and probes
@@ -526,7 +527,7 @@ def bwm_units(one=None, freeze='2022_10_bwm_release', rt_range=(0.08, 0.2), min_
     unit_df = pd.read_parquet(clusters_table)
     unit_df = unit_df[unit_df['pid'].isin(bwm_df['pid'])]
     unit_df = unit_df[unit_df['label'] >= min_qc]
-    unit_df = unit_df[['uuids', 'pid', 'eid']].rename(columns={'uuids': 'cluster_uuid'})
+    unit_df = unit_df[['uuids', 'cluster_id', 'pid', 'eid']].rename(columns={'uuids': 'cluster_uuid'})
 
     return unit_df
 
