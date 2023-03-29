@@ -400,22 +400,21 @@ def filter_regions(pids, clusters_table=None, one=None, mapping='Beryl',
         n_sessions=pd.NamedAgg(column='eid', aggfunc='nunique')
     )
 
+    if min_units_region:
+        regions_count = regions_count[regions_count['n_units'] >= min_units_region]
+    if min_probes_region:
+        regions_count = regions_count[regions_count['n_probes'] >= min_probes_region]
+    if min_sessions_region:
+        regions_count = regions_count[regions_count['n_sessions'] >= min_sessions_region]
+
     # Reset index
     regions_count.reset_index(inplace=True)
-
-    clus_df = pd.merge(clus_df, regions_count, how='left', on=f'{mapping}')
-    if min_units_region:
-        clus_df = clus_df[clus_df.eval(f'n_units >= {min_units_region}')]
-    if min_probes_region:
-        clus_df = clus_df[clus_df.eval(f'n_probes >= {min_probes_region}')]
-    if min_sessions_region:
-        clus_df = clus_df[clus_df.eval(f'n_sessions >= {min_sessions_region}')]
-
+    clus_df = pd.merge(regions_count, clus_df, how='left', on=f'{mapping}')
     regions_df = clus_df.filter([f'{mapping}', 'pid', 'n_units', 'n_probes', 'n_sessions'])
     regions_df.drop_duplicates(inplace=True)
     regions_df.reset_index(inplace=True, drop=True)
 
-    return regions_df
+    return regions_df, clus_df
 
 
 def filter_sessions(eids, trials_table=None, one=None, bwm_include=True, min_errors=3, min_trials=None):
@@ -501,7 +500,7 @@ def bwm_units(one=None, freeze='2022_10_bwm_release', rt_range=(0.08, 0.2), min_
     -------
     unit_df: pandas.DataFrame
         Dataframe with units that pass the current BWM inclusion criteria,
-        columns ['cluster_uuid', 'cluster_id', 'pid', 'eid']
+        columns ['cluster_uuid', 'cluster_id', 'atlas_id', 'pid', 'eid']
     """
 
     # Get sessions and probes
@@ -518,16 +517,9 @@ def bwm_units(one=None, freeze='2022_10_bwm_release', rt_range=(0.08, 0.2), min_
 
     # Filter clusters on min_qc, min_units_region and min_sessions_region
     clusters_table = download_aggregate_tables(one, type='clusters')
-    region_df = filter_regions(bwm_df['pid'], clusters_table=clusters_table, mapping='Beryl', min_qc=min_qc,
-                               min_units_region=min_units_region, min_sessions_region=min_sessions_region)
-    bwm_df = bwm_df[bwm_df['pid'].isin(region_df['pid'].unique())]
-
-    # From the clusters table only keep that clusters for which sessions / probes survived the above and that
-    # fulfill min_qc
-    unit_df = pd.read_parquet(clusters_table)
-    unit_df = unit_df[unit_df['pid'].isin(bwm_df['pid'])]
-    unit_df = unit_df[unit_df['label'] >= min_qc]
-    unit_df = unit_df[['uuids', 'cluster_id', 'pid', 'eid']].rename(columns={'uuids': 'cluster_uuid'})
+    _, unit_df = filter_regions(bwm_df['pid'], clusters_table=clusters_table, mapping='Beryl', min_qc=min_qc,
+                                min_units_region=min_units_region, min_sessions_region=min_sessions_region)
+    unit_df = unit_df[['uuids', 'cluster_id', 'atlas_id', 'pid', 'eid']].rename(columns={'uuids': 'cluster_uuid'})
 
     return unit_df
 
