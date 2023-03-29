@@ -325,16 +325,14 @@ def download_aggregate_tables(one, target_path=None, type='clusters', tag='2022_
     return agg_path
 
 
-def filter_regions(pids, clusters_table=None, one=None, mapping='Beryl',
-                   min_qc=1., min_units_region=10, min_sessions_region=2, min_probes_region=None):
+def filter_units_region(eids, clusters_table=None, one=None, mapping='Beryl', min_qc=1., min_units_sessions=(10, 2)):
     """
-    Maps probes to regions and filters to retain only probe-regions pairs that satisfy certain criteria.
+    Filter to retain only units that satisfy certain region based criteria.
 
     Parameters
     ----------
-    pids: list or pandas.Series
-        Probe insertion ids to map to regions. Typically, the 'pid' column of the bwm_df returned by bwm_query.
-        Note that these pids must be represented in clusters_table to be considered for the filter.
+    eids: list or pandas.Series
+        List of session UUIDs to include at start.
     clusters_table: str or pathlib.Path
         Absolute path to clusters table to be used for filtering. If None, requires to provide one.api.ONE instance
         to download the latest version.
@@ -345,15 +343,10 @@ def filter_regions(pids, clusters_table=None, one=None, mapping='Beryl',
     min_qc: float or None
         Minimum QC label for a spike sorted unit to be retained.
         Default is 1. If None, criterion is not applied.
-    min_units_region: int or None
-        Minimum number of units per region for a region to be retained.
-        Default is 10. If None, criterion is not applied
-    min_sessions_region: int or None
-        Minimum number of sessions per region for a region to be retained. Mutually exclusive with min_probes_region.
-        Default is 2. If None, criterion is not applied
-    min_probes_region: int or None
-        Minimum number of probes per region for a region to be retained. Mutually exclusive with min_sessions_region.
-        Default is None, i.e. not applied
+    min_units_sessions: tuple or None
+        If tuple, the first entry is the minimum of units per session per region for a session to be retained, the
+        second entry is the minimum number of those sessions per region for a region to be retained.
+        Default is (10, 2). If None, criterion is not applied
 
     Returns
     -------
@@ -361,12 +354,8 @@ def filter_regions(pids, clusters_table=None, one=None, mapping='Beryl',
         Dataframe of unique region-probe pairs, with columns ['{mapping}', 'pid', 'n_units', 'n_probes', 'n_sessions']
     """
 
-    if not any([min_qc, min_units_region, min_probes_region, min_sessions_region]):
+    if not any([min_qc, min_units_sessions]):
         print('No criteria selected. Aborting.')
-        return
-
-    if all([min_probes_region, min_sessions_region]):
-        print('Only one of min_probes_region and min_session_region can be applied, the other must be None.')
         return
 
     if clusters_table is None:
@@ -379,10 +368,10 @@ def filter_regions(pids, clusters_table=None, one=None, mapping='Beryl',
     clus_df = pd.read_parquet(clusters_table)
 
     # Only consider given pids
-    clus_df = clus_df.loc[clus_df['pid'].isin(pids)]
-    diff = set(pids).difference(set(clus_df['pid']))
+    clus_df = clus_df.loc[clus_df['eid'].isin(eids)]
+    diff = set(eids).difference(set(clus_df['eid']))
     if len(diff) != 0:
-        print('WARNING: Not all pids in bwm_df are found in cluster table.')
+        print('WARNING: Not all eids in bwm_df are found in cluster table.')
 
     # Only consider units that pass min_qc
     if min_qc:
@@ -393,28 +382,28 @@ def filter_regions(pids, clusters_table=None, one=None, mapping='Beryl',
     clus_df[f'{mapping}'] = br.id2acronym(clus_df['atlas_id'], mapping=f'{mapping}')
     clus_df = clus_df.loc[~clus_df[f'{mapping}'].isin(['void', 'root'])]
 
-    # Count units, probes and sessions per region
-    regions_count = clus_df.groupby(f'{mapping}').aggregate(
-        n_probes=pd.NamedAgg(column='pid', aggfunc='nunique'),
-        n_units=pd.NamedAgg(column='cluster_id', aggfunc='count'),
-        n_sessions=pd.NamedAgg(column='eid', aggfunc='nunique')
-    )
+    # Group by regions and filter for sessions per region
+    if min_units_sessions:
+        units_count = clus_df.groupby([f'{mapping}', 'eid']).aggregate(
+            n_units=pd.NamedAgg(column='cluster_id', aggfunc='count'),
+        )
+        # Only keep sessions with at least min_units_sessions[0] units
+        units_count = units_count[units_count['n_units'] >= min_units_sessions[0]]
+        # Only keep regions with at least min_units_sessions[1] sessions left
+        units_count = units_count.reset_index(level=['eid'])
+        sessions_count = units_count.groupby([f'{mapping}']).aggregate(
+            n_sessions=pd.NamedAgg(column='eid', aggfunc='count'),
+        )
+        sessions_count = sessions_count[sessions_count['n_sessions'] >= min_units_sessions[1]]
+        # Merge back to get the eids and clusters
+        region_session_df = pd.merge(sessions_count, units_count, on=f'{mapping}', how='left')
+        region_session_df = region_session_df.reset_index(level=[f'{mapping}'])
+        clus_df = pd.merge(region_session_df, clus_df, on=['eid', f'{mapping}'], how='left')
 
-    if min_units_region:
-        regions_count = regions_count[regions_count['n_units'] >= min_units_region]
-    if min_probes_region:
-        regions_count = regions_count[regions_count['n_probes'] >= min_probes_region]
-    if min_sessions_region:
-        regions_count = regions_count[regions_count['n_sessions'] >= min_sessions_region]
+    # Reset index
+    clus_df.reset_index(inplace=True, drop=True)
 
-    # Reset index and merge
-    regions_count.reset_index(inplace=True)
-    filtered_clus_df = pd.merge(regions_count, clus_df, how='left', on=f'{mapping}')
-    regions_df = filtered_clus_df.filter([f'{mapping}', 'pid', 'n_units', 'n_probes', 'n_sessions'])
-    regions_df.drop_duplicates(inplace=True)
-    regions_df.reset_index(inplace=True, drop=True)
-
-    return regions_df, filtered_clus_df
+    return clus_df
 
 
 def filter_sessions(eids, trials_table=None, one=None, bwm_include=True, min_errors=3, min_trials=None):
@@ -474,7 +463,7 @@ def filter_sessions(eids, trials_table=None, one=None, bwm_include=True, min_err
 
 
 def bwm_units(one=None, freeze='2022_10_bwm_release', rt_range=(0.08, 0.2), min_errors=3,
-              min_qc=1., min_units_region=10, min_sessions_region=2):
+              min_qc=1., min_units_sessions=(10, 2)):
     """
     Creates a dataframe with units that pass the current BWM inclusion criteria.
 
@@ -513,13 +502,12 @@ def bwm_units(one=None, freeze='2022_10_bwm_release', rt_range=(0.08, 0.2), min_
         raise NotImplementedError("Currently this function is only implemented for the default reaction time range of"
                                   "0.08 to 0.2 seconds. Please talk to a developer if you need to change this. ")
     eids = filter_sessions(bwm_df['eid'], trials_table=trials_table, bwm_include=True, min_errors=min_errors)
-    bwm_df = bwm_df[bwm_df['eid'].isin(eids)]
 
     # Filter clusters on min_qc, min_units_region and min_sessions_region
     clusters_table = download_aggregate_tables(one, type='clusters')
-    _, unit_df = filter_regions(bwm_df['pid'], clusters_table=clusters_table, mapping='Beryl', min_qc=min_qc,
-                                min_units_region=min_units_region, min_sessions_region=min_sessions_region)
-    unit_df = unit_df[['uuids', 'cluster_id', 'atlas_id', 'pid', 'eid']].rename(columns={'uuids': 'cluster_uuid'})
+    unit_df = filter_units_region(eids, clusters_table=clusters_table, mapping='Beryl', min_qc=min_qc,
+                                  min_units_sessions=min_units_sessions)
+    # unit_df = unit_df[['uuids', 'cluster_id', 'atlas_id', 'pid', 'eid']].rename(columns={'uuids': 'cluster_uuid'})
 
     return unit_df
 
