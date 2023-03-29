@@ -1,10 +1,11 @@
 from one.api import ONE
 from reproducible_ephys_processing import bin_spikes2D
-from brainwidemap import bwm_query, load_good_units, load_trials_and_mask
+from brainwidemap import (bwm_query, load_good_units, 
+                          load_trials_and_mask, bwm_units)
 from ibllib.atlas import AllenAtlas
 from ibllib.atlas.regions import BrainRegions
 import ibllib
-from ibllib.atlas.flatmaps import plot_swanson, plot_swanson_vector 
+from ibllib.atlas.flatmaps import plot_swanson_vector 
 
 from scipy import signal
 import pandas as pd
@@ -29,7 +30,6 @@ import seaborn as sns
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.colors import ListedColormap, LinearSegmentedColormap   
 from matplotlib.gridspec import GridSpec   
-
 
 
 '''
@@ -77,17 +77,21 @@ one = ONE(base_url='https://openalyx.internationalbrainlab.org',
           password='international', silent=True)
 ba = AllenAtlas()
 br = BrainRegions()
+units_df = bwm_units(one)  # canonical set of cells
+
 
 # save results here
 pth_res = Path(one.cache_dir, 'manifold', 'res')
 pth_res.mkdir(parents=True, exist_ok=True)
 
 
-def pre_post(split):
+def pre_post(split, can=False):
     '''
     [pre_time, post_time] relative to alignment event
     split could be contr or restr variant, then
     use base window
+    
+    ca: If true, use canonical time windows
     '''
 
     pre_post0 = {'stim': [0, 0.15],
@@ -95,10 +99,19 @@ def pre_post(split):
                  'fback': [0, 0.7],
                  'block': [0.4, -0.1]}
 
+    # canonical windows
+    pre_post_can =  {'stim': [0, 0.1],
+                     'choice': [0.1, 0],
+                     'fback': [0, 0.2],
+                     'block': [0.4, -0.1]}
+
+    pp = pre_post_can if can else pre_post0
+
     if '_' in split:
-        return pre_post0[split.split('_')[0]]
+        return pp[split.split('_')[0]]
     else:
-        return pre_post0[split]
+        return pp[split]
+
 
 def grad(c, nobs, fr=1):
     '''
@@ -169,25 +182,8 @@ def get_name(brainregion):
     return br.name[np.argwhere(br.id == regid)[0, 0]]
 
 
-def get_restricted_cells(split, pid):
-    '''
-    for a given insertion (pid) and a given split
-    get cell ids that were used in Brandon's decoding
-
-    Files converted via meta_bwm.py
-    '''
-
-    s1 = pd.read_csv('/home/mic/paper-brain-wide-map/meta/'
-                     f'per_cell/decoding/{split}_weights.csv')
-    
-    # load sig cells, then feed as restr
-    u = s1[s1['pid'] == pid]
-
-    return u['cluster_id'].values
-
-
 def get_d_vars(split, pid, mapping='Beryl', control=True, get_fr=False,
-               nrand=1000, contr=None, restr=False, shuf=False):
+               nrand=1000, contr=None, restr=False):
     '''
     for a given variable and insertion,
     cut neural data into trials, bin the activity,
@@ -201,7 +197,6 @@ def get_d_vars(split, pid, mapping='Beryl', control=True, get_fr=False,
     control: if nrand randomized trials are averaged
     contr: contrast as a float, only for split = choice
     restr: restrict cells to those from other analysis (decoding)
-    shuf: if True, load random sample of cells
     get_fr: get firing rates only
 
     returns:
@@ -279,11 +274,39 @@ def get_d_vars(split, pid, mapping='Beryl', control=True, get_fr=False,
             events.append(trials['stimOn_times'][np.bitwise_and.reduce(
                 [mask, ~np.isnan(trials[f'contrast{side}']),
                 trials['choice'] == -1])])
+                
             trn.append(
                 np.arange(len(trials['stimOn_times']))[
                     np.bitwise_and.reduce([
                         mask, ~np.isnan(trials[f'contrast{side}']),
                         trials['choice'] == -1])])
+
+    elif split == 'choice_sl':  
+        for choice in [1, -1]:            
+            events.append(trials['firstMovement_times'][
+                    np.bitwise_and.reduce(
+                        [mask, trials['choice'] == choice,
+                        ~np.isnan(trials[f'contrastRight'])])])
+                        
+            trn.append(
+                    np.arange(len(trials['choice']))
+                    [np.bitwise_and.reduce(
+                    [mask, trials['choice'] == choice,
+                    ~np.isnan(trials[f'contrastRight'])])])
+                
+    elif split == 'choice_sr':  
+        for choice in [1, -1]:            
+            events.append(trials['firstMovement_times'][
+                    np.bitwise_and.reduce(
+                        [mask, trials['choice'] == choice,
+                        ~np.isnan(trials[f'contrastLeft'])])])
+                        
+            trn.append(
+                    np.arange(len(trials['choice']))
+                    [np.bitwise_and.reduce(
+                    [mask, trials['choice'] == choice,
+                    ~np.isnan(trials[f'contrastLeft'])])])
+
 
     elif split == 'fback':
         for fb in [1, -1]:
@@ -372,8 +395,9 @@ def get_d_vars(split, pid, mapping='Beryl', control=True, get_fr=False,
 
 
     if restr:
-        # restrict to cells given in restr
-        css = get_restricted_cells(split, pid)
+        # restrict to canonical list of cells
+        uu = units_df[units_df['pid'] == pid]
+        css = uu['cluster_id'].values
 
         inv_map = {v: k for k, v in
                    clusters['cluster_id'].to_dict().items()}
@@ -448,7 +472,7 @@ def get_d_vars(split, pid, mapping='Beryl', control=True, get_fr=False,
 
                 ys = tr_c2 == 1  # boolean shuffled stim sides
 
-            elif split in ['choice', 'fback']:
+            elif (('choice' in split) or ('fback' in split)):
                 # shuffle choice sides within block and stim classes
 
                 # get real block labels
@@ -556,7 +580,7 @@ def get_d_vars(split, pid, mapping='Beryl', control=True, get_fr=False,
 
 
 def get_all_d_vars(split, eids_plus=None, control=True, restr=False,
-                   mapping='Beryl', contr=None, shuf=False, get_fr=False):
+                   mapping='Beryl', contr=None, get_fr=False, nrand=1000):
     '''
     for all BWM insertions, get the PSTHs and acronyms,
     i.e. run get_d_vars
@@ -567,8 +591,10 @@ def get_all_d_vars(split, eids_plus=None, control=True, restr=False,
     if get_fr:
         print('only computing firing rates')
     else:    
-        print('split: ', split, 'control: ', control,
-              'contr: ', contr, 'restr: ', restr)
+        print('split: ', split)
+        print('control: ', control)
+        print('contr: ', contr)
+        print('restr: ', restr)
 
     if eids_plus is None:
         df = bwm_query(one)
@@ -578,7 +604,7 @@ def get_all_d_vars(split, eids_plus=None, control=True, restr=False,
     if (split == 'fback' and contr is not None):
         ps = f'{split}_{contr}'
     elif restr:
-        ps = f'{split}_restr_shuf' if shuf else f'{split}_restr'
+        ps = f'{split}_restr'
     else:
         ps = split
 
@@ -595,8 +621,8 @@ def get_all_d_vars(split, eids_plus=None, control=True, restr=False,
         time0 = time.perf_counter()
         try:
             D_ = get_d_vars(split, pid, control=control, restr=restr,
-                            mapping=mapping, contr=contr, shuf=shuf,
-                            get_fr=get_fr)
+                            mapping=mapping, contr=contr,
+                            get_fr=get_fr, nrand=nrand)
                             
             if get_fr:
                 eid_probe = eid + '_' + probe
@@ -635,6 +661,18 @@ def d_var_stacked(split, min_reg=20, uperms_=False):
     remove regions with too few neurons (min_reg)
     compute maxes, latencies and p-values
     '''
+
+    # canonical time bins to restrict amplitudes (for meta anlysis)
+    def can_restr(split):
+        restr_can0 =  {'stim': 48, #[0, 0.1]
+                     'choice': 48, #[0.1, 0],
+                     'fback': 96, #[0, 0.2],
+                     'block': 144} #[0.4, -0.1]}
+
+        if '_' in split:
+            return restr_can0[split.split('_')[0]]
+        else:
+            return restr_can0[split]
 
     pth = Path(one.cache_dir, 'manifold', split)
     ss = os.listdir(pth)  # get insertions
@@ -783,6 +821,9 @@ def d_var_stacked(split, min_reg=20, uperms_=False):
 
         # amplitude
         res['amp_euc'] = max(res['d_euc'])
+        
+
+        
 
         # latency
         loc = np.where(res['d_euc'] > 0.7 * (np.max(res['d_euc'])))[0]
@@ -802,7 +843,27 @@ def d_var_stacked(split, min_reg=20, uperms_=False):
 
         res['lat_eucn'] = np.linspace(-pre_post(split)[0],
                                      pre_post(split)[1],
-                                     len(res['d_eucn']))[loc[0]]        
+                                     len(res['d_eucn']))[loc[0]]
+        
+        # canonical time window restricted versions
+        res['d_euc_can'] = res['d_euc'][:can_restr(split)]
+        res['amp_euc_can'] = max(res['d_euc_can'])
+        
+        # latency
+        loc = np.where(res['d_euc_can'] > 0.7 * res['amp_euc_can'])[0]
+        res['lat_euc_can'] = np.linspace(-pre_post(split,can=True)[0],
+                                     pre_post(split,can=True)[1],
+                                     len(res['d_euc_can']))[loc[0]]        
+               
+        
+        res['d_eucn_can'] = res['d_eucn'][:can_restr(split)]
+        res['amp_eucn_can'] = max(res['d_eucn_can'])
+        
+        # latency
+        loc = np.where(res['d_eucn_can'] > 0.7 * res['amp_eucn_can'])[0]
+        res['lat_eucn_can'] = np.linspace(-pre_post(split,can=True)[0],
+                                     pre_post(split,can=True)[1],
+                                     len(res['d_eucn_can']))[loc[0]]         
         
         
         r[reg] = res
@@ -837,11 +898,25 @@ def get_allen_info():
 
     dfa = pd.read_csv(p)
 
+    # replace yellow by brown #767a3a    
+    cosmos = []
+    for i in range(len(dfa)):
+        try:
+            ind = dfa.iloc[i]['structure_id_path'].split('/')[4]
+            cosmos.append(br.id2acronym(ind, mapping='Cosmos')[0])
+        except:
+            cosmos.append('void')
+
+    dfa['Cosmos'] = cosmos
+
+    dfa[dfa['Cosmos'] == 'CBX']['color_hex_triplet'] = '767A3A'
+    dfa[dfa['Cosmos'] == 'CBN']['color_hex_triplet'] = '767A3A'
+
     # get colors per acronym and transfomr into RGB
     dfa['color_hex_triplet'] = dfa['color_hex_triplet'].fillna('FFFFFF')
     dfa['color_hex_triplet'] = dfa['color_hex_triplet'
                                    ].replace('19399', '19399a')
-    dfa['color_hex_triplet'] = dfa['color_hex_triplet'] .replace('0', 'FFFFFF')
+    dfa['color_hex_triplet'] = dfa['color_hex_triplet'].replace('0', 'FFFFFF')
     dfa['color_hex_triplet'] = '#' + dfa['color_hex_triplet'].astype(str)
     dfa['color_hex_triplet'] = dfa['color_hex_triplet'
                                    ].apply(lambda x:
@@ -940,9 +1015,10 @@ def plot_all(splits=None, curve='euc',
     
     first in list is used for pca illustration
     '''
+#                              'LP',  'PRNr',
+#                     , 'MRN', 'SCm', 'IP', 'IRN'],
+    exs0 = {'stim': ['LGd','VISp', 'VISpm','VISam','IRN', 'LP', 'VISl'],
 
-    exs0 = {'stim': ['LGd','VISp', 'LP', 'VISpm', 'PRNr',
-                     'VISam', 'MRN', 'SCm', 'IP', 'IRN'],
 
             'choice': ['ACAv', 'PRNr', 'LP', 'SIM', 'APN',
                        'MRN', 'RT', 'IRN', 'IP', 'GRN'],
@@ -1065,7 +1141,7 @@ def plot_all(splits=None, curve='euc',
 
             if cosregs[reg] in ['CBX', 'CBN']:  # darken yellow
                 texts.append(axs[k].text(x, y, ss,
-                                         color='k',
+                                         color='#767a3a',
                                          fontsize=8))
 
             texts.append(axs[k].text(x, y, ss,
@@ -1147,7 +1223,7 @@ def plot_all(splits=None, curve='euc',
                             (lats[i],
                              maxes[i]),
                             fontsize=fsize,
-                            color='k',
+                            color='#767a3a',
                             arrowprops=None))
 
                 else:
@@ -1202,14 +1278,17 @@ def plot_custom_lines(regs=None, curve='euc', split='choice',
     plot_custom_lines(regs = ['MV', 'MRN', 'APN', 'SSp-m',
                               'SIM', 'PRM', 'PoT',
                               'MEA', 'ANcr2'],
-                              split='fback',psd_=True)
+                              split='fback',psd_=True, contr_=False)
     '''
 
     if regs is None:
 
-        regs = ['SUB', 'BST', 'VPM', 'ANcr2', 'SI', 'LSv', 'CEA', 'MG', 'CA3']
+        regs = ['SUB', 'BST', 'VPM', 'ANcr2', 
+                'SI', 'LSv', 'CEA', 'MG', 'CA3']
 
     df, palette = get_allen_info()
+    
+
     nr = 3
     fig, axs = plt.subplots(nrows=nr, ncols=int(np.ceil(len(regs) / nr)),
                             figsize=(7, 7),
@@ -1246,7 +1325,8 @@ def plot_custom_lines(regs=None, curve='euc', split='choice',
                              len(d[reg][f'd_{curve}']))
 
             axs[k].plot(xx, yy, linewidth=2, alpha=1
-                        if contr == 1. else contr + 0.4,
+                        if contr == 1. or split == 'fback'
+                        else contr + 0.4,
                         color=palette[reg],
                         label=f"{reg}")
 
@@ -1257,10 +1337,11 @@ def plot_custom_lines(regs=None, curve='euc', split='choice',
 
             cos = cosregs[reg]
 
-            if jj == 4:
+            if jj == 0:
                 # quanitfy contr stratification
-                m = sum(sum(np.diff(np.array(end_pts[reg]), axis=0)))
-                end_pts[reg] = m
+                if contr:
+                    m = sum(sum(np.diff(np.array(end_pts[reg]), axis=0)))
+                    end_pts[reg] = m
                 ss = f"{reg} {d[reg]['nclus']}"  # , {np.round(m,4)}"
                 axs[k].spines['top'].set_visible(False)
                 axs[k].spines['right'].set_visible(False)
@@ -1268,7 +1349,7 @@ def plot_custom_lines(regs=None, curve='euc', split='choice',
                 axs[k].set_xlabel('time [sec]')
                 axs[k].set_title(ss, color=palette[reg]
                                  if cos not in ['CBX', 'CBN']
-                                 else 'k')
+                                 else '#767a3a')
 
             if psd_:
                 f, psd = signal.welch(yy,
@@ -1298,7 +1379,7 @@ def plot_custom_lines(regs=None, curve='euc', split='choice',
             k += 1
 
         jj += 1
-    fig.savefig(f'{"_".join(regs)}.png')
+    #fig.savefig(f'{"_".join(regs)}.png')
 
 
 def get_cmap(split):
@@ -1314,6 +1395,9 @@ def get_cmap(split):
           'block': ["#ffffff","#D0CDE4","#998DC3",
                     "#6159A6","#42328E"]}
 
+    if '_' in split:
+        split = split.split('_')[0]
+
     return LinearSegmentedColormap.from_list("mycmap", dc[split])
    
     
@@ -1325,7 +1409,8 @@ def plot_swanson_supp(splits = None, curve = 'euc', sigl=0.01,
     '''
     
     if splits is None:
-        splits = align
+        splits0 = ['stim', 'choice', 'fback','block']
+        splits = [x+'_restr' for x in splits0]
     
     nrows = 2  # one for amplitudes, one for latencies
     ncols = len(splits)  # one per variable
@@ -1367,12 +1452,13 @@ def plot_swanson_supp(splits = None, curve = 'euc', sigl=0.01,
             amps = np.array([1 for x in acronyms])
         
         else:
-            amps = np.array([d[x][f'amp_{curve}'] for x in acronyms])
+            amps = np.array([d[x][f'amp_{curve}_can'] for x in acronyms])
             
         plot_swanson_vector(np.array(acronyms), np.array(amps), 
                             cmap=get_cmap(split), 
                             ax=axs[0,c], br=br, 
-                            orientation='portrait')
+                            orientation='portrait',
+                            linewidth=0.1)
                             
         # add colorbar
         clevels = (np.nanmin(amps), np.nanmax(amps))
@@ -1501,7 +1587,7 @@ def plot_corr(splits=None, curve='euc',sigl=0.01,
             if cosregs[df.iloc[i]['reg']] in ['CBX', 'CBN']:
                 axs[row].annotate('  ' + df.iloc[i]['reg'],
                             (df.iloc[i][x], df.iloc[i][y]),
-                    fontsize=5,color='k')            
+                    fontsize=5,color='#767a3a')            
             
             axs[row].annotate('  ' + df.iloc[i]['reg'], 
                 (df.iloc[i][x], df.iloc[i][y]),
@@ -1540,7 +1626,7 @@ def plot_traj_and_dist(split, reg, ga_pcs=False, curve='euc'):
                     allow_pickle=True).flat[0]
 
         # pick example region
-        dd = d[reg]
+        dd = d[reg] 
 
     axs.append(fig.add_subplot(gs[:4, 0],
                                projection='3d'))
@@ -1578,7 +1664,8 @@ def plot_traj_and_dist(split, reg, ga_pcs=False, curve='euc'):
     #put_panel_label(axs[k], k)
 
     k += 1
-
+    d = np.load(Path(pth_res, f'{split}.npy'),
+                allow_pickle=True).flat[0]
 
     # line plot 
     axs.append(fig.add_subplot(gs[4:,0]))    
@@ -1591,6 +1678,8 @@ def plot_traj_and_dist(split, reg, ga_pcs=False, curve='euc'):
     if any(np.isinf(d[reg][f'd_{curve}'])):
         print(f'inf in {curve} of {reg}')
         return
+        
+    print(split, reg, 'p_euc: ', d[reg]['p_euc'])    
 
     xx = np.linspace(-pre_post(split)[0],
                      pre_post(split)[1],
@@ -1616,7 +1705,7 @@ def plot_traj_and_dist(split, reg, ga_pcs=False, curve='euc'):
     ss = reg
 
     if cosregs[reg] in ['CBX', 'CBN']:  # darken yellow
-        axs[k].text(x, y, ss, color='k', fontsize=8)
+        axs[k].text(x, y, ss, color='#767a3a', fontsize=8)
         axs[k].text(x, c[-1], 'control', color='Gray', fontsize=8)
     else:
         axs[k].text(x, y, ss, color=palette[reg], fontsize=8)
@@ -1642,6 +1731,22 @@ def plot_traj_and_dist(split, reg, ga_pcs=False, curve='euc'):
     
 
     
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+        
 
     
     
