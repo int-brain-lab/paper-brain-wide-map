@@ -351,7 +351,7 @@ def filter_units_region(eids, clusters_table=None, one=None, mapping='Beryl', mi
     Returns
     -------
     regions_df: pandas.DataFrame
-        Dataframe of unique region-probe pairs, with columns ['{mapping}', 'pid', 'n_units', 'n_probes', 'n_sessions']
+        Dataframe of units that survive region based criteria.
     """
 
     if not any([min_qc, min_units_sessions]):
@@ -398,6 +398,7 @@ def filter_units_region(eids, clusters_table=None, one=None, mapping='Beryl', mi
         # Merge back to get the eids and clusters
         region_session_df = pd.merge(region_df, units_count, on=f'{mapping}', how='left')
         region_session_df = region_session_df.reset_index(level=[f'{mapping}'])
+        region_session_df.drop(labels=['n_sessions', 'n_units'], axis=1, inplace=True)
         clus_df = pd.merge(region_session_df, clus_df, on=['eid', f'{mapping}'], how='left')
 
     # Reset index
