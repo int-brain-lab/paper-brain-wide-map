@@ -407,14 +407,14 @@ def filter_regions(pids, clusters_table=None, one=None, mapping='Beryl',
     if min_sessions_region:
         regions_count = regions_count[regions_count['n_sessions'] >= min_sessions_region]
 
-    # Reset index
+    # Reset index and merge
     regions_count.reset_index(inplace=True)
-    clus_df = pd.merge(regions_count, clus_df, how='left', on=f'{mapping}')
-    regions_df = clus_df.filter([f'{mapping}', 'pid', 'n_units', 'n_probes', 'n_sessions'])
+    filtered_clus_df = pd.merge(regions_count, clus_df, how='left', on=f'{mapping}')
+    regions_df = filtered_clus_df.filter([f'{mapping}', 'pid', 'n_units', 'n_probes', 'n_sessions'])
     regions_df.drop_duplicates(inplace=True)
     regions_df.reset_index(inplace=True, drop=True)
 
-    return regions_df, clus_df
+    return regions_df, filtered_clus_df
 
 
 def filter_sessions(eids, trials_table=None, one=None, bwm_include=True, min_errors=3, min_trials=None):
