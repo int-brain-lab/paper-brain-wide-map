@@ -391,12 +391,12 @@ def filter_units_region(eids, clusters_table=None, one=None, mapping='Beryl', mi
         units_count = units_count[units_count['n_units'] >= min_units_sessions[0]]
         # Only keep regions with at least min_units_sessions[1] sessions left
         units_count = units_count.reset_index(level=['eid'])
-        sessions_count = units_count.groupby([f'{mapping}']).aggregate(
+        region_df = units_count.groupby([f'{mapping}']).aggregate(
             n_sessions=pd.NamedAgg(column='eid', aggfunc='count'),
         )
-        sessions_count = sessions_count[sessions_count['n_sessions'] >= min_units_sessions[1]]
+        region_df = region_df[region_df['n_sessions'] >= min_units_sessions[1]]
         # Merge back to get the eids and clusters
-        region_session_df = pd.merge(sessions_count, units_count, on=f'{mapping}', how='left')
+        region_session_df = pd.merge(region_df, units_count, on=f'{mapping}', how='left')
         region_session_df = region_session_df.reset_index(level=[f'{mapping}'])
         clus_df = pd.merge(region_session_df, clus_df, on=['eid', f'{mapping}'], how='left')
 
@@ -408,7 +408,10 @@ def filter_units_region(eids, clusters_table=None, one=None, mapping='Beryl', mi
 
 def filter_sessions(eids, trials_table=None, one=None, bwm_include=True, min_errors=3, min_trials=None):
     """
-    Filters eids for those that have fulfill certain criteria.
+    Filters eids for sessions that pass certain criteria.
+    The function first loads an aggregate of all trials for the brain wide map dataset
+     that contains already pre-computed acceptance critera
+
 
     Parameters
     ----------
@@ -450,10 +453,10 @@ def filter_sessions(eids, trials_table=None, one=None, bwm_include=True, min_err
     if bwm_include:
         trials_df = trials_df[trials_df['bwm_include']]
 
-    trials_agg = trials_df.groupby('eid').aggregate(n_trials=pd.NamedAgg(column='eid', aggfunc='count'),
-                                                    n_error=pd.NamedAgg(column='feedbackType',
-                                                                        aggfunc=lambda x: (x == -1).sum()),
-                                                    )
+    trials_agg = trials_df.groupby('eid').aggregate(
+        n_trials=pd.NamedAgg(column='eid', aggfunc='count'),
+        n_error=pd.NamedAgg(column='feedbackType', aggfunc=lambda x: (x == -1).sum()),
+    )
     if min_trials:
         trials_agg = trials_agg.loc[trials_agg['n_trials'] >= min_trials]
     if min_errors:
