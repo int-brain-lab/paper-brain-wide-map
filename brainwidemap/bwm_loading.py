@@ -406,7 +406,7 @@ def filter_units_region(eids, clusters_table=None, one=None, mapping='Beryl', mi
     return clus_df
 
 
-def filter_sessions(eids, trials_table=None, one=None, bwm_include=True, min_errors=3, min_trials=None):
+def filter_sessions(eids, trials_table, bwm_include=True, min_errors=3, min_trials=None):
     """
     Filters eids for sessions that pass certain criteria.
     The function first loads an aggregate of all trials for the brain wide map dataset
@@ -419,10 +419,7 @@ def filter_sessions(eids, trials_table=None, one=None, bwm_include=True, min_err
         Session ids to map to regions. Typically, the 'eid' column of the bwm_df returned by bwm_query.
         Note that these eids must be represented in trials_table to be considered for the filter.
     trials_table: str or pathlib.Path
-        Absolute path to trials table to be used for filtering. If None, requires to provide one.api.ONE instance
-        to download the latest version. Required when using min_trials.
-    one: one.api.ONE
-        Instance to be used to connect to download clusters or trials table if these are not explicitly provided.
+        Absolute path to trials table to be used for filtering.
     bwm_include: bool
         Whether to filter for BWM inclusion criteria (see defaults of function load_trials_and_mask()). Default is True.
     min_errors: int or None
@@ -437,13 +434,7 @@ def filter_sessions(eids, trials_table=None, one=None, bwm_include=True, min_err
         Session ids that pass the criteria
     """
 
-    if trials_table is None:
-        if one is None:
-            print(f'You either need to provide a path to trials_table or an instance of one.api.ONE to '
-                  f'download trials_table.')
-            return
-        else:
-            trials_table = download_aggregate_tables(one, type='trials')
+    # Load trials table
     trials_df = pd.read_parquet(trials_table)
 
     # Keep only eids
@@ -483,16 +474,15 @@ def bwm_units(one=None, freeze='2022_10_bwm_release', rt_range=(0.08, 0.2), min_
         Minimum number of error trials per session after other criteria are applied. Default is 3.
     min_qc: float
         Minimum quality criterion for a unit to be considered. Default is 1.
-    min_units_region: int
-        Minimum number of units in a region for a region to be considered. Default is 10.
-    min_sessions_region: int
-        Minimum number of sessions in a region for a region to be considered. Default is 2.
+    min_units_sessions: tuple or None
+        If tuple, the first entry is the minimum of units per session per region for a session to be retained, the
+        second entry is the minimum number of those sessions per region for a region to be retained.
+        Default is (10, 2). If None, criterion is not applied
 
     Returns
     -------
     unit_df: pandas.DataFrame
-        Dataframe with units that pass the current BWM inclusion criteria,
-        columns ['cluster_uuid', 'cluster_id', 'atlas_id', 'pid', 'eid']
+        Dataframe with units that pass the current BWM inclusion criteria.
     """
 
     # Get sessions and probes
@@ -510,7 +500,6 @@ def bwm_units(one=None, freeze='2022_10_bwm_release', rt_range=(0.08, 0.2), min_
     clusters_table = download_aggregate_tables(one, type='clusters')
     unit_df = filter_units_region(eids, clusters_table=clusters_table, mapping='Beryl', min_qc=min_qc,
                                   min_units_sessions=min_units_sessions)
-    # unit_df = unit_df[['uuids', 'cluster_id', 'atlas_id', 'pid', 'eid']].rename(columns={'uuids': 'cluster_uuid'})
 
     return unit_df
 
