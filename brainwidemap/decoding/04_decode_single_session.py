@@ -5,9 +5,7 @@ import pandas as pd
 from one.api import ONE
 from brainbox.io.one import SessionLoader
 
-from brainwidemap.bwm_loading import (
-    bwm_query, load_good_units, load_trials_and_mask, filter_regions, filter_sessions,
-    download_aggregate_tables, merge_probes)
+from brainwidemap.bwm_loading import load_good_units, load_trials_and_mask, merge_probes
 from brainwidemap.decoding.functions.decoding import fit_eid
 from brainwidemap.decoding.functions.process_targets import load_behavior
 from brainwidemap.decoding.settings import params
@@ -37,29 +35,41 @@ bwm_df = pd.read_parquet(bwm_session_file)
 # To use this, add subject names to the end of the line that calls this script in 03_slurm*.sh.
 # See 03_slurm*.sh for an examples which is commented out or read the `03_*` section of the README.
 if len(sys.argv) > 2:
-    mysubs = [sys.argv[i] for i in range(2, len(sys.argv))]
-    bwm_df = bwm_df[bwm_df["subject"].isin(mysubs)]
+    print('using a subset of bwm dataset')
+    #mysubs = [sys.argv[i] for i in range(2, len(sys.argv))]
+    #bwm_df = bwm_df[bwm_df["subject"].isin(mysubs)]
+    myeids = [sys.argv[i] for i in range(2, len(sys.argv))]
+    bwm_df = bwm_df[bwm_df["eid"].isin(myeids)]
 
-
-# When creating the slurm jobs the (one-based) ID of the job in the array is passed to this script as an input.
-# Translate this into a zero-based index to select probes / sessions
+# the submitted slurm jobs need to cover a 2-d space of bwm pids (or eids)
+# and pseudo sessions.  The two indicies in this space are "idx" and "job_repeat"
+# where idx iterates over bwm pids (or eids if merged probes) and 
+# job_repeat iterates over sets of n_speudo_per_job pseudo sessions until 
+# all n_pseudo pseudo sessions are completed.  The number of job repeats needed
+# is therefore ceil(n_pseudo / n_pseudo_per_job) 
+# The slurm input (one-based index) is converted to a zero-based index called slurm_job_id
+# which indexes over the entire 2-d space by snaking. slurm_job_id is then converted to
+# idx and job_repeat as follows 
 slurm_job_id = int(sys.argv[1]) - 1
-print(f'inside script, running slurm_job {slurm_job_id}')
-# If there are more slurm jobs than probes/sessions, the same probe/session will be rerun with a new set of pseudo
-# sessions. This job_repeat is 0 for the first round, 1 for the second round and so on
-job_repeat = slurm_job_id // bwm_df.index.size
-# Don't go any further if we are already at the end of pseudo sessions for this probe/session
-if (job_repeat + 1) * params['n_pseudo_per_job'] > params['n_pseudo']:
-    print('ended because job counter', job_repeat + 1, params['n_pseudo_per_job'], params['n_pseudo'])
-    exit()
-# Otherwise use info to construct pseudo ids
+bwm_index_size = bwm_df['eid'].nunique() if params['merged_probes'] else bwm_df['pid'].nunique()
+idx = slurm_job_id % bwm_index_size
+job_repeat = slurm_job_id // bwm_index_size
+print(f'running slurm_job {slurm_job_id}, bwm index {idx}, and job repeat {job_repeat}')
+
+# Use job_repeat to select pseudo_ids or exit if all pseudo_ids are completed
 pseudo_ids = np.arange(job_repeat * params['n_pseudo_per_job'], (job_repeat + 1) * params['n_pseudo_per_job']) + 1
 if 1 in pseudo_ids:
     pseudo_ids = np.concatenate((-np.ones(1), pseudo_ids)).astype('int64')
+if pseudo_ids[0] > params['n_pseudo']:
+    print(f"ended job because this job_repeat ({job_repeat}) does not include any pseudo sessions < {params['n_pseudo']}")
+    exit()
+if pseudo_ids[-1] > params['n_pseudo']:
+    print(f"truncated job because this job_repeat ({job_repeat}) includes more than {params['n_pseudo']} pseudo sessions")
+    pseudo_ids = pseudo_ids[pseudo_ids <= params['n_pseudo']]
 
+# Use idx to select eid and pid
 # When merging probes we are interested in eids, not pids
 if params['merged_probes']:
-    idx = slurm_job_id % bwm_df['eid'].nunique()  # Select the same eid for two consecutive jobs
     eid = bwm_df['eid'].unique()[idx]
     tmp_df = bwm_df.set_index(['eid', 'subject']).xs(eid, level='eid')
     subject = tmp_df.index[0]
@@ -67,7 +77,6 @@ if params['merged_probes']:
     probe_names = tmp_df['probe_name'].to_list()
     print(f"Running merged probes for session eid: {eid}")
 else:
-    idx = slurm_job_id % bwm_df['pid'].nunique()  # Select the same pid for two consecutive jobs
     eid = bwm_df.iloc[idx]['eid']
     subject = bwm_df.iloc[idx]['subject']
     pid = bwm_df.iloc[idx]['pid']

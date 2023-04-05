@@ -16,7 +16,7 @@ RESULTS_DIR = Path("/scratch/users/bensonb/international-brain-lab/paper-brain-w
 SLURM_DIR = Path("/scratch/users/bensonb/international-brain-lab/paper-brain-wide-map/brainwidemap/logs/slurm")
 # Directory where slurm output and error files will be saved
 
-DATE = '09-03-2023'
+DATE = '01-04-2023'
 # Either current date for a fresh run, or date of the run you want to build on
 # Date must be different if you do different runs of the same target
 # e.g. signcont side with LogisticRegression vs signcont with Lasso
@@ -102,7 +102,7 @@ if ESTIMATOR == lm.LogisticRegression:
 else:
     HPARAM_GRID = {'alpha': np.array([0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 10])}
 N_PSEUDO = 200  # number of pseudo/imposter sessions to fit per session
-N_PSEUDO_PER_JOB = 100  # number of pseudo/imposter sessions to assign per cluster job
+N_PSEUDO_PER_JOB = 50  # number of pseudo/imposter sessions to assign per cluster job
 N_JOBS_PER_SESSION = N_PSEUDO // N_PSEUDO_PER_JOB  # number of cluster jobs to run per session
 N_RUNS = 10  # number of times to repeat full nested xv with different folds
 SHUFFLE = True  # true for interleaved xv, false for contiguous

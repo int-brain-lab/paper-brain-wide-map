@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 import numpy as np
+import pandas as pd
 import torch
 from scipy.interpolate import interp1d
 
@@ -486,3 +487,31 @@ def check_bhv_fit_exists(subject, model, eids, resultpath, modeldispatcher, sing
     subjmodpath = Path(resultpath).joinpath(Path(subject))
     fullpath = subjmodpath.joinpath(filen)
     return os.path.exists(fullpath), fullpath
+
+def transform_data_for_decoding(ys, Xs):
+    # transform target data into standard format: list of np.ndarrays
+    if isinstance(ys, np.ndarray):
+        # input is single numpy array
+        ys = [np.array([y]) for y in ys]
+    elif isinstance(ys, list) and ys[0].shape == ():
+        # input is list of float instead of list of np.ndarrays
+        ys = [np.array([y]) for y in ys]
+    elif isinstance(ys, pd.Series):
+        # input is a pandas Series
+        ys = ys.to_numpy()
+        ys = [np.array([y]) for y in ys]
+
+    # transform neural data into standard format: list of np.ndarrays
+    if isinstance(Xs, np.ndarray):
+        Xs = [x[None, :] for x in Xs]
+
+    return ys, Xs
+
+def logisticreg_criteria(ys, MIN_UNIQUE_COUNTS=3):
+    #if estimator == sklm.LogisticRegression:
+    # target must have 2 classes and at least 3 of each class to allow
+    #    for at least 2 classes in each of the train and validate sub-folds
+    ys = transform_data_for_decoding(ys, [])[0]
+    y_uniquecounts = np.unique(ys, return_counts=True)[1]
+    #print('failed outer fold, target unique counts:', y_uniquecounts)
+    return len(y_uniquecounts)==2 and np.min(y_uniquecounts)>=MIN_UNIQUE_COUNTS

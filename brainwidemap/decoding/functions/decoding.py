@@ -17,6 +17,8 @@ from brainwidemap.decoding.functions.process_inputs import select_ephys_regions
 from brainwidemap.decoding.functions.process_inputs import preprocess_ephys
 from brainwidemap.decoding.functions.process_targets import compute_beh_target
 from brainwidemap.decoding.functions.process_targets import compute_target_mask
+from brainwidemap.decoding.functions.process_targets import transform_data_for_decoding
+from brainwidemap.decoding.functions.process_targets import logisticreg_criteria
 from brainwidemap.decoding.functions.process_targets import get_target_data_per_trial_wrapper
 from brainwidemap.decoding.functions.utils import save_region_results
 from brainwidemap.decoding.functions.utils import get_save_path
@@ -221,33 +223,57 @@ def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo
                 filenames.append(save_path)
                 continue
 
-            # create pseudo/imposter session when necessary and corresponding mask
-            if pseudo_id > 0:
-                if bins_per_trial == 1:
-                    controlsess_df = generate_null_distribution_session(
-                        trials_df, metadata, **kwargs)
-                    controltarget_vals_list, controltarget_vals_to_mask = compute_beh_target(
-                        controlsess_df, metadata, return_raw=True, **kwargs)
-                    controltarget_mask = compute_target_mask(
-                        controltarget_vals_to_mask, kwargs['exclude_trials_within_values'])
-                    control_mask = trials_mask & controltarget_mask
-                else:
-                    imposter_df = kwargs['imposter_df'].copy()
-                    # remove current eid from imposter sessions
-                    df_clean = imposter_df[imposter_df.eid != metadata['eid']].reset_index()
-                    # randomly select imposter trial to start sequence
-                    n_trials = trials_df.index.size
-                    total_imposter_trials = df_clean.shape[0]
-                    idx_beg = np.random.choice(total_imposter_trials - n_trials)
-                    controlsess_df = df_clean.iloc[idx_beg:idx_beg + n_trials]
-                    # grab target values from this dataframe
-                    controltarget_vals_list = list(controlsess_df[kwargs['target']].to_numpy())
-                    control_mask = mask
+            # get data matrix and target, resampling when there are <3 incorrect trials
 
-                save_predictions = kwargs.get('save_predictions_pseudo', kwargs['save_predictions'])
+            # create pseudo/imposter session when necessary, corresponding mask, and data matrix
+            if pseudo_id > 0:
+                ys_wmask = None
+                Xs_wmask = None
+                sample_pseudo_count = 0
+                while (kwargs['estimator']==sklm.LogisticRegression and (not logisticreg_criteria(ys_wmask))) or (ys_wmask is None):
+                    assert sample_pseudo_count < 100 # must be a reasonable number of sample or else something is wrong
+                    sample_pseudo_count += 1
+                    if bins_per_trial == 1:
+                        controlsess_df = generate_null_distribution_session(
+                            trials_df, metadata, **kwargs)
+                        controltarget_vals_list, controltarget_vals_to_mask = compute_beh_target(
+                            controlsess_df, metadata, return_raw=True, **kwargs)
+                        controltarget_mask = compute_target_mask(
+                            controltarget_vals_to_mask, kwargs['exclude_trials_within_values'])
+                        control_mask = trials_mask & controltarget_mask
+                    else:
+                        imposter_df = kwargs['imposter_df'].copy()
+                        # remove current eid from imposter sessions
+                        df_clean = imposter_df[imposter_df.eid != metadata['eid']].reset_index()
+                        # randomly select imposter trial to start sequence
+                        n_trials = trials_df.index.size
+                        total_imposter_trials = df_clean.shape[0]
+                        idx_beg = np.random.choice(total_imposter_trials - n_trials)
+                        controlsess_df = df_clean.iloc[idx_beg:idx_beg + n_trials]
+                        # grab target values from this dataframe
+                        controltarget_vals_list = list(controlsess_df[kwargs['target']].to_numpy())
+                        control_mask = mask
+
+                    save_predictions = kwargs.get('save_predictions_pseudo', kwargs['save_predictions'])
+
+                    # session for null dist
+                    ys_wmask = [controltarget_vals_list[m] for m in np.squeeze(np.where(control_mask))]
+                    Xs_wmask = [Xs[m] for m in np.squeeze(np.where(control_mask))]
+                
+                if sample_pseudo_count > 1:
+                    print(f'sampled pseudo sessions {sample_pseudo_count} times to ensure valid target')
+
             else:
                 control_mask = mask
                 save_predictions = kwargs['save_predictions']
+                
+                # original session
+                ys_wmask = [target_vals_list[m] for m in np.squeeze(np.where(mask))]
+                Xs_wmask = [Xs[m] for m in np.squeeze(np.where(mask))]
+                
+                if kwargs['estimator'] == sklm.LogisticRegression and (not logisticreg_criteria(ys_wmask)):
+                    print(f'target failed logistic regression criteria for region {region} and pseudo_id {pseudo_id}')
+                    continue
 
             # run decoders
             for i_run in range(kwargs['n_runs']):
@@ -258,14 +284,14 @@ def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo
                 else:
                     rng_seed = pseudo_id * kwargs['n_runs'] + i_run
 
-                if pseudo_id == -1:
-                    # original session
-                    ys_wmask = [target_vals_list[m] for m in np.squeeze(np.where(mask))]
-                    Xs_wmask = [Xs[m] for m in np.squeeze(np.where(mask))]
-                else:
-                    # session for null dist
-                    ys_wmask = [controltarget_vals_list[m] for m in np.squeeze(np.where(control_mask))]
-                    Xs_wmask = [Xs[m] for m in np.squeeze(np.where(control_mask))]
+                #if pseudo_id == -1:
+                #    # original session
+                #    ys_wmask = [target_vals_list[m] for m in np.squeeze(np.where(mask))]
+                #    Xs_wmask = [Xs[m] for m in np.squeeze(np.where(mask))]
+                #else:
+                #    # session for null dist
+                #    ys_wmask = [controltarget_vals_list[m] for m in np.squeeze(np.where(control_mask))]
+                #    Xs_wmask = [Xs[m] for m in np.squeeze(np.where(control_mask))]
 
                 fit_result = decode_cv(
                     ys=ys_wmask,
@@ -282,9 +308,6 @@ def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo
                     balanced_weight=kwargs['balanced_weight'],
                     rng_seed=rng_seed,
                 )
-                if fit_result is None:
-                    print(f'decoding could not be done for region {region}, i_run {i_run}, and pseudo_id {pseudo_id}')
-                    continue
                 fit_result['mask'] = mask
                 fit_result['mask_trials_and_targets'] = [trials_mask, target_mask]
                 fit_result['mask_diagnostics'] = kwargs['trials_mask_diagnostics']
@@ -315,8 +338,7 @@ def sample_folds(ys, get_kfold, isfoldsat, max_iter=100):
     sample_count = 0
     ysatisfy = [False]
     while not np.all(np.array(ysatisfy)):
-        if sample_count >= max_iter:
-            assert False
+        assert sample_count < max_iter
         sample_count += 1
         out_kfold = get_kfold()                                            
         fold_iter = [(train_idxs, test_idxs) for _, (train_idxs, test_idxs) in enumerate(out_kfold)]
@@ -419,21 +441,8 @@ def decode_cv(
     """
 
     # transform target data into standard format: list of np.ndarrays
-    if isinstance(ys, np.ndarray):
-        # input is single numpy array
-        ys = [np.array([y]) for y in ys]
-    elif isinstance(ys, list) and ys[0].shape == ():
-        # input is list of float instead of list of np.ndarrays
-        ys = [np.array([y]) for y in ys]
-    elif isinstance(ys, pd.Series):
-        # input is a pandas Series
-        ys = ys.to_numpy()
-        ys = [np.array([y]) for y in ys]
-
-    # transform neural data into standard format: list of np.ndarrays
-    if isinstance(Xs, np.ndarray):
-        Xs = [x[None, :] for x in Xs]
-
+    ys, Xs = transform_data_for_decoding(ys, Xs)
+    
     # initialize containers to save outputs
     n_trials = len(Xs)
     bins_per_trial = len(Xs[0])
@@ -452,26 +461,20 @@ def decode_cv(
     if outer_cv:
         # create kfold function to loop over
         get_kfold = lambda : KFold(n_splits=n_folds, shuffle=shuffle).split(indices)
-
+        # define function to evaluate whether folds are satisfactory
         if estimator == sklm.LogisticRegression:
-            
-            # target must have 2 classes and at least 3 of each class to allow 
-            #    for at least 2 classes in each of the train and validate sub-folds 
-            y_uniquecounts = np.unique(ys, return_counts=True)[1]
-            if not (len(y_uniquecounts)==2 and np.min(y_uniquecounts)>=3):
-                print('failed outer fold, target unique counts:', y_uniquecounts)
-                return None
-                #assert False
-        
             # folds must be chosen such that 2 classes are present in each fold
-            isysat = lambda ys: len(np.unique(ys))==2 and np.min(np.unique(ys ,return_counts=True)[1])>=2
-            sample_count, _, outer_fold_iter = sample_folds(ys, get_kfold, isysat)
-            if sample_count > 1:
-                print(f'sampled outer folds {sample_count} times to ensure enough targets')
-
+            assert logisticreg_criteria(ys)
+            isysat = lambda ys: logisticreg_criteria(ys, MIN_UNIQUE_COUNTS=2) #len(np.unique(ys))==2 and np.min(np.unique(ys ,return_counts=True)[1])>=2
         else:
-            outer_fold_iter = [(train_idxs, test_idxs) for _, (train_idxs, test_idxs) in enumerate(get_kfold())]
-
+            isysat = lambda ys: True
+        sample_count, _, outer_fold_iter = sample_folds(ys, get_kfold, isysat)
+        if sample_count > 1:
+            print(f'sampled outer folds {sample_count} times to ensure enough targets')
+        
+        # old way of getting non logistic regression folds. now incorporated into above
+        #else:
+        #    outer_fold_iter = [(train_idxs, test_idxs) for _, (train_idxs, test_idxs) in enumerate(get_kfold())]
 
     else:
         outer_kfold = iter([train_test_split(indices, test_size=test_prop, shuffle=shuffle)])
@@ -490,10 +493,6 @@ def decode_cv(
         # loop over outer folds
         for train_idxs_outer, test_idxs_outer in outer_fold_iter:
             # outer fold data split
-            # X_train = np.vstack([Xs[i] for i in train_idxs])
-            # y_train = np.concatenate([ys[i] for i in train_idxs], axis=0)
-            # X_test = np.vstack([Xs[i] for i in test_idxs])
-            # y_test = np.concatenate([ys[i] for i in test_idxs], axis=0)
             X_train = [Xs[i] for i in train_idxs_outer]
             y_train = [ys[i] for i in train_idxs_outer]
             X_test = [Xs[i] for i in test_idxs_outer]
@@ -505,18 +504,17 @@ def decode_cv(
             
             # produce inner_fold_iter such that logistic regression has at least 2 classes
             if estimator == sklm.LogisticRegression:
-
-                #    for at least 2 classes in each	of the train and validate sub-folds
+                # is it possible to construct folds
                 y_uniquecounts = np.unique(y_train, return_counts=True)[1]
-                if not (len(y_uniquecounts)==2 and np.min(y_uniquecounts)>=2):
-                    print('failed inner fold, target unique counts:', y_uniquecounts)
-                    assert False
+                assert logisticreg_criteria(y_train, MIN_UNIQUE_COUNTS=2)#len(y_uniquecounts)==2 and np.min(y_uniquecounts)>=2 #print('failed inner fold, target unique counts:', y_uniquecounts)
 
                 # folds must be chosen such that 2 classes are present in each fold
-                isysat = lambda ys: len(np.unique(ys))==2 and np.min(np.unique(ys ,return_counts=True)[1])>=1
-                sample_count, _, inner_fold_iter = sample_folds(y_train, get_kfold, isysat)
-                if sample_count > 1:
-                    print(f'sampled inner folds {sample_count} times to ensure enough targets')
+                isysat = lambda ys: logisticreg_criteria(ys, MIN_UNIQUE_COUNTS=1) #len(np.unique(ys))==2 and np.min(np.unique(ys ,return_counts=True)[1])>=1
+            else:
+                isysat = lambda ys: True
+            sample_count, _, inner_fold_iter = sample_folds(y_train, get_kfold, isysat)
+            if sample_count > 1:
+                print(f'sampled inner folds {sample_count} times to ensure enough targets')
 
                 # old code
                 
@@ -540,8 +538,8 @@ def decode_cv(
                 #if sample_count > 1:
                 #    print(f'sampled inner folds {sample_count} times to ensure enough targets')
                
-            else:
-                inner_fold_iter = [(train_idxs, test_idxs) for _, (train_idxs, test_idxs) in enumerate(get_kfold())]
+            #else:
+                #inner_fold_iter = [(train_idxs, test_idxs) for _, (train_idxs, test_idxs) in enumerate(get_kfold())]
 
                 #old code
                 #inner_kfold = KFold(n_splits=n_folds, shuffle=shuffle).split(idx_inner)
@@ -623,10 +621,10 @@ def decode_cv(
             y_true = np.concatenate(y_test, axis=0)
             y_pred = model.predict(np.vstack(X_test) - mean_X_train) + mean_y_train
             if isinstance(model, sklm.LogisticRegression) and bins_per_trial == 1:
-                print("predicting proba in decoding of logistic regression!")
+                #print("predicting proba in decoding of logistic regression!")
                 y_pred_probs = model.predict_proba(
                     np.vstack(X_test) - mean_X_train)[:, 1] + mean_y_train
-                print(f"example of proba: {y_pred_probs[0]:.5f}")
+                #print(f"example of proba: {y_pred_probs[0]:.5f}")
                 #print(y_pred_probs[:100], y_pred[:100])
                 #print(np.isclose(y_pred_probs[:100], y_pred[:100]))
                 y_comp_probs = ~(y_pred_probs == 0.5)
