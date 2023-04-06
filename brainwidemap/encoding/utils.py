@@ -9,6 +9,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 # IBL libraries
 from brainbox.io.one import SessionLoader
@@ -293,3 +294,266 @@ def load_trials_df(
             trials.append(np.abs(whlvel))
     trialsdf["wheel_velocity"] = trials
     return trialsdf
+
+
+def single_cluster_raster(
+    spike_times,
+    events,
+    trial_idx,
+    dividers,
+    colors,
+    labels,
+    pre_time=0.4,
+    post_time=1.0,
+    raster_bin=0.01,
+    show_psth=False,
+    psth_bin=0.05,
+    weights=None,
+    fr=True,
+    norm=False,
+    axs=None,
+):
+    """
+    Generate rasterplot for a single cluster, optionall with PSTH above.
+
+    Parameters
+    ----------
+    spike_times : array-like
+        Array of spike times for a single cluster
+    events : array-like
+        Time to which to align each trial
+    trial_idx : array-like
+        Indices of each trial
+    dividers : array-like
+        Times at which to put a divider marker on the raster?
+    colors : array-like
+        Colors for the dividers
+    labels : Labels for parts of the raster
+        replace with above
+    pre_time : float, optional
+        Time before event to plot, by default 0.4
+    post_time : float, optional
+        Time after event to plot, by default 1.
+    raster_bin : float, optional
+        Time bin size for the raster, by default 0.01
+    psth : bool, optional
+        Whether to plot the PSTH, by default False
+    psth_bin : float, optional
+        Time bin size for the PSTH, by default 0.05
+    weights : array-like?, optional
+        No clue, by default None
+    fr : bool, optional
+        Whether to plot as a firing rate or spike count, by default True
+    norm : bool, optional
+        Whether to normalize PSTH, by default False
+    axs : matplotlib.pyplot.axes, optional
+        Either a single axis if no PSTH or an array of 2 axes, by default None
+
+    Returns
+    -------
+    fig, axs
+        Figure and Axes objects
+
+    """
+    raster, t_raster = bin_spikes(
+        spike_times,
+        events,
+        pre_time=pre_time,
+        post_time=post_time,
+        bin_size=raster_bin,
+        weights=weights,
+    )
+    psth, t_psth = bin_spikes(
+        spike_times,
+        events,
+        pre_time=pre_time,
+        post_time=post_time,
+        bin_size=psth_bin,
+        weights=weights,
+    )
+
+    if fr:
+        psth = psth / psth_bin
+
+    if norm:
+        psth = psth - np.repeat(psth[:, 0][:, np.newaxis], psth.shape[1], axis=1)
+        raster = raster - np.repeat(raster[:, 0][:, np.newaxis], raster.shape[1], axis=1)
+
+    dividers = [0] + dividers + [len(trial_idx)]
+    if axs is None and show_psth:
+        fig, axs = plt.subplots(
+            2, 1, figsize=(4, 6), gridspec_kw={"height_ratios": [1, 3], "hspace": 0}, sharex=True
+        )
+        psth_ax = axs[0]
+        raster_ax = axs[1]
+    elif axs is None and not show_psth:
+        fig, axs = plt.subplots(1, 1, figsize=(4, 3))
+        raster_ax = axs
+    else:
+        if show_psth:
+            if not hasattr(axs, "shape"):
+                raise ValueError("axs must be a list of axes if psth is True")
+            psth_ax = axs[0]
+            raster_ax = axs[1]
+            fig = axs[0].get_figure()
+        else:
+            if hasattr(axs, "shape"):
+                raise ValueError("axs must be a single axis if psth is False")
+            raster_ax = axs
+            fig = axs.get_figure()
+
+    label, lidx = np.unique(labels, return_index=True)
+    label_pos = []
+    for lab, lid in zip(label, lidx):
+        idx = np.where(np.array(labels) == lab)[0]
+        for iD in range(len(idx)):
+            if iD == 0:
+                t_ids = trial_idx[dividers[idx[iD]] + 1 : dividers[idx[iD] + 1] + 1]
+                t_ints = dividers[idx[iD] + 1] - dividers[idx[iD]]
+            else:
+                t_ids = np.r_[t_ids, trial_idx[dividers[idx[iD]] + 1 : dividers[idx[iD] + 1] + 1]]
+                t_ints = np.r_[t_ints, dividers[idx[iD] + 1] - dividers[idx[iD]]]
+
+        psth_div = np.nanmean(psth[t_ids], axis=0)
+        std_div = np.nanstd(psth[t_ids], axis=0) / np.sqrt(len(t_ids))
+
+        if show_psth:
+            psth_ax.fill_between(
+                t_psth, psth_div - std_div, psth_div + std_div, alpha=0.4, color=colors[lid]
+            )
+            psth_ax.plot(t_psth, psth_div, alpha=1, color=colors[lid])
+
+        lab_max = idx[np.argmax(t_ints)]
+        label_pos.append((dividers[lab_max + 1] - dividers[lab_max]) / 2 + dividers[lab_max])
+
+    raster_ax.imshow(
+        raster[trial_idx],
+        cmap="binary",
+        origin="lower",
+        extent=[np.min(t_raster), np.max(t_raster), 0, len(trial_idx)],
+        aspect="auto",
+    )
+
+    width = raster_bin * 4
+    for iD in range(len(dividers) - 1):
+        raster_ax.fill_between(
+            [post_time + raster_bin / 2, post_time + raster_bin / 2 + width],
+            [dividers[iD + 1], dividers[iD + 1]],
+            [dividers[iD], dividers[iD]],
+            color=colors[iD],
+        )
+
+    raster_ax.set_xlim([-1 * pre_time, post_time + raster_bin / 2 + width])
+    secax = raster_ax.secondary_yaxis("right")
+
+    secax.set_yticks(label_pos)
+    secax.set_yticklabels(label, rotation=90, rotation_mode="anchor", ha="center")
+    for ic, c in enumerate(np.array(colors)[lidx]):
+        secax.get_yticklabels()[ic].set_color(c)
+    if show_psth:
+        axs[0].axvline(
+            0, *axs[0].get_ylim(), c="k", ls="--", zorder=10
+        )  # TODO this doesn't always work
+    raster_ax.axvline(0, *raster_ax.get_ylim(), c="k", ls="--", zorder=10)
+
+    return fig, axs
+
+
+def bin_spikes(spike_times, align_times, pre_time, post_time, bin_size, weights=None):
+
+    n_bins_pre = int(np.ceil(pre_time / bin_size))
+    n_bins_post = int(np.ceil(post_time / bin_size))
+    n_bins = n_bins_pre + n_bins_post
+    tscale = np.arange(-n_bins_pre, n_bins_post + 1) * bin_size
+    ts = np.repeat(align_times[:, np.newaxis], tscale.size, axis=1) + tscale
+    epoch_idxs = np.searchsorted(spike_times, np.c_[ts[:, 0], ts[:, -1]])
+    bins = np.zeros(shape=(align_times.shape[0], n_bins))
+
+    for i, (ep, t) in enumerate(zip(epoch_idxs, ts)):
+        xind = (np.floor((spike_times[ep[0] : ep[1]] - t[0]) / bin_size)).astype(np.int64)
+        w = weights[ep[0] : ep[1]] if weights is not None else None
+        r = np.bincount(xind, minlength=tscale.shape[0], weights=w)
+        if w is not None:
+            r_norm = np.bincount(xind, minlength=tscale.shape[0])
+            r_norm[r_norm == 0] = 1
+            r = r / r_norm
+        bins[i, :] = r[:-1]
+
+    tscale = (tscale[:-1] + tscale[1:]) / 2
+
+    return bins, tscale
+
+
+def find_trial_ids(trials, sort="idx"):
+    """
+    Sort trials in a df based on various parameters
+
+    Parameters
+    ----------
+    trials : pandas.DataFrame
+        Dataframe of trials, at a minimum containing the "contrastRight", "contrastLeft", and "feedbackType" columns
+    sort : str, optional
+        Sorting method, which can be:
+            - "idx": trial index
+            - "fdbk": feedback type, ordered by correct then incorrect
+            - "side": side of stimulus, ordered by left and then right
+            - "fdbk and side": stimulus side and feedback type, ordered by correct left,
+                correct right, incorrect left, incorrect right
+            - "movement": movement direction, ordered by left and then right
+            - "block": Order of blocks, ordered by block identity (without 0.5 block) L then R
+        by default "idx"
+
+    Returns
+    -------
+    numpy.ndarray, list
+        Array of trial indices and list of the indices in that array
+            which separate based on condition.
+    """
+    # Find different permutations of trials
+    # correct right
+    cor_r = np.where(
+        np.bitwise_and(trials["feedbackType"] == 1, np.isfinite(trials["contrastRight"]))
+    )[0]
+    # correct left
+    cor_l = np.where(
+        np.bitwise_and(trials["feedbackType"] == 1, np.isfinite(trials["contrastLeft"]))
+    )[0]
+    # incorrect right
+    incor_r = np.where(
+        np.bitwise_and(
+            trials["feedbackType"] == -1, np.isfinite(trials["contrastRight"])
+        )
+    )[0]
+    # incorrect left
+    incor_l = np.where(
+        np.bitwise_and(trials["feedbackType"] == -1, np.isfinite(trials["contrastLeft"]))
+    )[0]
+
+    # left and right blocks
+    block_l = np.where(trials["probabilityLeft"] == 0.8)[0]
+    block_r = np.where(trials["probabilityLeft"] == 0.2)[0]
+
+    dividers = []
+
+    # Find the trial id for all possible combinations
+    if sort == "idx":
+        trial_id = np.sort(np.r_[cor_r, cor_l, incor_r, incor_l])
+    elif sort == "fdbk":
+        trial_id = np.r_[np.sort(np.r_[cor_l, cor_r]), np.sort(np.r_[incor_l, incor_r])]
+        dividers.append(np.r_[cor_l, cor_r].shape[0])
+    elif sort == "side":
+        trial_id = np.r_[np.sort(np.r_[cor_l, incor_l]), np.sort(np.r_[cor_r, incor_r])]
+        dividers.append(np.r_[cor_l, incor_l].shape[0])
+    elif sort == "fdbk and side":
+        trial_id = np.r_[np.sort(cor_l), np.sort(incor_l), np.sort(cor_r), np.sort(incor_r)]
+        dividers.append(cor_l.shape[0])
+        dividers.append(np.r_[cor_l, incor_l].shape[0])
+        dividers.append(np.r_[cor_l, incor_l, cor_r].shape[0])
+    elif sort == "movement":
+        trial_id = np.r_[np.sort(np.r_[cor_l, incor_r]), np.sort(np.r_[incor_l, cor_r])]
+        dividers.append(np.r_[cor_l, incor_r].shape[0])
+    elif sort == "block":
+        trial_id = np.r_[block_l, block_r]
+        dividers.append(block_l.shape[0])
+
+    return trial_id, dividers

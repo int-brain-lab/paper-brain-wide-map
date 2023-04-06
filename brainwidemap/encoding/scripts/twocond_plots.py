@@ -8,6 +8,7 @@ import seaborn as sns
 from brainwidemap.bwm_loading import bwm_query
 from brainwidemap.encoding.glm_predict import GLMPredictor, predict
 from brainwidemap.encoding.params import GLM_CACHE, GLM_FIT_PATH
+from brainwidemap.encoding.utils import single_cluster_raster, find_trial_ids
 
 import neurencoding.linear as lm
 from neurencoding.utils import remove_regressors
@@ -15,7 +16,7 @@ from neurencoding.utils import remove_regressors
 # Please use the saved parameters dict form 02_fit_sessions.py as params
 PLOTPATH = Path("/home/berk/Documents/Projects/results/plots/prediction_summaries")
 N_TOP_UNITS = 5
-IMGFMT = "svg"
+IMGFMT = "png"
 alignsets = {  # Sets of align_time as key with aligncol, aligncond1/2 functions, and t_before/t_after as the values
     "stimOn_times": (
         "contrastRight",
@@ -51,13 +52,11 @@ targetreg = {  # Function to produce the target metric, the target regions, and 
     "choice": (lambda df: df["fmoveR"] - df["fmoveL"], ["GRN"], "firstMovement_times"),
     "feedback": (lambda df: df["correct"] - df["incorrect"], ["IRN"], "feedback_times"),
     "wheel": (lambda df: df["wheel"], ["GRN"], "firstMovement_times"),
-    "block": (lambda df: df["pLeft"], ["PL"], "stimOn_times")
+    "block": (lambda df: df["pLeft"], ["PL"], "stimOn_times"),
 }
 
 params = pd.read_pickle(GLM_FIT_PATH + "/2023-03-07_glm_fit_pars.pkl")
-meanscores = pd.read_pickle(GLM_FIT_PATH + "/2023-03-02_glm_fit.pkl")[
-    "mean_fit_results"
-].set_index("region", append=True)
+meanscores = pd.read_pickle(GLM_FIT_PATH + "/2023-03-02_glm_fit.pkl")["mean_fit_results"].set_index("region", append=True)
 
 
 def plot_twocond(
@@ -78,9 +77,7 @@ def plot_twocond(
     stdf, sspkt, sspkclu, sclureg, clu_df = cw.get_cached_regressors(eidfn)
     design = cw.generate_design(stdf, stdf["probabilityLeft"], t_before=0.6, **params)
     spkmask = sspkclu == clu_id
-    nglm = lm.LinearGLM(
-        design, sspkt[spkmask], sspkclu[spkmask], estimator=params["estimator"], mintrials=0
-    )
+    nglm = lm.LinearGLM(design, sspkt[spkmask], sspkclu[spkmask], estimator=params["estimator"], mintrials=0)
     nglm.fit()
     pred = GLMPredictor(stdf, nglm, sspkt, sspkclu)
     fig, ax = plt.subplots(3, 4, figsize=(12, 12), sharey="row")
@@ -104,9 +101,7 @@ def plot_twocond(
     )
     oldticks.extend(ax[0, 1].get_yticks())
     noreg_dm = remove_regressors(design, regressors)
-    nrnglm = lm.LinearGLM(
-        noreg_dm, sspkt[spkmask], sspkclu[spkmask], estimator=params["estimator"], mintrials=0
-    )
+    nrnglm = lm.LinearGLM(noreg_dm, sspkt[spkmask], sspkclu[spkmask], estimator=params["estimator"], mintrials=0)
     nrnglm.fit()
     nrpred = GLMPredictor(stdf, nrnglm, sspkt, sspkclu)
     nrpred.psth_summary(
@@ -129,21 +124,24 @@ def plot_twocond(
     oldticks.extend(ax[0, 3].get_yticks())
     ax[0, 0].set_ylim([0, np.max(oldticks) * 1.1])
     ax[0, 0].set_yticks(oldticks)
-    return fig, ax
+    return fig, ax, sspkt, sspkclu, stdf
 
+
+sortlookup = {"stim": "side", "choice": "movement", "feedback": "choice", "wheel": "movement"}
 
 for variable, (targetmetricfun, regions, aligntime) in targetreg.items():
     varfolder = Path(PLOTPATH).joinpath(variable)
+    rasterfolder = varfolder.joinpath("rasters")
     if not varfolder.exists():
         varfolder.mkdir()
+    if not rasterfolder.exists():
+        rasterfolder.mkdir()
     targetmetric = targetmetricfun(meanscores)
     aligncol, aligncond1, aligncond2, t_before, t_after, reg1, reg2 = alignsets[aligntime]
     for region in regions:
-        topunits = (
-            targetmetric.loc[:, :, :, region].sort_values(ascending=False).iloc[:N_TOP_UNITS]
-        )
+        topunits = targetmetric.loc[:, :, :, region].sort_values(ascending=False).iloc[:N_TOP_UNITS]
         for (eid, pid, clu_id), drsq in topunits.items():
-            fig, ax = plot_twocond(
+            fig, ax, sspkt, sspkclu, stdf = plot_twocond(
                 eid,
                 pid,
                 clu_id,
@@ -162,12 +160,16 @@ for variable, (targetmetricfun, regions, aligntime) in targetreg.items():
             names = [reg1, reg2, reg1 + remstr, reg2 + remstr]
             for subax, title in zip(ax[0, :], names):
                 subax.set_title(title)
-            plt.savefig(
-                varfolder.joinpath(
-                    f"{eid}_{pid}_clu{clu_id}_{region}_{variable}_predsummary.{IMGFMT}"
-                )
-            )
+            plt.savefig(varfolder.joinpath(f"{eid}_{pid}_clu{clu_id}_{region}_{variable}_predsummary.{IMGFMT}"))
             plt.close()
+
+            stdf["response_times"] = stdf["stimOn_times"]
+            trial_idx, dividers = find_trial_ids(stdf, sort=sortlookup[variable])
+            fig, ax = single_cluster_raster(
+                sspkt[sspkclu == clu_id], stdf[aligntime], trial_idx, dividers, ["r", "b"], [reg1, reg2]
+            )
+            plt.savefig(rasterfolder.joinpath(f"{eid}_{pid}_clu{clu_id}_{region}_{variable}_raster.{IMGFMT}"))
+
 
 ## Treat block separately since it's a different type of plot
 variable = "block"
@@ -177,9 +179,7 @@ if not varfolder.exists():
     varfolder.mkdir()
 targetmetric = targetmetricfun(meanscores)
 for region in regions:
-    topunits = (
-        targetmetric.loc[:, :, :, region].sort_values(ascending=False).iloc[:N_TOP_UNITS]
-    )
+    topunits = targetmetric.loc[:, :, :, region].sort_values(ascending=False).iloc[:N_TOP_UNITS]
     for (eid, pid, clu_id), drsq in topunits.items():
         sessdf = bwm_query()
         subject = sessdf[sessdf["eid"] == eid]["subject"].iloc[0]
@@ -187,16 +187,16 @@ for region in regions:
         stdf, sspkt, sspkclu, sclureg, clu_df = cw.get_cached_regressors(eidfn)
         design = cw.generate_design(stdf, stdf["probabilityLeft"], t_before=0.6, **params)
         spkmask = sspkclu == clu_id
-        nglm = lm.LinearGLM(
-            design, sspkt[spkmask], sspkclu[spkmask], estimator=params["estimator"], mintrials=0
-        )
+        nglm = lm.LinearGLM(design, sspkt[spkmask], sspkclu[spkmask], estimator=params["estimator"], mintrials=0)
         nglm.fit()
         pred, trlabels = predict(nglm, glm_type="linear", retlab=True)
         mask = design.dm[:, design.covar["pLeft"]["dmcol_idx"]] != 0
         itipred = pred[clu_id][mask]
         iticounts = nglm.binnedspikes[mask, :]
         labels = trlabels[mask]
-        rates = pd.DataFrame(index=stdf.index[stdf.probabilityLeft != 0.5], columns=["firing_rate", "pred_rate", "pLeft"], dtype=float)
+        rates = pd.DataFrame(
+            index=stdf.index[stdf.probabilityLeft != 0.5], columns=["firing_rate", "pred_rate", "pLeft"], dtype=float
+        )
         for p_val in [0.2, 0.8]:
             trials = stdf.index[stdf.probabilityLeft == p_val]
             for trial in trials:
@@ -210,12 +210,5 @@ for region in regions:
         ax[0].set_title(f"{region} {clu_id} firing rate by block")
         ax[1].set_title(f"{region} {clu_id} predicted rate by block")
         ax[0].set_ylabel("Firing rate (spikes/s)")
-        plt.savefig(
-            varfolder.joinpath(
-                f"{eid}_{pid}_clu{clu_id}_{region}_{variable}_predsummary.{IMGFMT}"
-            )
-        )
+        plt.savefig(varfolder.joinpath(f"{eid}_{pid}_clu{clu_id}_{region}_{variable}_predsummary.{IMGFMT}"))
         plt.close()
-
-
-

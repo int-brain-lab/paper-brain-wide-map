@@ -10,4 +10,4 @@ line_length = 130
 wrap_length = 130
 
 [tool.black]
-line-length = 130
+line-length = 99
