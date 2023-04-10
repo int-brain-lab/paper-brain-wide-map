@@ -112,6 +112,7 @@ params = {
     "n_impostors": 100,
     "seqsel_kwargs": {"direction": "backward", "n_features_to_select": 8},
     "seqselfit_kwargs": {"full_scores": True},
+    "seed": 0,
 }
 
 params["bases"] = {

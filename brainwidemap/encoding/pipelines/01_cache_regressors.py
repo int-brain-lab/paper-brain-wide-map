@@ -15,10 +15,11 @@ from dask_jobqueue import SLURMCluster
 # IBL libraries
 import brainbox.io.one as bbone
 from iblutil.util import Bunch
+from iblutil.numerical import ismember
 from one.api import ONE
 from brainwidemap.encoding.params import GLM_CACHE
 from brainwidemap.encoding.utils import load_trials_df
-from brainwidemap.bwm_loading import load_trials_and_mask, bwm_query
+from brainwidemap.bwm_loading import load_trials_and_mask, bwm_query, bwm_units
 
 _logger = logging.getLogger("brainwide")
 
@@ -90,7 +91,12 @@ def load_regressors(
     clu_df["pid"] = pid
 
     if clu_criteria == "bwm":
-        keepclu = clu_df.index[clu_df.label == 1]
+        allunits = (
+            bwm_units(one=one)
+            .rename(columns={"cluster_id": "clu_id"})
+            .set_index(["eid", "pid", "clu_id"])
+        )
+        keepclu = clu_df.index.intersection(allunits.loc[session_id, pid, :].index)
     elif clu_criteria == "all":
         keepclu = clu_df.index
     else:
@@ -124,8 +130,7 @@ def cache_regressors(
     sesspath = subpath.joinpath(session_id)
     if not sesspath.exists():
         os.mkdir(sesspath)
-    curr_t = dt.now()
-    fnbase = str(curr_t.date())
+    fnbase = DATE
     metadata_fn = sesspath.joinpath(fnbase + f"_{pid}_metadata.pkl")
     data_fn = sesspath.joinpath(fnbase + f"_{pid}_regressors.pkl")
     regressors = {
@@ -221,6 +226,20 @@ dataset = [
     }
     for i, x in enumerate(dataset_futures)
     if tmp_futures[i].status == "finished"
+]
+
+# Run below if run finished but you lost the python session
+regfns = list(Path(GLM_CACHE).rglob(f"*{DATE}*_regressors.pkl"))
+
+dataset = [
+    {
+        "subject": path.parts[-3],
+        "eid": path.parts[-2],
+        "probes": path.parts[-1].split("_")[1],
+        "meta_file": str(path).split("_regressors.pkl")[0] + "_metadata.pkl",
+        "reg_file": path,
+    }
+    for path in regfns
 ]
 dataset = pd.DataFrame(dataset)
 
