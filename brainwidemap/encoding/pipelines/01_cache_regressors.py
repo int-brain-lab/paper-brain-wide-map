@@ -19,7 +19,7 @@ from iblutil.numerical import ismember
 from one.api import ONE
 from brainwidemap.encoding.params import GLM_CACHE
 from brainwidemap.encoding.utils import load_trials_df
-from brainwidemap.bwm_loading import load_trials_and_mask, bwm_query, bwm_units
+from brainwidemap.bwm_loading import load_trials_and_mask, bwm_query, bwm_units, load_good_units
 
 _logger = logging.getLogger("brainwide")
 
@@ -27,12 +27,12 @@ _logger = logging.getLogger("brainwide")
 def load_regressors(
     session_id,
     pid,
+    one,
     t_before=0.0,
-    t_after=0.0,
+    t_after=0.2,
     binwidth=0.02,
     abswheel=False,
     clu_criteria="bwm",
-    one=None,
 ):
     """
     Load in regressors for given session and probe. Returns a dictionary with the following keys:
@@ -65,8 +65,6 @@ def load_regressors(
     trialsdf, spk_times, spk_clu, clu_regions, clu_qc, clu_df, clu_qc (optional)
         Output regressors for GLM
     """
-    one = ONE() if one is None else one
-
     _, mask = load_trials_and_mask(one=one, eid=session_id)
     mask = mask.index[np.nonzero(mask.values)]
     trialsdf = load_trials_df(
@@ -82,7 +80,7 @@ def load_regressors(
     )
 
     clusters = {}
-    ssl = bbone.SpikeSortingLoader(one=one, pid=pid)
+    spikes = load_good_units(one, pid)
     origspikes, tmpclu, channels = ssl.load_spike_sorting()
     if "metrics" not in tmpclu:
         tmpclu["metrics"] = np.ones(tmpclu["channels"].size)
@@ -119,9 +117,6 @@ def cache_regressors(
     Take outputs of load_regressors() and cache them to disk in the folder defined in the params.py
     file in this repository, using a nested subject -> session folder structure.
 
-    If an existing file in the directory already contains identical data, will not write a new file
-    and instead return the existing filenames.
-
     Returns the metadata filename and regressors filename.
     """
     subpath = Path(GLM_CACHE).joinpath(subject)
@@ -156,15 +151,12 @@ def delayed_loadsave(subject, session_id, pid, params):
 
 
 # Parameters
-SESS_CRITERION = "resolved-behavior"
-DATE = str(dt.now().date())
-T_BEF = 0.6
-T_AFT = 0.6
-BINWIDTH = 0.02
-ABSWHEEL = False
-QC = True
-EPHYS_IMPOSTOR = False
-CLU_CRITERIA = "bwm"
+DATE = str(dt.now().date())  # Date with which to save the dataset file
+T_BEF = 0.6  # Time before stimulus onset to include in the definition of the trial
+T_AFT = 0.6  # Time after feedback to include in the definition of a trial
+BINWIDTH = 0.02  # Size of binwidth for wheel velocity traces, in seconds
+ABSWHEEL = False  # Whether to return wheel velocity (False) or speed (True)
+CLU_CRITERIA = "bwm"  # Criteria on cluster inclusion in cache
 # End parameters
 
 # Construct params dict from above

@@ -90,9 +90,8 @@ def fit_save_inputs(
     null=None,
 ):
     stdf, sspkt, sspkclu, sclureg, scluqc = get_cached_regressors(eidfn)
-    stdf_nona = filter_nan(stdf)
-    sessprior = stdf_nona["probabilityLeft"]
-    sessdesign = generate_design(stdf_nona, sessprior, t_before, **params)
+    sessprior = stdf["probabilityLeft"]
+    sessdesign = generate_design(stdf, sessprior, t_before, **params)
     if null is None:
         sessfit = fit_stepwise(sessdesign, sspkt, sspkclu, **params)
         outputfn = save_stepwise(

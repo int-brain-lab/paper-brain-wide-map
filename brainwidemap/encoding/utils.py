@@ -174,7 +174,7 @@ def make_batch_slurm_singularity(
 
 def load_trials_df(
     eid,
-    one=None,
+    one,
     t_before=0.0,
     t_after=0.2,
     ret_wheel=False,
@@ -226,9 +226,6 @@ def load_trials_df(
         have a monotonic index. Has special columns trial_start and trial_end which define start
         and end times via t_before and t_after
     """
-    if not one:
-        one = ONE()
-
     if ret_wheel and ret_abswheel:
         raise ValueError("ret_wheel and ret_abswheel cannot both be true.")
 
@@ -246,13 +243,9 @@ def load_trials_df(
     trialstypes.extend(addtl_types)
 
     loader = SessionLoader(one=one, eid=eid)
-    loader.load_session_data(pose=False, motion_energy=False, pupil=False, wheel=True)
-    loader.load_wheel(fs=1000, corner_frequency=70, order=8)
+    loader.load_session_data(pose=False, motion_energy=False, pupil=False, wheel=False)
 
-    trials = loader.trials
-    starttimes = trials.stimOn_times
-    endtimes = trials.feedback_times
-    trialsdf = trials[trialstypes]
+    trialsdf = loader.trials[trialstypes]
     if trials_mask is not None:
         trialsdf = trialsdf.loc[trials_mask]
     trialsdf["trial_start"] = trialsdf["stimOn_times"] - t_before
@@ -265,26 +258,37 @@ def load_trials_df(
         )
     if not ret_wheel and not ret_abswheel:
         return trialsdf
-
+    # Load in the wheel data manually so we can do the resampling on our own terms rather than
+    # through the SessionLoader
     wheel = one.load_object(eid, "wheel", collection="alf")
     whlpos, whlt = wheel.position, wheel.timestamps
     starttimes = trialsdf["trial_start"]
     endtimes = trialsdf["trial_end"]
-    wh_endlast = 0
-    trials = []
+    wh_endlast = 0  # Last index of the previously processed trial wheel idx
+    trials = []  # List of trial wheel traces
     for (start, end) in np.vstack((starttimes, endtimes)).T:
+        # Do a sorted search on the wheel timestamps to find the start and end indices
         wh_startind = np.searchsorted(whlt[wh_endlast:], start) + wh_endlast
+        # Add a few bins past the canonical end index so when we resample to fixed t intervals
+        # We know we will cover all of the trial time. 4 bins is a bit arbitrary but seems to work
         wh_endind = np.searchsorted(whlt[wh_endlast:], end, side="right") + wh_endlast + 4
-        wh_endlast = wh_endind
+        wh_endlast = wh_endind  # Even though we're 4 bins past the end, usually the ITI is far
+                                # longer than 4 bins so we can just use that value still
+        # Isolate trial-related positions and timestamps
         tr_whlpos = whlpos[wh_startind - 1 : wh_endind + 1]
         tr_whlt = whlt[wh_startind - 1 : wh_endind + 1] - start
         tr_whlt[0] = 0.0  # Manual previous-value interpolation
+        # Resample to fixed time bins
         whlseries = TimeSeries(tr_whlt, tr_whlpos, columns=["whlpos"])
         whlsync = sync(wheel_binsize, timeseries=whlseries, interp="previous")
+        # Extract the trial wheel trace and add to the list
         trialstartind = np.searchsorted(whlsync.times, 0)
         trialendind = np.ceil((end - start) / wheel_binsize).astype(int)
         trpos = whlsync.values[trialstartind : trialendind + trialstartind]
+        # Raw wheel velocity with no smoothing
         whlvel = trpos[1:] - trpos[:-1]
+        # Insert a zero at the beginning to make the length match the trial. Wheel speed needs
+        # to be zero at this point anyway because of the enforced quiescence period.
         whlvel = np.insert(whlvel, 0, 0)
         if np.abs((trialendind - len(whlvel))) > 0:
             raise IndexError("Mismatch between expected length of wheel data and actual.")

@@ -6,9 +6,11 @@ The pipelines used for the processing of the entire dataset are located in the `
 
 ## Installation
 
-There are several steps that are necessary to get the code in this section of the repo to run. First and foremost the user must install the `neurencoding` package upon which the models are built. Currently this is done by cloning [the neurencoding repo](https://github.com/berkgercek/neurencoding.git) into a local directory, and installing the package either using python's pip package manager (`pip install -e ./neurencoding`) or conda's development command (`conda develop ./neurencoding`).
+There are several steps that are necessary to get the code in this section of the repo to run. All of these installation instructions should be run within the parent IBL environment specified [in this GitHub repo](https://github.com/int-brain-lab/iblenv), on top of an existing IBLenv environment.
 
-Users must also adjust the paths for storage in the `params.py` file. These are the paths where the code will store cached results, `GLM_CACHE`, and the fit results for the brain-wide map, `GLM_FIT_PATH`. As long as the top-level directory that is specified already exists the code will handle subfolder generation etc.
+First and foremost the user must install the `neurencoding` package upon which the models are built. This can be done by simply running `pip install neurencoding` within the IBL environment.
+
+Users must also adjust the paths for storage in the `paper-brain-wide-map/brainwidemap/encoding/params.py` file. These are the paths where the code will store cached results, `GLM_CACHE`, and the fit results for the brain-wide map, `GLM_FIT_PATH`. As long as the top-level directory that is specified already exists the code will handle subfolder generation etc.
 
 If you would like to run the full pipeline for data analyses, there are additional required packages and steps, as specified in the [pipelines section](#pipelines) of this document.
 
@@ -48,7 +50,7 @@ Users will also have to install the `dask`, `distributed`, and `dask-jobqueue` p
 
 ### Synthetic data testing and generation
 
-`synth.py` is a set of functions for generating data using the same assumptions underlying the encoding models and then fitting that data using the model to examine recovery of generative parameters.
+`synth.py` is a set of functions for generating data using the same assumptions underlying the encoding models and then fitting that data using the model to examine recovery of generative parameters. In effect this means taking a set of parameters fit by the model, and producing spike trains from those parameters to simulate a cell in which the true generative process is known exactly. Then that synthetic spike train can be used to fit one again, and see how well the model can capture a perfectly known output.
 
 ### Time series alignement
 

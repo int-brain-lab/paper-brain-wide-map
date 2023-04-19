@@ -15,8 +15,8 @@ from neurencoding.utils import remove_regressors
 
 # Please use the saved parameters dict form 02_fit_sessions.py as params
 PLOTPATH = Path("/home/berk/Documents/Projects/results/plots/prediction_summaries")
-N_TOP_UNITS = 5
-IMGFMT = "png"
+N_TOP_UNITS = 20
+plt.rcParams['svg.fonttype'] = 'none'
 alignsets = {  # Sets of align_time as key with aligncol, aligncond1/2 functions, and t_before/t_after as the values
     "stimOn_times": (
         "contrastRight",
@@ -127,9 +127,11 @@ def plot_twocond(
     return fig, ax, sspkt, sspkclu, stdf
 
 
-sortlookup = {"stim": "side", "choice": "movement", "feedback": "choice", "wheel": "movement"}
+sortlookup = {"stim": "side", "choice": "movement", "feedback": "fdbk", "wheel": "movement"}
 
 for variable, (targetmetricfun, regions, aligntime) in targetreg.items():
+    if variable == "block":
+        continue
     varfolder = Path(PLOTPATH).joinpath(variable)
     rasterfolder = varfolder.joinpath("rasters")
     if not varfolder.exists():
@@ -160,15 +162,19 @@ for variable, (targetmetricfun, regions, aligntime) in targetreg.items():
             names = [reg1, reg2, reg1 + remstr, reg2 + remstr]
             for subax, title in zip(ax[0, :], names):
                 subax.set_title(title)
-            plt.savefig(varfolder.joinpath(f"{eid}_{pid}_clu{clu_id}_{region}_{variable}_predsummary.{IMGFMT}"))
+            plt.savefig(varfolder.joinpath(f"{eid}_{pid}_clu{clu_id}_{region}_{variable}_predsummary.svg"))
+            plt.savefig(varfolder.joinpath(f"{eid}_{pid}_clu{clu_id}_{region}_{variable}_predsummary.png"))
             plt.close()
 
             stdf["response_times"] = stdf["stimOn_times"]
             trial_idx, dividers = find_trial_ids(stdf, sort=sortlookup[variable])
             fig, ax = single_cluster_raster(
-                sspkt[sspkclu == clu_id], stdf[aligntime], trial_idx, dividers, ["r", "b"], [reg1, reg2]
+                sspkt[sspkclu == clu_id], stdf[aligntime], trial_idx, dividers, ["b", "r"], [reg1, reg2],
+                pre_time=t_before, post_time=t_after,
             )
-            plt.savefig(rasterfolder.joinpath(f"{eid}_{pid}_clu{clu_id}_{region}_{variable}_raster.{IMGFMT}"))
+            plt.savefig(rasterfolder.joinpath(f"{eid}_{pid}_clu{clu_id}_{region}_{variable}_raster.svg"))
+            plt.savefig(rasterfolder.joinpath(f"{eid}_{pid}_clu{clu_id}_{region}_{variable}_raster.png"))
+            plt.close()
 
 
 ## Treat block separately since it's a different type of plot

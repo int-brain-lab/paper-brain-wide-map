@@ -23,7 +23,11 @@ parser = argparse.ArgumentParser(
     " on a SLURM cluster. Requires a compiled ibl singularity image."
     " This image can be generated using the image uploaded at"
     " docker://bdgercek/iblcore:latest. See your cluster admin"
-    " for more info about using singularity images."
+    " for more info about using singularity images. Additionally,"
+    " parameters for the actual GLM fitting are defined within the script itself."
+    " The arguments passed to the script via this parser are only for cluster control."
+    " If you would like to change parameters of the actual fit please adjust the contents"
+    " of the \"parameters\" section in the file."
 )
 parser.add_argument(
     "--basefilepath",
@@ -91,11 +95,12 @@ parser.add_argument(
 args = parser.parse_args()
 
 # Model parameters
-def tmp_binf(t):
+# The GLM constructor class requires a function that converts time to bin index, here we define it
+# using the binwidth parameter created shortly. 
+def tmp_binf(t): 
     return np.ceil(t / params["binwidth"]).astype(int)
 
-
-# Define fitting parameters for workers
+######### PARAMETERS #########
 params = {
     "binwidth": 0.02,
     "iti_prior": [-0.4, -0.1],
