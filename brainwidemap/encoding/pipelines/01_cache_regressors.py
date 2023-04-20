@@ -80,7 +80,7 @@ def load_regressors(
     )
 
     clusters = {}
-    spikes = load_good_units(one, pid)
+    spikes = bbone.SpikeSortingLoader(one=one, pid=pid, eid=session_id)
     origspikes, tmpclu, channels = ssl.load_spike_sorting()
     if "metrics" not in tmpclu:
         tmpclu["metrics"] = np.ones(tmpclu["channels"].size)

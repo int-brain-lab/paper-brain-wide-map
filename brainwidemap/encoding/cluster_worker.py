@@ -22,12 +22,6 @@ from brainwidemap.encoding.fit import fit_stepwise, fit_stepwise_with_pseudobloc
 from brainwidemap.encoding.params import GLM_FIT_PATH
 
 
-def filter_nan(trialsdf):
-    target_cols = ["stimOn_times", "feedback_times", "firstMovement_times"]
-    mask = ~np.any(np.isnan(trialsdf[target_cols]), axis=1)
-    return trialsdf[mask]
-
-
 def get_cached_regressors(fpath):
     with open(fpath, "rb") as fo:
         d = pickle.load(fo)
