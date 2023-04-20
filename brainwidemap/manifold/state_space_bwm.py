@@ -1,7 +1,6 @@
 from one.api import ONE
 from reproducible_ephys_processing import bin_spikes2D
-from brainwidemap import (bwm_query, load_good_units, 
-                          load_trials_and_mask, bwm_units)
+from brainwidemap import bwm_loading
 from ibllib.atlas import AllenAtlas
 from ibllib.atlas.regions import BrainRegions
 import ibllib
@@ -26,10 +25,9 @@ from scipy.stats import spearmanr
 from matplotlib.axis import Axis
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-import seaborn as sns
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.colors import ListedColormap, LinearSegmentedColormap   
-from matplotlib.gridspec import GridSpec   
+
 
 
 '''
@@ -77,7 +75,7 @@ one = ONE(base_url='https://openalyx.internationalbrainlab.org',
           password='international', silent=True)
 ba = AllenAtlas()
 br = BrainRegions()
-units_df = bwm_units(one)  # canonical set of cells
+units_df = bwm_loading.bwm_units(one)  # canonical set of cells
 
 
 # save results here
@@ -127,7 +125,7 @@ def grad(c, nobs, fr=1):
 
 def eid_probe2pid(eid, probe_name):
 
-    df = bwm_query(one)    
+    df = bwm_loading.bwm_query(one)
     return df[np.bitwise_and(df['eid'] == eid, 
                              df['probe_name'] == probe_name)]['pid']
                          
@@ -212,10 +210,10 @@ def get_d_vars(split, pid, mapping='Beryl', control=True, get_fr=False,
     eid, probe = one.pid2eid(pid)
 
     # load in spikes
-    spikes, clusters = load_good_units(one, pid)
+    spikes, clusters = bwm_loading.load_good_units(one, pid)
 
     # Load in trials data and mask bad trials (False if bad)
-    trials, mask = load_trials_and_mask(one, eid) 
+    trials, mask = bwm_loading.load_trials_and_mask(one, eid)
                                      
     events = []
     trn = []
@@ -597,7 +595,7 @@ def get_all_d_vars(split, eids_plus=None, control=True, restr=False,
         print('restr: ', restr)
 
     if eids_plus is None:
-        df = bwm_query(one)
+        df = bwm_loading.bwm_query(one)
         eids_plus = df[['eid', 'probe_name', 'pid']].values
 
     # save results per insertion (eid_probe) in FlatIron folder

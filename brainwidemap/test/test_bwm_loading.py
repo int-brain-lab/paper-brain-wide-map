@@ -72,8 +72,8 @@ def test_spike_load_and_merge_probes():
             clusters_list[1].iloc[idx - clusters_list[0].shape[0]][merged_clusters.columns]).empty
 
 
-def test_filter_units_region():
-    one = ONE()
+def test_filter_regions():
+    one = ONE(base_url='https://openalyx.internationalbrainlab.org')
     bwm_df = bwm_loading.bwm_query()
 
     # Test with downloading clusters table first
