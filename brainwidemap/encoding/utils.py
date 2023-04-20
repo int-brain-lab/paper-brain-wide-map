@@ -23,58 +23,6 @@ from brainwidemap.encoding.timeseries import TimeSeries, sync
 _logger = logging.getLogger("brainwide")
 
 
-def remap(ids, source="Allen", dest="Beryl", output="acronym", br=BrainRegions()):
-    """
-    Remap a set of brain region IDs from one atlas to another.
-    """
-    _, inds = ismember(ids, br.id[br.mappings[source]])
-    ids = br.id[br.mappings[dest][inds]]
-    if output == "id":
-        return br.id[br.mappings[dest][inds]]
-    elif output == "acronym":
-        return br.get(br.id[br.mappings[dest][inds]])["acronym"]
-
-
-def get_id(acronym, brainregions=BrainRegions()):
-    """
-    Get the ID of a brain region from its acronym
-    """
-    return brainregions.id[np.argwhere(brainregions.acronym == acronym)[0, 0]]
-
-
-def sessions_with_region(acronym, one=None):
-    """
-    Wrapper on an alyx query to figure out which sessions have a given brain region, defined by
-    it's acronym in the Allen atlas.
-
-    Parameters
-    ----------
-    acronym : str
-        Allen brain region acronym
-    one : ONE instance, optional
-        Instance of ONE to use for querying database. Will create new if None, by default None
-
-    Returns
-    -------
-    tuple of eids, session info, probe names
-    """
-    if one is None:
-        one = ONE()
-    query_str = (
-        f"channels__brain_region__acronym__icontains,{acronym},"
-        "probe_insertion__session__project__name__icontains,ibl_neuropixel_brainwide_01,"
-        "probe_insertion__session__qc__lt,50,"
-        "~probe_insertion__json__qc,CRITICAL"
-    )
-    traj = one.alyx.rest(
-        "trajectories", "list", provenance="Ephys aligned histology track", django=query_str
-    )
-    eids = np.array([i["session"]["id"] for i in traj])
-    sessinfo = [i["session"] for i in traj]
-    probes = np.array([i["probe_name"] for i in traj])
-    return eids, sessinfo, probes
-
-
 def make_batch_slurm_singularity(
     filebase,
     scriptpath,
