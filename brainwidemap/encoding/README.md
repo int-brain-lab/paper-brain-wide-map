@@ -6,9 +6,9 @@ The pipelines used for the processing of the entire dataset are located in the `
 
 ## Installation
 
-There are several steps that are necessary to get the code in this section of the repo to run. All of these installation instructions should be run within the parent IBL environment specified [in this GitHub repo](https://github.com/int-brain-lab/iblenv), on top of an existing IBLenv environment.
+There are several steps that are necessary to get the code in this section of the repo to run. All of these installation instructions should be run within the parent IBL environment specified [at the top of this repository](https://github.com/int-brain-lab/paper-brain-wide-map#readme).
 
-First and foremost the user must install the `neurencoding` package upon which the models are built. This can be done by simply running `pip install neurencoding` within the IBL environment.
+First and foremost the user must install the `neurencoding` package upon which the models are built. This can be done by simply running `pip install neurencoding` within the IBL environment. Users must also install `jupyter` in order to be able to run the example notebook contained in `scripts/`.
 
 Users must also adjust the paths for storage in the `paper-brain-wide-map/brainwidemap/encoding/params.py` file. These are the paths where the code will store cached results, `GLM_CACHE`, and the fit results for the brain-wide map, `GLM_FIT_PATH`. As long as the top-level directory that is specified already exists the code will handle subfolder generation etc.
 

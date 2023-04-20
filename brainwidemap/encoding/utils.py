@@ -12,6 +12,7 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 
 # IBL libraries
+import brainbox.io.one as bbone
 from brainbox.io.one import SessionLoader
 from ibllib.atlas import BrainRegions
 from iblutil.numerical import ismember
@@ -21,6 +22,92 @@ from one.api import ONE
 from brainwidemap.encoding.timeseries import TimeSeries, sync
 
 _logger = logging.getLogger("brainwide")
+
+
+def load_regressors(
+    session_id,
+    pid,
+    one,
+    t_before=0.0,
+    t_after=0.2,
+    binwidth=0.02,
+    abswheel=False,
+    clu_criteria="bwm",
+):
+    """
+    Load in regressors for given session and probe. Returns a dictionary with the following keys:
+
+    Parameters
+    ----------
+    session_id : str
+        EID of the session to load
+    pid : str
+        Probe ID to load associated with the session
+    t_before : float, optional
+        Time before stimulus onset to include in output trial_start column of df, by default 0.
+    t_after : float, optional
+        Time after feedback to include in output trial_end column of df, by default 0.
+    binwidth : float, optional
+        Binwidth for wheel signal. Needs to match that of GLM, by default 0.02
+    abswheel : bool, optional
+        Load in wheel speed instead of velocity, by default False
+    ret_qc : bool, optional
+        Whether to recompute cluster metrics and return a full dataframe of the result,
+        by default False
+    clu_criteria : str, optional
+        Criteria for saving clusters, 'all' for all units, 'bwm' for criteria matching that of
+        brain-wide map (all metrics passing). No others supported for now., by default 'bwm'
+    one : ONE, optional
+        Instance of ONE, by default None
+
+    Returns
+    -------
+    trialsdf, spk_times, spk_clu, clu_regions, clu_qc, clu_df, clu_qc (optional)
+        Output regressors for GLM
+    """
+    _, mask = load_trials_and_mask(one=one, eid=session_id)
+    mask = mask.index[np.nonzero(mask.values)]
+    trialsdf = load_trials_df(
+        session_id,
+        t_before=t_before,
+        t_after=t_after,
+        wheel_binsize=binwidth,
+        ret_abswheel=abswheel,
+        ret_wheel=not abswheel,
+        addtl_types=["firstMovement_times"],
+        one=one,
+        trials_mask=mask,
+    )
+
+    clusters = {}
+    spikes = bbone.SpikeSortingLoader(one=one, pid=pid, eid=session_id)
+    origspikes, tmpclu, channels = ssl.load_spike_sorting()
+    if "metrics" not in tmpclu:
+        tmpclu["metrics"] = np.ones(tmpclu["channels"].size)
+    clusters[pid] = ssl.merge_clusters(origspikes, tmpclu, channels)
+    clu_df = pd.DataFrame(clusters[pid]).set_index(["cluster_id"])
+    clu_df["pid"] = pid
+
+    if clu_criteria == "bwm":
+        allunits = (
+            bwm_units(one=one)
+            .rename(columns={"cluster_id": "clu_id"})
+            .set_index(["eid", "pid", "clu_id"])
+        )
+        keepclu = clu_df.index.intersection(allunits.loc[session_id, pid, :].index)
+    elif clu_criteria == "all":
+        keepclu = clu_df.index
+    else:
+        raise ValueError("clu_criteria must be 'bwm' or 'all'")
+
+    clu_df = clu_df.loc[keepclu]
+    keepmask = np.isin(origspikes.clusters, keepclu)
+    spikes = Bunch({k: v[keepmask] for k, v in origspikes.items()})
+    sortinds = np.argsort(spikes.times)
+    spk_times = spikes.times[sortinds]
+    spk_clu = spikes.clusters[sortinds]
+    clu_regions = clusters[pid].acronym
+    return trialsdf, spk_times, spk_clu, clu_regions, clu_df
 
 
 def make_batch_slurm_singularity(
