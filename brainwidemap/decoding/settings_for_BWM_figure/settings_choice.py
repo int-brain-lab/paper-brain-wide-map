@@ -16,7 +16,7 @@ RESULTS_DIR = Path("/scratch/users/bensonb/international-brain-lab/paper-brain-w
 SLURM_DIR = Path("/scratch/users/bensonb/international-brain-lab/paper-brain-wide-map/brainwidemap/logs/slurm")
 # Directory where slurm output and error files will be saved
 
-DATE = '09-03-2023'
+DATE = '01-04-2023'
 # Either current date for a fresh run, or date of the run you want to build on
 # Date must be different if you do different runs of the same target
 # e.g. signcont side with LogisticRegression vs signcont with Lasso
