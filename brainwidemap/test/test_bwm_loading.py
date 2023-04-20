@@ -72,7 +72,7 @@ def test_spike_load_and_merge_probes():
             clusters_list[1].iloc[idx - clusters_list[0].shape[0]][merged_clusters.columns]).empty
 
 
-def test_filter_regions():
+def test_filter_units_region():
     one = ONE()
     bwm_df = bwm_loading.bwm_query()
 
@@ -80,33 +80,26 @@ def test_filter_regions():
     clusters_table = bwm_loading.download_aggregate_tables(one, type='clusters')
     assert clusters_table.exists()
 
-    regions_df = bwm_loading.filter_regions(bwm_df['pid'], clusters_table=clusters_table)
-    assert set(regions_df.keys()) == set(['Beryl', 'pid', 'n_units', 'n_probes', 'n_sessions'])
-    assert regions_df.shape == (2469, 5)
+    units_df = bwm_loading.filter_units_region(bwm_df['eid'], clusters_table=clusters_table)
+    assert 'Beryl' in units_df.columns
+    assert units_df.shape == (22331, 29)
 
     # Test without passing clusters table
-    regions_df = bwm_loading.filter_regions(bwm_df['pid'], one=one)
-    assert regions_df.shape == (2469, 5)
+    units_df = bwm_loading.filter_units_region(bwm_df['eid'], one=one)
+    assert 'Beryl' in units_df.columns
+    assert units_df.shape == (22331, 29)
 
     # Test QC filter only
-    regions_df = bwm_loading.filter_regions(bwm_df['pid'], clusters_table=clusters_table, min_qc=1,
-                                            min_units_region=None, min_probes_region=None)
-    assert regions_df.shape == (2569, 5)
+    units_df = bwm_loading.filter_units_region(bwm_df['eid'], clusters_table=clusters_table, min_qc=1,
+                                               min_units_sessions=None)
+    assert 'Beryl' in units_df.columns
+    assert units_df.shape == (29202, 29)
 
     # Test units filter only
-    regions_df = bwm_loading.filter_regions(bwm_df['pid'], clusters_table=clusters_table, min_qc=None,
-                                            min_units_region=10, min_probes_region=None)
-    assert regions_df.shape == (3094, 5)
-
-    # Test probes filter only
-    regions_df = bwm_loading.filter_regions(bwm_df['pid'], clusters_table=clusters_table, min_qc=None,
-                                            min_units_region=None, min_probes_region=2)
-    assert regions_df.shape == (3087, 5)
-
-    # Test session filter
-    regions_df = bwm_loading.filter_regions(bwm_df['pid'], clusters_table=clusters_table,
-                                            min_probes_region=None, min_sessions_region=2)
-    assert regions_df.shape == (2469, 5)
+    units_df = bwm_loading.filter_units_region(bwm_df['eid'], clusters_table=clusters_table, min_qc=None,
+                                               min_units_sessions=(10, 2))
+    assert 'Beryl' in units_df.columns
+    assert units_df.shape == (255724, 29)
 
     # Remove the table
     clusters_table.unlink()
@@ -120,11 +113,14 @@ def test_filter_trials():
     trials_table = bwm_loading.download_aggregate_tables(one, type='trials')
     assert trials_table.exists()
 
-    eids = bwm_loading.filter_sessions(bwm_df['eid'], trials_table=trials_table)
-    assert eids.shape == (345,)
+    eids = bwm_loading.filter_sessions(bwm_df['eid'], trials_table=trials_table, bwm_include=False, min_errors=None)
+    assert len(eids) == 354
 
-    eids = bwm_loading.filter_sessions(bwm_df['eid'], one=one, min_trials=None)
-    assert eids.shape == (354,)
+    eids = bwm_loading.filter_sessions(bwm_df['eid'], trials_table=trials_table, bwm_include=True, min_errors=None)
+    assert len(eids) == 353
+
+    eids = bwm_loading.filter_sessions(bwm_df['eid'], trials_table=trials_table, bwm_include=True, min_errors=3)
+    assert len(eids) == 352
 
     trials_table.unlink()
 
