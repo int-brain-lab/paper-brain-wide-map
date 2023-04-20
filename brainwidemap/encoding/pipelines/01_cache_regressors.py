@@ -14,12 +14,11 @@ from dask_jobqueue import SLURMCluster
 
 # IBL libraries
 import brainbox.io.one as bbone
-from iblutil.util import Bunch
 from iblutil.numerical import ismember
 from one.api import ONE
 from brainwidemap.encoding.params import GLM_CACHE
-from brainwidemap.encoding.utils import load_trials_df, load_regressors
-from brainwidemap.bwm_loading import load_trials_and_mask, bwm_query, bwm_units, load_good_units
+from brainwidemap.encoding.utils import load_regressors
+from brainwidemap.bwm_loading import bwm_query
 
 _logger = logging.getLogger("brainwide")
 

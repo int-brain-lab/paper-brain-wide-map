@@ -14,7 +14,6 @@ from pathlib import Path
 
 # Third party libraries
 import numpy as np
-import pandas as pd
 
 # Brainwidemap repo imports
 from brainwidemap.encoding.design import generate_design
