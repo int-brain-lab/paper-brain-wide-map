@@ -32,6 +32,10 @@ Be warned that the image is quite large due to the heavy dependencies of `iblenv
 
 Users will also have to install the `dask`, `distributed`, and `dask-jobqueue` packages for the SLURM pipelines to work properly.
 
+### Scripts
+
+The `scripts/` folder contains small scripts that either run plotting or simple analyses for use in verifying and expanding the model. The example of a single-session fit is contained here, `fit_example_session.ipynb`. This also contains scripts for running GLMs on only the inter-trial-interval, as well as simple linear regression to predict the block identity (`single_unit_iti_{glm | pleft_regression}.py`). `twocond_plots` will compare the PSTH and predictions of the model for a set of example units that are selected for selectivity to each regressor. `xcorr_events_spikes.py` examines the cross-correlation of all units in the BWM with various even timings, and produces plots that were used to select kernel lengths.
+
 ### Cluster worker
 
 `cluster_worker.py` implements a mother script for cluster workers to process individual probe insertions. This relies on a cached dataset, produced using the `pipelines/01_cache_regressors.py` script, as well as several files specifying the identity and parameters of a cached dataset and the parameters of the current run of the model.
