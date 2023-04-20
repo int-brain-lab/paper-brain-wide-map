@@ -8,20 +8,16 @@ from pathlib import Path
 # Third party libraries
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
 import matplotlib.pyplot as plt
 
 # IBL libraries
+from iblutil.util import Bunch
 import brainbox.io.one as bbone
 from brainbox.io.one import SessionLoader
-from ibllib.atlas import BrainRegions
-from iblutil.numerical import ismember
-from one.api import ONE
 
 # Brainwidemap repo imports
+from brainwidemap.bwm_loading import load_trials_and_mask, bwm_units
 from brainwidemap.encoding.timeseries import TimeSeries, sync
-
-_logger = logging.getLogger("brainwide")
 
 
 def load_regressors(
@@ -80,7 +76,7 @@ def load_regressors(
     )
 
     clusters = {}
-    spikes = bbone.SpikeSortingLoader(one=one, pid=pid, eid=session_id)
+    ssl = bbone.SpikeSortingLoader(one=one, pid=pid, eid=session_id)
     origspikes, tmpclu, channels = ssl.load_spike_sorting()
     if "metrics" not in tmpclu:
         tmpclu["metrics"] = np.ones(tmpclu["channels"].size)
