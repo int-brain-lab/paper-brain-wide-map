@@ -47,3 +47,83 @@ def TwoNmannWhitneyUshuf(x, y, nShuf=10000):
     numer_final=np.minimum(numer,numer2)
 
     return numer_final
+
+
+def get_block(rate, c_L, c_R, block_label, choice_label, nShuf=5000):
+    # p-value for block side
+    num_neuron = rate.shape[0]
+    p = np.zeros(num_neuron)
+
+    for i_neuron in range(num_neuron):
+        spike_count = rate[i_neuron, :]
+
+        ############ left choice = 1 ############
+        con1 = np.logical_and(c_L > 0, choice_label == 1)
+        con2 = np.logical_and(block_label == 0.8, con1)
+        con3 = np.logical_and(block_label == 0.2, con1)
+        index1 = np.argwhere(con2)
+        index2 = np.argwhere(con3)
+
+        x2 = spike_count[index1[:, 0]]
+        y2 = spike_count[index2[:, 0]]
+
+        nA2 = len(x2)
+        nB2 = len(y2)
+
+        numer2 = TwoNmannWhitneyUshuf(x2, y2, nShuf)
+
+        ############ left choice = -1 ############
+        con1 = np.logical_and(c_L > 0, choice_label == -1)
+        con2 = np.logical_and(block_label == 0.8, con1)
+        con3 = np.logical_and(block_label == 0.2, con1)
+        index1 = np.argwhere(con2)
+        index2 = np.argwhere(con3)
+
+        x5 = spike_count[index1[:, 0]]
+        y5 = spike_count[index2[:, 0]]
+
+        nA5 = len(x5)
+        nB5 = len(y5)
+
+        numer5 = TwoNmannWhitneyUshuf(x5, y5, nShuf)
+
+        ############ left, block = 0.2, choice = 1 ############
+        con1 = np.logical_and(c_R > 0, choice_label == 1)
+        con2 = np.logical_and(block_label == 0.8, con1)
+        con3 = np.logical_and(block_label == 0.2, con1)
+        index1 = np.argwhere(con2)
+        index2 = np.argwhere(con3)
+
+        x3 = spike_count[index1[:, 0]]
+        y3 = spike_count[index2[:, 0]]
+
+        nA3 = len(x3)
+        nB3 = len(y3)
+
+        numer3 = TwoNmannWhitneyUshuf(x3, y3, nShuf)
+
+        ############ left, block = 0.2, choice = -1 ############
+        con1 = np.logical_and(c_R > 0, choice_label == -1)
+        con2 = np.logical_and(block_label == 0.8, con1)
+        con3 = np.logical_and(block_label == 0.2, con1)
+        index1 = np.argwhere(con2)
+        index2 = np.argwhere(con3)
+
+        x6 = spike_count[index1[:, 0]]
+        y6 = spike_count[index2[:, 0]]
+
+        nA6 = len(x6)
+        nB6 = len(y6)
+
+        numer6 = TwoNmannWhitneyUshuf(x6, y6, nShuf)
+
+        nTotal = numer2 + numer3 + numer5 + numer6
+
+        dTotal = nA2 * nB2 + nA3 * nB3 + nA5 * nB5 + nA6 * nB6
+
+        cp = nTotal / dTotal
+
+        t = rankdata(cp)
+        p[i_neuron] = t[0] / (1 + nShuf)
+
+    return p

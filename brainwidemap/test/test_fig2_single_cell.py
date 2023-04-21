@@ -21,8 +21,7 @@ class TestBWM(unittest.TestCase):
     def test_block_test(self):
         pid = '3675290c-8134-4598-b924-83edb7940269'
         eid = '15f742e1-1043-45c9-9504-f1e8a53c1744'
-        probe = 'probe00'
-        self._verify('block', BWM_block_test(pid, eid, probe))
+        self._verify('block', BWM_block_test(pid, eid))
 
     def test_stim_test(self):
         pid = '3675290c-8134-4598-b924-83edb7940269'
@@ -66,3 +65,7 @@ class TestBWM(unittest.TestCase):
 
     def tearDown(self) -> None:
         np.random.seed()
+
+
+if __name__ == '__main__':
+    unittest.main()
