@@ -12,11 +12,14 @@ from brainwidemap.fig2_single_cell_Working_example_feedback import BWM_feedback_
 
 
 class TestBWM(unittest.TestCase):
+    data = {}
+
     def setUp(self) -> None:
         np.random.seed(0)
         fixture = Path(__file__).with_name('fig2_data.pkl')
-        with open(fixture, 'rb') as fp:
-            self.data = pickle.load(fp)
+        if fixture.exists():
+            with open(fixture, 'rb') as fp:
+                self.data = pickle.load(fp)
 
     def test_block_test(self):
         pid = '3675290c-8134-4598-b924-83edb7940269'
@@ -42,6 +45,7 @@ class TestBWM(unittest.TestCase):
 
     def _verify(self, test, output):
         if test not in self.data:
+            print('Updating test data...')
             self._update_data(test, output)
             self._save()
         expected = self.data[test]
