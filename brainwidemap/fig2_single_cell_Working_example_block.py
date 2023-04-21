@@ -2,8 +2,6 @@
 # coding: utf-8
 
 # In[1]:
-
-
 import numpy as np
 #from oneibl.one import ONE
 from one.api import ONE
@@ -15,6 +13,9 @@ import scipy.stats as scist
 from os import path
 
 import pandas as pd
+
+from scipy.stats import rankdata
+
 
 
 ######
@@ -35,11 +36,23 @@ ba = AllenAtlas()
 from brainbox.task.closed_loop import generate_pseudo_blocks
 
 
-# In[ ]:
+######
 
 
-from scipy.stats import rankdata
-import numpy as np
+
+from brainwidemap import bwm_query
+
+from pathlib import Path
+from brainbox.io.one import SessionLoader
+
+from brainwidemap import bwm_query, load_good_units, load_trials_and_mask, filter_sessions, \
+    download_aggregate_tables
+
+# Specify a path to download the cluster and trials tables
+local_path = Path.home().joinpath('bwm_examples')
+local_path.mkdir(exist_ok=True)
+
+
 
 
 def TwoNmannWhitneyUshuf(x,y,nShuf=10000):
@@ -276,12 +289,10 @@ def Pseudo_block_test(spike_count,block,n_trial):
 # In[3]:
 
 
-def BWM_block_test(pid, eid, probe, TimeWindow=np.array([-0.4, -0.1])):
+#def BWM_choice_test(pid, eid, TimeWindow=np.array([-0.1, 0.0])):
+def BWM_block_test(pid, eid, TimeWindow=np.array([-0.4, -0.1])):
 
     
-    
-    
-     
     # load spike data
     # spikes.times
     # spikes.clusters
@@ -290,40 +301,31 @@ def BWM_block_test(pid, eid, probe, TimeWindow=np.array([-0.4, -0.1])):
     #spikes, clusters, channels = bbone.load_spike_sorting_with_channel(eid, one=one)
     
     
-    sl = SpikeSortingLoader(pid=pid, one=one, atlas=ba)
-    spikes, clusters, channels = sl.load_spike_sorting()
-    clusters = sl.merge_clusters(spikes, clusters, channels)
+    #sl = SpikeSortingLoader(pid=pid, one=one, atlas=ba)
+    #spikes, clusters, channels = sl.load_spike_sorting()
+    #clusters = sl.merge_clusters(spikes, clusters, channels)
 
+    spikes, clusters = load_good_units(one, pid, compute_metrics=True)
+    
+    
+    
 
     # load trial data
-
-    collections = one.list_collections(eid, filename='_ibl_trials*')
-    trials = one.load_object(eid, collection=collections[0],obj='trials')
-
-    stim_on=trials.stimOn_times
-    response=trials.response_times
-    feedback=trials.feedback_times
-    contrast_R=trials.contrastRight
-    contrast_L=trials.contrastLeft
-    choice=trials.choice
-    block=trials.probabilityLeft
-    first_move=trials.firstMovement_times
     
-    # compute first movement time, if =NaN, replace it by response time.
-
-    #goCueRTs = []
-    #stimOnRTs = []
-    #trials = TrialData(eid)
-    #wheel  = WheelData(eid)
-    #if wheel.data_error == False:
-    #            wheel.calc_trialwise_wheel(trials.stimOn_times, trials.feedback_times)
-    #            wheel.calc_movement_onset_times(trials.stimOn_times)
-    #            first_move= wheel.first_movement_onset_times        
-    nan_index=np.argwhere(np.isnan(first_move))
-    first_move[nan_index[:,0]]=response[nan_index[:,0]]
     
+    
+    trials, mask = load_trials_and_mask(one, eid, min_rt=0.08, max_rt=2., nan_exclude='default')
+    # select good trials 
+    trials=trials.loc[mask == True]
 
-                 
+    stim_on=trials.stimOn_times.to_numpy()
+    response=trials.response_times.to_numpy()
+    feedback=trials.feedback_times.to_numpy()
+    contrast_R=trials.contrastRight.to_numpy()
+    contrast_L=trials.contrastLeft.to_numpy()
+    choice=trials.choice.to_numpy()
+    block=trials.probabilityLeft.to_numpy()
+    first_move=trials.firstMovement_times.to_numpy()
 
 
     num_neuron=len(np.unique(spikes['clusters']))
@@ -338,30 +340,15 @@ def BWM_block_test(pid, eid, probe, TimeWindow=np.array([-0.4, -0.1])):
     # BinSize=0.02
     
     #num_bin=np.floor((TimeWindow[1]-TimeWindow[0])/BinSize).astype(int)
-    
-   
-    # 3 conditions R:[0.25 1], [0], L:[0.25 1]
-    #firing_rate=np.zeros((num_neuron,num_bin,num_cond))
-    
-    
-    # number of trials included
-    
-    
-
 
     
-    
-    
-    
-    
-    
+    # pre-move
     spike_rate=np.zeros((num_neuron,num_trial))
 
+
     ############ compute firing rate ###################
+
     
-    
-    
-        
     T_1= TimeWindow[0]
     T_2= TimeWindow[1]
         
@@ -372,49 +359,24 @@ def BWM_block_test(pid, eid, probe, TimeWindow=np.array([-0.4, -0.1])):
             
 
     spike_count, cluster_id = get_spike_counts_in_bins(spikes['times'],spikes['clusters'],events)
-        # firing_rate.shape=(num_neuron,num_bin,num_condition) 
-        #count_number[i_bin]=   np.nansum(spike_count,axis=1)
-            
+       
 
     spike_rate = spike_count/(T_2-T_1)
-        #num_trial_cond=len(events[:,0])
-        # spike_count.shape(num_neuron,num_trial_cond)
-        #  cluster_id.shape(num_neuron,1)
-        
 
-    # rate_1=(num_neuron,)
-    #rate_1=np.nanmean(np.nanmean(firing_rate,axis=1),axis=1)
-    #rate_1=(np.nanmean(firing_rate[:,:,0],axis=1)
-    area_label_1=clusters['atlas_id'][cluster_id] 
+    area_label=clusters['atlas_id'][cluster_id].to_numpy()
 
-
-     
-    # only include units with firing rates > 1 Hz 
-    #rate_threshold=1 
-    
-    #rate_good=np.argwhere(rate_1>rate_threshold)[:,0]
-    
-    # only include units pass single unit QC criterion
-    ks2_id=np.zeros(0)
-    for i in range(len(cluster_id)):
-        if clusters['amp_median'][cluster_id[i]]>50/1000000:
-            if clusters['slidingRP_viol'][cluster_id[i]]==1 and clusters['noise_cutoff'][cluster_id[i]]<20:
-                ks2_id=np.append(ks2_id,[i])
-    ks2_id=ks2_id.astype(int)        
-        
-    #included_units=np.intersect1d(rate_good, ks2_id)
-    #included_units=rate_good
-    included_units=ks2_id
-    included_units=included_units.astype(int)
-    
-    rate=spike_rate[included_units,:]
-
-    area_label=area_label_1[included_units]
-    
     ############ return cluster id ########################
-    QC_cluster_id=cluster_id[included_units]
+    QC_cluster_id=clusters['cluster_id'][cluster_id].to_numpy()
+   
     
-    ############ compute p-value for block coding ###################
+    ############ compute p-value for block ###################
+    
+    ########## Pre-stim, time_shuffle_test #############
+    
+    rate=spike_rate
+    
+
+    ############ compute p-value for block ###################
     
     ########## Method 1: pseudo-session #############
     
@@ -427,8 +389,8 @@ def BWM_block_test(pid, eid, probe, TimeWindow=np.array([-0.4, -0.1])):
 
     
     p_2=get_block(rate,contrast_L,contrast_R,block,choice)
-    
-    
+
+
     
     return p_1, p_2, area_label,  QC_cluster_id
 
