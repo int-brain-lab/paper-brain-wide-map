@@ -37,7 +37,7 @@ ba = AllenAtlas()
 
 from brainbox.task.closed_loop import generate_pseudo_blocks
 
-
+from brainwidemap.bwm_loading import load_good_units, load_trials_and_mask
 # In[2]:
 
 
