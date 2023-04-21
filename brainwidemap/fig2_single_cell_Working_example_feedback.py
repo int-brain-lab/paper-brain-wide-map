@@ -4,14 +4,8 @@
 import numpy as np
 #from oneibl.one import ONE
 from one.api import ONE
-import brainbox.io.one as bbone
 
 from math import *
-import sys
-import scipy.stats as scist
-from os import path
-
-import pandas as pd
 
 from scipy.stats import rankdata
 
@@ -25,8 +19,6 @@ one = ONE()
 
 from brainbox.population.decode import get_spike_counts_in_bins
 
-from brainbox.io.one import SpikeSortingLoader
-
 from ibllib.atlas import AllenAtlas
 
 ba = AllenAtlas()
@@ -34,13 +26,10 @@ ba = AllenAtlas()
 
 ######### ibl brainwidemap loader #########
 
-from brainwidemap import bwm_query
 
 from pathlib import Path
-from brainbox.io.one import SessionLoader
 
-from brainwidemap import bwm_query, load_good_units, load_trials_and_mask, filter_regions, filter_sessions, \
-    download_aggregate_tables
+from brainwidemap import load_good_units, load_trials_and_mask
 
 # Specify a path to download the cluster and trials tables
 local_path = Path.home().joinpath('bwm_examples')

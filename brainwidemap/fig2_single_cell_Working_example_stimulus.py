@@ -34,13 +34,11 @@ from brainbox.task.closed_loop import generate_pseudo_blocks
 
 ######## using loading function in brain-wide-map repository ###############
 
-from brainwidemap import bwm_query
 
 from pathlib import Path
 from brainbox.io.one import SessionLoader
 
-from brainwidemap import bwm_query, load_good_units, load_trials_and_mask, filter_regions, filter_sessions, \
-    download_aggregate_tables
+from brainwidemap import load_good_units, load_trials_and_mask
 
 # Specify a path to download the cluster and trials tables
 local_path = Path.home().joinpath('bwm_examples')
