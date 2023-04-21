@@ -77,8 +77,8 @@ def sync(
         Must have time stamps.
     :type timeseries: tuple of TimeSeries objects, or a single TimeSeries object.
     :param offsets: tuple of offsets for time stamps of each time series. Offsets for passed
-        TimeSeries objects first, then offsets for passed numpy arrays. Used in cases where
-        there is a known offset between different sampled timeseries that must be accounted for.
+        TimeSeries objects first. Used in cases where there is a known offset between different
+        sampled timeseries that must be accounted for.
         defaults to None
     :type offsets: tuple of floats, optional
     :param interp: Type of interpolation to use. Refer to scipy.interpolate.interp1d for possible
