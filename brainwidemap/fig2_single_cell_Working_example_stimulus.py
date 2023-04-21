@@ -1,4 +1,3 @@
-from math import *
 from pathlib import Path
 
 import numpy as np
@@ -8,101 +7,14 @@ from scipy.stats import rankdata
 from brainbox.population.decode import get_spike_counts_in_bins
 
 from brainwidemap import load_good_units, load_trials_and_mask
+from .fig2_util import Time_TwoNmannWhitneyUshuf
 
 # Specify a path to download the cluster and trials tables
 local_path = Path.home().joinpath("bwm_examples")
 local_path.mkdir(exist_ok=True)
 
 
-################## Condition-combined test for indivdiual block, control time drift effect #####################
-
-
-def Time_TwoNmannWhitneyUshuf(x, y, bx, by, nShuf):
-    nx = len(x)
-    ny = len(y)
-
-    ################### x>y #####################
-    t1 = np.zeros((nShuf + 1, nx))
-
-    t2 = np.append(x, y, axis=0)
-    t = rankdata(t2)
-
-    t1[0, :] = t[range(nx)]
-
-    block_list = np.intersect1d(bx, by)
-
-    for i_Shuf in range(nShuf):
-        Final_index = np.zeros(nx + ny)
-        Final_index[:] = range(nx + ny)
-        #### generate random permutation sequence for individual block ####
-        for i_block in range(len(block_list)):
-            bx_index = np.argwhere(bx == block_list[i_block])
-            by_index = np.argwhere(by == block_list[i_block])
-            temp_index = np.append(bx_index, by_index + len(bx))
-
-            z1 = np.random.choice(
-                len(bx_index) + len(by_index),
-                size=(len(bx_index) + len(by_index)),
-                replace=False,
-            )
-            z = temp_index[z1]
-            Final_index[temp_index] = z
-
-        Final_index = Final_index.astype(int)
-        t1[i_Shuf + 1, :] = t[Final_index[range(nx)]]
-
-    if nx == 1:
-        numer1 = t1[:, 0]
-    else:
-        numer1 = np.sum(t1, axis=1)
-
-    numer = numer1 - nx * (nx + 1) / 2
-
-    ################### y>x #####################
-    t3 = np.zeros((nShuf + 1, ny))
-
-    t4 = np.append(y, x, axis=0)
-    t5 = rankdata(t4)
-
-    t3[0, :] = t5[range(ny)]
-
-    block_list = np.intersect1d(by, bx)
-
-    for i_Shuf in range(nShuf):
-        Final_index = np.zeros(nx + ny)
-        Final_index[:] = range(nx + ny)
-        #### generate random permutation sequence for individual block ####
-        for i_block in range(len(block_list)):
-            bx_index = np.argwhere(bx == block_list[i_block])
-            by_index = np.argwhere(by == block_list[i_block])
-            temp_index = np.append(by_index, bx_index + len(by))
-
-            z1 = np.random.choice(
-                len(bx_index) + len(by_index),
-                size=(len(bx_index) + len(by_index)),
-                replace=False,
-            )
-            z = temp_index[z1]
-            Final_index[temp_index] = z
-
-        Final_index = Final_index.astype(int)
-        t3[i_Shuf + 1, :] = t5[Final_index[range(ny)]]
-
-    if ny == 1:
-        numer2 = t3[:, 0]
-    else:
-        numer2 = np.sum(t3, axis=1)
-
-    numer3 = numer2 - ny * (ny + 1) / 2
-
-    ######################################################
-    numer_final = np.minimum(numer, numer3)
-
-    return numer_final
-
-
 ########### p-value for visual stimulus-side############
-
 
 def get_stim_time_shuffle(rate, c_L, c_R, block_label, choice_label, nShuf=3000):
     # nShuf=10000;
@@ -211,7 +123,6 @@ def get_stim_time_shuffle(rate, c_L, c_R, block_label, choice_label, nShuf=3000)
     return p
 
 
-# def BWM_choice_test(pid, eid, TimeWindow=np.array([-0.1, 0.0])):
 def BWM_stim_test(pid, eid, TimeWindow=np.array([0.0, 0.1]), one=None):
     one = one or ONE()
 
@@ -219,7 +130,6 @@ def BWM_stim_test(pid, eid, TimeWindow=np.array([0.0, 0.1]), one=None):
     spikes, clusters = load_good_units(one, pid, compute_metrics=True)
 
     # load trial data
-
     trials, mask = load_trials_and_mask(
         one, eid, min_rt=0.08, max_rt=2.0, nan_exclude="default"
     )
@@ -235,17 +145,6 @@ def BWM_stim_test(pid, eid, TimeWindow=np.array([0.0, 0.1]), one=None):
     num_neuron = len(np.unique(spikes["clusters"]))
     num_trial = len(stim_on)
 
-    ########## Time bins %%%%%%%%%%%%%%%%%%%%
-
-    # TimeWindow[0]=-0.2
-    # TimeWindow[1]= 1
-    # BinSize=0.02
-
-    # num_bin=np.floor((TimeWindow[1]-TimeWindow[0])/BinSize).astype(int)
-
-    # pre-move
-    spike_rate = np.zeros((num_neuron, num_trial))
-
     ############ compute firing rate ###################
 
     T_1 = TimeWindow[0]
@@ -257,18 +156,7 @@ def BWM_stim_test(pid, eid, TimeWindow=np.array([0.0, 0.1]), one=None):
     spike_count, cluster_id = get_spike_counts_in_bins(
         spikes["times"], spikes["clusters"], events
     )
-    # firing_rate.shape=(num_neuron,num_bin,num_condition)
-    # count_number[i_bin]=   np.nansum(spike_count,axis=1)
-
     spike_rate = spike_count / (T_2 - T_1)
-
-    # num_trial_cond=len(events[:,0])
-    # spike_count.shape(num_neuron,num_trial_cond)
-    #  cluster_id.shape(num_neuron,1)
-
-    # rate_1=(num_neuron,)
-    # rate_1=np.nanmean(np.nanmean(firing_rate,axis=1),axis=1)
-    # rate_1=(np.nanmean(firing_rate[:,:,0],axis=1)
     area_label = clusters["atlas_id"][cluster_id].to_numpy()
 
     ############ return cluster id ########################
@@ -278,23 +166,7 @@ def BWM_stim_test(pid, eid, TimeWindow=np.array([0.0, 0.1]), one=None):
 
     ########## Pre-move, time_shuffle_test #############
 
-    rate = spike_rate
-
-    p_1 = get_stim_time_shuffle(rate, contrast_L, contrast_R, block, choice, 3000)
-
-    ########## Pre-move, MW_test #############
-
-    # p_2=get_choice(rate,contrast_L,contrast_R,block,choice,3000)
-
-    ########### computate all units ######################
-
-    # sl = SpikeSortingLoader(pid=pid, one=one, atlas=ba)
-    # spikes_2, clusters_2, channels_2 = sl.load_spike_sorting()
-    # clusters_2 = sl.merge_clusters(spikes_2, clusters_2, channels_2)
-
-    # list_cluster=np.unique(spikes_2['clusters'])
-    # num_total_neuron=len(np.unique(spikes_2['clusters']))
-    # total_area_label=clusters_2['atlas_id'][list_cluster]
+    p_1 = get_stim_time_shuffle(spike_rate, contrast_L, contrast_R, block, choice, 3000)
 
     return p_1, area_label, QC_cluster_id
 

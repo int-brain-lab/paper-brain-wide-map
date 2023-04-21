@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 from pathlib import Path
-from math import *
 
 import numpy as np
 from one.api import ONE
@@ -10,57 +9,12 @@ from scipy.stats import rankdata
 from brainbox.population.decode import get_spike_counts_in_bins
 from brainbox.task.closed_loop import generate_pseudo_blocks
 
-
 from brainwidemap import load_good_units, load_trials_and_mask
+from .fig2_util import TwoNmannWhitneyUshuf
 
 # Specify a path to download the cluster and trials tables
 local_path = Path.home().joinpath("bwm_examples")
 local_path.mkdir(exist_ok=True)
-
-
-def TwoNmannWhitneyUshuf(x, y, nShuf=10000):
-    nA1 = len(x)
-    nB1 = len(y)
-    ################### x>y #####################
-    t1 = np.zeros((nShuf + 1, nA1))
-
-    t2 = np.append(x, y, axis=0)
-    t = rankdata(t2)
-
-    t1[0, :] = t[range(nA1)]
-    for i in range(nShuf):
-        z1 = np.random.choice(nA1 + nB1, size=nA1, replace=False)
-        t1[i + 1, :] = t[z1]
-
-    if nA1 == 1:
-        numer1 = t1[:, 0]
-    else:
-        numer1 = np.sum(t1, axis=1)
-
-    numer = numer1 - nA1 * (nA1 + 1) / 2
-
-    ############### y>x ###########################
-    t3 = np.zeros((nShuf + 1, nB1))
-
-    t4 = np.append(y, x, axis=0)
-    t5 = rankdata(t4)
-
-    t3[0, :] = t5[range(nB1)]
-    for i in range(nShuf):
-        z1 = np.random.choice(nA1 + nB1, size=nB1, replace=False)
-        t3[i + 1, :] = t5[z1]
-
-    if nB1 == 1:
-        numer3 = t3[:, 0]
-    else:
-        numer3 = np.sum(t3, axis=1)
-
-    numer2 = numer3 - nB1 * (nB1 + 1) / 2
-
-    ######################################################
-    numer_final = np.minimum(numer, numer2)
-
-    return numer_final
 
 
 def get_block(rate, c_L, c_R, block_label, choice_label):
@@ -214,17 +168,12 @@ def Pseudo_block_test(spike_count, block, n_trial):
     return prob
 
 
-# In[3]:
-
-
-# def BWM_choice_test(pid, eid, TimeWindow=np.array([-0.1, 0.0])):
 def BWM_block_test(pid, eid, TimeWindow=np.array([-0.4, -0.1]), one=None):
     one = one or ONE()
     # load spike data
     spikes, clusters = load_good_units(one, pid, compute_metrics=True)
 
     # load trial data
-
     trials, mask = load_trials_and_mask(
         one, eid, min_rt=0.08, max_rt=2.0, nan_exclude="default"
     )
@@ -257,26 +206,15 @@ def BWM_block_test(pid, eid, TimeWindow=np.array([-0.4, -0.1]), one=None):
     ############ return cluster id ########################
     QC_cluster_id = clusters["cluster_id"][cluster_id].to_numpy()
 
-    ############ compute p-value for block ###################
-
-    ########## Pre-stim, time_shuffle_test #############
-
-    rate = spike_rate
-
-    ############ compute p-value for block ###################
-
     ########## Method 1: pseudo-session #############
 
-    p_1 = Pseudo_block_test(rate, block, num_trial)
+    p_1 = Pseudo_block_test(spike_rate, block, num_trial)
 
     ########## Method 2: condition-combined MW test #############
 
-    p_2 = get_block(rate, contrast_L, contrast_R, block, choice)
+    p_2 = get_block(spike_rate, contrast_L, contrast_R, block, choice)
 
     return p_1, p_2, area_label, QC_cluster_id
-
-
-##############################################################################
 
 
 if __name__ == "__main__":

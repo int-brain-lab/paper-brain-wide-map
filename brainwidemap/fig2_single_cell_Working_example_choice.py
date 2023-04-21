@@ -1,145 +1,15 @@
 #!/usr/bin/env python
 # coding: utf-8
-from math import *
-
 import numpy as np
 from one.api import ONE
 from scipy.stats import rankdata
 
 from brainbox.population.decode import get_spike_counts_in_bins
+
 from brainwidemap.bwm_loading import load_good_units, load_trials_and_mask
-
-
-
-def TwoNmannWhitneyUshuf(x, y, nShuf=10000):
-    nA1 = len(x)
-    nB1 = len(y)
-    ################### x>y #####################
-    t1 = np.zeros((nShuf + 1, nA1))
-
-    t2 = np.append(x, y, axis=0)
-    t = rankdata(t2)
-
-    t1[0, :] = t[range(nA1)]
-    for i in range(nShuf):
-        z1 = np.random.choice(nA1 + nB1, size=nA1, replace=False)
-        t1[i + 1, :] = t[z1]
-
-    if nA1 == 1:
-        numer1 = t1[:, 0]
-    else:
-        numer1 = np.sum(t1, axis=1)
-
-    numer = numer1 - nA1 * (nA1 + 1) / 2
-
-    ############### y>x ###########################
-    t3 = np.zeros((nShuf + 1, nB1))
-
-    t4 = np.append(y, x, axis=0)
-    t5 = rankdata(t4)
-
-    t3[0, :] = t5[range(nB1)]
-    for i in range(nShuf):
-        z1 = np.random.choice(nA1 + nB1, size=nB1, replace=False)
-        t3[i + 1, :] = t5[z1]
-
-    if nB1 == 1:
-        numer3 = t3[:, 0]
-    else:
-        numer3 = np.sum(t3, axis=1)
-
-    numer2 = numer3 - nB1 * (nB1 + 1) / 2
-
-
-################## Condition-combined test for indivdiual block, control time drift effect #####################
-
-
-def Time_TwoNmannWhitneyUshuf(x, y, bx, by, nShuf):
-    nx = len(x)
-    ny = len(y)
-
-    ################### x>y #####################
-    t1 = np.zeros((nShuf + 1, nx))
-
-    t2 = np.append(x, y, axis=0)
-    t = rankdata(t2)
-
-    t1[0, :] = t[range(nx)]
-
-    block_list = np.intersect1d(bx, by)
-
-    for i_Shuf in range(nShuf):
-        Final_index = np.zeros(nx + ny)
-        Final_index[:] = range(nx + ny)
-        #### generate random permutation sequence for individual block ####
-        for i_block in range(len(block_list)):
-            bx_index = np.argwhere(bx == block_list[i_block])
-            by_index = np.argwhere(by == block_list[i_block])
-            temp_index = np.append(bx_index, by_index + len(bx))
-
-            z1 = np.random.choice(
-                len(bx_index) + len(by_index),
-                size=(len(bx_index) + len(by_index)),
-                replace=False,
-            )
-            z = temp_index[z1]
-            Final_index[temp_index] = z
-
-        Final_index = Final_index.astype(int)
-        t1[i_Shuf + 1, :] = t[Final_index[range(nx)]]
-
-    if nx == 1:
-        numer1 = t1[:, 0]
-    else:
-        numer1 = np.sum(t1, axis=1)
-
-    numer = numer1 - nx * (nx + 1) / 2
-
-    ################### y>x #####################
-    t3 = np.zeros((nShuf + 1, ny))
-
-    t4 = np.append(y, x, axis=0)
-    t5 = rankdata(t4)
-
-    t3[0, :] = t5[range(ny)]
-
-    block_list = np.intersect1d(by, bx)
-
-    for i_Shuf in range(nShuf):
-        Final_index = np.zeros(nx + ny)
-        Final_index[:] = range(nx + ny)
-        #### generate random permutation sequence for individual block ####
-        for i_block in range(len(block_list)):
-            bx_index = np.argwhere(bx == block_list[i_block])
-            by_index = np.argwhere(by == block_list[i_block])
-            temp_index = np.append(by_index, bx_index + len(by))
-
-            z1 = np.random.choice(
-                len(bx_index) + len(by_index),
-                size=(len(bx_index) + len(by_index)),
-                replace=False,
-            )
-            z = temp_index[z1]
-            Final_index[temp_index] = z
-
-        Final_index = Final_index.astype(int)
-        t3[i_Shuf + 1, :] = t5[Final_index[range(ny)]]
-
-    if ny == 1:
-        numer2 = t3[:, 0]
-    else:
-        numer2 = np.sum(t3, axis=1)
-
-    numer3 = numer2 - ny * (ny + 1) / 2
-
-    ######################################################
-    numer_final = np.minimum(numer, numer3)
-
-    return numer_final
-
+from .fig2_util import Time_TwoNmannWhitneyUshuf
 
 ########### p-value for choice side############
-
 
 def get_choice_time_shuffle(rate, c_L, c_R, block_label, choice_label, nShuf=3000):
     # nShuf=10000;
@@ -248,15 +118,11 @@ def get_choice_time_shuffle(rate, c_L, c_R, block_label, choice_label, nShuf=300
     return p
 
 
-# In[9]:
-
-
 def BWM_choice_test(pid, eid, TimeWindow=np.array([-0.1, 0.0]), one=None):
     one = one or ONE()
     spikes, clusters = load_good_units(one, pid, compute_metrics=True)
 
     # load trial data
-
     trials, mask = load_trials_and_mask(
         one, eid, min_rt=0.08, max_rt=2.0, nan_exclude="default"
     )
@@ -280,21 +146,8 @@ def BWM_choice_test(pid, eid, TimeWindow=np.array([-0.1, 0.0]), one=None):
     raw_events = np.array([stim_on + T_1, stim_on + T_2]).T
     events = raw_events
 
-    spike_count, cluster_id = get_spike_counts_in_bins(
-        spikes["times"], spikes["clusters"], events
-    )
-    # firing_rate.shape=(num_neuron,num_bin,num_condition)
-    # count_number[i_bin]=   np.nansum(spike_count,axis=1)
-
+    spike_count, cluster_id = get_spike_counts_in_bins(spikes["times"], spikes["clusters"], events)
     spike_rate = spike_count / (T_2 - T_1)
-
-    # num_trial_cond=len(events[:,0])
-    # spike_count.shape(num_neuron,num_trial_cond)
-    #  cluster_id.shape(num_neuron,1)
-
-    # rate_1=(num_neuron,)
-    # rate_1=np.nanmean(np.nanmean(firing_rate,axis=1),axis=1)
-    # rate_1=(np.nanmean(firing_rate[:,:,0],axis=1)
     area_label = clusters["atlas_id"][cluster_id].to_numpy()
 
     ############ return cluster id ########################
@@ -304,16 +157,14 @@ def BWM_choice_test(pid, eid, TimeWindow=np.array([-0.1, 0.0]), one=None):
 
     ########## Pre-move, time_shuffle_test #############
 
-    rate = spike_rate
-
-    p_1 = get_choice_time_shuffle(rate, contrast_L, contrast_R, block, choice, 3000)
+    p_1 = get_choice_time_shuffle(spike_rate, contrast_L, contrast_R, block, choice, 3000)
 
     return p_1, area_label, QC_cluster_id
 
 
 if __name__ == "__main__":
+    # Example session
     pid = "3675290c-8134-4598-b924-83edb7940269"
     eid = "15f742e1-1043-45c9-9504-f1e8a53c1744"  # probe00
 
-    ### example session ###
     p_1, area_label, QC_cluster_id = BWM_choice_test(pid, eid)

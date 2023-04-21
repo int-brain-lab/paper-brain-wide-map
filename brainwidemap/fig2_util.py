@@ -2,6 +2,91 @@ import numpy as np
 from scipy.stats import rankdata
 
 
+def Time_TwoNmannWhitneyUshuf(x, y, bx, by, nShuf):
+    # Condition-combined test for indivdiual block, control time drift effect
+    nx = len(x)
+    ny = len(y)
+
+    ################### x>y #####################
+    t1 = np.zeros((nShuf + 1, nx))
+
+    t2 = np.append(x, y, axis=0)
+    t = rankdata(t2)
+
+    t1[0, :] = t[range(nx)]
+
+    block_list = np.intersect1d(bx, by)
+
+    for i_Shuf in range(nShuf):
+        Final_index = np.zeros(nx + ny)
+        Final_index[:] = range(nx + ny)
+        #### generate random permutation sequence for individual block ####
+        for i_block in range(len(block_list)):
+            bx_index = np.argwhere(bx == block_list[i_block])
+            by_index = np.argwhere(by == block_list[i_block])
+            temp_index = np.append(bx_index, by_index + len(bx))
+
+            z1 = np.random.choice(
+                len(bx_index) + len(by_index),
+                size=(len(bx_index) + len(by_index)),
+                replace=False,
+            )
+            z = temp_index[z1]
+            Final_index[temp_index] = z
+
+        Final_index = Final_index.astype(int)
+        t1[i_Shuf + 1, :] = t[Final_index[range(nx)]]
+
+    if nx == 1:
+        numer1 = t1[:, 0]
+    else:
+        numer1 = np.sum(t1, axis=1)
+
+    numer = numer1 - nx * (nx + 1) / 2
+
+    ################### y>x #####################
+    t3 = np.zeros((nShuf + 1, ny))
+
+    t4 = np.append(y, x, axis=0)
+    t5 = rankdata(t4)
+
+    t3[0, :] = t5[range(ny)]
+
+    block_list = np.intersect1d(by, bx)
+
+    for i_Shuf in range(nShuf):
+        Final_index = np.zeros(nx + ny)
+        Final_index[:] = range(nx + ny)
+        #### generate random permutation sequence for individual block ####
+        for i_block in range(len(block_list)):
+            bx_index = np.argwhere(bx == block_list[i_block])
+            by_index = np.argwhere(by == block_list[i_block])
+            temp_index = np.append(by_index, bx_index + len(by))
+
+            z1 = np.random.choice(
+                len(bx_index) + len(by_index),
+                size=(len(bx_index) + len(by_index)),
+                replace=False,
+            )
+            z = temp_index[z1]
+            Final_index[temp_index] = z
+
+        Final_index = Final_index.astype(int)
+        t3[i_Shuf + 1, :] = t5[Final_index[range(ny)]]
+
+    if ny == 1:
+        numer2 = t3[:, 0]
+    else:
+        numer2 = np.sum(t3, axis=1)
+
+    numer3 = numer2 - ny * (ny + 1) / 2
+
+    ######################################################
+    numer_final = np.minimum(numer, numer3)
+
+    return numer_final
+
+
 def TwoNmannWhitneyUshuf(x, y, nShuf=10000):
     nA1 = len(x)
     nB1 = len(y)
