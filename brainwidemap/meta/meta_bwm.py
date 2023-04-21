@@ -501,9 +501,9 @@ def motor_block_eid(sig_lev = 0.01):
     comparing motor correlates and block decoding
     '''
 
-    dm = pd.read_csv('/home/mic/paper-brain-wide-map/meta/'
+    dm = pd.read_csv('/home/mic/bwm/meta/'
                      'motor_corr_0.6_0.2.csv')
-    db = pd.read_csv('/home/mic/paper-brain-wide-map/meta/'
+    db = pd.read_csv('/home/mic/bwm/meta/'
                      'per_eid/decoding/block.csv')
     
     eids = list(set(db['eid'].values
@@ -611,10 +611,12 @@ def motor_res_to_df():
     # save results for plotting here
     pth_res = Path(one.cache_dir, 'brain_wide_map', 'motor_correlates') 
     pth_res.mkdir(parents=True, exist_ok=True)          
-
+    sr = {'licking': 'T_BIN', 'whisking_l': 60, 'whisking_r': 150,
+          'wheeling': 'T_BIN', 'nose_pos': 60, 'paw_pos_r': 150,
+          'paw_pos_l': 60}
 
     t = '0.6'  # lag = -0.6 sec
-    s = (pth_res / 'behave7{t}.npy')
+    s = (pth_res / f'behave7_{t}.npy')
     R = np.load(s,allow_pickle=True).flat[0]
     
     columns = ['eid'] + list(np.concatenate([[x+'_p', x+'_amp'] for x in sr]))
@@ -629,7 +631,8 @@ def motor_res_to_df():
             continue
 
     df = pd.DataFrame(columns = columns, data=r)
-    df.to_csv(path_res / 'motor_corr_0.6_0.2.csv')
+    df.to_csv('/home/mic/bwm/meta/'
+              'motor_corr_0.6_0.2.csv')
 
 
 
@@ -851,7 +854,10 @@ def neuron_number_swansons():
                             orientation='portrait',
                             linewidth=0.1,
                             vmin=vmin0 if c!= 2 else min(amps),
-                            vmax=vmax0 if c!= 2 else max(amps))
+                            vmax=vmax0 if c!= 2 else max(amps),
+                            annotate=True,
+                            annotate_n=5, 
+                            annotate_order='bottom' if c == 0 else 'top')
                             
         # add colorbar
         norm = mpl.colors.Normalize(vmin=vmin0 if c!= 2 else min(amps), 
@@ -868,6 +874,5 @@ def neuron_number_swansons():
         axs[c].axis('off')
         #axs[c].set_title(dd[c])
         put_panel_label(axs[c], c)
-
 
 

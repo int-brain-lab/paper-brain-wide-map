@@ -7,6 +7,7 @@ from iblutil.numerical import ismember
 from brainbox.io.one import SpikeSortingLoader, SessionLoader
 from ibllib.atlas.regions import BrainRegions
 from one.remote import aws
+import brainwidemap
 
 
 def bwm_query(one=None, alignment_resolved=True, return_details=False, freeze='2022_10_bwm_release'):
@@ -42,7 +43,7 @@ def bwm_query(one=None, alignment_resolved=True, return_details=False, freeze='2
         if return_details is True:
             print('Cannot return details when using a data freeze. Returning only main dataframe.')
 
-        fixtures_path = Path(__file__).parent.joinpath('fixtures')
+        fixtures_path = Path(brainwidemap.__file__).parent.joinpath('fixtures')
         freeze_file = fixtures_path.joinpath(f'{freeze}.csv')
         assert freeze_file.exists(), f'{freeze} does not seem to be a valid freeze.'
 
@@ -325,16 +326,14 @@ def download_aggregate_tables(one, target_path=None, type='clusters', tag='2022_
     return agg_path
 
 
-def filter_regions(pids, clusters_table=None, one=None, mapping='Beryl',
-                   min_qc=1., min_units_region=10, min_probes_region=2, min_sessions_region=None):
+def filter_units_region(eids, clusters_table=None, one=None, mapping='Beryl', min_qc=1., min_units_sessions=(10, 2)):
     """
-    Maps probes to regions and filters to retain only probe-regions pairs that satisfy certain criteria.
+    Filter to retain only units that satisfy certain region based criteria.
 
     Parameters
     ----------
-    pids: list or pandas.Series
-        Probe insertion ids to map to regions. Typically, the 'pid' column of the bwm_df returned by bwm_query.
-        Note that these pids must be represented in clusters_table to be considered for the filter.
+    eids: list or pandas.Series
+        List of session UUIDs to include at start.
     clusters_table: str or pathlib.Path
         Absolute path to clusters table to be used for filtering. If None, requires to provide one.api.ONE instance
         to download the latest version.
@@ -345,28 +344,19 @@ def filter_regions(pids, clusters_table=None, one=None, mapping='Beryl',
     min_qc: float or None
         Minimum QC label for a spike sorted unit to be retained.
         Default is 1. If None, criterion is not applied.
-    min_units_region: int or None
-        Minimum number of units per region for a region to be retained.
-        Default is 10. If None, criterion is not applied
-    min_probes_region: int or None
-        Minimum number of probes per region for a region to be retained. Mutually exclusive with min_sessions_region.
-        Default is 2. If None, criterion is not applied.
-    min_sessions_region: int or None
-        Minimum number of sessions per region for a region to be retained. Mutually exclusive with min_probes_region.
-        Default is None, i.e. not applied
+    min_units_sessions: tuple or None
+        If tuple, the first entry is the minimum of units per session per region for a session to be retained, the
+        second entry is the minimum number of those sessions per region for a region to be retained.
+        Default is (10, 2). If None, criterion is not applied
 
     Returns
     -------
     regions_df: pandas.DataFrame
-        Dataframe of unique region-probe pairs, with columns ['{mapping}', 'pid', 'n_units', 'n_probes', 'n_sessions']
+        Dataframe of units that survive region based criteria.
     """
 
-    if not any([min_qc, min_units_region, min_probes_region, min_sessions_region]):
+    if not any([min_qc, min_units_sessions]):
         print('No criteria selected. Aborting.')
-        return
-
-    if all([min_probes_region, min_sessions_region]):
-        print('Only one of min_probes_region and min_session_region can be applied, the other must be None.')
         return
 
     if clusters_table is None:
@@ -379,10 +369,10 @@ def filter_regions(pids, clusters_table=None, one=None, mapping='Beryl',
     clus_df = pd.read_parquet(clusters_table)
 
     # Only consider given pids
-    clus_df = clus_df.loc[clus_df['pid'].isin(pids)]
-    diff = set(pids).difference(set(clus_df['pid']))
+    clus_df = clus_df.loc[clus_df['eid'].isin(eids)]
+    diff = set(eids).difference(set(clus_df['eid']))
     if len(diff) != 0:
-        print('WARNING: Not all pids in bwm_df are found in cluster table.')
+        print('WARNING: Not all eids in bwm_df are found in cluster table.')
 
     # Only consider units that pass min_qc
     if min_qc:
@@ -393,34 +383,37 @@ def filter_regions(pids, clusters_table=None, one=None, mapping='Beryl',
     clus_df[f'{mapping}'] = br.id2acronym(clus_df['atlas_id'], mapping=f'{mapping}')
     clus_df = clus_df.loc[~clus_df[f'{mapping}'].isin(['void', 'root'])]
 
-    # Count units, probes and sessions per region
-    regions_count = clus_df.groupby(f'{mapping}').aggregate(
-        n_probes=pd.NamedAgg(column='pid', aggfunc='nunique'),
-        n_units=pd.NamedAgg(column='cluster_id', aggfunc='count'),
-        n_sessions=pd.NamedAgg(column='eid', aggfunc='nunique')
-    )
+    # Group by regions and filter for sessions per region
+    if min_units_sessions:
+        units_count = clus_df.groupby([f'{mapping}', 'eid']).aggregate(
+            n_units=pd.NamedAgg(column='cluster_id', aggfunc='count'),
+        )
+        # Only keep sessions with at least min_units_sessions[0] units
+        units_count = units_count[units_count['n_units'] >= min_units_sessions[0]]
+        # Only keep regions with at least min_units_sessions[1] sessions left
+        units_count = units_count.reset_index(level=['eid'])
+        region_df = units_count.groupby([f'{mapping}']).aggregate(
+            n_sessions=pd.NamedAgg(column='eid', aggfunc='count'),
+        )
+        region_df = region_df[region_df['n_sessions'] >= min_units_sessions[1]]
+        # Merge back to get the eids and clusters
+        region_session_df = pd.merge(region_df, units_count, on=f'{mapping}', how='left')
+        region_session_df = region_session_df.reset_index(level=[f'{mapping}'])
+        region_session_df.drop(labels=['n_sessions', 'n_units'], axis=1, inplace=True)
+        clus_df = pd.merge(region_session_df, clus_df, on=['eid', f'{mapping}'], how='left')
 
     # Reset index
-    regions_count.reset_index(inplace=True)
+    clus_df.reset_index(inplace=True, drop=True)
 
-    clus_df = pd.merge(clus_df, regions_count, how='left', on=f'{mapping}')
-    if min_units_region:
-        clus_df = clus_df[clus_df.eval(f'n_units >= {min_units_region}')]
-    if min_probes_region:
-        clus_df = clus_df[clus_df.eval(f'n_probes >= {min_probes_region}')]
-    if min_sessions_region:
-        clus_df = clus_df[clus_df.eval(f'n_sessions >= {min_sessions_region}')]
-
-    regions_df = clus_df.filter([f'{mapping}', 'pid', 'n_units', 'n_probes', 'n_sessions'])
-    regions_df.drop_duplicates(inplace=True)
-    regions_df.reset_index(inplace=True, drop=True)
-
-    return regions_df
+    return clus_df
 
 
-def filter_sessions(eids, trials_table=None, one=None, min_trials=200):
+def filter_sessions(eids, trials_table, bwm_include=True, min_errors=3, min_trials=None):
     """
-    Filters eids for those that have fulfill certain criteria.
+    Filters eids for sessions that pass certain criteria.
+    The function first loads an aggregate of all trials for the brain wide map dataset
+     that contains already pre-computed acceptance critera
+
 
     Parameters
     ----------
@@ -428,13 +421,14 @@ def filter_sessions(eids, trials_table=None, one=None, min_trials=200):
         Session ids to map to regions. Typically, the 'eid' column of the bwm_df returned by bwm_query.
         Note that these eids must be represented in trials_table to be considered for the filter.
     trials_table: str or pathlib.Path
-        Absolute path to trials table to be used for filtering. If None, requires to provide one.api.ONE instance
-        to download the latest version. Required when using min_trials.
-    one: one.api.ONE
-        Instance to be used to connect to download clusters or trials table if these are not explicitly provided.
+        Absolute path to trials table to be used for filtering.
+    bwm_include: bool
+        Whether to filter for BWM inclusion criteria (see defaults of function load_trials_and_mask()). Default is True.
+    min_errors: int or None
+        Minimum number of error trials after other criteria are applied. Default is 3.
     min_trials: int or None
         Minimum number of trials that pass default criteria (see load_trials_and_mask()) for a session to be retained.
-        Default is 200. If None, criterion is not applied
+        Default is None, i.e. not applied
 
     Returns
     -------
@@ -442,24 +436,75 @@ def filter_sessions(eids, trials_table=None, one=None, min_trials=200):
         Session ids that pass the criteria
     """
 
-    if trials_table is None:
-        if one is None:
-            print(f'You either need to provide a path to trials_table or an instance of one.api.ONE to '
-                  f'download trials_table.')
-            return
-        else:
-            trials_table = download_aggregate_tables(one, type='trials')
+    # Load trials table
     trials_df = pd.read_parquet(trials_table)
 
     # Keep only eids
     trials_df = trials_df.loc[trials_df['eid'].isin(eids)]
 
-    # Count trials that pass bwm_qc
-    pass_trials = trials_df.groupby('eid').aggregate(n_trials=pd.NamedAgg(column='bwm_include', aggfunc='sum'))
-    pass_trials.reset_index(inplace=True)
-    if min_trials:
-        keep_eids = pass_trials.loc[pass_trials['n_trials'] >= min_trials]['eid'].unique()
-    else:
-        keep_eids = pass_trials['eid'].unique()
+    # Aggregate and filter
+    if bwm_include:
+        trials_df = trials_df[trials_df['bwm_include']]
 
-    return keep_eids
+    trials_agg = trials_df.groupby('eid').aggregate(
+        n_trials=pd.NamedAgg(column='eid', aggfunc='count'),
+        n_error=pd.NamedAgg(column='feedbackType', aggfunc=lambda x: (x == -1).sum()),
+    )
+    if min_trials:
+        trials_agg = trials_agg.loc[trials_agg['n_trials'] >= min_trials]
+    if min_errors:
+        trials_agg = trials_agg.loc[trials_agg['n_error'] >= min_errors]
+
+    return trials_agg.index.to_list()
+
+
+def bwm_units(one=None, freeze='2022_10_bwm_release', rt_range=(0.08, 0.2), min_errors=3,
+              min_qc=1., min_units_sessions=(10, 2)):
+    """
+    Creates a dataframe with units that pass the current BWM inclusion criteria.
+
+    Parameters
+    ----------
+    one: one.api.ONE
+        Instance to be used to connect to local or remote database.
+    freeze: {None, 2022_10_initial, 2022_10_update, 2022_bwm_release}
+        Default is 2022_10_bwm_release. If None, the database is queried for the current set of pids satisfying the
+        criteria. If a string is specified, a fixed set of eids and pids is returned instead of querying the database.
+    rt_range: tuple
+        Admissible range of trial length measured by goCue_time (start) and feedback_time (end).
+    min_errors: int or None
+        Minimum number of error trials per session after other criteria are applied. Default is 3.
+    min_qc: float
+        Minimum quality criterion for a unit to be considered. Default is 1.
+    min_units_sessions: tuple or None
+        If tuple, the first entry is the minimum of units per session per region for a session to be retained, the
+        second entry is the minimum number of those sessions per region for a region to be retained.
+        Default is (10, 2). If None, criterion is not applied
+
+    Returns
+    -------
+    unit_df: pandas.DataFrame
+        Dataframe with units that pass the current BWM inclusion criteria.
+    """
+
+    # Get sessions and probes
+    bwm_df = bwm_query(freeze=freeze)
+
+    # Filter sessions on reaction time, no NaN in critical trial events (both implemented as bwm_include)
+    # and min_errors per session
+    trials_table = download_aggregate_tables(one, type='trials')
+    if rt_range != (0.08, 0.2):
+        raise NotImplementedError("Currently this function is only implemented for the default reaction time range of"
+                                  "0.08 to 0.2 seconds. Please talk to a developer if you need to change this. ")
+    eids = filter_sessions(bwm_df['eid'], trials_table=trials_table, bwm_include=True, min_errors=min_errors)
+
+    # Filter clusters on min_qc, min_units_region and min_sessions_region
+    clusters_table = download_aggregate_tables(one, type='clusters')
+    unit_df = filter_units_region(eids, clusters_table=clusters_table, mapping='Beryl', min_qc=min_qc,
+                                  min_units_sessions=min_units_sessions)
+
+    return unit_df
+
+
+
+
