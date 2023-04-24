@@ -1,5 +1,17 @@
 # Pipeline for running BWM decoding analysis
 
+## Installation
+
+Follow the instruction [at the top of this repository](https://github.com/int-brain-lab/paper-brain-wide-map#readme) 
+to create the base environment. On top of that environment, install behavior_models and openturns for the decoding analysis specifically:
+
+```
+git clone https://github.com/int-brain-lab/behavior_models.git
+cd behavior_models
+pip install -e .
+pip install openturns
+```
+
 ## Introduction
 
 Decoding analysis for the BWM paper consists of regression where regressors are neuron spike counts
