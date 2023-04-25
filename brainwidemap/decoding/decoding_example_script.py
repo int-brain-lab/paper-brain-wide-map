@@ -1,6 +1,6 @@
 """Example script that fits decoders for a single eid.
 
-These are snippets of code taken from 03_decode_single_session.py to illustrate a simplified
+These are snippets of code taken from 04_decode_single_session.py to illustrate a simplified
 pipeline. To run from the command line:
 
 ```
@@ -18,7 +18,6 @@ import pickle
 
 from brainwidemap.bwm_loading import bwm_query, load_good_units, load_trials_and_mask
 from brainwidemap.decoding.functions.decoding import fit_eid
-from brainwidemap.decoding.functions.process_targets import load_behavior
 from brainwidemap.decoding.functions.utils import get_save_path
 from brainwidemap.decoding.settings_template import params
 
@@ -91,7 +90,7 @@ params['trials_mask_diagnostics'] = [trials_mask]
 # load target data if necessary
 if params['target'] in ['wheel-vel', 'wheel-speed', 'l-whisker-me', 'r-whisker-me']:
     raise NotImplementedError(
-        'see 03_decode_single_session.py for proper handling of wheel and dlc targets')
+        'see 04_decode_single_session.py for proper handling of wheel and dlc targets')
 else:
     dlc_dict = None
     params['imposter_df'] = None

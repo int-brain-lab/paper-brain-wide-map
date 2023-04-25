@@ -1,12 +1,8 @@
-from brainbox.io.one import SessionLoader
 from one.api import ONE
 import pandas as pd
-import sys
 
-from brainwidemap import (
-    bwm_query, load_good_units, filter_regions, filter_sessions, download_aggregate_tables)
+from brainwidemap import bwm_query
 from brainwidemap.decoding.settings import RESULTS_DIR
-from brainwidemap.decoding.settings import params
 
 
 # save BiasedChoiceWorld sessions, no template, no neural activity
@@ -43,23 +39,7 @@ eid_df = pd.DataFrame(columns=['eid'], data=eids)
 eid_df.to_parquet(decoding_dir.joinpath('imposter_behavior_sessions.pqt'))
     
 # save bwm dataframe of eids
-
 one = ONE(base_url="https://openalyx.internationalbrainlab.org", mode='local')
 bwm_df = bwm_query(freeze='2022_10_bwm_release')
-
-# Download the latest clusters table, we use the same cache as above
-clusters_table = download_aggregate_tables(one, type='clusters')
-# Map probes to regions (here: Beryl mapping) and filter according to QC, number of units and probes per region
-region_df = filter_regions(
-    bwm_df['pid'], clusters_table=clusters_table, mapping='Beryl',
-    min_qc=1, min_units_region=params['min_units'], min_probes_region=None, min_sessions_region=params['min_sess_per_reg'])
-print('completed region_df')
-# Download the latest trials table and filter for sessions that have at least 200 trials fulfilling BWM criteria
-trials_table = download_aggregate_tables(one, type='trials',)
-eids = filter_sessions(bwm_df['eid'], trials_table=trials_table, min_trials=params['min_behav_trials'])
-    
-# Remove probes and sessions based on those filters
-bwm_df = bwm_df[bwm_df['pid'].isin(region_df['pid'].unique())]
-bwm_df = bwm_df[bwm_df['eid'].isin(eids)]
 bwm_df.to_parquet(decoding_dir.joinpath('bwm_cache_sessions.pqt'))
 
