@@ -10,7 +10,7 @@ from brainbox.population.decode import get_spike_counts_in_bins
 from brainbox.task.closed_loop import generate_pseudo_blocks
 
 from brainwidemap import load_good_units, load_trials_and_mask
-from .fig2_util import TwoNmannWhitneyUshuf
+from brainwidemap.single_cell_stats.single_cell_util import TwoNmannWhitneyUshuf
 
 # Specify a path to download the cluster and trials tables
 local_path = Path.home().joinpath("bwm_examples")

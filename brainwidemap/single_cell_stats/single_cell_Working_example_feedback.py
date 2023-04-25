@@ -9,7 +9,7 @@ from scipy.stats import rankdata
 from brainbox.population.decode import get_spike_counts_in_bins
 
 from brainwidemap import load_good_units, load_trials_and_mask
-from .fig2_util import Time_TwoNmannWhitneyUshuf
+from brainwidemap.single_cell_stats.single_cell_util import Time_TwoNmannWhitneyUshuf
 
 # Specify a path to download the cluster and trials tables
 local_path = Path.home().joinpath("bwm_examples")

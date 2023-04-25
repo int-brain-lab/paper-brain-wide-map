@@ -1,22 +1,17 @@
-from pathlib import Path
-
+#!/usr/bin/env python
+# coding: utf-8
 import numpy as np
 from one.api import ONE
 from scipy.stats import rankdata
 
 from brainbox.population.decode import get_spike_counts_in_bins
 
-from brainwidemap import load_good_units, load_trials_and_mask
-from .fig2_util import Time_TwoNmannWhitneyUshuf
+from brainwidemap.bwm_loading import load_good_units, load_trials_and_mask
+from brainwidemap.single_cell_stats.single_cell_util import Time_TwoNmannWhitneyUshuf
 
-# Specify a path to download the cluster and trials tables
-local_path = Path.home().joinpath("bwm_examples")
-local_path.mkdir(exist_ok=True)
+########### p-value for choice side############
 
-
-########### p-value for visual stimulus-side############
-
-def get_stim_time_shuffle(rate, c_L, c_R, block_label, choice_label, nShuf=3000):
+def get_choice_time_shuffle(rate, c_L, c_R, block_label, choice_label, nShuf=3000):
     # nShuf=10000;
     # nShuf=5000;
 
@@ -38,10 +33,10 @@ def get_stim_time_shuffle(rate, c_L, c_R, block_label, choice_label, nShuf=3000)
     for i_neuron in range(num_neuron):
         spike_count = rate[i_neuron, :]
 
-        ############ block=0.8, choice=1 ############
-        con1 = np.logical_and(block_label == 0.8, choice_label == 1)
-        con2 = np.logical_and(c_L > 0, con1)
-        con3 = np.logical_and(c_R > 0, con1)
+        ############ block=0.8, stim=L ############
+        con1 = np.logical_and(block_label == 0.8, c_L > 0)
+        con2 = np.logical_and(choice_label == 1, con1)
+        con3 = np.logical_and(choice_label == -1, con1)
 
         index1 = np.argwhere(con2)
         index2 = np.argwhere(con3)
@@ -57,10 +52,10 @@ def get_stim_time_shuffle(rate, c_L, c_R, block_label, choice_label, nShuf=3000)
 
         numer2 = Time_TwoNmannWhitneyUshuf(x2, y2, bx2, by2, nShuf)
 
-        ############ block=0.8, choice=-1 ############
-        con1 = np.logical_and(block_label == 0.8, choice_label == -1)
-        con2 = np.logical_and(c_L > 0, con1)
-        con3 = np.logical_and(c_R > 0, con1)
+        ############ block=0.8, stim=R ############
+        con1 = np.logical_and(block_label == 0.8, c_R > 0)
+        con2 = np.logical_and(choice_label == 1, con1)
+        con3 = np.logical_and(choice_label == -1, con1)
         index1 = np.argwhere(con2)
         index2 = np.argwhere(con3)
 
@@ -75,10 +70,10 @@ def get_stim_time_shuffle(rate, c_L, c_R, block_label, choice_label, nShuf=3000)
 
         numer5 = Time_TwoNmannWhitneyUshuf(x5, y5, bx5, by5, nShuf)
 
-        ############  block=0.2, choice=1 ############
-        con1 = np.logical_and(block_label == 0.2, choice_label == 1)
-        con2 = np.logical_and(c_L > 0, con1)
-        con3 = np.logical_and(c_R > 0, con1)
+        ############ block=0.2, stim=L ############
+        con1 = np.logical_and(block_label == 0.2, c_L > 0)
+        con2 = np.logical_and(choice_label == 1, con1)
+        con3 = np.logical_and(choice_label == -1, con1)
         index1 = np.argwhere(con2)
         index2 = np.argwhere(con3)
 
@@ -93,10 +88,10 @@ def get_stim_time_shuffle(rate, c_L, c_R, block_label, choice_label, nShuf=3000)
 
         numer3 = Time_TwoNmannWhitneyUshuf(x3, y3, bx3, by3, nShuf)
 
-        ############  block=0.2, choice=-1 ############
-        con1 = np.logical_and(block_label == 0.2, choice_label == -1)
-        con2 = np.logical_and(c_L > 0, con1)
-        con3 = np.logical_and(c_R > 0, con1)
+        ############ block=0.2, stim=R ############
+        con1 = np.logical_and(block_label == 0.2, c_R > 0)
+        con2 = np.logical_and(choice_label == 1, con1)
+        con3 = np.logical_and(choice_label == -1, con1)
         index1 = np.argwhere(con2)
         index2 = np.argwhere(con3)
 
@@ -123,10 +118,8 @@ def get_stim_time_shuffle(rate, c_L, c_R, block_label, choice_label, nShuf=3000)
     return p
 
 
-def BWM_stim_test(pid, eid, TimeWindow=np.array([0.0, 0.1]), one=None):
+def BWM_choice_test(pid, eid, TimeWindow=np.array([-0.1, 0.0]), one=None):
     one = one or ONE()
-
-    # load spike data
     spikes, clusters = load_good_units(one, pid, compute_metrics=True)
 
     # load trial data
@@ -153,9 +146,7 @@ def BWM_stim_test(pid, eid, TimeWindow=np.array([0.0, 0.1]), one=None):
     raw_events = np.array([stim_on + T_1, stim_on + T_2]).T
     events = raw_events
 
-    spike_count, cluster_id = get_spike_counts_in_bins(
-        spikes["times"], spikes["clusters"], events
-    )
+    spike_count, cluster_id = get_spike_counts_in_bins(spikes["times"], spikes["clusters"], events)
     spike_rate = spike_count / (T_2 - T_1)
     area_label = clusters["atlas_id"][cluster_id].to_numpy()
 
@@ -166,14 +157,14 @@ def BWM_stim_test(pid, eid, TimeWindow=np.array([0.0, 0.1]), one=None):
 
     ########## Pre-move, time_shuffle_test #############
 
-    p_1 = get_stim_time_shuffle(spike_rate, contrast_L, contrast_R, block, choice, 3000)
+    p_1 = get_choice_time_shuffle(spike_rate, contrast_L, contrast_R, block, choice, 3000)
 
     return p_1, area_label, QC_cluster_id
 
 
 if __name__ == "__main__":
-    ### example session ###
+    # Example session
     pid = "3675290c-8134-4598-b924-83edb7940269"
     eid = "15f742e1-1043-45c9-9504-f1e8a53c1744"  # probe00
 
-    p_1, area_label, QC_cluster_id = BWM_stim_test(pid, eid)
+    p_1, area_label, QC_cluster_id = BWM_choice_test(pid, eid)

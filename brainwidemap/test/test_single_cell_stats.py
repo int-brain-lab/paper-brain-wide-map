@@ -3,12 +3,11 @@ import pickle
 from pathlib import Path
 
 import numpy as np
-import numpy.testing
 
-from brainwidemap.fig2_single_cell_Working_example_block import BWM_block_test
-from brainwidemap.fig2_single_cell_Working_example_stimulus import BWM_stim_test
-from brainwidemap.fig2_single_cell_Working_example_choice import BWM_choice_test
-from brainwidemap.fig2_single_cell_Working_example_feedback import BWM_feedback_test
+from brainwidemap.single_cell_stats.single_cell_Working_example_block import BWM_block_test
+from brainwidemap.single_cell_stats.single_cell_Working_example_stimulus import BWM_stim_test
+from brainwidemap.single_cell_stats.single_cell_Working_example_choice import BWM_choice_test
+from brainwidemap.single_cell_stats.single_cell_Working_example_feedback import BWM_feedback_test
 
 
 class TestBWM(unittest.TestCase):
@@ -16,7 +15,7 @@ class TestBWM(unittest.TestCase):
 
     def setUp(self) -> None:
         np.random.seed(0)
-        fixture = Path(__file__).with_name('fig2_data.pkl')
+        fixture = Path(__file__).with_name('single_cell_data.pkl')
         if fixture.exists():
             with open(fixture, 'rb') as fp:
                 self.data = pickle.load(fp)
@@ -63,7 +62,7 @@ class TestBWM(unittest.TestCase):
         self.data[test] = data
 
     def _save(self):
-        fixture = Path(__file__).with_name('fig2_data.pkl')
+        fixture = Path(__file__).with_name('single_cell_data.pkl')
         with open(fixture, 'wb') as fp:
             pickle.dump(self.data, fp)
 
