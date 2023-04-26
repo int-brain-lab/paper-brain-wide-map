@@ -612,7 +612,7 @@ def get_all_d_vars(split, eids_plus=None, control=True, restr=False,
 
     Fs = []
     k = 0
-    print(f'Processing {len(eids_plus)} insertions')
+    print(f'Processing {len(eids_plus)} insertions for {split}')
     for i in eids_plus:
         eid, probe, pid = i
 
@@ -633,11 +633,11 @@ def get_all_d_vars(split, eids_plus=None, control=True, restr=False,
                         allow_pickle=True)
 
             gc.collect()
-            print(k + 1, 'of', len(eids_plus), 'ok')
+            print(k + 1, 'of', len(eids_plus), 'ok', split)
         except BaseException:
             Fs.append(pid)
             gc.collect()
-            print(k + 1, 'of', len(eids_plus), 'fail', pid)
+            print(k + 1, 'of', len(eids_plus), 'fail', pid, split)
 
         time1 = time.perf_counter()
         print(time1 - time0, 'sec')
