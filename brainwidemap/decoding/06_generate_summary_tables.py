@@ -1,6 +1,8 @@
 import os
 import numpy as np
 import pandas as pd
+from one.api import ONE
+from brainwidemap.bwm_loading import bwm_units
 from brainwidemap.decoding.settings import params, RESULTS_DIR, SETTINGS_FORMAT_NAME, estimatorstr
 from brainwidemap.decoding.functions.process_outputs import create_pdtable_from_raw
 
@@ -31,13 +33,15 @@ res_table, xy_table = create_pdtable_from_raw(
     SAVE_REGRESSORS=False if CONT_TARGET else True
 )
 
-# filter for valid regions, those that have at least two eids
-valid_reg = np.array([
-    len(res_table.loc[res_table['region'] == reg]) >= params['min_sess_per_reg']
-    for reg in res_table['region']
-])
-res_table = res_table.loc[valid_reg]
-xy_table = xy_table.loc[valid_reg]
+
+# Restrict to session-region pairs that are defined by the common function used to filter for valid units
+one = ONE(base_url="https://openalyx.internationalbrainlab.org", mode='local')
+units_df = bwm_units(one)
+units_df['sessreg'] = units_df.apply(lambda x: f"{x['eid']}_{x['Beryl']}", axis=1)
+
+res_table['sessreg'] = res_table.apply(lambda x: f"{x['eid']}_{x['region']}", axis=1)
+res_table = res_table[res_table['sessreg'].isin(units_df['sessreg'])]
+xy_table = xy_table.loc[xy_table['eid_region'].isin(units_df['sessreg'])]
 
 # save results
 save_dir = RESULTS_DIR.joinpath("decoding", "results", "summary")
