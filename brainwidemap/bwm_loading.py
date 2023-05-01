@@ -7,6 +7,7 @@ from iblutil.numerical import ismember
 from brainbox.io.one import SpikeSortingLoader, SessionLoader
 from ibllib.atlas.regions import BrainRegions
 from one.remote import aws
+import brainwidemap
 
 
 def bwm_query(one=None, alignment_resolved=True, return_details=False, freeze='2022_10_bwm_release'):
@@ -42,7 +43,7 @@ def bwm_query(one=None, alignment_resolved=True, return_details=False, freeze='2
         if return_details is True:
             print('Cannot return details when using a data freeze. Returning only main dataframe.')
 
-        fixtures_path = Path(__file__).parent.joinpath('fixtures')
+        fixtures_path = Path(brainwidemap.__file__).parent.joinpath('fixtures')
         freeze_file = fixtures_path.joinpath(f'{freeze}.csv')
         assert freeze_file.exists(), f'{freeze} does not seem to be a valid freeze.'
 
