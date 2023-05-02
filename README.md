@@ -34,6 +34,11 @@ Install requirements and repo
 pip install -e .
 ```
 
+Install ibllib without dependencies
+```
+pip install ibllib --no-deps
+```
+
 ## Query sessions for BWM analyses
 You can now use the following in Python (note that ONE needs to be set up)
 ```python
