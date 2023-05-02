@@ -1,3 +1,7 @@
+# Decoding user specific settings
+brainwidemap/decoding/settings.py
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -50,6 +54,7 @@ coverage.xml
 *.py,cover
 .hypothesis/
 .pytest_cache/
+data_checks/.DS_Store
 
 # Translations
 *.mo
@@ -119,6 +124,9 @@ venv.bak/
 
 # PyCharm project settings
 .idea
+
+# VSCode project settings
+.vscode/
 
 # mkdocs documentation
 /site
