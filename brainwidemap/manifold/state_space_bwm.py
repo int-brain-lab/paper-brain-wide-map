@@ -1,5 +1,5 @@
 from one.api import ONE
-from reproducible_ephys_processing import bin_spikes2D
+from brainbox.singlecell import bin_spikes2D
 from brainwidemap import (bwm_query, load_good_units, 
                           load_trials_and_mask, bwm_units)
 from ibllib.atlas import AllenAtlas
@@ -1136,7 +1136,7 @@ def plot_all(splits=None, curve='euc', show_tra=True,
 
 
             'choice': ['PRNc', 'VISal','PRNr', 'LSr', 'SIM', 'APN',
-                       'MRN', 'RT', 'LGd', 'GRN','MV'],
+                       'MRN', 'RT', 'LGd', 'GRN','MV','ORBm'],
 
             'fback': ['IRN', 'SSp-n', 'PRNr', 'IC', 'MV', 'AUDp',
                       'CENT3', 'SSp-ul', 'GPe'],
