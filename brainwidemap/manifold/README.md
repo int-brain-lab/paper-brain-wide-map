@@ -4,6 +4,9 @@ Data processing and plotting both are implemented by this single script.
 To compute the results, first PETHs are saved for all BWM sessions in a subfolder of the local flatiron folder.
 This can be done for different task variables (binary splits of trials) in parallel, or in sequence as by this command in an ipython session:
 
+This analysis requires some extra dependencies, which can be installed by running:
+`pip install -r ./brainwidemap/manifold/requirements.txt`
+
 ```python:
 run state_space_bwm.py
 for split in align:  # you can run these splits on different cores, then it's 3h 
