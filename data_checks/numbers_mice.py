@@ -38,4 +38,3 @@ print(f'WEIGHT RANGE: {min(ref_weight)}-{max(ref_weight)} g')
 
 # Age 0
 age_0 = [item['nickname'] for item in sub_list if item['age_weeks'] == 0]
-# NR_0019 -> chased up Noam
