@@ -102,17 +102,12 @@ Overleaf BWM intro figure
 '''
 
 
-def example_block_structure(eid):
+def example_block_structure():
     '''
     illustrate block structure in a line plot
-
-    eid = '15f742e1-1043-45c9-9504-f1e8a53c1744'
     '''
-
-    trials = one.load_object(eid, 'trials')
-
     fig, ax = plt.subplots(figsize=(2, 1))
-    plt.plot(trials['probabilityLeft'], color='k',
+    plt.plot(session.trials['probabilityLeft'], color='k',
              linestyle='', marker='|', markersize=0.1)
     ax.set_xlabel('trials')
     ax.set_yticks([0.2, 0.5, 0.8])
