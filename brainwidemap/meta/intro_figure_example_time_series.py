@@ -188,13 +188,10 @@ def bwm_data_series_fig(cnew=True):
     # axs.append(plt.subplot(nsubplots,1,3,sharex=axs[0]))
 
     if cnew:
-
-        sess_loader = SessionLoader(one, eid)
-
         # load DLC
-        sess_loader.load_pose(views=['left', 'right'])
-        dlc_left = sess_loader.pose['leftCamera']
-        dlc_right = sess_loader.pose['rightCamera']
+        session.load_pose(views=['left', 'right'])
+        dlc_left = session.pose['leftCamera']
+        dlc_right = session.pose['rightCamera']
 
         # get licks using both cameras
         lick_times = []
