@@ -144,8 +144,7 @@ def bwm_data_series_fig(cnew=True):
     if cnew:
         Q = []
         wheel = session.wheel
-        pos, times_w = wh.interpolate_position(wheel['times'].to_numpy(),
-                                               wheel['position'].to_numpy(), freq=1 / T_BIN)
+        pos, times_w = wheel['times'].to_numpy(),wheel['position'].to_numpy()
 
         v = np.append(np.diff(pos), np.diff(pos)[-1])
 
