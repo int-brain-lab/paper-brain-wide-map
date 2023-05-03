@@ -13,6 +13,7 @@ import math
 import matplotlib.pyplot as plt
 import pandas as pd
 import matplotlib as mpl
+import pickle
 
 
 
@@ -156,7 +157,7 @@ def bwm_data_series_fig(cnew=True):
         Q.append([times_w[s_idx:e_idx], v[s_idx:e_idx]])
 
     else:
-        Q = np.load(pth_res / 'Q.npy', allow_pickle=True)
+        Q = pickle.load(open(pth_res / 'precomputed.p', "rb"))
         x, y = Q[0]
 
     axs[0].plot(x, y, c='k', label='wheel speed', linewidth=0.5)
@@ -299,8 +300,8 @@ def bwm_data_series_fig(cnew=True):
                    by_label.keys(), ncol=4).set_draggable(True)
 
     if cnew:
-        np.save(pth_res / 'Q.npy', Q, allow_pickle=True)
-        
+        pickle.dump(Q, open(pth_res / 'precomputed.p', "wb"))
+
 
 if __name__ == "__main__":        
 
