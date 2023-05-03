@@ -77,7 +77,7 @@ align = {'stim': 'stim on',
          'block': 'stim on'}
 
 one = ONE(base_url='https://openalyx.internationalbrainlab.org',
-          password='international')
+          password='international', silent=True)
 ba = AllenAtlas()
 br = BrainRegions()
 units_df = bwm_loading.bwm_units(one)  # canonical set of cells

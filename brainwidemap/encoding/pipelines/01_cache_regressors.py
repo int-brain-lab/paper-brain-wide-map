@@ -82,7 +82,7 @@ params = {
 }
 
 pw = 'international'
-one = ONE(base_url='https://openalyx.internationalbrainlab.org', password=pw)
+one = ONE(base_url='https://openalyx.internationalbrainlab.org', password=pw, silent=True)
 dataset_futures = []
 
 sessdf = bwm_query().set_index("pid")
