@@ -1,8 +1,0 @@
-,n_sessions,n_probes,n_units
-Released data,354,547,295501
-Trials filter reaction time and hardware failure,353,545,293566
-Minimum 3 errors per session,352,543,292165
-Unit QC,352,543,32525
-Remove non-brain regions,351,542,28972
-Minimum 10 units per region,312,450,22818
-Minimum 2 sessions per region,308,439,22113
