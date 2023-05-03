@@ -20,6 +20,9 @@ mpl.rcParams.update({'font.size': 10})
 
 one = ONE(base_url='https://openalyx.internationalbrainlab.org',
           password='international')
+eid = '15f742e1-1043-45c9-9504-f1e8a53c1744'
+session = SessionLoader(one=one, eid=eid)
+session.load_session_data()
 
 # save results for plotting here
 pth_res = Path(one.cache_dir, 'brain_wide_map', 'motor_correlates')
@@ -92,24 +95,6 @@ def get_licks(dlc):
     return sorted(list(set.union(*licks)))
 
 
-def get_ME(eid, video_type, query_type='remote'):
-    '''
-    load motion energy for a given session (eid)
-    and video type (e.g. video_type = 'left')
-
-    returns:
-
-    Times: time stamps of motion energy
-    ME: motion energy time series
-    '''
-    session = SessionLoader(one=one, eid=eid)
-    session.load_motion_energy(views=[video_type])
-    Times = session.motion_energy[f'{video_type}Camera']["times"].to_numpy()
-    ME = session.motion_energy[f'{video_type}Camera']['whiskerMotionEnergy'].to_numpy()
-
-    return Times, ME
-
-
 '''
 ############
 Overleaf BWM intro figure
@@ -141,7 +126,6 @@ def bwm_data_series_fig(cnew=True):
     above neural data - intro figure
     '''
 
-    eid = '15f742e1-1043-45c9-9504-f1e8a53c1744'
     video_type = 'left'
     # reg = 'PRNr'#'SCiw''MRN'
     probe = 'probe00'
@@ -185,7 +169,8 @@ def bwm_data_series_fig(cnew=True):
 
     if cnew:
         # when changing cam type, change fs in cut
-        times_me, ME = get_ME(eid, video_type)
+        me_data = session.motion_energy[f'{video_type}Camera'][['times','whiskerMotionEnergy']].to_numpy()
+        times_me, ME = me_data[:, 0], me_data[:, 1]
 
         s_idx = find_nearest(times_me, tstart)
         e_idx = find_nearest(times_me, tend)
