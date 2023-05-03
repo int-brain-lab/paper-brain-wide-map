@@ -129,12 +129,15 @@ def bwm_data_series_fig(cnew=True):
     video_type = 'left'
     # reg = 'PRNr'#'SCiw''MRN'
     probe = 'probe00'
-    trial_range = [242, 244]
+    trial_start = 242
+    trial_end = 244
     nsubplots = 4
 
-    trials = one.load_object(eid, 'trials')
-    tstart = trials['intervals'][trial_range[0]][0]
-    tend = trials['intervals'][trial_range[-1]][-1]
+    trials = session.trials
+    # start time of first trial
+    tstart = trials['intervals_0'][trial_start]
+    # end time of last trial
+    tend = trials['intervals_1'][trial_end]
 
     fig, axs = plt.subplots(nsubplots, 1, figsize=(5, 4), sharex=True,
                             gridspec_kw={'height_ratios': [1, 1, 1, 4]})
@@ -261,9 +264,9 @@ def bwm_data_series_fig(cnew=True):
 
     cols = {'0.8': [0.13850039, 0.41331206, 0.74052025],
             '0.2': [0.66080672, 0.21526712, 0.23069468], '0.5': 'g'}
-    for i in range(trial_range[0], trial_range[-1] + 1):
-        st = trials['intervals'][i][0]
-        en = trials['intervals'][i][1]
+    for i in range(trial_start, trial_end + 1):
+        st = trials['intervals_0'][i]
+        en = trials['intervals_1'][i]
 
         pl = trials['probabilityLeft'][i]
 
