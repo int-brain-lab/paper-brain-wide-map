@@ -114,6 +114,7 @@ def example_block_structure():
     ax.set_yticks([0.2, 0.5, 0.8])
     ax.set_ylabel('p(stim left)')
     plt.tight_layout()
+    plt.show()
 
 
 def bwm_data_series_fig(cnew=True):
@@ -299,6 +300,8 @@ def bwm_data_series_fig(cnew=True):
     axs[-1].legend(by_label.values(),
                    by_label.keys(), ncol=4).set_draggable(True)
 
+    plt.show()
+    
     if cnew:
         pickle.dump(Q, open(pth_res / 'precomputed.p', "wb"))
 
@@ -310,5 +313,5 @@ if __name__ == "__main__":
     illustrating time series and neural data for
     3 example trials
     '''
-        
+    example_block_structure()
     bwm_data_series_fig()        
