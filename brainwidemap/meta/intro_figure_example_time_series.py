@@ -21,7 +21,7 @@ mpl.rcParams.update({'font.size': 10})
 one = ONE(base_url='https://openalyx.internationalbrainlab.org',
           password='international')
 eid = '15f742e1-1043-45c9-9504-f1e8a53c1744'
-session = SessionLoader(one=one, eid=eid)
+session = SessionLoader(one, eid)
 session.load_session_data()
 
 # save results for plotting here
