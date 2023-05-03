@@ -141,9 +141,9 @@ def bwm_data_series_fig(cnew=True):
 
     if cnew:
         Q = []
-        wheel = one.load_object(eid, 'wheel')
-        pos, times_w = wh.interpolate_position(wheel.timestamps,
-                                               wheel.position, freq=1 / T_BIN)
+        wheel = session.wheel
+        pos, times_w = wh.interpolate_position(wheel['times'].to_numpy(),
+                                               wheel['position'].to_numpy(), freq=1 / T_BIN)
 
         v = np.append(np.diff(pos), np.diff(pos)[-1])
 
@@ -301,7 +301,7 @@ def bwm_data_series_fig(cnew=True):
     if cnew:
         np.save(pth_res / 'Q.npy', Q, allow_pickle=True)
         
-        
+
 if __name__ == "__main__":        
 
     '''
