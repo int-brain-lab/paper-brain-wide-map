@@ -19,7 +19,7 @@ import matplotlib as mpl
 mpl.rcParams.update({'font.size': 10})
 
 one = ONE(base_url='https://openalyx.internationalbrainlab.org',
-          password='international', silent=True)
+          password='international')
 
 # save results for plotting here
 pth_res = Path(one.cache_dir, 'brain_wide_map', 'motor_correlates')

@@ -25,7 +25,7 @@ import matplotlib.ticker as tck
 pd.options.mode.chained_assignment = None
 #plt.rcParams.update(plt.rcParamsDefault)
 one = ONE(base_url='https://openalyx.internationalbrainlab.org',
-          password='international', silent=True)
+          password='international')
 pth_res = Path(one.cache_dir, 'manifold', 'res')
 ba = AllenAtlas()
 br = BrainRegions()

@@ -25,8 +25,8 @@ from brainwidemap.decoding.settings_template import params
 # connect to server
 one = ONE(
     base_url='https://openalyx.internationalbrainlab.org',
-    password='international',
-    silent=True)
+    password='international'
+)
 
 """
 --------------------------------
