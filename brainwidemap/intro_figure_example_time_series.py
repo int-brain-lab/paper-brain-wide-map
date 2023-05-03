@@ -102,11 +102,10 @@ def get_ME(eid, video_type, query_type='remote'):
     Times: time stamps of motion energy
     ME: motion energy time series
     '''
-
-    Times = one.load_dataset(eid, f'alf/_ibl_{video_type}Camera.times.npy',
-                             query_type=query_type)
-    ME = one.load_dataset(eid, f'alf/{video_type}Camera.ROIMotionEnergy.npy',
-                          query_type=query_type)
+    session = SessionLoader(one=one, eid=eid)
+    session.load_motion_energy(views=[video_type])
+    Times = session.motion_energy[f'{video_type}Camera']["times"].to_numpy()
+    ME = session.motion_energy[f'{video_type}Camera']['whiskerMotionEnergy'].to_numpy()
 
     return Times, ME
 
