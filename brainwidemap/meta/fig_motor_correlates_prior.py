@@ -1,3 +1,19 @@
+'''
+This code produces panels related to the motor correlates block of the
+brain-wide-map paper. It references a npy file
+(15f742e1-1043-45c9-9504-f1e8a53c1744_left.npy) containing an
+example frame being used for illustration in one panel.
+This file is assumed to be in your current working directory when
+plotting the paw position on the example frame.
+
+Cutting 7 behaviors during the inter-trial interval for all BWM
+sessions takes about 1 h. One can use one core per lag variable
+and compute in parallel. The lag variable specifies the start of
+the inter-trial interval and we compute it for two lags.
+
+See the code in the if __name__ == "__main__" block of this script.
+'''
+
 from one.api import ONE
 import brainbox.behavior.wheel as wh
 from brainbox.processing import bincount2D
