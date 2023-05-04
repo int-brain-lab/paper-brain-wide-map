@@ -34,12 +34,13 @@ import pandas as pd
 import random
 import seaborn as sns
 import matplotlib as mpl
+import os
+import traceback
 
 mpl.rcParams.update({'font.size': 10})
 
 one = ONE(base_url='https://openalyx.internationalbrainlab.org',
           password='international')
-eid = '15f742e1-1043-45c9-9504-f1e8a53c1744'
 
 # save results for plotting here
 pth_res = Path(one.cache_dir, 'brain_wide_map', 'meta')
@@ -294,6 +295,7 @@ def get_PSTHs_7behaviors(lag=-0.4):
 
     df = bwm_query(one)
     eids = list(set(df['eid'].values))
+    eids = ["15f742e1-1043-45c9-9504-f1e8a53c1744"]
 
     R = {}
     plt.ioff()
@@ -301,12 +303,16 @@ def get_PSTHs_7behaviors(lag=-0.4):
 
         try:
             # only let sessions pass that have dlc passed for both side cams
-            qc = one.get_details(eid, True)['extended_qc']
-            if not (qc['dlcLeft'] == 'PASS' and qc['dlcRight'] == 'PASS'):
+            qc = pd.read_csv(os.path.join(Path(__file__).parents[2], 'data_checks', 'qc_video_data.csv'))
+            qc = qc.loc[qc['eid'] == eid]
+            qc_left = qc.loc[qc['label'] == 'left']
+            qc_right = qc.loc[qc['label'] == 'right']
+            if not (qc_left.iloc[0]['dlc'] and qc_right.iloc[0]['dlc']):
                 continue
 
             R[eid] = PSTH_pseudo(eid, lag=lag, duration=0.4)
-        except BaseException:
+        except Exception as e:
+            print(traceback.format_exc())
             print(f'something off with {eid}')
             continue
 
@@ -444,6 +450,7 @@ def Result_7behave(hists=False, save_df=False, bf = True):
 
         plt.title('smoothed historgam of p-values')
         plt.tight_layout()
+
 
 
 def PSTH_pseudo(eid, duration=0.4, lag=-0.4, plotting=True,
@@ -634,7 +641,7 @@ def PSTH_pseudo(eid, duration=0.4, lag=-0.4, plotting=True,
     del D
     return Res
 
-def paw_position_onframe(ax=None, fig=None):
+def paw_position_onframe(eid, ax=None, fig=None):
     '''
     load example video frame
     scatter plot average inter-trial-interval
@@ -666,7 +673,7 @@ def paw_position_onframe(ax=None, fig=None):
     random.shuffle(ids)
     xs = np.array(xs)[ids][::n]
     ys = np.array(ys)[ids][::n]
-    cols = np.array(cols)[ids][::n]
+    cols = np.array(cols, dtype=object)[ids][::n]
     print(xs[:3], ys[:3])
     ax.scatter(xs, ys, c=cols, s=200, alpha=1, marker='x')
 
@@ -692,10 +699,11 @@ def paw_position_onframe(ax=None, fig=None):
 
 
 if __name__ == "__main__":
+    eid = '15f742e1-1043-45c9-9504-f1e8a53c1744'
 
 #    #  cut seven behaviors for all BWM sessions
 #    for lag in [-0.4, -0.6]:
-#        get_PSTHs_7behaviors(lag = lag)    
+#        get_PSTHs_7behaviors(lag = lag)
 
     # activate interactive plotting to see figures
     plt.ion()
@@ -704,7 +712,7 @@ if __name__ == "__main__":
     #  have sig motor correlates
     Result_7behave()
     
-    paw_position_onframe()
+    paw_position_onframe(eid)
     
     # illustrate paw behavior per trial 
     PSTH_pseudo(eid,pawex=True)
