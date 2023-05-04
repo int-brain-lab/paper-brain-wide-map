@@ -39,6 +39,7 @@ mpl.rcParams.update({'font.size': 10})
 
 one = ONE(base_url='https://openalyx.internationalbrainlab.org',
           password='international')
+eid = '15f742e1-1043-45c9-9504-f1e8a53c1744'
 
 # save results for plotting here
 pth_res = Path(one.cache_dir, 'brain_wide_map', 'meta')
@@ -642,8 +643,7 @@ def paw_position_onframe(ax=None, fig=None):
 
     behave = 'paw_pos_l'
 
-    eid = '15f742e1-1043-45c9-9504-f1e8a53c1744'
-    img_file = os.path.join(os.getcwd(), '15f742e1-1043-45c9-9504-f1e8a53c1744_left.npy')
+    img_file = os.path.join(os.getcwd(), f'{eid}_left.npy')
     r = np.load(img_file)[0]
 
     if ax is None:
@@ -707,8 +707,7 @@ if __name__ == "__main__":
     paw_position_onframe()
     
     # illustrate paw behavior per trial 
-    eid =  "15f742e1-1043-45c9-9504-f1e8a53c1744"
-    PSTH_pseudo(eid,pawex=True)    
+    PSTH_pseudo(eid,pawex=True)
     
     
        
