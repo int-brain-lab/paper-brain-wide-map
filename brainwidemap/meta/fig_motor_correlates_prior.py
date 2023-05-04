@@ -41,7 +41,7 @@ one = ONE(base_url='https://openalyx.internationalbrainlab.org',
           password='international')
 
 # save results for plotting here
-pth_res = Path(one.cache_dir, 'brain_wide_map', 'motor_correlates')
+pth_res = Path(one.cache_dir, 'brain_wide_map', 'meta')
 pth_res.mkdir(parents=True, exist_ok=True)
 
 ba = AllenAtlas()
@@ -155,25 +155,6 @@ def get_licks(dlc):
             thr = np.nanstd(np.diff(c)) / 4
             licks.append(set(np.where(abs(np.diff(c)) > thr)[0]))
     return sorted(list(set.union(*licks)))
-
-
-def get_ME(eid, video_type, query_type='remote'):
-    '''
-    load motion energy for a given session (eid)
-    and video type (e.g. video_type = 'left')
-
-    returns:
-
-    Times: time stamps of motion energy
-    ME: motion energy time series
-    '''
-
-    Times = one.load_dataset(eid, f'alf/_ibl_{video_type}Camera.times.npy',
-                             query_type=query_type)
-    ME = one.load_dataset(eid, f'alf/{video_type}Camera.ROIMotionEnergy.npy',
-                          query_type=query_type)
-
-    return Times, ME
 
 
 def cut_behavior(eid, duration=0.4, lag=-0.6,
