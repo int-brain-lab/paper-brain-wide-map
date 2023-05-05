@@ -160,8 +160,8 @@ def bwm_data_series_fig(cnew=True):
         Q = pickle.load(open(pth_res / 'precomputed.p', "rb"))
         x, y = Q[0]
 
-    axs[0].plot(x, y, c='k', label='wheel speed', linewidth=0.5)
-    axs[0].set_ylabel('wheel speed')  # \n [rad/sec]
+    axs[0].plot(x, y, c='k', label='wheel velocity', linewidth=0.5)
+    axs[0].set_ylabel('wheel velocity')  # \n [rad/sec]
     axs[0].axes.yaxis.set_visible(False)
     # plot whisker motion
     # axs.append(plt.subplot(nsubplots,1,2,sharex=axs[0]))
