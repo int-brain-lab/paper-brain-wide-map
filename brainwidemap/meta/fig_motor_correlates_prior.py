@@ -295,7 +295,6 @@ def get_PSTHs_7behaviors(lag=-0.4):
 
     df = bwm_query(one)
     eids = list(set(df['eid'].values))
-    eids = ["15f742e1-1043-45c9-9504-f1e8a53c1744"]
 
     R = {}
     plt.ioff()
@@ -701,9 +700,10 @@ def paw_position_onframe(eid, ax=None, fig=None):
 if __name__ == "__main__":
     eid = '15f742e1-1043-45c9-9504-f1e8a53c1744'
 
-#    #  cut seven behaviors for all BWM sessions
-#    for lag in [-0.4, -0.6]:
-#        get_PSTHs_7behaviors(lag = lag)
+    #  cut seven behaviors for all BWM sessions
+    for lag in [-0.4, -0.6]:
+        if not os.path.exists((pth_res / f'behave7_{abs(lag)}.npy')):
+            get_PSTHs_7behaviors(lag = lag)
 
     # activate interactive plotting to see figures
     plt.ion()
