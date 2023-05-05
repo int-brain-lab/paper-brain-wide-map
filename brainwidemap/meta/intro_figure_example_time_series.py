@@ -1,5 +1,4 @@
 from one.api import ONE
-import brainbox.behavior.wheel as wh
 from brainbox.processing import bincount2D
 from ibllib.atlas import AllenAtlas
 from ibllib.atlas.regions import BrainRegions
@@ -16,14 +15,11 @@ import matplotlib as mpl
 import pickle
 
 
-
 mpl.rcParams.update({'font.size': 10})
 
 one = ONE(base_url='https://openalyx.internationalbrainlab.org',
           password='international')
 eid = '15f742e1-1043-45c9-9504-f1e8a53c1744'
-session = SessionLoader(one, eid)
-session.load_session_data()
 
 # save results for plotting here
 pth_res = Path(one.cache_dir, 'brain_wide_map', 'motor_correlates')
@@ -34,7 +30,6 @@ br = BrainRegions()
 
 T_BIN = 0.02
 Fs = {'left': 60, 'right': 150, 'body': 30}
-
 
 blue_left = [0.13850039, 0.41331206, 0.74052025]
 red_right = [0.66080672, 0.21526712, 0.23069468]
@@ -103,12 +98,13 @@ Overleaf BWM intro figure
 '''
 
 
-def example_block_structure():
+def example_block_structure(sl):
     '''
     illustrate block structure in a line plot
+    :param sl: SessionLoader instance.
     '''
     fig, ax = plt.subplots(figsize=(2, 1))
-    plt.plot(session.trials['probabilityLeft'], color='k',
+    plt.plot(sl.trials['probabilityLeft'], color='k',
              linestyle='', marker='|', markersize=0.1)
     ax.set_xlabel('trials')
     ax.set_yticks([0.2, 0.5, 0.8])
@@ -117,10 +113,11 @@ def example_block_structure():
     plt.show()
 
 
-def bwm_data_series_fig(cnew=True):
+def bwm_data_series_fig(sl, cnew=True):
     '''
     plot a behavioral time series on block-colored background
     above neural data - intro figure
+    :param sl: SessionLoader instance.
     '''
 
     video_type = 'left'
@@ -130,7 +127,7 @@ def bwm_data_series_fig(cnew=True):
     trial_end = 244
     nsubplots = 4
 
-    trials = session.trials
+    trials = sl.trials
     # start time of first trial
     tstart = trials['intervals_0'][trial_start]
     # end time of last trial
@@ -143,7 +140,7 @@ def bwm_data_series_fig(cnew=True):
 
     if cnew:
         Q = []
-        wheel = session.wheel
+        wheel = sl.wheel
         pos, times_w = wheel['times'].to_numpy(),wheel['position'].to_numpy()
 
         v = np.append(np.diff(pos), np.diff(pos)[-1])
@@ -168,7 +165,7 @@ def bwm_data_series_fig(cnew=True):
 
     if cnew:
         # when changing cam type, change fs in cut
-        me_data = session.motion_energy[f'{video_type}Camera'][['times','whiskerMotionEnergy']].to_numpy()
+        me_data = sl.motion_energy[f'{video_type}Camera'][['times','whiskerMotionEnergy']].to_numpy()
         times_me, ME = me_data[:, 0], me_data[:, 1]
 
         s_idx = find_nearest(times_me, tstart)
@@ -188,9 +185,9 @@ def bwm_data_series_fig(cnew=True):
 
     if cnew:
         # load DLC
-        session.load_pose(views=['left', 'right'])
-        dlc_left = session.pose['leftCamera']
-        dlc_right = session.pose['rightCamera']
+        sl.load_pose(views=['left', 'right'])
+        dlc_left = sl.pose['leftCamera']
+        dlc_right = sl.pose['rightCamera']
 
         # get licks using both cameras
         lick_times = []
@@ -312,5 +309,8 @@ if __name__ == "__main__":
     illustrating time series and neural data for
     3 example trials
     '''
-    example_block_structure()
-    bwm_data_series_fig()        
+    sl = SessionLoader(one, eid)
+    sl.load_session_data()
+
+    example_block_structure(sl)
+    bwm_data_series_fig(sl)
