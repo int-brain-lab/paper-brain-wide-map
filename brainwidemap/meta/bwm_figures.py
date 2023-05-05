@@ -25,16 +25,16 @@ def load_results(variable):
     variable: ['stim', ' choice', 'fback', 'block']
     '''
     
-    bwm_results = pd.read_pickle(f"Results/{variable}.pkl")
-    bwm_results = bwm_results.replace(True, 1)
-    bwm_results = bwm_results.replace(False, 0)
+    res = pd.read_pickle(f"Results/{variable}.pkl")
+    res = res.replace(True, 1)
+    res = res.replace(False, 0)
 
     # ## Apply logarithm to GLM results
-    bwm_results.glm_effect = np.log10(
-                bwm_results.glm_effect.clip(lower=1e-5))
+    res.glm_effect = np.log10(
+                res.glm_effect.clip(lower=1e-5))
 
     # Reorder columns to match ordering in Figure
-    bwm_results = bwm_results[['euclidean_latency',
+    res = res[['euclidean_latency',
                                'euclidean_effect',
                                'glm_effect',
                                'mannwhitney_effect',
@@ -43,10 +43,10 @@ def load_results(variable):
                                'decoding_frac_significant',
                                'mannwhitney_significant',
                                'euclidean_significant']]
-    return bwm_results
+    return res
 
 
-def get_cmap(split):
+def get_cmap_(split):
     '''
     for each split, get a colormap defined by Yanliang,
     updated by Chris
@@ -103,8 +103,8 @@ def plot_swansons(variable):
                  'decoding_effect']
 
  
-    cmap = get_cmap(variable)
-    fig = plt.figure(figsize=(3,8))
+    cmap = get_cmap_(variable)
+    fig = plt.figure(figsize=(8,3))
     gs = gridspec.GridSpec(len(res_types), 1, figure=fig,hspace=.75)    
     axs = []
  
@@ -112,7 +112,7 @@ def plot_swansons(variable):
     k = 0
     for res_type in res_types:
     
-        axs.append(fig.add_subplot(gs[k,0]))
+        axs.append(fig.add_subplot(gs[0,k]))
         ana = res_type.split('_')[0]
         lat = True if (res_type.split('_')[1] == 'latency') else False
         
@@ -132,7 +132,7 @@ def plot_swansons(variable):
         plot_swanson_vector(acronyms,
                             scores,
                             hemisphere=None, 
-                            orientation='landscape',
+                            orientation='portrait',
                             cmap=cmap.reversed() if lat else cmap,
                             br=br,
                             ax=axs[-1],
@@ -173,67 +173,60 @@ def plot_table(variable):
 
 
     # # Plot comparison table
-
+    res = load_results(variable)
+    cmap = get_cmap_(variable)
+    
     # ## Normalize values in each column to interval [0,1]
-    # Pandas doesnt seem to automatically map values onto color map so I normalize them first.
 
-    # In[13]:
-
-
-    bwm_results.iloc[:,:5]=(bwm_results.iloc[:,:5]-bwm_results.iloc[:,:5].min())/(bwm_results.iloc[:,:5].max()-bwm_results.iloc[:,:5].min())+ 1e-4
-
+    res.iloc[:,:5] = (res.iloc[:,:5] - res.iloc[:,:5].min())/(
+                      res.iloc[:,:5].max()-res.iloc[:,:5].min()) + 1e-4
 
     # ## Sum values in each row to use for sorting
-    # The rows of the table are sorted by the sum of all effects across the row(excluding latency). Here we create a new column with this sum.
+    # The rows of the table are sorted by the sum of all effects 
+    # across the row(excluding latency). 
+    # Here we create a new column with this sum.
 
-    # In[14]:
-
-
-    bwm_results['sum']  = bwm_results[['decoding_effect','mannwhitney_effect','euclidean_effect','glm_effect']].apply(np.sum,axis=1)
-    bwm_results = bwm_results.reset_index()
-
+    res['sum']  = res[['decoding_effect',
+                       'mannwhitney_effect',
+                       'euclidean_effect',
+                       'glm_effect']].apply(np.sum,axis=1)
+                       
+    res = res.reset_index()
 
     # ## Sort rows by 'sum' within each Cosmos region
-    # The sorting by sum of effects is done within each Cosmos region. So here I add the cosmos acronym as a column, group and then sort 'sum'.
+    # The sorting by sum of effects is done within each Cosmos region. 
+    # So here I add the cosmos acronym as a column, group and then sort 'sum'.
 
-    # In[15]:
-
-
-
-
-    bwm_results['cosmos'] = bwm_results.region.apply(lambda x : beryl_to_cosmos(x,br))
-    bwm_results=bwm_results.groupby('cosmos').apply(lambda x: x.sort_values(['sum'], ascending=False))
-
+    res['cosmos'] = res.region.apply(lambda x : beryl_to_cosmos(x,br))
+    res = res.groupby('cosmos').apply(
+              lambda x: x.sort_values(['sum'], ascending=False))
 
     # ## Add hex values for Beryl regions
-    # Here I add a column of hex values corresponding to beryl acronyms. This is used to color each row by region.
+    # Here I add a column of hex values corresponding to beryl acronyms. 
+    # This is used to color each row by region.
 
-    # In[16]:
-
-
-
-
-    bwm_results['beryl_hex'] = bwm_results.region.apply(swanson_to_beryl_hex,args=[br])    
-    beryl_palette = dict(zip(bwm_results.region, bwm_results.beryl_hex))
-    bwm_results['region_color'] = bwm_results.region # Add dummy column to be colored according beryl rgb
-
+    res['beryl_hex'] = res.region.apply(swanson_to_beryl_hex,args=[br])    
+    beryl_palette = dict(zip(res.region, res.beryl_hex))
+    
+    # Add dummy column to be colored according beryl rgb
+    res['region_color'] = res.region 
 
     # ## Order columns according to panels in Figure
 
-    # In[17]:
-
-
-    bwm_results = bwm_results[['region','region_color','decoding_effect','mannwhitney_effect','glm_effect','euclidean_effect','decoding_significant','mannwhitney_significant','euclidean_significant']]
-    bwm_results.decoding_effect = bwm_results.decoding_effect  * bwm_results.decoding_significant
-    bwm_results.mannwhitney_effect = bwm_results.mannwhitney_effect  * bwm_results.mannwhitney_significant
-    bwm_results.euclidean_effect = bwm_results.euclidean_effect  * bwm_results.euclidean_significant
-    bwm_results = bwm_results[['region','region_color','glm_effect','euclidean_effect','mannwhitney_effect','decoding_effect']]
-
+    res = res[['region','region_color', 
+               'decoding_effect','mannwhitney_effect',
+               'glm_effect','euclidean_effect',
+               'decoding_significant',
+               'mannwhitney_significant','euclidean_significant']]
+            
+    for rt in ['decoding', 'mannwhitney','euclidean']:
+        res[f'{rt}_effect'] = res[f'{rt}_effect'] * res[f'{rt}_significant']
+    
+    res = res[['region','region_color',
+               'glm_effect','euclidean_effect',
+               'mannwhitney_effect','decoding_effect']]
 
     # ## Format comparison table
-
-    # In[18]:
-
 
     def region_formatting(x):
         '''
@@ -241,6 +234,7 @@ def plot_table(variable):
         '''
         color = beryl_palette[x]
         return 'background-color: ' + color
+
 
     def effect_formatting(x):
         '''
@@ -250,8 +244,12 @@ def plot_table(variable):
                 color = 'silver'
         else:
             rgb = cmap(x)
-            color =  '#' + rgb_to_hex((int(255*rgb[0]),int(255*rgb[1]),int(255*rgb[2])))
+            color =  ('#' + rgb_to_hex((int(255*rgb[0]),
+                                        int(255*rgb[1]),
+                                        int(255*rgb[2]))))
+                         
         return 'background-color: ' + color
+
 
     def significance_formatting(x):
         if x==True:
@@ -266,38 +264,39 @@ def plot_table(variable):
             
     # Format table  
     def make_pretty(styler):
-        #styler.applymap(effect_formatting,subset=['decoding_significant','mannwhitney_significant','euclidean_significant'])
-        styler.applymap(effect_formatting,subset=['decoding_effect','mannwhitney_effect','euclidean_effect','glm_effect'])
+        
+        styler.applymap(effect_formatting,
+            subset=['decoding_effect','mannwhitney_effect',
+                    'euclidean_effect','glm_effect'])
         styler.applymap(region_formatting,subset=['region_color'])
-        styler.set_properties(subset=['region_color'], **{'width': '15px'})
-        styler.set_properties(subset=['region_color'] , **{'font-size': '0pt'})
-        styler.set_properties(subset=['decoding_effect','euclidean_effect','mannwhitney_effect','glm_effect'], **{'width': '16px'})
+        styler.set_properties(subset=['region_color'], 
+                              **{'width': '15px'})
+        styler.set_properties(subset=['region_color'] , 
+                              **{'font-size': '0pt'})
+        styler.set_properties(subset=['decoding_effect',
+                                      'euclidean_effect',
+                                      'mannwhitney_effect',
+                                      'glm_effect'], **{'width': '16px'})
         styler.set_properties(subset=['region'], **{'width': '65px'})
-        styler.set_properties(subset=['decoding_effect','euclidean_effect','mannwhitney_effect','glm_effect'] , **{'font-size': '0pt'})
+        styler.set_properties(subset=['decoding_effect',
+                                      'euclidean_effect',
+                                      'mannwhitney_effect',
+                                      'glm_effect'] , **{'font-size': '0pt'})
         styler.set_properties(subset=['region'] , **{'font-size': '9pt'})
         styler.hide(axis="index")
         styler.set_table_styles([
-        {"selector": "tr", "props": "line-height: 11px"},
-        {"selector": "td,th", "props": "line-height: inherit; padding: 0 "},
-            #{"selector": "", "props": [("border", "1px solid white")]},
-            {"selector": "tbody td", "props": [("border", "1px solid white")]},
-            {'selector': 'thead', 'props': [('display', 'none')]}
-        ])
+            {"selector": "tr", "props": "line-height: 11px"},
+            {"selector": "td,th", 
+                "props": "line-height: inherit; padding: 0 "},
+            {"selector": "tbody td", 
+                "props": [("border", "1px solid white")]},
+            {'selector': 'thead', 'props': [('display', 'none')]}])
+            
         return styler
 
 
     # ## Plot table
-
-    # In[19]:
-
-
-    styled_bwm_results = bwm_results.style.pipe(make_pretty)
-    dfi.export(styled_bwm_results, 'Figures/' + variable + '_df_styled.png',max_rows = -1,table_conversion="selenium")
-    styled_bwm_results
-
-
-    # In[ ]:
-
-
-
-
+    styled_res = res.style.pipe(make_pretty)
+    dfi.export(styled_res, 'Figures/' + variable + '_df_styled.png',
+               max_rows = -1,table_conversion="selenium")
+    styled_res
