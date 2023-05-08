@@ -52,7 +52,7 @@ targetreg = {  # Function to produce the target metric, the target regions, and 
     "choice": (lambda df: df["fmoveR"] - df["fmoveL"], ["GRN"], "firstMovement_times"),
     "feedback": (lambda df: df["correct"] - df["incorrect"], ["IRN"], "feedback_times"),
     "wheel": (lambda df: df["wheel"], ["GRN"], "firstMovement_times"),
-    "block": (lambda df: df["pLeft"], ["PL"], "stimOn_times"),
+    "block": (lambda df: df["pLeft"], ["PL", "MOs"], "stimOn_times"),
 }
 
 params = pd.read_pickle(GLM_FIT_PATH + "/2023-03-07_glm_fit_pars.pkl")
@@ -170,12 +170,12 @@ for variable, (targetmetricfun, regions, aligntime) in targetreg.items():
             trial_idx, dividers = find_trial_ids(stdf, sort=sortlookup[variable])
             fig, ax = single_cluster_raster(
                 sspkt[sspkclu == clu_id], stdf[aligntime], trial_idx, dividers, ["b", "r"], [reg1, reg2],
-                pre_time=t_before, post_time=t_after,
+                pre_time=t_before, post_time=t_after, raster_cbar=True,
             )
+            ax.set_title("{} unit {} : $\log \Delta R^2$ = {:.2f}".format(region, clu_id, np.log(drsq)))
             plt.savefig(rasterfolder.joinpath(f"{eid}_{pid}_clu{clu_id}_{region}_{variable}_raster.svg"))
             plt.savefig(rasterfolder.joinpath(f"{eid}_{pid}_clu{clu_id}_{region}_{variable}_raster.png"))
             plt.close()
-
 
 ## Treat block separately since it's a different type of plot
 variable = "block"
@@ -216,5 +216,6 @@ for region in regions:
         ax[0].set_title(f"{region} {clu_id} firing rate by block")
         ax[1].set_title(f"{region} {clu_id} predicted rate by block")
         ax[0].set_ylabel("Firing rate (spikes/s)")
-        plt.savefig(varfolder.joinpath(f"{eid}_{pid}_clu{clu_id}_{region}_{variable}_predsummary.{IMGFMT}"))
+        plt.savefig(varfolder.joinpath(f"{eid}_{pid}_clu{clu_id}_{region}_{variable}_predsummary.svg"))
+        plt.savefig(varfolder.joinpath(f"{eid}_{pid}_clu{clu_id}_{region}_{variable}_predsummary.png"))
         plt.close()

@@ -341,6 +341,7 @@ def single_cluster_raster(
     pre_time=0.4,
     post_time=1.0,
     raster_bin=0.01,
+    raster_cbar=False,
     show_psth=False,
     psth_bin=0.05,
     weights=None,
@@ -371,6 +372,8 @@ def single_cluster_raster(
         Time after event to plot, by default 1.
     raster_bin : float, optional
         Time bin size for the raster, by default 0.01
+    raster_cbar : bool, optional
+        Whether to include a color bar for the raster, which uses binned spike counts.
     psth : bool, optional
         Whether to plot the PSTH, by default False
     psth_bin : float, optional
@@ -479,6 +482,8 @@ def single_cluster_raster(
         )
 
     raster_ax.set_xlim([-1 * pre_time, post_time + raster_bin / 2 + width])
+    raster_ax.set_yticks(dividers)
+    plt.colorbar(raster_ax.get_images()[0], ax=raster_ax, label="Spike count")
     secax = raster_ax.secondary_yaxis("right")
 
     secax.set_yticks(label_pos)
