@@ -1,0 +1,8 @@
+,n_sessions,n_probes,n_units
+Session and insertion QC,354,547,295501
+Reaction time and missing events,353,545,293566
+Minimum 3 error trials,352,543,292165
+Single unit QC,352,543,32525
+Gray matter regions,351,542,28972
+Minimum 10 units per region,312,450,22818
+Minimum 2 sessions per region,308,439,22113

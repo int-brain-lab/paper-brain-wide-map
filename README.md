@@ -39,12 +39,19 @@ Install ibllib without dependencies
 pip install ibllib --no-deps
 ```
 
-## Query sessions for BWM analyses
+To install additional requirements for the individual analyses, see the README files in the respective subfolders in `brainwidemap`
+
+## Query information about BWM data
 You can now use the following in Python (note that ONE needs to be set up)
 ```python
-from brainwidemap import bwm_query
+from brainwidemap import bwm_query, bwm_units
 from one.api import ONE
 
 one = ONE()
+# Dataframe with info on all sessions and probes released for the BWM
 bwm_df = bwm_query(one)
+# Dataframe with information on all neurons used in the analyses in the BWM paper
+unit_df = bwm_units(one)
 ```
+
+For further data loading examples see `data_loading_examples.py`
