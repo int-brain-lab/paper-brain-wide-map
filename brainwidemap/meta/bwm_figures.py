@@ -318,5 +318,3 @@ def plot_table(variable):
     dfi.export(res, f'Figures/{variable}_df_styled.png',
                max_rows = -1,table_conversion="matplotlib")
 
-
-
