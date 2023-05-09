@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
-
+import pdfkit
 import pandas as pd
 import numpy as np
 from functools import reduce
@@ -17,7 +17,7 @@ from scipy import stats
 ba = AllenAtlas()
 br = BrainRegions()
 #get_ipython().run_line_magic('matplotlib', 'qt')
-
+from IPython.display import HTML
 
 def load_results(variable):
     ''' Load results
@@ -169,6 +169,12 @@ def plot_swansons(variable):
 #        dpi=450,
 #    )
 
+
+
+
+
+
+
 def plot_table(variable):
 
 
@@ -226,7 +232,8 @@ def plot_table(variable):
                'glm_effect','euclidean_effect',
                'mannwhitney_effect','decoding_effect']]
 
-    # ## Format comparison table
+
+    ## format table
 
     def region_formatting(x):
         '''
@@ -261,7 +268,8 @@ def plot_table(variable):
         if pd.isna(x):
             color='silver'
         return 'background-color: ' + color
-            
+        
+        
     # Format table  
     def make_pretty(styler):
         
@@ -295,8 +303,20 @@ def plot_table(variable):
         return styler
 
 
-    # ## Plot table
-    styled_res = res.style.pipe(make_pretty)
-    dfi.export(styled_res, 'Figures/' + variable + '_df_styled.png',
-               max_rows = -1,table_conversion="selenium")
-    styled_res
+    ## Plot table
+    res = res.style.pipe(make_pretty)
+    
+    html = res.to_html()
+      
+    # write html to file
+    text_file = open(f'Figures/{variable}_df_styled.html', "w")
+    text_file.write(html)
+    text_file.close()    
+    pdfkit.from_file(f'Figures/{variable}_df_styled.html',
+                     f'Figures/{variable}_df_styled.pdf')
+      
+    dfi.export(res, f'Figures/{variable}_df_styled.png',
+               max_rows = -1,table_conversion="matplotlib")
+
+
+
