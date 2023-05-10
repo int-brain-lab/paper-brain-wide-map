@@ -26,10 +26,13 @@ params['add_to_saving_path'] = (f"_binsize={1000 * params['binsize']}_lags={para
                                 f"mergedProbes_{params['merged_probes']}")
 imposter_file = RESULTS_DIR.joinpath('decoding', f"imposterSessions_{params['target']}.pqt")
 bwm_session_file = RESULTS_DIR.joinpath('decoding', 'bwm_cache_sessions.pqt')
+bwm_cuuids_file = RESULTS_DIR.joinpath('decoding', 'bwm_cache_cuuids.npy')
+
 
 # Load ONE and bwm dataframe of sessions
 one = ONE(base_url="https://openalyx.internationalbrainlab.org", mode='local')
 bwm_df = pd.read_parquet(bwm_session_file)
+bwm_cuuids = np.load(bwm_cuuids_file, allow_pickle=True)
 
 # Feature to run a subset of BWM dataset filtering by subjects.
 # To use this, add subject names to the end of the line that calls this script in 03_slurm*.sh.
@@ -146,7 +149,8 @@ neural_dict = {
     'spk_clu': spikes['clusters'],
     'clu_regions': clusters['acronym'],
     'clu_qc': {k: np.asarray(v) for k, v in clusters.to_dict('list').items()},
-    'clu_df': clusters
+    'clu_df': clusters,
+    'bwm_cuuids': bwm_cuuids
 }
 metadata = {
     'subject': subject,

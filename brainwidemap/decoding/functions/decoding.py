@@ -33,7 +33,7 @@ def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo
     Parameters
     ----------
     neural_dict : dict
-        keys: 'spk_times', 'spk_clu', 'clu_regions', 'clu_qc', 'clu_df'
+        keys: 'spk_times', 'spk_clu', 'clu_regions', 'clu_qc', 'clu_df', 'bwm_cuuids'
     trials_df : pd.DataFrame
         columns: 'choice', 'feedback', 'pLeft', 'firstMovement_times', 'stimOn_times',
         'feedback_times'
@@ -185,13 +185,21 @@ def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo
 
         # pull spikes from this region out of the neural data
         reg_clu_ids = select_ephys_regions(neural_dict, beryl_reg, region, **kwargs)
+        spikemask = np.isin(neural_dict['spk_clu'], reg_clu_ids)
+        cl_inds_used = np.unique(neural_dict['spk_clu'][spikemask])
+        cl_uuids_used = list(neural_dict['clu_df'].iloc[cl_inds_used]['uuids'])
+        
+        # only use neurons in the canonical set
+        canonical_mask = np.isin(cl_uuids_used, neural_dict['bwm_cuuids'])
+        cl_inds_used = cl_inds_used[canonical_mask]
 
         # skip region if there are not enough units
-        n_units = len(reg_clu_ids)
+        n_units = len(cl_inds_used)#len(reg_clu_ids)
         if n_units < kwargs['min_units']:
             continue
 
         # bin spikes from this region for each trial
+        # TODO can I use cl_inds_used instead of reg_clu_ids
         msub_binned, cl_inds_used = preprocess_ephys(reg_clu_ids, neural_dict, trials_df, **kwargs)
         cl_uuids_used = list(neural_dict['clu_df'].iloc[cl_inds_used]['uuids'])
 
@@ -323,7 +331,7 @@ def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo
                 subject=metadata['subject'],
                 eid=metadata['eid'],
                 probe=metadata['probe_name'],
-                region=region,
+                region=region if kwargs['single_region'] else ['allRegions'],
                 n_units=n_units,
                 save_path=save_path
             )

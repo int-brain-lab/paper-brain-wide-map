@@ -43,3 +43,8 @@ one = ONE(base_url="https://openalyx.internationalbrainlab.org", mode='local')
 bwm_df = bwm_query(freeze='2022_10_bwm_release')
 bwm_df.to_parquet(decoding_dir.joinpath('bwm_cache_sessions.pqt'))
 
+canonical_clusters = bwm_units(one)
+np.save(decoding_dir.joinpath('bwm_cache_cuuids.npy'),
+        list(canonical_clusters['cuuids']), 
+        allow_pickle=True)
+
