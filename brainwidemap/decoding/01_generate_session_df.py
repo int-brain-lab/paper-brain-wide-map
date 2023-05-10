@@ -2,6 +2,7 @@ from one.api import ONE
 import pandas as pd
 
 from brainwidemap import bwm_query
+from brainwidemap.bwm_loading import bwm_units
 from brainwidemap.decoding.settings import RESULTS_DIR
 
 
@@ -25,6 +26,7 @@ qc_pass = (
     '~session__extended_qc___task_wheel_integrity__lt,1.0,'
     'n_trials__gte,400'
 )
+'''
 sessions = one.alyx.rest(
     'sessions', 'list',
     task_protocol='biasedChoiceWorld',
@@ -37,9 +39,9 @@ eids = [s['id'] for s in sessions]
 
 eid_df = pd.DataFrame(columns=['eid'], data=eids)
 eid_df.to_parquet(decoding_dir.joinpath('imposter_behavior_sessions.pqt'))
-    
+'''    
 # save bwm dataframe of eids
-one = ONE(base_url="https://openalyx.internationalbrainlab.org", mode='local')
+one = ONE(base_url="https://openalyx.internationalbrainlab.org", password='international')
 bwm_df = bwm_query(freeze='2022_10_bwm_release')
 bwm_df.to_parquet(decoding_dir.joinpath('bwm_cache_sessions.pqt'))
 
