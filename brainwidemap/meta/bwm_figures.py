@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
-
+import pdfkit
 import pandas as pd
 import numpy as np
 from functools import reduce
@@ -14,10 +14,14 @@ import matplotlib.pyplot as plt
 import matplotlib
 from matplotlib import gridspec
 from scipy import stats
+#get_ipython().run_line_magic('matplotlib', 'qt')
+from IPython.display import HTML
+from PIL import Image
+from brainwidemap.manifold.state_space_bwm import (plot_traj_and_dist,
+                                                   plot_all)
+
 ba = AllenAtlas()
 br = BrainRegions()
-#get_ipython().run_line_magic('matplotlib', 'qt')
-
 
 def load_results(variable):
     ''' Load results
@@ -82,7 +86,7 @@ def rgb_to_hex(rgb):
     return '%02x%02x%02x' % rgb
 
 
-def plot_swansons(variable):
+def plot_swansons(variable, fig=None, axs=None):
 
     res = load_results(variable) 
 
@@ -104,15 +108,16 @@ def plot_swansons(variable):
 
  
     cmap = get_cmap_(variable)
-    fig = plt.figure(figsize=(8,3))
-    gs = gridspec.GridSpec(len(res_types), 1, figure=fig,hspace=.75)    
-    axs = []
+    if not fig:
+        fig = plt.figure(figsize=(8,3))  
+        gs = gridspec.GridSpec(len(res_types), 1, figure=fig,hspace=.75)
+        axs = []
  
                  
     k = 0
     for res_type in res_types:
-    
-        axs.append(fig.add_subplot(gs[0,k]))
+        if not fig:
+            axs.append(fig.add_subplot(gs[0,k]))
         ana = res_type.split('_')[0]
         lat = True if (res_type.split('_')[1] == 'latency') else False
         
@@ -135,7 +140,7 @@ def plot_swansons(variable):
                             orientation='portrait',
                             cmap=cmap.reversed() if lat else cmap,
                             br=br,
-                            ax=axs[-1],
+                            ax=axs[k],
                             empty_color="white",
                             linewidth=lw,
                             mask=mask,
@@ -149,7 +154,8 @@ def plot_swansons(variable):
         norm = matplotlib.colors.Normalize(vmin=clevels[0], vmax=clevels[1])
         cbar = fig.colorbar(
                    matplotlib.cm.ScalarMappable(norm=norm,cmap=cmap),
-                   ax=axs[-1],shrink=0.75,aspect=12,pad=.025)
+                   ax=axs[k],shrink=0.75,aspect=12,pad=.025,
+                   orientation="horizontal")
                    
         cbar.ax.tick_params(labelsize=5,rotation=90)
         cbar.outline.set_visible(False)
@@ -157,17 +163,12 @@ def plot_swansons(variable):
         cbar.ax.xaxis.set_tick_params(pad=5)
         cbar.set_label(labels[k], fontsize=6)
             
-        axs[-1].set_xticks([])
-        axs[-1].set_yticks([])
-        axs[-1].axis("off")
+        axs[k].set_xticks([])
+        axs[k].set_yticks([])
+        axs[k].axis("off")
                         
         k += 1    
 
-
-#    fig.savefig('Figures/' + variable + '_swansons.svg',
-#        format='svg',
-#        dpi=450,
-#    )
 
 def plot_table(variable):
 
@@ -226,7 +227,8 @@ def plot_table(variable):
                'glm_effect','euclidean_effect',
                'mannwhitney_effect','decoding_effect']]
 
-    # ## Format comparison table
+
+    ## format table
 
     def region_formatting(x):
         '''
@@ -261,7 +263,8 @@ def plot_table(variable):
         if pd.isna(x):
             color='silver'
         return 'background-color: ' + color
-            
+        
+        
     # Format table  
     def make_pretty(styler):
         
@@ -295,8 +298,73 @@ def plot_table(variable):
         return styler
 
 
-    # ## Plot table
-    styled_res = res.style.pipe(make_pretty)
-    dfi.export(styled_res, 'Figures/' + variable + '_df_styled.png',
-               max_rows = -1,table_conversion="selenium")
-    styled_res
+    ## Plot table
+    res = res.style.pipe(make_pretty)
+    res.export_png(f'Figures/{variable}_df_styled.png', 
+                   max_rows=-1,
+                   dpi = 200)
+    
+
+def main_fig(variable):
+
+    '''
+    combine panels into main figure
+    using mosaic grid of 8 rows and 15 columns
+    '''
+    
+    fig = plt.figure(figsize=(8, 10), facecolor='w')
+    
+    # Swansons
+    s = ['glm_eff', 'euc_lat', 'euc_eff', 'man_eff', 'dec_eff']
+    s2 = [[x]*3 for x in s]
+    s3 = [[item for sublist in s2 for item in sublist]]*3
+
+    # panels under swamsons and table
+    pe = [['p0', 'p0', 'p0', 'p0', 'p0', 
+           'p1', 'p1', 'p1', 'p1', 'p1', 
+           'tra_3d', 'tra_3d', 'tra_3d', 'tra_3d', 'tra_3d'],
+          ['p3', 'p3', 'p3', 'p3', 'p3', 
+           'ex_d', 'ex_d', 'ex_d', 'ex_d', 'ex_d',
+           'tra_3d', 'tra_3d', 'tra_3d', 'tra_3d', 'tra_3d'],
+          ['p5', 'p5', 'p5', 'p5', 'p5', 
+           'ex_ds', 'ex_ds', 'ex_ds', 'ex_ds', 'ex_ds',
+           'scat', 'scat', 'scat', 'scat', 'scat'],
+          ['p8', 'p8', 'p8', 'p8', 'p8', 
+           'ex_ds', 'ex_ds', 'ex_ds', 'ex_ds', 'ex_ds',
+           'scat', 'scat', 'scat', 'scat', 'scat']]
+
+    # 
+    mosaic = s3 + [['tab']*15] + pe
+        
+    axs = fig.subplot_mosaic(mosaic)
+
+    # 4 Swansons on top
+    plot_swansons(variable, fig=fig, axs=[axs[x] for x in s])
+
+    # plot table, reading from png
+    im = Image.open(f'/home/mic/Figures/{variable}_df_styled.png')
+    axs['tab'].imshow(im.rotate(90, expand=True))
+                      
+    axs['tab'].axis('off')                     
+                      
+    example_regs = {'stim': 'VISp', 
+                    'choice': 'GRN', 
+                    'fback': 'IRN', 
+                    'block': 'PL'}
+    
+    # trajectory extra panels
+    # example region 3d trajectory (tra_3d), dance line plot (ex_d)
+    axs['tra_3d'] = fig.add_subplot(4,3,9,projection='3d')
+    
+                   
+    plot_traj_and_dist('stim', 'VISp', fig = fig,
+                       axs=[axs['tra_3d'],axs['ex_d']])
+    axs['tra_3d'].axis('off')
+    
+    plot_all(splits=[variable], fig=fig, 
+             axs=[axs['ex_ds'], axs['scat']]) 
+
+
+
+
+
