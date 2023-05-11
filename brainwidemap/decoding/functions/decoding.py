@@ -184,18 +184,8 @@ def fit_eid(neural_dict, trials_df, trials_mask, metadata, dlc_dict=None, pseudo
     for region in tqdm(regions, desc='Region: ', leave=False):
 
         # pull spikes from this region out of the neural data
-        reg_mask = np.isin(neural_dict['clu_df']['acryonym'], region)
-        canuuid_mask = np.isin(neural_dict['clu_df']['uuids'], neural_dict['bwm_cuuids'])
-        reg_clu_ids = np.argwhere(reg_mask & canuuid_mask).flatten()
-        #reg_clu_ids = select_ephys_regions(neural_dict, beryl_reg, region, **kwargs)
-        #spikemask = np.isin(neural_dict['spk_clu'], reg_clu_ids)
-        #cl_inds_used = np.unique(neural_dict['spk_clu'][spikemask])
-        #cl_uuids_used = list(neural_dict['clu_df'].iloc[cl_inds_used]['uuids'])
+        reg_clu_ids = select_ephys_regions(neural_dict, beryl_reg, region, **kwargs)
         
-        # only use neurons in the canonical set
-        #canonical_mask = np.isin(cl_uuids_used, neural_dict['bwm_cuuids'])
-        #cl_inds_used = cl_inds_used[canonical_mask]
-
         # skip region if there are not enough units
         n_units = len(reg_clu_ids)
         if n_units < kwargs['min_units']:
