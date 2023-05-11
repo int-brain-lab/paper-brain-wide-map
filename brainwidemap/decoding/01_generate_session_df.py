@@ -1,5 +1,6 @@
 from one.api import ONE
 import pandas as pd
+import numpy as np
 
 from brainwidemap import bwm_query
 from brainwidemap.bwm_loading import bwm_units
@@ -41,12 +42,14 @@ eid_df = pd.DataFrame(columns=['eid'], data=eids)
 eid_df.to_parquet(decoding_dir.joinpath('imposter_behavior_sessions.pqt'))
 '''    
 # save bwm dataframe of eids
-one = ONE(base_url="https://openalyx.internationalbrainlab.org", password='international')
+one = ONE(base_url="https://openalyx.internationalbrainlab.org", 
+          password='international',
+          silent=True)
 bwm_df = bwm_query(freeze='2022_10_bwm_release')
 bwm_df.to_parquet(decoding_dir.joinpath('bwm_cache_sessions.pqt'))
 
 canonical_clusters = bwm_units(one)
 np.save(decoding_dir.joinpath('bwm_cache_cuuids.npy'),
-        list(canonical_clusters['cuuids']), 
+        list(canonical_clusters['uuids']), 
         allow_pickle=True)
 

@@ -166,7 +166,16 @@ def build_predictor_matrix(array, n_lags, return_valid=True):
 
 
 def select_ephys_regions(regressors, beryl_reg, region, **kwargs):
-    """Select units based on QC criteria and brain region."""
+    """
+    Select units based on QC criteria and brain region.
+    If kwargs['canonical_set'] then clusters within brain region are also
+    filtered according to the canonical set of neurons   
+    """
     reg_mask = np.isin(beryl_reg, region)
-    reg_clu_ids = np.argwhere(reg_mask).flatten()
+    if kwargs['canonical_set']:
+        canuuid_mask = np.isin(neural_dict['clu_df']['uuids'], neural_dict['bwm_cuuids'])
+        mask = reg_mask & canuuid_mask
+    else:
+        mask = reg_mask
+    reg_clu_ids = np.argwhere(mask).flatten()
     return reg_clu_ids
