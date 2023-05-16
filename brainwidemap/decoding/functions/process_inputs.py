@@ -165,7 +165,7 @@ def build_predictor_matrix(array, n_lags, return_valid=True):
     return mat
 
 
-def select_ephys_regions(regressors, beryl_reg, region, **kwargs):
+def select_ephys_regions(neural_dict, beryl_reg, region, **kwargs):
     """
     Select units based on QC criteria and brain region.
     If kwargs['canonical_set'] then clusters within brain region are also

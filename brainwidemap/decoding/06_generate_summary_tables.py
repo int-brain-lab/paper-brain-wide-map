@@ -6,7 +6,6 @@ from brainwidemap.bwm_loading import bwm_units
 from brainwidemap.decoding.settings import params, RESULTS_DIR, SETTINGS_FORMAT_NAME, estimatorstr
 from brainwidemap.decoding.functions.process_outputs import create_pdtable_from_raw
 
-
 score_name = 'balanced_acc_test' if estimatorstr == 'LogisticsRegression' else 'R2_test'
 
 print(f'Working on {params["date"]} {params["target"]}')
@@ -35,13 +34,14 @@ res_table, xy_table = create_pdtable_from_raw(
 
 
 # Restrict to session-region pairs that are defined by the common function used to filter for valid units
-one = ONE(base_url="https://openalyx.internationalbrainlab.org", mode='local')
-units_df = bwm_units(one)
-units_df['sessreg'] = units_df.apply(lambda x: f"{x['eid']}_{x['Beryl']}", axis=1)
-
-res_table['sessreg'] = res_table.apply(lambda x: f"{x['eid']}_{x['region']}", axis=1)
-res_table = res_table[res_table['sessreg'].isin(units_df['sessreg'])]
-xy_table = xy_table.loc[xy_table['eid_region'].isin(units_df['sessreg'])]
+if params['single_region'] and params['canonical_set']:
+    one = ONE(base_url="https://openalyx.internationalbrainlab.org", mode='local')
+    units_df = bwm_units(one)
+    units_df['sessreg'] = units_df.apply(lambda x: f"{x['eid']}_{x['Beryl']}", axis=1)
+    
+    res_table['sessreg'] = res_table.apply(lambda x: f"{x['eid']}_{x['region']}", axis=1)
+    res_table = res_table[res_table['sessreg'].isin(units_df['sessreg'])]
+    xy_table = xy_table.loc[xy_table['eid_region'].isin(units_df['sessreg'])]
 
 # save results
 save_dir = RESULTS_DIR.joinpath("decoding", "results", "summary")

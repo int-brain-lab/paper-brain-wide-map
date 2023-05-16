@@ -38,7 +38,7 @@ bwm_cuuids = np.load(bwm_cuuids_file, allow_pickle=True)
 # To use this, add subject names to the end of the line that calls this script in 03_slurm*.sh.
 # See 03_slurm*.sh for an examples which is commented out or read the `03_*` section of the README.
 if len(sys.argv) > 2:
-    print('using a subset of bwm dataset')
+    print('using a subset or eid of bwm dataset')
     #mysubs = [sys.argv[i] for i in range(2, len(sys.argv))]
     #bwm_df = bwm_df[bwm_df["subject"].isin(mysubs)]
     myeids = [sys.argv[i] for i in range(2, len(sys.argv))]
