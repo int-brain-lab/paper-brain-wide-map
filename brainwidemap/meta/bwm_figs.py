@@ -521,10 +521,10 @@ def main_fig(variable):
                       
     axs['tab'].axis('off')                     
                       
-    example_regs = {'stim': 'VISp', 
+    ex_regs = {'stim': 'VISp', 
                     'choice': 'GRN', 
                     'fback': 'IRN', 
-                    'block': 'PL'}
+                    'block': 'MOp'}
     
     # trajectory extra panels
     # example region 3d trajectory (tra_3d), line plot (ex_d)
@@ -533,9 +533,8 @@ def main_fig(variable):
     axs['tra_3d'] = fig.add_subplot(4,2,6,projection='3d')
     axs['tra_3d'].axis('off')
     
-    # manifold example region line plot
-                   
-    plot_traj_and_dist('stim', 'VISp', fig = fig,
+    # manifold example region line plot             
+    plot_traj_and_dist(variable, ex_regs[variable], fig = fig,
                        axs=[axs['tra_3d'],axs['ex_d']])
     axs['tra_3d'].axis('off')
 
