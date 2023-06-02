@@ -33,6 +33,8 @@ meta_pth.mkdir(parents=True, exist_ok=True)
 dec_pth = Path(one.cache_dir, 'decoding')
 dec_pth.mkdir(parents=True, exist_ok=True)  
 
+variables = ['stim', 'choice', 'fback', 'block']
+
 
 def load_meta_results(variable):
     ''' 
@@ -340,6 +342,43 @@ def get_res_vals(res_table, eid, region):
     return er_vals.iloc[0]
 
 
+def extract_dec_plot_numbers():
+
+    '''
+    For the decoding panels, extract plotting numbers 
+    of examples from complete result tables
+    '''
+
+    dec_ex = { 'stim': ['5d01d14e-aced-4465-8f8e-9a1c674f62ec','VISp'],
+               'choice': ['671c7ea7-6726-4fbe-adeb-f89c2c8e489b','GRN'], 
+               'fback': ['e012d3e3-fdbc-4661-9ffa-5fa284e4e706','IRN'],
+               'block': ['9e9c6fc0-4769-4d83-9ea4-b59a1230510e', 'MOp']}
+               
+    D = {}                  
+    for variable in variables:
+        
+        d = {}
+        
+        eid, region = dec_ex[variable]
+        
+        d['eid'] = eid
+        d['region'] = region
+        
+        file_all_results = dec_pth/f'{variable}.csv'
+        file_xy_results = dec_pth/f'{variable}.pkl'
+        if variable == 'stim':
+            d['extra_file'] = dec_pth/f'stim_{eid}_{region}.npy'
+
+        res_table = pd.read_csv(file_all_results)
+        xy_table = pd.read_pickle(file_xy_results)
+        d['xy_vals'] = get_xy_vals(xy_table, eid, region)
+        d['er_vals'] = get_res_vals(res_table, eid, region)
+        
+        D[variable] = d
+
+    np.save(dec_pth/'dec_panels.npy', D, allow_pickle=True)        
+
+
 def stim_dec_line(fig=None, ax=None):
 
     '''
@@ -349,32 +388,22 @@ def stim_dec_line(fig=None, ax=None):
     if not fig: 
         fig, ax = plt.subplots(figsize=(3,2))
         
-    variable = 'stim'
-    eid = '5d01d14e-aced-4465-8f8e-9a1c674f62ec'
-    region = 'VISp'
+    d = np.load(dec_pth/'dec_panels.npy', 
+                allow_pickle=True).flat[0]['stim']
 
-    file_all_results = dec_pth/f'{variable}.csv'
-    file_xy_results = dec_pth/f'{variable}.pkl'
-    extra_file = dec_pth/f'stim_{eid}_{region}.npy'
-
-    res_table = pd.read_csv(file_all_results)
-    xy_table = pd.read_pickle(file_xy_results)
-    xy_vals = get_xy_vals(xy_table, eid, region)
-    er_vals = get_res_vals(res_table, eid, region)
-
-    l = xy_vals['regressors'].shape[0]
-    X = np.squeeze(xy_vals['regressors']).T
-    ws = np.squeeze(xy_vals['weights'])
+    l = d['xy_vals']['regressors'].shape[0]
+    X = np.squeeze(d['xy_vals']['regressors']).T
+    ws = np.squeeze(d['xy_vals']['weights'])
     assert len(ws.shape) == 3
     W = np.stack([np.ndarray.flatten(ws[:,:,i]) 
                   for i in range(ws.shape[2])]).T
     assert W.shape[0] == 50
-    mask = xy_vals['mask']
-    preds = np.mean(np.squeeze(xy_vals['predictions']), axis=0)
-    targs = np.squeeze(xy_vals['targets'])
+    mask = d['xy_vals']['mask']
+    preds = np.mean(np.squeeze(d['xy_vals']['predictions']), axis=0)
+    targs = np.squeeze(d['xy_vals']['targets'])
     trials = np.arange(len(mask))[[m==1 for m in mask]]
              
-    targ_conts, trials_in = np.load(extra_file)
+    targ_conts, trials_in = np.load(d['extra_file'])
     assert np.all(trials == trials_in)
     u_conts = np.unique(targ_conts)
     neurometric_curve = 1-np.array([np.mean(preds[targ_conts==c]) 
@@ -383,11 +412,11 @@ def stim_dec_line(fig=None, ax=None):
                                      /np.sqrt(np.sum(targ_conts==c)) 
                                       for c in u_conts])
 
-    ax.set_title(f"{region}, single session ")                                  
+    ax.set_title(f"{d['region']}, single session")
     ax.plot(-u_conts, neurometric_curve, lw = 2, c='k')
-#    ax.plot(-u_conts, neurometric_curve, 'ko', ms=8)
-#    ax.errorbar(-u_conts, neurometric_curve, 
-#                 neurometric_curve_err, color='k')
+    ax.plot(-u_conts, neurometric_curve, 'ko', ms=4)
+    ax.errorbar(-u_conts, neurometric_curve, 
+                 neurometric_curve_err, color='k')
     ax.set_ylim(0,1)
     ax.set_yticks([0, 0.5, 1.0])
     ax.set_xlim(-1.03,1.03)
@@ -408,10 +437,6 @@ def dec_scatter(variable,fig=None, ax=None):
     plot decoding scatter for
     variable in [choice, fback, block]
     '''   
-
-    scat_ex = {'choice': ['671c7ea7-6726-4fbe-adeb-f89c2c8e489b','GRN'], 
-               'fback': ['e012d3e3-fdbc-4661-9ffa-5fa284e4e706','IRN'],
-               'block': ['9e9c6fc0-4769-4d83-9ea4-b59a1230510e', 'MOp']}
                
     red = (255/255, 48/255, 23/255)
     blue = (34/255,77/255,169/255)
@@ -419,28 +444,21 @@ def dec_scatter(variable,fig=None, ax=None):
     if not fig: 
         fig, ax = plt.subplots(figsize=(3,2))        
 
-    eid, region = scat_ex[variable]
+    d = np.load(dec_pth/'dec_panels.npy', 
+                allow_pickle=True).flat[0][variable]
 
-    file_all_results = dec_pth/f'{variable}.csv'
-    file_xy_results = dec_pth/f'{variable}.pkl'
-
-    res_table = pd.read_csv(file_all_results)
-    xy_table = pd.read_pickle(file_xy_results)
-    xy_vals = get_xy_vals(xy_table, eid, region)
-    er_vals = get_res_vals(res_table, eid, region)
-
-    l = xy_vals['regressors'].shape[0]
-    X = np.squeeze(xy_vals['regressors']).T
-    ws = np.squeeze(xy_vals['weights'])
+    l = d['xy_vals']['regressors'].shape[0]
+    X = np.squeeze(d['xy_vals']['regressors']).T
+    ws = np.squeeze(d['xy_vals']['weights'])
     assert len(ws.shape) == 3
     W = np.stack([np.ndarray.flatten(ws[:,:,i]) for i in range(ws.shape[2])]).T
     assert W.shape[0] == 50
-    mask = xy_vals['mask']
-    preds = np.mean(np.squeeze(xy_vals['predictions']), axis=0)
-    targs = np.squeeze(xy_vals['targets'])
+    mask = d['xy_vals']['mask']
+    preds = np.mean(np.squeeze(d['xy_vals']['predictions']), axis=0)
+    targs = np.squeeze(d['xy_vals']['targets'])
     trials = np.arange(len(mask))[[m==1 for m in mask]]
 
-    ax.set_title(f"{region}, single session")
+    ax.set_title(f"{d['region']}, single session")
    
     ax.plot(trials[targs==0], 
             preds[targs==0] if variable=='fback' else 1-preds[targs==0],
