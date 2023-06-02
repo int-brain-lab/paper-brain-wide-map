@@ -105,7 +105,7 @@ def bwm_query(one=None, alignment_resolved=True, return_details=False, freeze='2
         return bwm_df
 
 
-def load_good_units(one, pid, compute_metrics=False, **kwargs):
+def load_good_units(one, pid, compute_metrics=False, qc=1., **kwargs):
     """
     Function to load the cluster information and spike trains for clusters that pass all quality metrics.
 
@@ -117,6 +117,8 @@ def load_good_units(one, pid, compute_metrics=False, **kwargs):
         A probe insertion UUID
     compute_metrics: bool
         If True, force SpikeSortingLoader.merge_clusters to recompute the cluster metrics. Default is False
+    qc: float
+        Quality threshold to be used to select good clusters. Default is 1.0
     kwargs:
         Keyword arguments passed to SpikeSortingLoader upon initiation. Specifically, if one instance offline,
         you need to pass 'eid' and 'pname' here as they cannot be inferred from pid in offline mode.
@@ -134,7 +136,7 @@ def load_good_units(one, pid, compute_metrics=False, **kwargs):
     spikes, clusters, channels = spike_loader.load_spike_sorting()
     clusters_labeled = SpikeSortingLoader.merge_clusters(
         spikes, clusters, channels, compute_metrics=compute_metrics).to_df()
-    iok = clusters_labeled['label'] == 1
+    iok = clusters_labeled['label'] == qc
     good_clusters = clusters_labeled[iok]
 
     spike_idx, ib = ismember(spikes['clusters'], good_clusters.index)
