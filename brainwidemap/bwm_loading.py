@@ -136,7 +136,7 @@ def load_good_units(one, pid, compute_metrics=False, qc=1., **kwargs):
     spikes, clusters, channels = spike_loader.load_spike_sorting()
     clusters_labeled = SpikeSortingLoader.merge_clusters(
         spikes, clusters, channels, compute_metrics=compute_metrics).to_df()
-    iok = clusters_labeled['label'] == qc
+    iok = clusters_labeled['label'] >= qc
     good_clusters = clusters_labeled[iok]
 
     spike_idx, ib = ismember(spikes['clusters'], good_clusters.index)
