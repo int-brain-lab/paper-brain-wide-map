@@ -13,9 +13,10 @@ from brainwidemap.encoding.utils import single_cluster_raster, find_trial_ids
 import neurencoding.linear as lm
 from neurencoding.utils import remove_regressors
 
-# Please use the saved parameters dict form 02_fit_sessions.py as params
+# Please use the saved parameters dict from 02_fit_sessions.py as params
 PLOTPATH = Path("/home/berk/Documents/Projects/results/plots/prediction_summaries")
 N_TOP_UNITS = 20
+RAST_BINSIZE = 0.002
 plt.rcParams['svg.fonttype'] = 'none'
 alignsets = {  # Sets of align_time as key with aligncol, aligncond1/2 functions, and t_before/t_after as the values
     "stimOn_times": (
@@ -52,7 +53,7 @@ targetreg = {  # Function to produce the target metric, the target regions, and 
     "choice": (lambda df: df["fmoveR"] - df["fmoveL"], ["GRN"], "firstMovement_times"),
     "feedback": (lambda df: df["correct"] - df["incorrect"], ["IRN"], "feedback_times"),
     "wheel": (lambda df: df["wheel"], ["GRN"], "firstMovement_times"),
-    "block": (lambda df: df["pLeft"], ["PL", "MOs"], "stimOn_times"),
+    "block": (lambda df: df["pLeft"], ["PL", "MOp"], "stimOn_times"),
 }
 
 params = pd.read_pickle(GLM_FIT_PATH + "/2023-03-07_glm_fit_pars.pkl")
@@ -170,7 +171,7 @@ for variable, (targetmetricfun, regions, aligntime) in targetreg.items():
             trial_idx, dividers = find_trial_ids(stdf, sort=sortlookup[variable])
             fig, ax = single_cluster_raster(
                 sspkt[sspkclu == clu_id], stdf[aligntime], trial_idx, dividers, ["b", "r"], [reg1, reg2],
-                pre_time=t_before, post_time=t_after, raster_cbar=True,
+                pre_time=t_before, post_time=t_after, raster_cbar=True, raster_bin=RAST_BINSIZE,
             )
             ax.set_title("{} unit {} : $\log \Delta R^2$ = {:.2f}".format(region, clu_id, np.log(drsq)))
             plt.savefig(rasterfolder.joinpath(f"{eid}_{pid}_clu{clu_id}_{region}_{variable}_raster.svg"))

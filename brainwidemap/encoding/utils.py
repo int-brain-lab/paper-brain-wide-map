@@ -342,6 +342,7 @@ def single_cluster_raster(
     post_time=1.0,
     raster_bin=0.01,
     raster_cbar=False,
+    raster_interp="none",
     show_psth=False,
     psth_bin=0.05,
     weights=None,
@@ -374,6 +375,8 @@ def single_cluster_raster(
         Time bin size for the raster, by default 0.01
     raster_cbar : bool, optional
         Whether to include a color bar for the raster, which uses binned spike counts.
+    raster_interp : str, optional
+        Passed to matplotlib.pyplot.imshow, by default "none"
     psth : bool, optional
         Whether to plot the PSTH, by default False
     psth_bin : float, optional
@@ -469,6 +472,7 @@ def single_cluster_raster(
         cmap="binary",
         origin="lower",
         extent=[np.min(t_raster), np.max(t_raster), 0, len(trial_idx)],
+        interpolation=raster_interp,
         aspect="auto",
     )
 
