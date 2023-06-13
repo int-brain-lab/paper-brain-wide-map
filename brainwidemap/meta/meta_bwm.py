@@ -13,7 +13,7 @@ from ibllib.atlas.regions import BrainRegions
 from itertools import combinations
 from one.remote import aws
 from one.webclient import AlyxClient
-from brainwidemap import download_aggregate_tables
+from brainwidemap import download_aggregate_tables, bwm_units
 import os
 import ibllib
 from ibllib.atlas.flatmaps import plot_swanson, plot_swanson_vector
@@ -22,10 +22,11 @@ import string
 from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
 import matplotlib.ticker as tck
 
+
 pd.options.mode.chained_assignment = None
 #plt.rcParams.update(plt.rcParamsDefault)
 one = ONE(base_url='https://openalyx.internationalbrainlab.org',
-          password='international')
+          password='international', silent=True)
 pth_res = Path(one.cache_dir, 'manifold', 'res')
 ba = AllenAtlas()
 br = BrainRegions()
@@ -37,6 +38,39 @@ align = {'stim':'stim on',
          'block':'stim on'}
          
 f_size = 15  # font size 
+
+
+def load_results(variable):
+    ''' Load results
+    
+    variable: ['stim', ' choice', 'fback', 
+               'block', 'speed', 'veloc']
+    '''
+    
+    res = pd.read_pickle(pth_res.parent.parent / 'meta' / f"{variable}.pkl")
+    res = res.replace(True, 1)
+    res = res.replace(False, 0)
+
+    # ## Apply logarithm to GLM results
+    res.glm_effect = np.log10(
+                res.glm_effect.clip(lower=1e-5))
+
+    cols = ['euclidean_latency',
+            'euclidean_effect',
+            'glm_effect',
+            'mannwhitney_effect',
+            'decoding_effect',
+            'decoding_significant',
+            'decoding_frac_significant',
+            'mannwhitney_significant',
+            'euclidean_significant']
+
+    if variable not in ['speed', 'veloc']:
+        # Reorder columns to match ordering in Figure
+        res = res[cols]
+        
+    return res
+
         
 def put_panel_label(ax, k):
     ax.annotate(string.ascii_lowercase[k], (-0.05, 1.15),
@@ -691,7 +725,9 @@ def plot_bar_neuron_count(table_only=False):
     bar plot for neuron count per region 
     second bar for recording count per region
     
-    for BWM intro figure
+    for BWM intro figure;
+    
+    Adding additional info in the table, including effect sizes
     '''
 
     file_ = download_aggregate_tables(one)
@@ -699,6 +735,9 @@ def plot_bar_neuron_count(table_only=False):
     dfa, palette = get_allen_info()
     df['Beryl'] = br.id2acronym(df['atlas_id'], mapping='Beryl')
     df['Cosmos'] = br.id2acronym(df['atlas_id'], mapping='Cosmos')
+        
+    cosregs = dict(list(Counter(zip(df['Beryl'],df['Cosmos']))))
+  
     
     # number of clusters per region, c0
     # remove regions with < 10 or root, void
@@ -730,11 +769,7 @@ def plot_bar_neuron_count(table_only=False):
     nclus_nins = [[c0[reg], n_ins[reg],c_good[reg]] for reg in regs1]
 
     
-    # get Cosmos regions to replace yellow by brown
-    cosregs = {reg: dfa[dfa['id'] == int(
-                dfa[dfa['acronym'] == reg]['structure_id_path']
-                 .values[0].split('/')[4])]['acronym']
-                 .values[0] for reg in regs}
+
                    
     cols = [palette[reg]  
             if cosregs[reg] not in ['CBX', 'CBN']
@@ -749,19 +784,59 @@ def plot_bar_neuron_count(table_only=False):
     print(f'{len(regs1)} regions, {sum(nclus_nins[:,0])} neurons,'
           f'{sum(nclus_nins[:,1])} recordings')
 
+
+
     if table_only:
+        vs = ['stim', 'choice', 'fback', 'block','speed', 'veloc']
+        ans = ['euc', 'glm', 'dec', 'man']
+        effects = [('_').join([x,y]) for x in vs for y in ans] 
+        res = {}
+        
+        for v in vs:
+            res[v] = load_results(v).to_dict()
+   
+        res2 = {}
+        for reg in regs1:
+            res3 = {}
+            for v in vs:
+                for a in ans:
+                    key = [x for x in res[v].keys()
+                           if ((a in x) and ('effect' in x))]
+                    if key == []:
+                        res3[('_').join([v,a])] = None
+                        continue
+                    else:   
+                        key = key[0]
+                                  
+                    if reg in res[v][key].keys():       
+                        res3[('_').join([v,a])] = np.round(
+                                                   res[v][key][reg],2)
+                    else:
+                        res3[('_').join([v,a])] = None
+                       
+            res2[reg] = res3   
+    
+        # get all regions in the canonical set
+        units_df = bwm_units(one)
+        gregs = Counter(units_df['Beryl'])
+    
         columns = ['Beryl', 'name', 'Cosmos', 
-                   '# recordings', '# neurons', '# good neurons']
+                   '# recordings', '# neurons', 
+                   '# good neurons', 'canonical'] + effects
+                                      
         r = []                       
         for k in range(len(regs1)):
+            cano = True if regs1[k] in gregs else False
+             
             r.append([regs1[k], get_name(regs1[k]),
                       cosregs[regs1[k]], nclus_nins[k,1],
-                      nclus_nins[k,0], nclus_nins[k,2]])
+                      nclus_nins[k,0], nclus_nins[k,2], cano] + 
+                      list(res2[regs1[k]].values()))
                       
         df  = pd.DataFrame(data=r,columns=columns)
         df  = df.reindex(index=df.index[::-1])       
         df.to_csv('/home/mic/bwm/'
-                 f'meta/table.csv')
+                 f'meta/region_info.csv')
         print('saving table only')
         return 
 
