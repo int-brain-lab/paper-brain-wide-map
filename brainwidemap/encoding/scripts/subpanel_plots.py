@@ -7,7 +7,7 @@ import pandas as pd
 import seaborn as sns
 from brainwidemap.bwm_loading import bwm_query
 from brainwidemap.encoding.glm_predict import GLMPredictor, predict
-from brainwidemap.encoding.params import GLM_CACHE, GLM_FIT_PATH
+from brainwidemap.encoding.params import GLM_CACHE
 from brainwidemap.encoding.utils import single_cluster_raster, find_trial_ids
 
 import neurencoding.linear as lm

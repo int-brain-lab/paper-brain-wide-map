@@ -398,7 +398,7 @@ def single_cluster_raster(
     """
     raster, t_raster = bin_spikes(
         spike_times,
-        events,
+        events.values,
         pre_time=pre_time,
         post_time=post_time,
         bin_size=raster_bin,
@@ -406,7 +406,7 @@ def single_cluster_raster(
     )
     psth, t_psth = bin_spikes(
         spike_times,
-        events,
+        events.values,
         pre_time=pre_time,
         post_time=post_time,
         bin_size=psth_bin,
