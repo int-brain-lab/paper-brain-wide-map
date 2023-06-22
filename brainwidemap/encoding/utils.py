@@ -487,7 +487,8 @@ def single_cluster_raster(
 
     raster_ax.set_xlim([-1 * pre_time, post_time + raster_bin / 2 + width])
     raster_ax.set_yticks(dividers)
-    plt.colorbar(raster_ax.get_images()[0], ax=raster_ax, label="Spike count")
+    if raster_cbar:
+        plt.colorbar(raster_ax.get_images()[0], ax=raster_ax, label="Spike count")
     secax = raster_ax.secondary_yaxis("right")
 
     secax.set_yticks(label_pos)
