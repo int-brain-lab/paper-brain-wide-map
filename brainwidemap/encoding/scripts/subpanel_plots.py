@@ -5,10 +5,9 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from one.api import ONE
-from brainwidemap.bwm_loading import bwm_query
+from brainbox.plot import peri_event_time_histogram
 from brainwidemap.encoding.design import generate_design
 from brainwidemap.encoding.glm_predict import GLMPredictor, predict
-from brainwidemap.encoding.params import GLM_CACHE
 from brainwidemap.encoding.utils import load_regressors, single_cluster_raster, find_trial_ids
 
 import neurencoding.linear as lm
@@ -27,54 +26,93 @@ def plot_twocond(
     t_after,
     regressors,
 ):
+    # Load in data and fit model to particular cluster
     stdf, sspkt, sspkclu, design, spkmask, nglm = load_unit_fit_model(eid, pid, clu_id)
+    # Construct GLM prediction object that does our model predictions
     pred = GLMPredictor(stdf, nglm, sspkt, sspkclu)
-    fig, ax = plt.subplots(3, 4, figsize=(12, 12), sharey="row")
-    oldticks = []
-    pred.psth_summary(
-        align_time,
-        clu_id,
-        t_before,
-        t_after,
-        trials=stdf[aligncond1(stdf[aligncol])].index,
-        ax=ax[:, 0],
-    )
-    oldticks.extend(ax[0, 0].get_yticks())
-    pred.psth_summary(
-        align_time,
-        clu_id,
-        t_before,
-        t_after,
-        trials=stdf[aligncond2(stdf[aligncol])].index,
-        ax=ax[:, 1],
-    )
-    oldticks.extend(ax[0, 1].get_yticks())
+    # Construct design matrix without regressors of interest
     noreg_dm = remove_regressors(design, regressors)
+    # Fit model without regressors of interest
     nrnglm = lm.LinearGLM(
         noreg_dm, sspkt[spkmask], sspkclu[spkmask], estimator=glm_params["estimator"], mintrials=0
     )
     nrnglm.fit()
+    # Construct GLM prediction object that does model predictions without regressors of interest
     nrpred = GLMPredictor(stdf, nrnglm, sspkt, sspkclu)
-    nrpred.psth_summary(
+
+    # Compute model predictions for each condition
+    keyset1 = pred.compute_model_psth(
         align_time,
-        clu_id,
         t_before,
         t_after,
         trials=stdf[aligncond1(stdf[aligncol])].index,
-        ax=ax[:, 2],
     )
-    oldticks.extend(ax[0, 2].get_yticks())
-    nrpred.psth_summary(
+    cond1pred = pred.full_psths[keyset1][clu_id][0]
+    keyset2 = pred.compute_model_psth(
         align_time,
-        clu_id,
         t_before,
         t_after,
         trials=stdf[aligncond2(stdf[aligncol])].index,
-        ax=ax[:, 3],
     )
-    oldticks.extend(ax[0, 3].get_yticks())
-    ax[0, 0].set_ylim([0, np.max(oldticks) * 1.1])
-    ax[0, 0].set_yticks(oldticks)
+    cond2pred = pred.full_psths[keyset2][clu_id][0]
+    nrkeyset1 = nrpred.compute_model_psth(
+        align_time,
+        t_before,
+        t_after,
+        trials=stdf[aligncond1(stdf[aligncol])].index,
+    )
+    nrcond1pred = nrpred.full_psths[nrkeyset1][clu_id][0]
+    nrkeyset2 = nrpred.compute_model_psth(
+        align_time,
+        t_before,
+        t_after,
+        trials=stdf[aligncond2(stdf[aligncol])].index,
+    )
+    nrcond2pred = nrpred.full_psths[nrkeyset2][clu_id][0]
+
+    # Plot PSTH of original units and model predictions in both cases
+    fig, ax = plt.subplots(1, 2, figsize=(8, 4), sharey="row")
+    x = np.arange(-t_before, t_after, nglm.binwidth)
+    for rem_regressor in [False, True]:
+        i = int(rem_regressor)
+        oldticks = []
+        peri_event_time_histogram(
+            sspkt,
+            sspkclu,
+            stdf[aligncond1(stdf[aligncol])][align_time],
+            clu_id,
+            t_before,
+            t_after,
+            bin_size=nglm.binwidth,
+            error_bars="sem",
+            ax=ax[i],
+            smoothing=0.01,
+            pethline_kwargs={"color": "blue", "linewidth": 2},
+            errbar_kwargs={"color": "blue", "alpha": 0.5},
+        )
+        oldticks.extend(ax[i].get_yticks())
+        peri_event_time_histogram(
+            sspkt,
+            sspkclu,
+            stdf[aligncond2(stdf[aligncol])][align_time],
+            clu_id,
+            t_before,
+            t_after,
+            bin_size=nglm.binwidth,
+            error_bars="sem",
+            ax=ax[i],
+            smoothing=0.01,
+            pethline_kwargs={"color": "red", "linewidth": 2},
+            errbar_kwargs={"color": "red", "alpha": 0.5},
+        )
+        oldticks.extend(ax[i].get_yticks())
+        pred1 = cond1pred if not rem_regressor else nrcond1pred
+        pred2 = cond2pred if not rem_regressor else nrcond2pred
+        ax[i].step(x, pred1, color="darkblue", linewidth=2)
+        oldticks.extend(ax[i].get_yticks())
+        ax[i].step(x, pred2, color="darkred", linewidth=2)
+        oldticks.extend(ax[i].get_yticks())
+        ax[i].set_ylim([0, np.max(oldticks) * 1.1])
     return fig, ax, sspkt, sspkclu, stdf
 
 
@@ -211,7 +249,7 @@ for variable, (eid, pid, clu_id, region, drsq, aligntime) in targetunits.items()
     else:
         remstr = "\nwheel regressor rem."
     names = [reg1, reg2, reg1 + remstr, reg2 + remstr]
-    for subax, title in zip(ax[0, :], names):
+    for subax, title in zip(ax, names):
         subax.set_title(title)
     plt.savefig(varfolder.joinpath(f"{eid}_{pid}_clu{clu_id}_{region}_{variable}_predsummary.svg"))
     plt.savefig(
