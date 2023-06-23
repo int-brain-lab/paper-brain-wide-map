@@ -3,22 +3,19 @@ import numpy as np
 from pathlib import Path
 import math
 
-
 from one.api import ONE
 from ibllib.atlas import AllenAtlas
 from ibllib.atlas.regions import BrainRegions
 from ibllib.atlas.flatmaps import plot_swanson_vector
 import ibllib
 
-
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib import gridspec
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import seaborn as sns
-
+import dataframe_image as dfi
 from PIL import Image
-
 
 from brainwidemap.encoding.design import generate_design
 from brainwidemap.encoding.glm_predict import GLMPredictor, predict
@@ -30,10 +27,7 @@ from neurencoding.utils import remove_regressors
 
 
 import warnings
-warnings.filterwarnings("ignore")
-
-#sns.set(font_scale=1.5)
-#sns.set_style('ticks')
+#warnings.filterwarnings("ignore")
 
 ba = AllenAtlas()
 br = BrainRegions()
@@ -41,25 +35,30 @@ one = ONE(base_url='https://openalyx.internationalbrainlab.org',
           password='international', silent=True)
           
 # pooled results
-meta_pth = Path(one.cache_dir, 'meta')
+meta_pth = Path(one.cache_dir, 'bwm_res','meta')
 meta_pth.mkdir(parents=True, exist_ok=True)          
 
 # decoding results
-dec_pth = Path(one.cache_dir, 'decoding')
+dec_pth = Path(one.cache_dir, 'bwm_res','decoding')
 dec_pth.mkdir(parents=True, exist_ok=True)  
 
 # manifold results
-pth_res = Path(one.cache_dir, 'manifold', 'res')
+pth_res = Path(one.cache_dir, 'bwm_res','manifold', 'res')
 pth_res.mkdir(parents=True, exist_ok=True)
+
+# encoding results
+enc_pth = Path(one.cache_dir, 'bwm_res','encoding')
+enc_pth.mkdir(parents=True, exist_ok=True)
 
 sigl = 0.05  # significance level (for stacking, plotting, fdr)
 
 variables = ['stim', 'choice', 'fback', 'block']
 
+plt.ion()  # interactive plotting on
 
 '''
 #####
-Chris' Swansons and table
+meta (Swansons and table)
 #####
 '''
 
@@ -327,13 +326,16 @@ def plot_table(variable):
         styler.set_properties(subset=['decoding_effect',
                                       'euclidean_effect',
                                       'mannwhitney_effect',
-                                      'glm_effect'], **{'width': '16px'})
+                                      'glm_effect'], 
+                                      **{'width': '16px'})
         styler.set_properties(subset=['region'], **{'width': '65px'})
         styler.set_properties(subset=['decoding_effect',
                                       'euclidean_effect',
                                       'mannwhitney_effect',
-                                      'glm_effect'] , **{'font-size': '0pt'})
-        styler.set_properties(subset=['region'] , **{'font-size': '9pt'})
+                                      'glm_effect'] , 
+                                      **{'font-size': '0pt'})
+        styler.set_properties(subset=['region'] , 
+                              **{'font-size': '9pt'})
         styler.hide(axis="index")
         styler.set_table_styles([
             {"selector": "tr", "props": "line-height: 11px"},
@@ -348,13 +350,16 @@ def plot_table(variable):
 
     ## Plot table
     res = res.style.pipe(make_pretty)
-    res.export_png(f'Figures/{variable}_df_styled.png', 
+    pf = Path(meta_pth / 'Figures')
+    pf.mkdir(parents=True,exist_ok=True)
+
+    res.export_png(str(pf / f'{variable}_df_styled.png'), 
                    max_rows=-1,
                    dpi = 200)
 
 '''
 #####
-Brandon's decoding panels
+decoding 
 #####
 '''
 
@@ -520,15 +525,12 @@ def dec_scatter(variable,fig=None, ax=None):
 
 '''
 ##########
-Berk encoding panels
+encoding
 ##########
 '''
 
 # Please use the saved parameters dict from 02_fit_sessions.py as params
-PLOTPATH = Path("/home/mic/berk")
-one = ONE()
-plt.rcParams["svg.fonttype"] = "none"
-glm_params = pd.read_pickle(PLOTPATH /"glm_params.pkl")
+glm_params = pd.read_pickle(enc_pth /"glm_params.pkl")
 
 
 def plot_twocond(
@@ -545,7 +547,8 @@ def plot_twocond(
     ax = None):
 
     # Load in data and fit model to particular cluster
-    stdf, sspkt, sspkclu, design, spkmask, nglm = load_unit_fit_model(eid, pid, clu_id)
+    (stdf, sspkt, sspkclu, 
+        design, spkmask, nglm) = load_unit_fit_model(eid, pid, clu_id)
     # Construct GLM prediction object that does our model predictions
 
     pred = GLMPredictor(stdf, nglm, sspkt, sspkclu)
@@ -554,8 +557,10 @@ def plot_twocond(
     noreg_dm = remove_regressors(design, regressors)
     # Fit model without regressors of interest
     nrnglm = lm.LinearGLM(
-        noreg_dm, sspkt[spkmask], sspkclu[spkmask], estimator=glm_params["estimator"], mintrials=0
-    )
+        noreg_dm, sspkt[spkmask], sspkclu[spkmask],
+         estimator=glm_params["estimator"],
+         mintrials=0)
+         
     nrnglm.fit()
     # Construct GLM prediction object that does model predictions without regressors of interest
     nrpred = GLMPredictor(stdf, nrnglm, sspkt, sspkclu)
@@ -716,7 +721,7 @@ def get_example_results():
             0.000992895,  # drsq
             "firstMovement_times",
         ),
-        "feedback": (
+        "fback": (
             "a7763417-e0d6-4f2a-aa55-e382fd9b5fb8",
             "57c5856a-c7bd-4d0f-87c6-37005b1484aa",
             98,
@@ -736,7 +741,7 @@ def get_example_results():
 
     sortlookup = {"stim": "side", 
                   "choice": "movement", 
-                  "feedback": "fdbk", 
+                  "fback": "fdbk", 
                   "wheel": "movement"}
     
     return targetunits, alignsets, sortlookup
@@ -833,9 +838,10 @@ def plot_block_box(ax=None):
     ax[1].set_title(f"{region} {clu_id} predicted rate by block")
     ax[0].set_ylabel("Firing rate (spikes/s)")
 
+
 '''
 ##########
-manifold panels
+manifold
 ##########
 '''
 
@@ -1494,10 +1500,10 @@ def main_fig(variable):
     plot_swansons(variable, fig=fig, axs=[axs[x] for x in s])
 
     # plot table, reading from png
-    if not Path(f'/home/mic/Figures/{variable}_df_styled.png').is_file():
+    if not Path(meta_pth / f'Figures/{variable}_df_styled.png').is_file():
         plot_table(variable)
     
-    im = Image.open(f'/home/mic/Figures/{variable}_df_styled.png')
+    im = Image.open(meta_pth / f'Figures/{variable}_df_styled.png')
     axs['tab'].imshow(im.rotate(90, expand=True), aspect='auto')
                       
     axs['tab'].axis('off')                     
@@ -1550,13 +1556,6 @@ def main_fig(variable):
                                       axs['enc0'],
                                       axs['enc1']])    
     
-    
-    
-#    for k in axs:
-#        if k[0] == 'p':
-#            axs[k].axis('off')
-
-
 
     fig.subplots_adjust(top=0.985,
                         bottom=0.06,
