@@ -1,18 +1,20 @@
 import pandas as pd
 import numpy as np
 from pathlib import Path
+import math
+
 
 from one.api import ONE
 from ibllib.atlas import AllenAtlas
 from ibllib.atlas.regions import BrainRegions
 from ibllib.atlas.flatmaps import plot_swanson_vector
-from brainwidemap.manifold.state_space_bwm import (plot_traj_and_dist,
-                                                   plot_all)
+import ibllib
+
 
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib import gridspec
 import matplotlib.pyplot as plt
-import matplotlib
+import matplotlib as mpl
 import seaborn as sns
 
 from PIL import Image
@@ -38,12 +40,19 @@ br = BrainRegions()
 one = ONE(base_url='https://openalyx.internationalbrainlab.org',
           password='international', silent=True)
           
-# get pooled results here
+# pooled results
 meta_pth = Path(one.cache_dir, 'meta')
 meta_pth.mkdir(parents=True, exist_ok=True)          
 
+# decoding results
 dec_pth = Path(one.cache_dir, 'decoding')
 dec_pth.mkdir(parents=True, exist_ok=True)  
+
+# manifold results
+pth_res = Path(one.cache_dir, 'manifold', 'res')
+pth_res.mkdir(parents=True, exist_ok=True)
+
+sigl = 0.05  # significance level (for stacking, plotting, fdr)
 
 variables = ['stim', 'choice', 'fback', 'block']
 
@@ -190,9 +199,9 @@ def plot_swansons(variable, fig=None, axs=None):
 
         clevels = (min(scores), max(scores))
                    
-        norm = matplotlib.colors.Normalize(vmin=clevels[0], vmax=clevels[1])
+        norm = mpl.colors.Normalize(vmin=clevels[0], vmax=clevels[1])
         cbar = fig.colorbar(
-                   matplotlib.cm.ScalarMappable(norm=norm,cmap=cmap),
+                   mpl.cm.ScalarMappable(norm=norm,cmap=cmap),
                    ax=axs[k],shrink=0.75,aspect=12,pad=.025,
                    orientation="horizontal")
                    
@@ -737,7 +746,7 @@ def ecoding_plot_raster(variable, ax=None):
 
     '''
     plot raster and two line plots
-    ax = [ax0, ax1, ax2]
+    ax = [ax_raster, ax_line0, ax_line1]
     '''
     if not ax:
         fig, ax = plt.subplots(nrows=1,ncols=3)
@@ -759,7 +768,7 @@ def ecoding_plot_raster(variable, ax=None):
         t_before,
         t_after,
         [reg1, reg2] if variable != "wheel" else ["wheel"],
-        ax = [ax[0],ax[1]])
+        ax = [ax[1],ax[2]])
         
     # Wheel only has one regressor, unlike all the others. 
     if variable != "wheel":
@@ -785,7 +794,7 @@ def ecoding_plot_raster(variable, ax=None):
         post_time=t_after,
         raster_cbar=False,
         raster_bin=0.002,
-        axs=ax[2])
+        axs=ax[0])
     ax.set_title("{} unit {} : $\log \Delta R^2$ = {:.2f}".format(
                  region, clu_id, np.log(drsq)))
 
@@ -824,6 +833,618 @@ def plot_block_box(ax=None):
     ax[1].set_title(f"{region} {clu_id} predicted rate by block")
     ax[0].set_ylabel("Firing rate (spikes/s)")
 
+'''
+##########
+manifold panels
+##########
+'''
+
+f_size = 15  # font size
+
+# canonical colors for left and right trial types
+blue_left = [0.13850039, 0.41331206, 0.74052025]
+red_right = [0.66080672, 0.21526712, 0.23069468]
+ntravis = 30  # #trajectories for vis, first 2 real, rest pseudo
+
+align = {'stim': 'stim on',
+         'choice': 'motion on',
+         'fback': 'feedback',
+         'block': 'stim on'}
+         
+def pre_post(split, can=False):
+    '''
+    [pre_time, post_time] relative to alignment event
+    split could be contr or restr variant, then
+    use base window
+    
+    ca: If true, use canonical time windows
+    '''
+
+    pre_post0 = {'stim': [0, 0.15],
+                 'choice': [0.15, 0],
+                 'fback': [0, 0.7],
+                 'block': [0.4, -0.1]}
+
+    # canonical windows
+    pre_post_can =  {'stim': [0, 0.1],
+                     'choice': [0.1, 0],
+                     'fback': [0, 0.2],
+                     'block': [0.4, -0.1]}
+
+    pp = pre_post_can if can else pre_post0
+
+    if '_' in split:
+        return pp[split.split('_')[0]]
+    else:
+        return pp[split]
+
+
+def grad(c, nobs, fr=1):
+    '''
+    color gradient for plotting trajectories
+    c: color map type
+    nobs: number of observations
+    '''
+
+    cmap = mpl.cm.get_cmap(c)
+
+    return [cmap(fr * (nobs - p) / nobs) for p in range(nobs)]
+    
+    
+def get_allen_info():
+    '''
+    Function to load Allen atlas info, like region colors
+    '''
+
+    p = (Path(ibllib.__file__).parent /
+         'atlas/allen_structure_tree.csv')
+
+    dfa = pd.read_csv(p)
+
+    # replace yellow by brown #767a3a    
+    cosmos = []
+    cht = []
+    
+    for i in range(len(dfa)):
+        try:
+            ind = dfa.iloc[i]['structure_id_path'].split('/')[4]
+            cr = br.id2acronym(ind, mapping='Cosmos')[0]
+            cosmos.append(cr)
+            if cr == 'CB':
+                cht.append('767A3A')
+            else:
+                cht.append(dfa.iloc[i]['color_hex_triplet'])    
+                    
+        except:
+            cosmos.append('void')
+            cht.append('FFFFFF')
+            
+
+    dfa['Cosmos'] = cosmos
+    dfa['color_hex_triplet2'] = cht
+    
+    # get colors per acronym and transfomr into RGB
+    dfa['color_hex_triplet2'] = dfa['color_hex_triplet2'].fillna('FFFFFF')
+    dfa['color_hex_triplet2'] = dfa['color_hex_triplet2'
+                                   ].replace('19399', '19399a')
+    dfa['color_hex_triplet2'] = dfa['color_hex_triplet2'].replace(
+                                                     '0', 'FFFFFF')
+    dfa['color_hex_triplet2'] = '#' + dfa['color_hex_triplet2'].astype(str)
+    dfa['color_hex_triplet2'] = dfa['color_hex_triplet2'
+                                   ].apply(lambda x:
+                                           mpl.colors.to_rgba(x))
+
+    palette = dict(zip(dfa.acronym, dfa.color_hex_triplet2))
+
+    return dfa, palette
+
+
+def plot_all(splits=None, curve='euc', show_tra=False, axs=None,
+             all_labs=False,ga_pcs=True, extra_3d=False, fig=None):
+    '''
+    main manifold figure:
+    1. plot example 3D trajectories,
+    2. plot lines for distance(t) (curve 'var' or 'euc')
+       for select regions
+    3. plot 2d scatter [amplitude, latency] of all regions
+
+    sigl: significance level, default 0.01, p_min = 1/(nrand+1)
+    ga_pcs: If true, plot 3d trajectories of all cells,
+            else plot for a single region (first in exs list)
+
+    all_labs: show all labels in scatters, else just examples
+
+    '''
+    if splits is None:
+        splits = align
+
+    # specify grid; scatter longer than other panels
+    ncols = 12
+    
+    if not fig:
+        alone = True  # stand alone figure
+        axs = []
+        if show_tra:
+            fig = plt.figure(figsize=(20, 2.5*len(splits)))
+            gs = fig.add_gridspec(len(splits), ncols)
+        else:   
+            fig = plt.figure(figsize=(4, 6), layout='constrained')
+            gs = fig.add_gridspec(2, ncols)
+    else:
+        alone = False
+        
+        
+    if 'can' in curve:
+        print('using canonical time windows')
+        can = True
+    else:
+        can = False    
+
+    k = 0  # panel counter
+
+    if not show_tra:
+        fsize = 12 # font size
+        dsize = 13  # diamond marker size
+        lw = 1  # linewidth        
+
+    else:
+        fsize = 12  # font size
+        dsize = 13  # diamond marker size
+        lw = 1  # linewidth       
+
+    dfa, palette = get_allen_info()
+
+    '''
+    get significant regions
+    '''
+    tops = {}
+    regsa = []
+
+    for split in splits:
+
+        d = np.load(Path(pth_res, f'{split}.npy'),
+                    allow_pickle=True).flat[0]
+
+        maxs = np.array([d[x][f'amp_{curve}'] for x in d])
+        acronyms = np.array(list(d.keys()))
+        order = list(reversed(np.argsort(maxs)))
+        maxs = maxs[order]
+        acronyms = acronyms[order]
+
+        tops[split] = [acronyms,
+                       [d[reg][f'p_{curve}'] for reg in acronyms], maxs]
+
+        maxs = np.array([d[reg][f'amp_{curve}'] for reg in acronyms
+                         if d[reg][f'p_{curve}'] < sigl])
+
+        maxsf = [v for v in maxs if not (math.isinf(v) or math.isnan(v))]
+
+        print(split, curve)
+        print(f'{len(maxsf)}/{len(d)} are significant')
+        tops[split + '_s'] = (f'{len(maxsf)}/{len(d)} = '
+                             f'{np.round(len(maxsf)/len(d),2)}')
+                             
+                             
+        regs_a = [tops[split][0][j] for j in range(len(tops[split][0]))
+                  if tops[split][1][j] < sigl]
+
+        regsa.append(list(d.keys()))
+        print(regs_a)
+        print(' ')
+
+    for split in splits:
+        print(split, tops[split + '_s'])
+
+    #  get Cosmos parent region for yellow color adjustment
+    regsa = np.unique(np.concatenate(regsa))
+    cosregs_ = [
+        dfa[dfa['id'] == int(dfa[dfa['acronym'] == reg][
+            'structure_id_path'].values[0].split('/')[4])][
+            'acronym'].values[0] for reg in regsa]
+
+    cosregs = dict(zip(regsa, cosregs_))
+
+    '''
+    example regions per split for embedded space and line plots
+    
+    first in list is used for pca illustration
+    '''
+
+    exs0 = {'stim': ['LGd','VISp', 'PRNc','VISam','IRN', 'VISl',
+                     'VISpm', 'VM', 'MS','VISli'],
+
+
+            'choice': ['PRNc', 'VISal','PRNr', 'LSr', 'SIM', 'APN',
+                       'MRN', 'RT', 'LGd', 'GRN','MV','ORBm'],
+
+            'fback': ['IRN', 'SSp-n', 'PRNr', 'IC', 'MV', 'AUDp',
+                      'CENT3', 'SSp-ul', 'GPe'],
+            'block': ['Eth', 'IC']}
+
+    # use same example regions for variant splits
+    exs = exs0.copy()
+    for split in splits:
+        for split0 in  exs0:
+            if split0 in split:
+                exs[split] = exs0[split0]
+
+
+    if show_tra:
+
+        '''
+        Trajectories for example regions in PCA embedded 3d space
+        ''' 
+            
+        row = 0
+        for split in splits:
+
+            if ga_pcs:
+                dd = np.load(Path(pth_res, f'{split}_grand_averages.npy'),
+                            allow_pickle=True).flat[0]
+            else:
+                d = np.load(Path(pth_res, f'{split}.npy'),
+                            allow_pickle=True).flat[0]
+
+                # pick example region
+                reg = exs[split][0]
+                dd = d[reg]
+
+            if extra_3d:
+                axs.append(fig.add_subplot(gs[:,row*3: (row+1)*3],
+                                           projection='3d'))        
+            else:
+                if alone:
+                    axs.append(fig.add_subplot(gs[row, :3],
+                               projection='3d'))            
+
+            npcs, allnobs = dd['pcs'].shape
+            nobs = allnobs // ntravis
+
+            for j in range(ntravis):
+
+                # 3d trajectory
+                cs = dd['pcs'][:, nobs * j: nobs * (j + 1)].T
+
+                if j == 0:
+                    col = grad('Blues_r', nobs)
+                elif j == 1:
+                    col = grad('Reds_r', nobs)
+                else:
+                    col = grad('Greys_r', nobs)
+
+                axs[k].plot(cs[:, 0], cs[:, 1], cs[:, 2],
+                            color=col[len(col) // 2],
+                            linewidth=5 if j in [0, 1] else 1, alpha=0.5)
+
+                axs[k].scatter(cs[:, 0], cs[:, 1], cs[:, 2],
+                               color=col,
+                               edgecolors=col,
+                               s=20 if j in [0, 1] else 1,
+                               depthshade=False)
+
+            if extra_3d:
+                axs[k].set_title(split.split('_')[0])    
+
+            else:
+                axs[k].set_title(f"{split}, {reg} {d[reg]['nclus']}"
+                                 if not ga_pcs else split)
+            axs[k].grid(False)
+            axs[k].axis('off')
+
+            if not extra_3d:
+                put_panel_label(axs[k], k)
+
+            k += 1
+            row += 1
+            
+        if extra_3d:
+            return
+        
+    '''
+    line plot per 5 example regions per split
+    '''
+    row = 0  # index
+
+    for split in splits:
+
+        if show_tra:
+            axs.append(fig.add_subplot(gs[row, 3:6]))
+        else:
+            if alone:
+                axs.append(fig.add_subplot(gs[0, :]))
+
+
+        d = np.load(Path(pth_res, f'{split}.npy'),
+                    allow_pickle=True).flat[0]
+
+        # example regions to illustrate line plots
+        regs = exs[split]
+
+        texts = []
+        for reg in regs:
+            if reg not in d:
+                print(f'{reg} not in d:'
+                       'revise example regions for line plots')
+                continue
+        
+            if any(np.isinf(d[reg][f'd_{curve}'])):
+                print(f'inf in {curve} of {reg}')
+                continue
+
+            xx = np.linspace(-pre_post(split,can=can)[0],
+                             pre_post(split,can=can)[1],
+                             len(d[reg][f'd_{curve}']))
+
+            # get units in Hz
+            yy = d[reg][f'd_{curve}']
+
+            axs[k].plot(xx, yy, linewidth=lw,
+                        color=palette[reg],
+                        label=f"{reg} {d[reg]['nclus']}")
+
+            # put region labels
+            y = yy[-1]
+            x = xx[-1]
+            ss = f"{reg} {d[reg]['nclus']}"
+
+            texts.append(axs[k].text(x, y, ss,
+                                     color=palette[reg],
+                                     fontsize=fsize))
+
+
+        axs[k].axvline(x=0, lw=0.5, linestyle='--', c='k')
+
+        if split in ['block', 'choice']:
+            ha = 'left'
+        else:
+            ha = 'right'
+
+        axs[k].spines['top'].set_visible(False)
+        axs[k].spines['right'].set_visible(False)
+
+        axs[k].set_ylabel('distance [Hz]')
+        axs[k].set_xlabel('time [sec]')
+        
+        if show_tra:
+            put_panel_label(axs[k], k)
+
+        row += 1
+        k += 1
+
+    '''
+    scatter latency versus max amplitude for significant regions
+    '''
+
+    row = 0  # row idx
+
+    for split in splits:
+
+        if show_tra:
+            axs.append(fig.add_subplot(gs[row, 6:]))
+        else:
+            if alone:
+                axs.append(fig.add_subplot(gs[1,:]))    
+
+
+        d = np.load(Path(pth_res, f'{split}.npy'),
+                    allow_pickle=True).flat[0]
+
+        acronyms = [tops[split][0][j] for j in range(len(tops[split][0]))]
+        ac_sig = np.array([True if tops[split][1][j] < sigl
+                           else False for j in range(len(tops[split][0]))])
+
+        maxes = np.array([d[x][f'amp_{curve}'] for x in acronyms])
+        lats = np.array([d[x][f'lat_{curve}'] for x in acronyms])
+        # stdes = np.array([d[x][f'stde_{curve}'] for x in acronyms])
+        cols = [palette[reg] for reg in acronyms]
+
+#        if split == 'stim':
+#            fig0, ax0 = plt.subplots()
+#            axs[k] = ax0
+
+        # yerr = 100*maxes/d[reg]['nclus']
+        axs[k].errorbar(lats, maxes, yerr=None, fmt='None',
+                        ecolor=cols, ls='None', elinewidth=0.5)
+
+        # plot significant regions
+        axs[k].scatter(np.array(lats)[ac_sig],
+                       np.array(maxes)[ac_sig],
+                       color=np.array(cols)[ac_sig],
+                       marker='D', s=dsize)
+
+        # plot insignificant regions
+        axs[k].scatter(np.array(lats)[~ac_sig],
+                       np.array(maxes)[~ac_sig],
+                       color=np.array(cols)[~ac_sig],
+                       marker='o', s=dsize / 10)
+
+        texts = []
+        for i in range(len(acronyms)):
+
+            if ac_sig[i]:  # only decorate marker with label if sig
+            
+                reg = acronyms[i]
+                
+                if reg not in exs[split]:
+                    if not all_labs: # restrict to example regions   
+                        continue
+                
+
+                texts.append(
+                    axs[k].annotate(
+                        '  ' + reg,
+                        (lats[i], maxes[i]),
+                        fontsize=fsize,
+                        color=palette[acronyms[i]],
+                        arrowprops=None))
+                        
+
+        axs[k].axvline(x=0, lw=0.5, linestyle='--', c='k')
+
+        ha = 'left'
+
+
+        axs[k].text(0, 0.95, align[split.split('_')[0]
+                                   if '_' in split else split],
+                    transform=axs[k].get_xaxis_transform(),
+                    horizontalalignment=ha, rotation=90,
+                    fontsize=f_size * 0.8)
+
+        axs[k].spines['top'].set_visible(False)
+        axs[k].spines['right'].set_visible(False)
+
+        axs[k].set_ylabel('max dist. [Hz]')
+        axs[k].set_xlabel('latency [sec]')
+        
+        
+        
+        if show_tra:
+            put_panel_label(axs[k], k)
+            axs[k].set_title(f"{tops[split+'_s']} sig")
+
+
+        row += 1
+        k += 1
+
+    if not show_tra:
+        axs[-1].sharex(axs[-2])
+
+
+def plot_traj_and_dist(split, reg='all', ga_pcs=False, curve='euc',
+                       fig=None, axs=None):
+
+    '''
+    for a given region, plot 3d trajectory and 
+    line plot below
+    '''
+    
+    if 'can' in curve:
+        print('using canonical time windows')
+        can = True
+    else:
+        can = False   
+
+    df, palette = get_allen_info()
+    palette['all'] = (0.32156863, 0.74901961, 0.01568627,1)
+     
+    if not fig:
+        alone = True     
+        fig = plt.figure(figsize=(3,3.79))
+        gs = fig.add_gridspec(5, 1)
+        axs = [] 
+        axs.append(fig.add_subplot(gs[:4, 0],
+                               projection='3d'))
+        axs.append(fig.add_subplot(gs[4:,0]))
+   
+    else:
+        alone = False
+       
+    k = 0 
+      
+    # 3d trajectory plot
+    if ga_pcs:
+        dd = np.load(Path(pth_res, f'{split}_grand_averages.npy'),
+                    allow_pickle=True).flat[0]            
+    else:
+        d = np.load(Path(pth_res, f'{split}.npy'),
+                    allow_pickle=True).flat[0]
+
+        # pick example region
+        dd = d[reg]
+
+    npcs, allnobs = dd['pcs'].shape
+    nobs = allnobs // ntravis
+
+    for j in range(ntravis):
+
+        # 3d trajectory
+        cs = dd['pcs'][:, nobs * j: nobs * (j + 1)].T
+
+        if j == 0:
+            col = grad('Blues_r', nobs)
+        elif j == 1:
+            col = grad('Reds_r', nobs)
+        else:
+            col = grad('Greys_r', nobs)
+
+        axs[k].plot(cs[:, 0], cs[:, 1], cs[:, 2],
+                    color=col[len(col) // 2],
+                    linewidth=5 if j in [0, 1] else 1, alpha=0.5)
+
+        axs[k].scatter(cs[:, 0], cs[:, 1], cs[:, 2],
+                       color=col,
+                       edgecolors=col,
+                       s=20 if j in [0, 1] else 1,
+                       depthshade=False)
+
+    if alone:
+        axs[k].set_title(f"{split}, {reg} {dd['nclus']}")
+                         
+    axs[k].grid(False)
+    axs[k].axis('off')
+
+    #put_panel_label(axs[k], k)
+
+    k += 1
+
+    # line plot
+    if reg != 'all':             
+        if reg not in d:
+            print(f'{reg} not in d:'
+                   'revise example regions for line plots')
+            return
+
+    if any(np.isinf(dd[f'd_{curve}'].flatten())):
+        print(f'inf in {curve} of {reg}')
+        return
+        
+    print(split, reg, 'p_euc: ', dd['p_euc'])    
+
+    xx = np.linspace(-pre_post(split,can=can)[0],
+                     pre_post(split,can=can)[1],
+                     len(dd[f'd_{curve}']))
+
+    # plot pseudo curves
+    yy_p = dd[f'd_{curve}_p']
+
+    for c in yy_p:
+        axs[k].plot(xx, c, linewidth=1,
+                    color='Gray')
+
+    # get curve
+    yy = dd[f'd_{curve}']
+
+    axs[k].plot(xx, yy, linewidth=2,
+                color=palette[reg],
+                label=f"{reg} {dd['nclus']}")
+
+    # put region labels
+    y = yy[-1]
+    x = xx[-1]
+    ss = ' ' + reg
+
+    axs[k].text(x, y, ss, color=palette[reg], fontsize=8)
+    axs[k].text(x, c[-1], ' control', color='Gray', fontsize=8)
+
+    axs[k].axvline(x=0, lw=0.5, linestyle='--', c='k')
+
+    if split in ['block', 'choice']:
+        ha = 'left'
+    else:
+        ha = 'right'
+
+    axs[k].spines['top'].set_visible(False)
+    axs[k].spines['right'].set_visible(False)
+
+    axs[k].set_ylabel('distance [Hz]')
+    axs[k].set_xlabel('time [sec]')
+
+    #put_panel_label(axs[k], k)
+    fig.tight_layout() 
+    fig.tight_layout()
+
+
+
 
 '''
 ###########
@@ -847,24 +1468,28 @@ def main_fig(variable):
     s3 = [[item for sublist in s2 for item in sublist]]*3
 
     # panels under swansons and table
-    pe = [['p0', 'p0', 'p0', 'p0', 'p0', 
+    pe = [['ras', 'ras', 'ras', 'ras', 'ras', 
            'dec', 'dec', 'dec', 'dec', 'dec', 
            'tra_3d', 'tra_3d', 'tra_3d', 'tra_3d', 'tra_3d'],
-          ['p3', 'p3', 'p3', 'p3', 'p3', 
+          ['ras', 'ras', 'ras', 'ras', 'ras', 
            'ex_d', 'ex_d', 'ex_d', 'ex_d', 'ex_d',
            'tra_3d', 'tra_3d', 'tra_3d', 'tra_3d', 'tra_3d'],
-          ['p5', 'p5', 'p5', 'p5', 'p5', 
+          ['enc0', 'enc0', 'enc0', 'enc0', 'enc0', 
            'ex_ds', 'ex_ds', 'ex_ds', 'ex_ds', 'ex_ds',
            'scat', 'scat', 'scat', 'scat', 'scat'],
-          ['p8', 'p8', 'p8', 'p8', 'p8', 
+          ['enc1', 'enc1', 'enc1', 'enc1', 'enc1', 
            'ex_ds', 'ex_ds', 'ex_ds', 'ex_ds', 'ex_ds',
            'scat', 'scat', 'scat', 'scat', 'scat']]
 
-    # 
+     
     mosaic = s3 + [['tab']*15] + pe
         
     axs = fig.subplot_mosaic(mosaic)
 
+    '''
+    meta 
+    '''
+    
     # 4 Swansons on top
     plot_swansons(variable, fig=fig, axs=[axs[x] for x in s])
 
@@ -876,11 +1501,17 @@ def main_fig(variable):
     axs['tab'].imshow(im.rotate(90, expand=True), aspect='auto')
                       
     axs['tab'].axis('off')                     
+         
+         
+         
+    '''
+    manifold
+    '''
                       
     ex_regs = {'stim': 'VISp', 
-                    'choice': 'GRN', 
-                    'fback': 'IRN', 
-                    'block': 'MOp'}
+               'choice': 'GRN', 
+               'fback': 'IRN', 
+               'block': 'MOp'}
     
     # trajectory extra panels
     # example region 3d trajectory (tra_3d), line plot (ex_d)
@@ -898,18 +1529,34 @@ def main_fig(variable):
     plot_all(splits=[variable], fig=fig, 
              axs=[axs['ex_ds'], axs['scat']]) 
 
+
+    '''
+    decoding
+    '''
+    
     # decoding panel
     if variable == 'stim':
         stim_dec_line(fig=fig, ax=axs['dec'])
     else:   
         dec_scatter(variable,fig=fig, ax=axs['dec'])
 
+
+    '''
+    encoding
+    '''
+    
     # encoding panels 
+    ecoding_plot_raster(variable, ax=[axs['ras'], 
+                                      axs['enc0'],
+                                      axs['enc1']])    
+    
+    
+    
+#    for k in axs:
+#        if k[0] == 'p':
+#            axs[k].axis('off')
 
 
-    for k in axs:
-        if k[0] == 'p':
-            axs[k].axis('off')
 
     fig.subplots_adjust(top=0.985,
                         bottom=0.06,
