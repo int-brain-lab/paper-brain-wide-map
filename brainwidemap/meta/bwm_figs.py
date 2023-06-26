@@ -56,6 +56,11 @@ variables = ['stim', 'choice', 'fback', 'block']
 
 plt.ion()  # interactive plotting on
 
+f_size = 10  # font size
+mpl.rcParams['figure.autolayout']  = True
+mpl.rcParams.update({'font.size': f_size})
+
+
 '''
 #####
 meta (Swansons and table)
@@ -150,17 +155,22 @@ def plot_swansons(variable, fig=None, axs=None):
     res_types.reverse()
     labels.reverse()
  
+    
     cmap = get_cmap_(variable)
+    
+    alone = False
     if not fig:
-        fig = plt.figure(figsize=(8,3))  
-        gs = gridspec.GridSpec(len(res_types), 1, figure=fig,hspace=.75)
+        fig = plt.figure(figsize=(8,3), layout='constrained')  
+        gs = gridspec.GridSpec(1, len(res_types), figure=fig,hspace=.75)
         axs = []
- 
+        alone = True
                  
     k = 0
     for res_type in res_types:
-        if not fig:
+        if alone:
             axs.append(fig.add_subplot(gs[0,k]))
+            
+            
         ana = res_type.split('_')[0]
         lat = True if (res_type.split('_')[1] == 'latency') else False
         
@@ -179,7 +189,15 @@ def plot_swansons(variable, fig=None, axs=None):
             acronyms = res.index.values
             scores = res[res_types[k]].values
             mask = None
+        
+        eucb =False    
+        if 'euclidean' in res_type and variable == 'block':
+            acronyms = ['root']
+            scores = np.zeros(1)
+            mask = res[res[f'{ana}_significant'] == False].index.values
+            eucb = True
 
+        
         plot_swanson_vector(acronyms,
                             scores,
                             hemisphere=None, 
@@ -191,10 +209,9 @@ def plot_swansons(variable, fig=None, axs=None):
                             linewidth=lw,
                             mask=mask,
                             mask_color='silver',
-                            annotate=True,
+                            annotate= True if not eucb else False,
                             annotate_n=5,
                             annotate_order='bottom' if lat else 'top')
-                            
 
         clevels = (min(scores), max(scores))
                    
@@ -208,7 +225,7 @@ def plot_swansons(variable, fig=None, axs=None):
         cbar.outline.set_visible(False)
         cbar.ax.tick_params(size=1)
         cbar.ax.xaxis.set_tick_params(pad=5)
-        cbar.set_label(labels[k], fontsize=6)
+        cbar.set_label(labels[k], fontsize=f_size)
             
         axs[k].set_xticks([])
         axs[k].set_yticks([])
@@ -463,7 +480,7 @@ def stim_dec_line(fig=None, ax=None):
     ax.set_ylabel('predicted \n P(stim = right)')
 
     ax.spines[['top','right']].set_visible(False)
-    fig.tight_layout()
+    #fig.tight_layout()
 
 
 def dec_scatter(variable,fig=None, ax=None):
@@ -520,7 +537,7 @@ def dec_scatter(variable,fig=None, ax=None):
     target = l[0] if variable != 'fback' else l[1]
     ax.set_ylabel(f'Predicted \n {target}')
     ax.spines[['top','right']].set_visible(False)
-    fig.tight_layout()
+    #fig.tight_layout()
 
 
 '''
@@ -845,7 +862,7 @@ manifold
 ##########
 '''
 
-f_size = 15  # font size
+
 
 # canonical colors for left and right trial types
 blue_left = [0.13850039, 0.41331206, 0.74052025]
@@ -988,15 +1005,10 @@ def plot_all(splits=None, curve='euc', show_tra=False, axs=None,
 
     k = 0  # panel counter
 
-    if not show_tra:
-        fsize = 12 # font size
-        dsize = 13  # diamond marker size
-        lw = 1  # linewidth        
 
-    else:
-        fsize = 12  # font size
-        dsize = 13  # diamond marker size
-        lw = 1  # linewidth       
+    dsize = 13  # diamond marker size
+    lw = 1  # linewidth        
+    
 
     dfa, palette = get_allen_info()
 
@@ -1195,7 +1207,7 @@ def plot_all(splits=None, curve='euc', show_tra=False, axs=None,
 
             texts.append(axs[k].text(x, y, ss,
                                      color=palette[reg],
-                                     fontsize=fsize))
+                                     fontsize=f_size))
 
 
         axs[k].axvline(x=0, lw=0.5, linestyle='--', c='k')
@@ -1280,7 +1292,7 @@ def plot_all(splits=None, curve='euc', show_tra=False, axs=None,
                     axs[k].annotate(
                         '  ' + reg,
                         (lats[i], maxes[i]),
-                        fontsize=fsize,
+                        fontsize=f_size,
                         color=palette[acronyms[i]],
                         arrowprops=None))
                         
@@ -1429,8 +1441,8 @@ def plot_traj_and_dist(split, reg='all', ga_pcs=False, curve='euc',
     x = xx[-1]
     ss = ' ' + reg
 
-    axs[k].text(x, y, ss, color=palette[reg], fontsize=8)
-    axs[k].text(x, c[-1], ' control', color='Gray', fontsize=8)
+    axs[k].text(x, y, ss, color=palette[reg], fontsize=f_size)
+    axs[k].text(x, c[-1], ' control', color='Gray', fontsize=f_size)
 
     axs[k].axvline(x=0, lw=0.5, linestyle='--', c='k')
 
@@ -1445,9 +1457,7 @@ def plot_traj_and_dist(split, reg='all', ga_pcs=False, curve='euc',
     axs[k].set_ylabel('distance [Hz]')
     axs[k].set_xlabel('time [sec]')
 
-    #put_panel_label(axs[k], k)
-    fig.tight_layout() 
-    fig.tight_layout()
+
 
 
 
@@ -1466,31 +1476,42 @@ def main_fig(variable):
     using mosaic grid of 8 rows and 15 columns
     '''
     
-    fig = plt.figure(figsize=(8, 13), facecolor='w')
+    fig = plt.figure(figsize=(9, 13), facecolor='w', 
+                     clear=True)
     
     # Swansons
     s = ['glm_eff', 'euc_lat', 'euc_eff', 'man_eff', 'dec_eff']
     s2 = [[x]*3 for x in s]
     s3 = [[item for sublist in s2 for item in sublist]]*3
-
+    
     # panels under swansons and table
-    pe = [['ras', 'ras', 'ras', 'ras', 'ras', 
-           'dec', 'dec', 'dec', 'dec', 'dec', 
-           'tra_3d', 'tra_3d', 'tra_3d', 'tra_3d', 'tra_3d'],
-          ['ras', 'ras', 'ras', 'ras', 'ras', 
-           'ex_d', 'ex_d', 'ex_d', 'ex_d', 'ex_d',
-           'tra_3d', 'tra_3d', 'tra_3d', 'tra_3d', 'tra_3d'],
-          ['enc0', 'enc0', 'enc0', 'enc0', 'enc0', 
-           'ex_ds', 'ex_ds', 'ex_ds', 'ex_ds', 'ex_ds',
-           'scat', 'scat', 'scat', 'scat', 'scat'],
-          ['enc1', 'enc1', 'enc1', 'enc1', 'enc1', 
-           'ex_ds', 'ex_ds', 'ex_ds', 'ex_ds', 'ex_ds',
-           'scat', 'scat', 'scat', 'scat', 'scat']]
+    if variable == 'block':
+        pe = [['dec', 'dec', 'dec', 'dec', 'dec', 
+               'fr', 'fr', 'fr', 'fr', 'fr',
+               'tra_3d', 'tra_3d', 'tra_3d', 'tra_3d', 'tra_3d'],
+              ['p0', 'p0','p0','p0','p0',    
+               'pr_fr', 'pr_fr', 'pr_fr', 'pr_fr', 'pr_fr',
+               'ex_d', 'ex_d', 'ex_d', 'ex_d', 'ex_d']]
+                   
+    else:
+        pe = [['ras', 'ras', 'ras', 'ras', 'ras', 
+               'dec', 'dec', 'dec', 'dec', 'dec', 
+               'tra_3d', 'tra_3d', 'tra_3d', 'tra_3d', 'tra_3d'],
+              ['ras', 'ras', 'ras', 'ras', 'ras', 
+               'ex_d', 'ex_d', 'ex_d', 'ex_d', 'ex_d',
+               'tra_3d', 'tra_3d', 'tra_3d', 'tra_3d', 'tra_3d'],
+              ['enc0', 'enc0', 'enc0', 'enc0', 'enc0', 
+               'ex_ds', 'ex_ds', 'ex_ds', 'ex_ds', 'ex_ds',
+               'scat', 'scat', 'scat', 'scat', 'scat'],
+              ['enc1', 'enc1', 'enc1', 'enc1', 'enc1', 
+               'ex_ds', 'ex_ds', 'ex_ds', 'ex_ds', 'ex_ds',
+               'scat', 'scat', 'scat', 'scat', 'scat']]
 
      
     mosaic = s3 + [['tab']*15] + pe
         
     axs = fig.subplot_mosaic(mosaic)
+
 
     '''
     meta 
@@ -1531,9 +1552,10 @@ def main_fig(variable):
                        axs=[axs['tra_3d'],axs['ex_d']])
     axs['tra_3d'].axis('off')
 
-    # manifold panels, line plot with more regions and scatter    
-    plot_all(splits=[variable], fig=fig, 
-             axs=[axs['ex_ds'], axs['scat']]) 
+    if variable != 'block':
+        # manifold panels, line plot with more regions and scatter    
+        plot_all(splits=[variable], fig=fig, 
+                 axs=[axs['ex_ds'], axs['scat']]) 
 
 
     '''
@@ -1551,16 +1573,53 @@ def main_fig(variable):
     encoding
     '''
     
-    # encoding panels 
-    ecoding_plot_raster(variable, ax=[axs['ras'], 
-                                      axs['enc0'],
-                                      axs['enc1']])    
-    
+    if variable != 'block':
+        # encoding panels 
+        ecoding_plot_raster(variable, ax=[axs['ras'], 
+                                          axs['enc0'],
+                                          axs['enc1']])    
+    else:
+        plot_block_box(ax=[axs['fr'], axs['pr_fr']])
 
-    fig.subplots_adjust(top=0.985,
-                        bottom=0.06,
-                        left=0.018,
-                        right=0.992,
+
+    fig.subplots_adjust(top=1.0,
+                        bottom=0.1,
+                        left=0.06,
+                        right=0.99,
                         hspace=1.0,
                         wspace=1.0)
+
+
+
+    # direct subplot approach
+#    axs = {}
+#    axs['dec_eff'] = plt.subplot2grid((15, 15), (0, 0), 
+#                                      colspan=3, rowspan=6)
+#    axs['man_eff'] = plt.subplot2grid((15, 15), (0, 3), 
+#                                      colspan=3, rowspan=6)
+#    axs['euc_eff'] = plt.subplot2grid((15, 15), (0, 6), 
+#                                      colspan=3, rowspan=6)
+#    axs['euc_lat'] = plt.subplot2grid((15, 15), (0, 9), 
+#                                      colspan=3, rowspan=6)
+#    axs['glm_eff'] = plt.subplot2grid((15, 15), (0, 12), 
+#                                      colspan=3, rowspan=6)       
+#    axs['tab'] = plt.subplot2grid((15, 15), (6, 0), 
+#                                      colspan=15, rowspan=2)           
+#    axs['ras'] = plt.subplot2grid((15, 15), (8, 0), 
+#                                      colspan=5, rowspan=4)
+#    axs['dec'] = plt.subplot2grid((15, 15), (8, 5), 
+#                                      colspan=5, rowspan=2)
+#    axs['ex_d'] = plt.subplot2grid((15, 15), (10, 5), 
+#                                      colspan=5, rowspan=2)
+#    axs['tra_3d'] = plt.subplot2grid((15, 15), (10, 10), 
+#                                      colspan=5, rowspan=3)
+#    axs['enc0'] = plt.subplot2grid((15, 15), (12, 0), 
+#                                      colspan=5, rowspan=2)       
+#    axs['enc1'] = plt.subplot2grid((15, 15), (14, 0), 
+#                                      colspan=5, rowspan=2)
+#    axs['ex_ds'] = plt.subplot2grid((15, 15), (12, 5), 
+#                                      colspan=5, rowspan=4)
+#    axs['scat'] = plt.subplot2grid((15, 15), (12, 10), 
+#                                      colspan=5, rowspan=4) 
+
 
