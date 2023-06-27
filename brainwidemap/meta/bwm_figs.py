@@ -1,7 +1,8 @@
 import pandas as pd
 import numpy as np
 from pathlib import Path
-import math
+import math, string
+from collections import Counter
 
 from one.api import ONE
 from ibllib.atlas import AllenAtlas
@@ -60,6 +61,12 @@ f_size = 10  # font size
 #mpl.rcParams['figure.autolayout']  = True
 mpl.rcParams.update({'font.size': f_size})
 
+
+def put_panel_label(ax, k):
+    ax.annotate(string.ascii_lowercase[k], (-0.05, 1.15),
+                xycoords='axes fraction',
+                fontsize=f_size * 1.5, va='top',
+                ha='right', weight='bold')
 
 '''
 #####
@@ -1459,9 +1466,6 @@ def plot_traj_and_dist(split, reg='all', ga_pcs=False, curve='euc',
 
 
 
-
-
-
 '''
 ###########
 combine all panels
@@ -1480,7 +1484,7 @@ def main_fig(variable):
     fig = plt.figure(figsize=(15, 13), facecolor='w', 
                      clear=True)
     
-    # Swansons
+    # Swansons ('p0' placeholder for tight_layout to work)
     s = ['glm_eff', 'euc_lat', 'euc_eff', 'man_eff', 'dec_eff']
     s2 = [[x]*2 for x in s] + [['p0']*2]
     s3 = [[item for sublist in s2 for item in sublist]]*3
@@ -1502,11 +1506,16 @@ def main_fig(variable):
     axs = fig.subplot_mosaic(mosaic,
                              per_subplot_kw={
                              "tra_3d": {"projection": "3d"}})
-
-    # placeholder to make column ratio integer
-    # such that tight_layout works
-    axs['p0'].axis('off')  
-
+                             
+    # put panel labels                         
+    pans = Counter([item for sublist in 
+                    mosaic for item in sublist])
+    del pans['p0']
+    axs['p0'].axis('off')
+    
+    for k,pa in enumerate(pans):
+        put_panel_label(axs[pa], k)   
+                        
 
     '''
     meta 
