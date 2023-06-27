@@ -1,7 +1,8 @@
 import pandas as pd
 import numpy as np
 from pathlib import Path
-import math
+import math, string
+from collections import Counter
 
 from one.api import ONE
 from ibllib.atlas import AllenAtlas
@@ -35,19 +36,19 @@ one = ONE(base_url='https://openalyx.internationalbrainlab.org',
           password='international', silent=True)
           
 # pooled results
-meta_pth = Path(one.cache_dir, 'bwm_res','meta')
+meta_pth = Path(one.cache_dir, 'bwm_res', 'bwm_figs_data', 'meta')
 meta_pth.mkdir(parents=True, exist_ok=True)          
 
 # decoding results
-dec_pth = Path(one.cache_dir, 'bwm_res','decoding')
+dec_pth = Path(one.cache_dir, 'bwm_res', 'bwm_figs_data','decoding')
 dec_pth.mkdir(parents=True, exist_ok=True)  
 
 # manifold results
-pth_res = Path(one.cache_dir, 'bwm_res','manifold', 'res')
+pth_res = Path(one.cache_dir, 'bwm_res', 'bwm_figs_data','manifold')
 pth_res.mkdir(parents=True, exist_ok=True)
 
 # encoding results
-enc_pth = Path(one.cache_dir, 'bwm_res','encoding')
+enc_pth = Path(one.cache_dir, 'bwm_res', 'bwm_figs_data', 'encoding')
 enc_pth.mkdir(parents=True, exist_ok=True)
 
 sigl = 0.05  # significance level (for stacking, plotting, fdr)
@@ -57,9 +58,15 @@ variables = ['stim', 'choice', 'fback', 'block']
 plt.ion()  # interactive plotting on
 
 f_size = 10  # font size
-mpl.rcParams['figure.autolayout']  = True
+#mpl.rcParams['figure.autolayout']  = True
 mpl.rcParams.update({'font.size': f_size})
 
+
+def put_panel_label(ax, k):
+    ax.annotate(string.ascii_lowercase[k], (-0.05, 1.15),
+                xycoords='axes fraction',
+                fontsize=f_size * 1.5, va='top',
+                ha='right', weight='bold')
 
 '''
 #####
@@ -84,14 +91,14 @@ def load_meta_results(variable):
 
     # Reorder columns to match ordering in Figure
     res = res[['euclidean_latency',
-                               'euclidean_effect',
-                               'glm_effect',
-                               'mannwhitney_effect',
-                               'decoding_effect',
-                               'decoding_significant',
-                               'decoding_frac_significant',
-                               'mannwhitney_significant',
-                               'euclidean_significant']]
+               'euclidean_effect',
+               'glm_effect',
+               'mannwhitney_effect',
+               'decoding_effect',
+               'decoding_significant',
+               'decoding_frac_significant',
+               'mannwhitney_significant',
+               'euclidean_significant']]
     return res
 
 
@@ -161,7 +168,8 @@ def plot_swansons(variable, fig=None, axs=None):
     alone = False
     if not fig:
         fig = plt.figure(figsize=(8,3), layout='constrained')  
-        gs = gridspec.GridSpec(1, len(res_types), figure=fig,hspace=.75)
+        gs = gridspec.GridSpec(1, len(res_types), 
+                               figure=fig,hspace=.75)
         axs = []
         alone = True
                  
@@ -285,7 +293,8 @@ def plot_table(variable):
                'mannwhitney_significant','euclidean_significant']]
             
     for rt in ['decoding', 'mannwhitney','euclidean']:
-        res[f'{rt}_effect'] = res[f'{rt}_effect'] * res[f'{rt}_significant']
+        res[f'{rt}_effect'] = res[f'{rt}_effect'
+                              ] * res[f'{rt}_significant']
     
     res = res[['region','region_color',
                'glm_effect','euclidean_effect',
@@ -361,16 +370,19 @@ def plot_table(variable):
             {"selector": "tbody td", 
                 "props": [("border", "1px solid white")]},
             {'selector': 'thead', 'props': [('display', 'none')]}])
+
+                   
+#        styler.relabel_index(["row 1", "row 2",'r3',
+#                              'r4', 'r5', 'r6'], axis=1)   
             
         return styler
-
-
+ 
     ## Plot table
     res = res.style.pipe(make_pretty)
-    pf = Path(meta_pth / 'Figures')
+    pf = Path(meta_pth)
     pf.mkdir(parents=True,exist_ok=True)
-
-    res.export_png(str(pf / f'{variable}_df_styled.png'), 
+    print(pf / 'tabs' / f'{variable}_df_styled.png')
+    res.export_png(str(pf /  'tabs' /f'{variable}_df_styled.png'), 
                    max_rows=-1,
                    dpi = 200)
 
@@ -1459,9 +1471,6 @@ def plot_traj_and_dist(split, reg='all', ga_pcs=False, curve='euc',
 
 
 
-
-
-
 '''
 ###########
 combine all panels
@@ -1472,46 +1481,51 @@ combine all panels
 def main_fig(variable):
 
     '''
-    combine panels into main figure
-    using mosaic grid of 8 rows and 15 columns
+    combine panels into main figure;
+    variable in ['stim', 'choice', 'fback', 'block'] 
+    using mosaic grid of 8 rows and 12 columns
     '''
     
-    fig = plt.figure(figsize=(9, 13), facecolor='w', 
+    fig = plt.figure(figsize=(15, 13), facecolor='w', 
                      clear=True)
     
-    # Swansons
+    # Swansons ('p0' placeholder for tight_layout to work)
     s = ['glm_eff', 'euc_lat', 'euc_eff', 'man_eff', 'dec_eff']
-    s2 = [[x]*3 for x in s]
+    s2 = [[x]*2 for x in s] + [['p0']*2]
     s3 = [[item for sublist in s2 for item in sublist]]*3
     
     # panels under swansons and table
     if variable == 'block':
-        pe = [['dec', 'dec', 'dec', 'dec', 'dec', 
-               'fr', 'fr', 'fr', 'fr', 'fr',
-               'tra_3d', 'tra_3d', 'tra_3d', 'tra_3d', 'tra_3d'],
-              ['p0', 'p0','p0','p0','p0',    
-               'pr_fr', 'pr_fr', 'pr_fr', 'pr_fr', 'pr_fr',
-               'ex_d', 'ex_d', 'ex_d', 'ex_d', 'ex_d']]
+        pe = [['dec']*4 + ['fr']*4 + ['tra_3d']*4,
+              ['p1']*4 + ['pr_fr']*4 + ['ex_d']*4]  
                    
     else:
-        pe = [['ras', 'ras', 'ras', 'ras', 'ras', 
-               'dec', 'dec', 'dec', 'dec', 'dec', 
-               'tra_3d', 'tra_3d', 'tra_3d', 'tra_3d', 'tra_3d'],
-              ['ras', 'ras', 'ras', 'ras', 'ras', 
-               'ex_d', 'ex_d', 'ex_d', 'ex_d', 'ex_d',
-               'tra_3d', 'tra_3d', 'tra_3d', 'tra_3d', 'tra_3d'],
-              ['enc0', 'enc0', 'enc0', 'enc0', 'enc0', 
-               'ex_ds', 'ex_ds', 'ex_ds', 'ex_ds', 'ex_ds',
-               'scat', 'scat', 'scat', 'scat', 'scat'],
-              ['enc1', 'enc1', 'enc1', 'enc1', 'enc1', 
-               'ex_ds', 'ex_ds', 'ex_ds', 'ex_ds', 'ex_ds',
-               'scat', 'scat', 'scat', 'scat', 'scat']]
+        pe = [['ras']*4 + ['dec']*4 + ['tra_3d']*4,
+              ['ras']*4 + ['ex_d']*4 + ['tra_3d']*4,
+              ['enc0']*4 + ['ex_ds']*4 + ['scat']*4,
+              ['enc1']*4 + ['ex_ds']*4 +['scat']*4]
 
      
-    mosaic = s3 + [['tab']*15] + pe
+    mosaic = s3 + [['tab']*12]*2 + pe
         
-    axs = fig.subplot_mosaic(mosaic)
-
+    axs = fig.subplot_mosaic(mosaic,
+                             per_subplot_kw={
+                             "tra_3d": {"projection": "3d"}})
+                             
+    # put panel labels                         
+    pans = Counter([item for sublist in 
+                    mosaic for item in sublist])
+                    
+    if variable == 'block':
+        del pans['p1']
+        axs['p1'].axis('off')    
+                     
+    del pans['p0']
+    axs['p0'].axis('off')
+    
+    for k,pa in enumerate(pans):
+        put_panel_label(axs[pa], k)   
+                        
 
     '''
     meta 
@@ -1521,40 +1535,42 @@ def main_fig(variable):
     plot_swansons(variable, fig=fig, axs=[axs[x] for x in s])
 
     # plot table, reading from png
-    if not Path(meta_pth / f'Figures/{variable}_df_styled.png').is_file():
+    if not Path(meta_pth / 'tabs' /
+                f'{variable}_df_styled.png').is_file():
         plot_table(variable)
     
-    im = Image.open(meta_pth / f'Figures/{variable}_df_styled.png')
+    im = Image.open(meta_pth / 'tabs' / f'{variable}_df_styled.png')
     axs['tab'].imshow(im.rotate(90, expand=True), aspect='auto')
                       
     axs['tab'].axis('off')                     
          
-         
-         
+
     '''
     manifold
     '''
                       
-    ex_regs = {'stim': 'VISp', 
-               'choice': 'GRN', 
-               'fback': 'IRN', 
-               'block': 'MOp'}
+    ex_regs = {'stim_restr': 'VISp', 
+               'choice_restr': 'GRN', 
+               'fback_restr': 'IRN', 
+               'block_restr': 'MOp'}
     
     # trajectory extra panels
     # example region 3d trajectory (tra_3d), line plot (ex_d)
     
-    axs['tra_3d'].axis('off')
-    axs['tra_3d'] = fig.add_subplot(4,2,6,projection='3d')
+    
+    #axs['tra_3d'] = fig.add_subplot(4,2,6,projection='3d')
     axs['tra_3d'].axis('off')
     
     # manifold example region line plot             
-    plot_traj_and_dist(variable, ex_regs[variable], fig = fig,
+    plot_traj_and_dist(variable+'_restr', 
+                       ex_regs[variable+'_restr'], 
+                       fig = fig,
                        axs=[axs['tra_3d'],axs['ex_d']])
     axs['tra_3d'].axis('off')
 
     if variable != 'block':
         # manifold panels, line plot with more regions and scatter    
-        plot_all(splits=[variable], fig=fig, 
+        plot_all(splits=[variable+'_restr'], fig=fig, 
                  axs=[axs['ex_ds'], axs['scat']]) 
 
 
@@ -1581,45 +1597,4 @@ def main_fig(variable):
     else:
         plot_block_box(ax=[axs['fr'], axs['pr_fr']])
 
-
-    fig.subplots_adjust(top=1.0,
-                        bottom=0.1,
-                        left=0.06,
-                        right=0.99,
-                        hspace=1.0,
-                        wspace=1.0)
-
-
-
-    # direct subplot approach
-#    axs = {}
-#    axs['dec_eff'] = plt.subplot2grid((15, 15), (0, 0), 
-#                                      colspan=3, rowspan=6)
-#    axs['man_eff'] = plt.subplot2grid((15, 15), (0, 3), 
-#                                      colspan=3, rowspan=6)
-#    axs['euc_eff'] = plt.subplot2grid((15, 15), (0, 6), 
-#                                      colspan=3, rowspan=6)
-#    axs['euc_lat'] = plt.subplot2grid((15, 15), (0, 9), 
-#                                      colspan=3, rowspan=6)
-#    axs['glm_eff'] = plt.subplot2grid((15, 15), (0, 12), 
-#                                      colspan=3, rowspan=6)       
-#    axs['tab'] = plt.subplot2grid((15, 15), (6, 0), 
-#                                      colspan=15, rowspan=2)           
-#    axs['ras'] = plt.subplot2grid((15, 15), (8, 0), 
-#                                      colspan=5, rowspan=4)
-#    axs['dec'] = plt.subplot2grid((15, 15), (8, 5), 
-#                                      colspan=5, rowspan=2)
-#    axs['ex_d'] = plt.subplot2grid((15, 15), (10, 5), 
-#                                      colspan=5, rowspan=2)
-#    axs['tra_3d'] = plt.subplot2grid((15, 15), (10, 10), 
-#                                      colspan=5, rowspan=3)
-#    axs['enc0'] = plt.subplot2grid((15, 15), (12, 0), 
-#                                      colspan=5, rowspan=2)       
-#    axs['enc1'] = plt.subplot2grid((15, 15), (14, 0), 
-#                                      colspan=5, rowspan=2)
-#    axs['ex_ds'] = plt.subplot2grid((15, 15), (12, 5), 
-#                                      colspan=5, rowspan=4)
-#    axs['scat'] = plt.subplot2grid((15, 15), (12, 10), 
-#                                      colspan=5, rowspan=4) 
-
-
+    fig.tight_layout()
