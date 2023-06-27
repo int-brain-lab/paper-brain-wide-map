@@ -1477,7 +1477,7 @@ def main_fig(variable):
     using mosaic grid of 8 rows and 12 columns
     '''
     
-    fig = plt.figure(figsize=(14, 13), facecolor='w', 
+    fig = plt.figure(figsize=(15, 13), facecolor='w', 
                      clear=True)
     
     # Swansons
