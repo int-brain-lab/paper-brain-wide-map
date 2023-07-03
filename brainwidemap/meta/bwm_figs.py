@@ -363,13 +363,17 @@ def plot_table(variable):
         styler.set_properties(subset=['region'] , 
                               **{'font-size': '9pt'})
         styler.hide(axis="index")
-        styler.set_table_styles([
+        styler.set_table_styles([         
             {"selector": "tr", "props": "line-height: 11px"},
-            {"selector": "td,th", 
+            {"selector": "td, th", 
                 "props": "line-height: inherit; padding: 0 "},
+                
             {"selector": "tbody td", 
                 "props": [("border", "1px solid white")]},
-            {'selector': 'thead', 'props': [('display', 'none')]}])
+            {'selector': 'thead', 
+                'props': [('display', 'table-header-group')]},
+            {'selector': 'th.col_heading', 
+                        'props': [('writing-mode', 'vertical-rl')]},])
 
                    
 #        styler.relabel_index(["row 1", "row 2",'r3',
@@ -776,7 +780,7 @@ def get_example_results():
     return targetunits, alignsets, sortlookup
 
 
-def ecoding_plot_raster(variable, ax=None):    
+def ecoding_raster_lines(variable, ax=None):    
 
     '''
     plot raster and two line plots
@@ -829,6 +833,9 @@ def ecoding_plot_raster(variable, ax=None):
         raster_cbar=False,
         raster_bin=0.002,
         axs=ax[0])
+        
+    ax.set_ylabel('Resorted trial index')
+    ax.set_xlabel('Time from event (s)')   
     ax.set_title("{} unit {} : $\log \Delta R^2$ = {:.2f}".format(
                  region, clu_id, np.log(drsq)))
 
@@ -1259,20 +1266,17 @@ def plot_all(splits=None, curve='euc', show_tra=False, axs=None,
         d = np.load(Path(pth_res, f'{split}.npy'),
                     allow_pickle=True).flat[0]
 
-        acronyms = [tops[split][0][j] for j in range(len(tops[split][0]))]
+        acronyms = [tops[split][0][j] for j 
+                    in range(len(tops[split][0]))]
+                    
         ac_sig = np.array([True if tops[split][1][j] < sigl
-                           else False for j in range(len(tops[split][0]))])
+                           else False for
+                           j in range(len(tops[split][0]))])
 
         maxes = np.array([d[x][f'amp_{curve}'] for x in acronyms])
         lats = np.array([d[x][f'lat_{curve}'] for x in acronyms])
-        # stdes = np.array([d[x][f'stde_{curve}'] for x in acronyms])
         cols = [palette[reg] for reg in acronyms]
 
-#        if split == 'stim':
-#            fig0, ax0 = plt.subplots()
-#            axs[k] = ax0
-
-        # yerr = 100*maxes/d[reg]['nclus']
         axs[k].errorbar(lats, maxes, yerr=None, fmt='None',
                         ecolor=cols, ls='None', elinewidth=0.5)
 
@@ -1591,7 +1595,7 @@ def main_fig(variable):
     
     if variable != 'block':
         # encoding panels 
-        ecoding_plot_raster(variable, ax=[axs['ras'], 
+        ecoding_raster_lines(variable, ax=[axs['ras'], 
                                           axs['enc0'],
                                           axs['enc1']])    
     else:
