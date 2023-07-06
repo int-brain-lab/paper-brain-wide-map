@@ -27,7 +27,6 @@ from brainbox.plot import peri_event_time_histogram
 import neurencoding.linear as lm
 from neurencoding.utils import remove_regressors
 
-
 import warnings
 #warnings.filterwarnings("ignore")
 
@@ -88,7 +87,10 @@ def pool_results_across_analyses():
     D = {}
     
     # glm   
-    df = pd.read_pickle("Results/GLM/2023-04-10_glm_fit_abswheel_regionres.pkl")
+    df = pd.read_pickle(Path(one.cache_dir, 'bwm_res',
+            'res_for_meta','GLM') / 
+            '2023-04-10_glm_fit_abswheel_regionres.pkl')
+
     d = {}
     for vari in varis:
         if vari in ['stimulus', 'choice', 'feedback']:
@@ -113,7 +115,8 @@ def pool_results_across_analyses():
                  'fback':'feedback', 'block':'block'}
     
     for vari in varis_euc:
-        d[varis_euc[vari]] = pd.read_csv(f'Results/Manifold/{vari}_restr.csv')[[
+        d[varis_euc[vari]] = pd.read_csv(Path(one.cache_dir, 'bwm_res',
+            'res_for_meta', 'Manifold') / f'{vari}_restr.csv')[[
                     'region','amp_euc_can', 'lat_euc','p_euc']]
     
         d[varis_euc[vari]][
@@ -134,8 +137,9 @@ def pool_results_across_analyses():
     
     # Mann Whitney (mw) 
     d = {}   
-    mw = pd.read_csv(
-        'Results/MannWhitney/Single_cell_updated_May_28_2023 - Sheet1.csv')
+    mw = pd.read_csv(Path(one.cache_dir, 'bwm_res',
+            'res_for_meta', 'MannWhitney') / 
+            'Single_cell_updated_May_28_2023 - Sheet1.csv')
            
     varis_mw = {'stim':'stimulus', 'choice':'choice',
                  'feedback':'feedback', 'block':'block'}
@@ -163,13 +167,14 @@ def pool_results_across_analyses():
     d = {} 
     for vari in varis:
     
-        d[vari] = pd.read_csv(f'Results/Decoding/'
-            f'decoding_results_{vari}.csv')[[
-                'region','valuesminusnull_median',
-                'frac_sig','combined_sig_corr']].rename(columns = {
-                'valuesminusnull_median': 'decoding_effect',
-                'frac_sig': 'decoding_frac_significant',
-                'combined_sig_corr': 'decoding_significant'})
+        d[vari] = pd.read_csv(Path(one.cache_dir, 'bwm_res',
+                    'res_for_meta', 'Decoding') /
+                    f'decoding_results_{vari}.csv')[[
+                    'region','valuesminusnull_median',
+                    'frac_sig','combined_sig_corr']].rename(columns = {
+                    'valuesminusnull_median': 'decoding_effect',
+                    'frac_sig': 'decoding_frac_significant',
+                    'combined_sig_corr': 'decoding_significant'})
                 
         d[vari].dropna(axis=0,how='any',subset=['decoding_effect'])
         d[vari].set_index("region",inplace=True)
