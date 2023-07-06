@@ -3,6 +3,7 @@ import numpy as np
 from pathlib import Path
 import math, string
 from collections import Counter
+from functools import reduce
 
 from one.api import ONE
 from ibllib.atlas import AllenAtlas
@@ -74,6 +75,122 @@ meta (Swansons and table)
 #####
 '''
 
+def pool_results_across_analyses():
+
+    '''
+    input are various csv files from 
+    4 different analysis types ['glm','euc', 'mw', 'dec']
+    4 variables ['stimulus', ' choice', 'feedback', 'block']
+    '''
+    
+    varis = ['stimulus', 'choice', 'feedback', 'block']#, 'wheel']
+    
+    D = {}
+    
+    # glm   
+    df = pd.read_pickle("Results/GLM/2023-04-10_glm_fit_abswheel_regionres.pkl")
+    d = {}
+    for vari in varis:
+        if vari in ['stimulus', 'choice', 'feedback']:
+            d[vari] = df['means']['pairs'
+                      ][vari].abs().to_frame(
+                      ).rename(columns = {0: 'glm_effect'})
+        elif vari == 'block':
+            d[vari] = df['means']['single_regressors']['pLeft'].to_frame(
+                        ).rename(columns = {'pLeft': 'glm_effect'})
+        elif vari == 'wheel':
+            d[vari] = df['means']['single_regressors']['wheel'].to_frame(
+                      ).rename(columns = {'wheel': 'glm_effect'})
+              
+    D['glm'] = d
+    print('intergated glm results')  
+     
+    # euclidean (euc) 
+    d = {}
+
+    
+    varis_euc = {'stim':'stimulus', 'choice':'choice',
+                 'fback':'feedback', 'block':'block'}
+    
+    for vari in varis_euc:
+        d[varis_euc[vari]] = pd.read_csv(f'Results/Manifold/{vari}_restr.csv')[[
+                    'region','amp_euc_can', 'lat_euc','p_euc']]
+    
+        d[varis_euc[vari]][
+            'euclidean_significant'] = d[varis_euc[vari]].p_euc.apply(
+                                               lambda x: x<sigl)
+                                               
+        d[varis_euc[vari]].set_index("region",inplace=True)
+        d[varis_euc[vari]].rename(columns = {'amp_euc_can': 'euclidean_effect',
+                                  'lat_euc': 'euclidean_latency'},
+                                  inplace=True)
+                                  
+        d[varis_euc[vari]] = d[varis_euc[vari]][['euclidean_effect',
+                           'euclidean_latency',
+                           'euclidean_significant']]
+
+    D['euc'] = d
+    print('intergated manifold results')    
+    
+    # Mann Whitney (mw) 
+    d = {}   
+    mw = pd.read_csv(
+        'Results/MannWhitney/Single_cell_updated_May_28_2023 - Sheet1.csv')
+           
+    varis_mw = {'stim':'stimulus', 'choice':'choice',
+                 'feedback':'feedback', 'block':'block'}
+    
+    for vari in varis_mw:
+        d[varis_mw[vari]] = mw[['Acronym',
+                    f'[{vari}] fraction of significance',
+                    f'[{vari}] significance']].rename(
+                    columns = {'Acronym': 'region',
+                    f'[{vari}] fraction of significance':  
+                    'mannwhitney_effect',
+                    f'[{vari}] significance': 
+                    'mannwhitney_significant'})
+        d[varis_mw[vari]].mannwhitney_significant.replace(
+                                np.nan, False,inplace=True)
+        d[varis_mw[vari]].mannwhitney_significant.replace(
+                                1, True,inplace=True)    
+        d[varis_mw[vari]].set_index("region",inplace=True)
+    
+    D['mw'] = d
+    print('intergated MannWhitney results')
+    
+       
+    # decoding (dec)
+    d = {} 
+    for vari in varis:
+    
+        d[vari] = pd.read_csv(f'Results/Decoding/'
+            f'decoding_results_{vari}.csv')[[
+                'region','valuesminusnull_median',
+                'frac_sig','combined_sig_corr']].rename(columns = {
+                'valuesminusnull_median': 'decoding_effect',
+                'frac_sig': 'decoding_frac_significant',
+                'combined_sig_corr': 'decoding_significant'})
+                
+        d[vari].dropna(axis=0,how='any',subset=['decoding_effect'])
+        d[vari].set_index("region",inplace=True)
+        
+    D['dec'] = d   
+    print('intergated decoding results')
+    
+       
+    # merge frames across analyses
+    inv_varis = {v: k for k, v in varis_euc.items()}
+    
+    for vari in varis:
+        df_ = reduce(lambda left,right: 
+                     pd.merge(left,right,how='inner',on='region'), 
+                     [D[ana][vari] for ana in D])    
+        df_.to_pickle(meta_pth / f"{inv_varis[vari]}.pkl")
+        
+    print('pooled and saved results at')
+    print(meta_pth)   
+
+
 def load_meta_results(variable):
     ''' 
     Load meta results for Swanson and table
@@ -142,7 +259,7 @@ def plot_swansons(variable, fig=None, axs=None):
 
     res = load_meta_results(variable) 
 
-    lw = .01
+    lw = 0.1  # .01
     
     # Labels for colorbars
     labels = ['Abs. diff. ' + r'$\Delta R^2$',
