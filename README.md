@@ -3,9 +3,8 @@ Code related to the brainwide map paper
 
 # Contents
 
-- [Overview](#overview)
 - [Installation](#installation)
-- [Demo](#minimal-working-example:-query-information-about-BWM-data)
+- [Demo](#minimal-working-example-query-information-about-bwm-data)
 
 # Installation
 The installation instructions go through the step of setting up a conda environment, installing dependencies, and linking this repository source code to the environment.
