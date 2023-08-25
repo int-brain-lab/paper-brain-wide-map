@@ -24,7 +24,7 @@ Activate environment
 conda activate ibl_bwm
 ```
 
-## Download and Install repository
+## Setup the paper-brain-wide-map repository
 
 Clone the repo 
 ```
@@ -82,3 +82,7 @@ min       20.000000      0.000000      0.000000      0.000075  ...     -0.007059
 max     3840.000000    383.000000   1686.000000      0.004317  ...      0.000053  6.144543e+08   3840.000000     59.000000
 ```
 For further data loading examples see `data_loading_examples.py`
+
+# Reproducing a basic set of results
+The following notebook shows a simple example of how to reproduce basic parts of the analysis on a subset of the data.
+https://colab.research.google.com/drive/1V6Cgi8vsKz0I3BOkFuq6lULb9we82vYr
