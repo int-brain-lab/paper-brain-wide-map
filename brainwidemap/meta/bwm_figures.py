@@ -4,11 +4,11 @@ import pdfkit
 import pandas as pd
 import numpy as np
 from functools import reduce
-from ibllib.atlas import AllenAtlas
-from ibllib.atlas.regions import BrainRegions
+from iblatlas.atlas import AllenAtlas
+from iblatlas.regions import BrainRegions
 from matplotlib.colors import LinearSegmentedColormap
 import dataframe_image as dfi
-from ibllib.atlas.plots import plot_swanson_vector
+from iblatlas.plots import plot_swanson_vector
 import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib

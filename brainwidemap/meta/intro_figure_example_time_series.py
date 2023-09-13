@@ -1,7 +1,7 @@
 from one.api import ONE
 from brainbox.processing import bincount2D
-from ibllib.atlas import AllenAtlas
-from ibllib.atlas.regions import BrainRegions
+from iblatlas.atlas import AllenAtlas
+from iblatlas.regions import BrainRegions
 from brainbox.io.one import SpikeSortingLoader
 from brainbox.io.one import SessionLoader
 import ibllib

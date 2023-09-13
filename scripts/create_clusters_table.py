@@ -5,7 +5,7 @@ import urllib.error
 from datetime import date
 
 from one.api import ONE
-from ibllib.atlas import AllenAtlas
+from iblatlas.atlas import AllenAtlas
 from iblutil.util import setup_logger
 
 from neuropixel import trace_header
