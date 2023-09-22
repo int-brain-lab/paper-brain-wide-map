@@ -108,6 +108,8 @@ def fit_stepwise(
     """
     trials_idx = design.trialsdf.index
     nglm = model(design, spk_t, spk_clu, binwidth=binwidth, estimator=estimator, mintrials=0)
+    nglm.fit()
+    fullfitpars = {"coefficients": nglm.coefs, "intercepts": nglm.intercepts}
     splitter = KFold(n_folds, shuffle=not contiguous)
     sequences, scores, deltas, splits = [], [], [], []
     for test, train in tqdm(splitter.split(trials_idx), desc="Fold", leave=False):
@@ -144,7 +146,13 @@ def fit_stepwise(
         sequences.append(sfs.sequences_)
         # TODO: Extract per-submodel alpha values
         splits.append({"test": trials_idx[test], "train": trials_idx[train]})
-    outdict = {"scores": scores, "deltas": deltas, "sequences": sequences, "splits": splits}
+    outdict = {
+        "scores": scores,
+        "deltas": deltas,
+        "sequences": sequences,
+        "splits": splits,
+        "fullfitpars": fullfitpars,
+    }
     return outdict
 
 
