@@ -23,7 +23,8 @@ accessible for plotting.
 
 You must save a `settings.py` file in this directory before executing this pipeline.  The file needs to be 
 in the format of `settings_template.py`.  You may copy and rename that file, making any desired settings 
-changes.  This file also determines where results will be saved and the file namings for this decoding run.  
+changes.  The settings used for the BWM pre-print main figures can be found in the folder "settings_for_BWM_figure". 
+The settings file also determines where results will be saved and the file namings for this decoding run.  
 `SETTINGS_FORMAT_NAME` plays a central role in identifying a particular decoding run.  If this variable does 
 not change and the decoding pipeline is run multiple times, decoding computation which has already been 
 completed will not be re-computed i.e. previous computations will be skipped.  But if this variable is 
@@ -211,3 +212,22 @@ and the comment above it.
 Additionally, to see an example of running a single sessions, see `decoding_example_script.py`.
 
 
+## Omnibus decoding
+
+Omnibus decoding refers to decoding that is done to draw a statistical conclusion about whether or not a variable
+can be decoded from the entire BWM dataset (rather than within a single region).  In order to do such decoding, 
+the typical pipeline which decodes from single regions must be changed to be agnostic to regions.  The regressors
+are all the neurons within a given eid i.e. neurons are combined across probes and regions into a single omnibus
+region.
+
+In order to effect these changes, the settings file line that contains SINGLE_REGION must be changed to 
+```
+SINGLE_REGION = False #...
+```
+There should also be a line of code in the settings file that contains CANONICAL_SET which should be set to
+```
+CANONICAL_SET = True
+```
+to ensure that only neurons from the canonical set are used for omnibus decoding.
+
+The settings used for the omnibus test in the BWM pre-print are included in the folder "settings_for_BWM_omnibus".
