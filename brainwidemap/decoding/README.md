@@ -56,6 +56,14 @@ Be careful not to do this with too many jobs so as to not overload the server.  
 ```
 sbatch 00_slurm_data_caching.py
 ```
+the output will print "Submitted batch job SUBMISSIONID" where SUBMISSIONID is a number (typically 8 digits).
+
+Issues may arise when caching data, for example parallel jobs may not be thread safe or ONE may fail.  
+Therefore, please check that data has been cached properly by running 
+```
+python 00b_check_download.py decodingdatacaching.SUBMISSIONID
+```
+where SUBMISSIONID is the number printed as described above.
 
 ## Generate session dataframe
 
@@ -136,19 +144,18 @@ files are saved and change if necessary.
 ## Check decoding
 
 Did any decoding jobs cancel (e.g. due to time limit) or did any jobs contain regression convergence 
-errors? This information is in the slurm error files.  Running 
+errors? This information is in the slurm error files.  Run 
 ```
 python 03b_check_convergence.py job_name
 ```
-where job_name is the error file prefix used in the previous step, will read all of these files and list 
+(where job_name is the error file prefix used in the previous step) to read all of these files and list 
 the cancellations or convergence error warnings in the command line.  Error files are found by matching the
 regex `job_name+".*err"`.  If there are cancellations, read the corresponding error/output files and see 
 why.  If it is due to time, simply repeat the previous step -- completed session/regions will be skipped 
 and time will be used on the remaining session/regions.  This is typically necessary for wheel-speed 
-decoding on my cluster which has a max time limit of 48 hours.
+decoding on my (Brandon Benson) cluster which has a max time limit of 48 hours.
 
-There is not a slurm file to submit this job because it is most useful to run on your current node, and the
-outputs are printed directly in the REPL.
+The outputs are printed directly in the REPL.
 
 ## Format results and save in dataframes
 
@@ -159,29 +166,43 @@ This can take awhile so it is parallelized and submitted using
 sbatch 05_slurm_format.sh
 ```
 where the default is to parallelize 50 ways (`N_PARA=50`).  In that case 50 dataframes will be saved, and 
-they are combined in the next step
+they are combined in the next step.  
+When the above command is run, there will be a printed output, "Submitted batch job FORMATSUBMISSIONID"
+where FORMATSUBMISSIONID is a number that corresponds to the submission.
+
+Check that this step has completed properly using the following line of code
+```
+python 05b_check_formats.py decodingformat.FORMATSUBMISSIONID
+```
+where FORMATSUBMISSIONID is the number explained above. It will output a list of non-successful files.
+Typically this list is empty, so you can proceed to the next step.
 
 ## Generate summary tables
 
-The final step of aggregating the data is to combine the dataframes from the previous step (e.g. 50) into a 
+The final step of aggregating the data is to combine the many dataframes from the previous step (e.g. 50 dataframes) into a 
 single dataframe which is useful for plotting.  The type of table saved depends on the variable being 
 decoded (see `settings.py`).  Again, this can be accomplished by running
 ```
 sbatch 06_slurm_generate_summary.sh
 ```
 
-NB: wheel-speed summary table takes a lot of memory to construct, so set the slurm run to have 128GB.
+NB: The wheel-speed and wheel-velocity summary table takes a lot of memory to construct, so set the line in 06_slurm_generate_summary.sh that starts with "#SBATCH --mem="
+to read
+```
+#SBATCH --mem=128G
+```
+.
 
 ## Run a subset of the BWM dataset
 
 Running a subset of the BMW dataset can be helpful for debugging or quick analysis purposes.
 You can filter for a subset of subjects in the BWM dataset by adjusting `04_slurm_decode.sh`.
-Specifically, comment out this line of the file
+Specifically, comment out this line
 ```
 python 04_decode_single_session.py $SLURM_ARRAY_TASK_ID
 ```
 and uncomment the last line of the file.  This adds a series of subjects as inputs to
-the `04_decode_single_session.py` script, and you can add or remove any number of these subjects.  The scr$
+the `04_decode_single_session.py` script, and you can add or remove any number of these subjects.  The script
 will filter for only BWM sessions of these subjects.
 
 To see where the filtering occurs in `04_decode*.py` look for the if statement `if len(sys.argv) > 2:` 
