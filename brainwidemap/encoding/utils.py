@@ -188,7 +188,8 @@ def make_batch_slurm_singularity(
     fw.write(f"#SBATCH --cpus-per-task={cores_per_job}\n")
     fw.write(f"#SBATCH --mem={memory}\n")
     fw.write("\n")
-    fw.write(f"module load {' '.join(singularity_modules)}\n")
+    if not len(singularity_modules) == 0:
+        fw.write(f"module load {' '.join(singularity_modules)}\n")
     bindstr = "" if len(mount_paths) == 0 else "-B "
     mountpairs = ",".join([f"{k}:{v}" for k, v in mount_paths.items()])
     fw.write(f"singularity run {bindstr} {mountpairs} {container_image} /bin/bash {workerscript}")
@@ -205,7 +206,6 @@ def make_batch_slurm_singularity(
 
 def load_trials_df(
     eid,
-    one,
     t_before=0.0,
     t_after=0.2,
     ret_wheel=False,

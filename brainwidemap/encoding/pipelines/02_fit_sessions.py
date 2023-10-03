@@ -54,7 +54,7 @@ parser.add_argument(
     "--singularity_modules",
     type=str,
     nargs="+",
-    default=["GCC/9.3.0", "Singularity/3.7.3-Go-1.14"],
+    default=[],
     help="Modules to load when using singularity containers.",
 )
 parser.add_argument(

@@ -10,6 +10,27 @@ import pandas as pd
 from ibllib.atlas import BrainRegions
 
 
+def covarmap(params, covars):
+    names = []
+    for cov in covars:
+        match cov:
+            case "stimonR" | "stimonL":
+                covshape = params["bases"]["stim"].shape[1]
+            case "fmoveR" | "fmoveL":
+                covshape = params["bases"]["fmove"].shape[1]
+            case "correct" | "incorrect":
+                covshape = params["bases"]["feedback"].shape[1]
+            case "pLeft" | "pLeft_tr":
+                covshape = 1
+            case "wheel":
+                covshape = params["bases"]["wheel"].shape[1]
+        if covshape == 1:
+            names.append(cov)
+        else:
+            names.extend([f"{cov}_{i}" for i in range(covshape)])
+    return names
+
+
 if __name__ == "__main__":
     # Standard library
     import os
@@ -26,18 +47,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "--fitdate",
         type=str,
-        default="2023-04-09",
+        default="2023-10-02",
         help="Date on which fit was run",
-    )
-    parser.add_argument(
-        "--n_cov",
-        type=int,
-        default=9,
-        help="Number of covariates in model",
     )
     args = parser.parse_args()
     fitdate = args.fitdate
-    n_cov = args.n_cov
     parpath = Path(GLM_FIT_PATH).joinpath(f"{fitdate}_glm_fit_pars.pkl")
     with open(parpath, "rb") as fo:
         params = pickle.load(fo)
@@ -57,12 +71,31 @@ if __name__ == "__main__":
                 if os.path.isfile(filepath) and filepath.match(f"*{fitdate}*"):
                     filenames.append(filepath)
 
+    covnames = [
+        "stimonR",
+        "stimonL",
+        "correct",
+        "incorrect",
+        "fmoveR",
+        "fmoveL",
+        "pLeft",
+        "pLeft_tr",
+        "wheel",
+        "full_model",
+    ]
+
     # Process files after fitting
     sessdfs = []
+    sessweights = []
+    weightnames = {i: n for i, n in enumerate(covarmap(params, covnames))}
+
     for fitname in filenames:
         with open(fitname, "rb") as fo:
             tmpfile = pickle.load(fo)
-        folds = []
+        weights = pd.DataFrame.from_dict(
+            tmpfile["fullfitpars"]["coefficients"].to_dict(), orient="index"
+        )
+        scores_folds = []
         for i in range(len(tmpfile["scores"])):
             tmpdf = tmpfile["deltas"][i]["test"]
             tmpdf["full_model"] = tmpfile["scores"][i]["basescores"]["test"]
@@ -72,32 +105,26 @@ if __name__ == "__main__":
             tmpdf["qc_label"] = tmpfile["clu_df"]["label"][tmpdf.index]
             tmpdf["fold"] = i
             tmpdf.index.set_names(["clu_id"], inplace=True)
-            folds.append(tmpdf.reset_index())
-        sess_master = pd.concat(folds)
+            scores_folds.append(tmpdf.reset_index())
+        weights["full_model"] = tmpfile["scores"][i]["basescores"]["test"]
+        weights["eid"] = fitname.parts[-2]
+        weights["pid"] = fitname.parts[-1].split("_")[1]
+        weights["acronym"] = tmpfile["clu_regions"][weights.index]
+        weights["qc_label"] = tmpfile["clu_df"]["label"][weights.index]
+        weights.rename(columns=weightnames, inplace=True)
+
+        sess_master = pd.concat(scores_folds)
         sessdfs.append(sess_master)
+        sessweights.append(weights)
     masterscores = pd.concat(sessdfs)
+    masterweights = pd.concat(sessweights)
+    masterweights.index.name = "clu_id"
     # Take the average score across the different folds of cross-validation for each unit for
     # each of the model regressors
     meanmaster = (
         masterscores.set_index(["eid", "pid", "clu_id", "acronym", "qc_label", "fold"])
         .groupby(["eid", "pid", "clu_id", "acronym", "qc_label"])
-        .agg(
-            {
-                k: "mean"
-                for k in [
-                    "stimonR",
-                    "stimonL",
-                    "correct",
-                    "incorrect",
-                    "fmoveR",
-                    "fmoveL",
-                    "pLeft",
-                    "pLeft_tr",
-                    "wheel",
-                    "full_model",
-                ]
-            }
-        )
+        .agg({k: "mean" for k in covnames})
     )
 
     br = BrainRegions()
@@ -108,18 +135,22 @@ if __name__ == "__main__":
 
     br = BrainRegions()
     # Remap the existing acronyms, which use the Allen ontology, into the Beryl ontology
-    # Note that the groupby operation is to save time on computation so we don't need to 
+    # Note that the groupby operation is to save time on computation so we don't need to
     # recompute the region mapping for each unit, but rather each Allen acronym.
     grpby = masterscores.groupby("acronym")
     meanmaster.reset_index(["acronym", "qc_label"], inplace=True)
     masterscores["region"] = [regmap(ac)[0] for ac in masterscores["acronym"]]
     meanmaster["region"] = [regmap(ac)[0] for ac in meanmaster["acronym"]]
+    masterweights["region"] = [regmap(ac)[0] for ac in masterweights["acronym"]]
 
     outdict = {
         "fit_params": params,
         "dataset": dataset,
         "fit_results": masterscores,
         "mean_fit_results": meanmaster,
+        "fit_weights": masterweights.reset_index().set_index(
+            ["eid", "pid", "clu_id", "acronym", "qc_label"]
+        ),
         "fit_files": filenames,
     }
     with open(Path(GLM_FIT_PATH).joinpath(f"{fitdate}_glm_fit.pkl"), "wb") as fw:
