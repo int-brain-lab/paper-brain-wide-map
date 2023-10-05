@@ -15,13 +15,16 @@ pip install openturns
 ## Introduction
 
 Decoding analysis for the BWM paper consists of regression where regressors are neuron spike counts
-across trials and targets are task or behavior variables across trials.  Neurons within a given session
-and region are used for a single decoding.  In order to analyze all of the BWM regions we parallelize the 
+across trials and targets are task or behavioral variables across trials.  Neurons within a given session
+and region are used for a single regression.  The results from this given session and region are compared
+to a non-parametric null distribution, constructed from many regressions with the same regressors and 
+different targets (drawn from a null model), to determine significance.  
+In order to analyze all of the BWM regions and sessions, we parallelize the 
 code on a slurm based cluster.  The following pipeline steps load the data, perform the regression (both for 
-the real data and for a non-parametric null distribution), and save the results in a format which is 
+the real data and to construct a non-parametric null distribution), and save the results in a format which is 
 accessible for plotting.
 
-You must save a `settings.py` file in this directory before executing this pipeline.  The file needs to be 
+You must save a `settings.py` file in this directory before executing this pipeline.  The said file needs to be 
 in the format of `settings_template.py`.  You may copy and rename that file, making any desired settings 
 changes.  The settings used for the BWM pre-print main figures can be found in the folder "settings_for_BWM_figure". 
 The settings file also determines where results will be saved and the file namings for this decoding run.  
@@ -32,9 +35,9 @@ changed then all decoding will be re-run with the pipeline.
 Notably, the `SETTINGS_FORMAT_NAME` variable can be changed simply by changing the date.  
 *It is recommended, therefore, that you change the date for a fresh decoding run of a given target variable.*
 
-Additionally, you will often be submitting "*.sh" files to slurm.  The slurm settings within these files may
-need to be adapted for your cluster.  The file names and directories for the "*.out" and "*.err" files will
-also need to be changed to your desired names and directories. 
+Additionally, you will often be submitting "\*.sh" files to slurm, discussed below.  The slurm settings within these files may
+need to be adapted for your cluster.  These "\*.sh" files contain file names and directories for the output ("\*.out") and error ("\*.err") files produced with each slurm job.
+These file names can be changed to whatever you desire, but the directory must match the `SLURM_DIR` varible found in `settings.py`.
 
 For an example of how to perform decoding for a single session, see the file 
 `decoding_example_script.py` in this directory. The `settings.py` file does not need to be copied 
