@@ -27,7 +27,12 @@ accessible for plotting.
 You must save a `settings.py` file in this directory before executing this pipeline.  The said file needs to be 
 in the format of `settings_template.py`.  You may copy and rename that file, making any desired settings 
 changes.  The settings used for the BWM pre-print main figures can be found in the directory `settings_for_BWM_figure`. 
-The settings file also determines where results will be saved and the file namings for this decoding run.  
+Additionally, there are settings for omnibus testing in the directory `settings_for_BWM_omnibus` and settings for 
+comparing results with the prior paper in the directory `settings_for_prior_paper`.
+*Note that the settings files are sometimes copied from older settings files, and there may be missing or
+additional settings that cause errors.  If this occurs just add or remove settings to match
+`settings_template.py`*
+The settings file determines where results will be saved and the file namings for this decoding run.  
 `SETTINGS_FORMAT_NAME` plays a central role in identifying a particular decoding run.  If this variable does 
 not change and the decoding pipeline is run multiple times, decoding computation which has already been 
 completed will not be re-computed i.e. previous computations will be skipped.  But if this variable is 
@@ -123,12 +128,20 @@ sbatch 03_slurm_generate_imposter_df.py
 
 ## Decoding sessions
 
-Regression could be performed in this step through 
+All of the above steps should be run once to prepare for decoding, but this step and the following steps (formatting and summary tables)
+can be run many times for various settings file configurations.  Note that you may want to change the number of 
+pseudo sessions used for different runs (e.g. if you have more/less computation time available).  You can do this by
+changing the number in the following line of `settings.py`, 
 ```
-04_decode_single_session.py X
+N_PSEUDO = 1000 #...
 ```
-where `X` is an integer which indexes across jobs.  Each session gets at least 1 job, so there are many 
-hundreds of jobs.  These jobs should not be run 1-by-1, but are instead submitted in parallel using 
+.  
+Running this step is the heart of the decoding pipeline, regression.  Regression can be performed in this step through 
+```
+python 04_decode_single_session.py X
+```
+where `X` is an integer which indexes across many hundreds jobs to perform decoding on the entire BWM dataset.  
+These jobs should not be run 1-by-1, but are instead submitted in parallel using 
 
 ```
 sbatch 04_slurm_decode.sh
@@ -137,7 +150,7 @@ sbatch 04_slurm_decode.sh
 The `04_decode_single_session.py` script is meant to be run on the cluster and not alone.  Thus, it is not 
 recommended that you manipulate or control the `04_decode_single_session.py` input integers, `X`, which 
 determine the session and subset of null sessions.  If you want to run only a subset of the BWM datset, 
-you can filter for a subset of subjects in the BWM dataset as discussed in the next section.  
+you can filter for a subset of subjects in the BWM dataset as discussed a section below.  
 Additionally, to see an example of running a single session, see `decoding_example_script.py`.
 
 When you submit `04_slurm_decode.sh` you should change the line 
@@ -262,8 +275,8 @@ Additionally, to see an example of running a single sessions, see `decoding_exam
 
 Omnibus decoding refers to decoding that is done to draw a statistical conclusion about whether or not a variable
 can be decoded from the entire BWM dataset (rather than within a single region/session).  In order to do such decoding, 
-the typical pipeline must be changed to be agnostic to regions.  Since regions are ignored, the regressors
-should be all the neurons within a given eid i.e. neurons should be combined across probes and regions into a single omnibus
+the typical pipeline must be changed to be agnostic to regions.  Consequently, the regressors
+should consist of all the neurons within a session, i.e. neurons should be combined across probes and regions into a single omnibus
 region.
 
 In order to effect these changes, the settings file line that contains SINGLE_REGION must be changed to 
@@ -275,5 +288,8 @@ There should also be a line of code in the settings file that contains CANONICAL
 CANONICAL_SET = True
 ```
 to ensure that only neurons from the canonical set are used for omnibus decoding.
+Besides the settings file, the pipeline can be run as usual.
 
-The settings used for the omnibus test in the BWM pre-print are included in the folder "settings_for_BWM_omnibus".
+The settings used for the omnibus test in the BWM pre-print are included in the directory `settings_for_BWM_omnibus`.
+The `settings_for_BWM_omnibus/settings_wheel-vel.py` settings have led to unresolved issues in the past, but 
+the rest of the omnibus settings files should work without a problem.

@@ -112,6 +112,7 @@ BALANCED_CONTINUOUS_TARGET = False  # is target continuous or discrete FOR BALAN
 # CLUSTER/UNIT PARAMS
 MIN_UNITS = 1  # regions with units below this threshold are skipped
 SINGLE_REGION = True  # perform decoding on region-wise or whole-brain decoding
+CANONICAL_SET = True # perform decoding only on neurons that are within the canonical set 
 MERGED_PROBES = True  # merge probes before performing analysis
 
 # SESSION/BEHAVIOR PARAMS
@@ -214,6 +215,7 @@ params = {
     # CLUSTER/UNIT
     'min_units': MIN_UNITS,
     'single_region': SINGLE_REGION,
+    'canonical_set': CANONICAL_SET,
     'merged_probes': MERGED_PROBES,
     # SESSION/BEHAVIOR
     'min_behav_trials': MIN_BEHAV_TRIAS,

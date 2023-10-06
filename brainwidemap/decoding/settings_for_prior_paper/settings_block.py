@@ -116,6 +116,7 @@ BALANCED_CONTINUOUS_TARGET = False  # is target continuous or discrete FOR BALAN
 MIN_UNITS = 10  # regions with units below this threshold are skipped
 QC_CRITERIA = 3 / 3  # fraction of qc criteria each unit needs to pass for inclusion
 SINGLE_REGION = True  # perform decoding on region-wise or whole-brain decoding
+CANONICAL_SET = False # perform decoding only on neurons that are within the canonical set 
 MERGED_PROBES = True  # merge probes before performing analysis
 
 # SESSION/BEHAVIOR PARAMS
@@ -227,6 +228,7 @@ params = {
     'min_units': MIN_UNITS,
     'qc_criteria': QC_CRITERIA,
     'single_region': SINGLE_REGION,
+    'canonical_set': CANONICAL_SET,
     'merged_probes': MERGED_PROBES,
     # SESSION/BEHAVIOR
     'min_behav_trials': MIN_BEHAV_TRIAS,
