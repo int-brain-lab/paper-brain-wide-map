@@ -52,7 +52,7 @@ pip install ibllib --no-deps
 To install additional requirements for the individual analyses, see the README files in the respective subfolders in `brainwidemap`
 
 # Minimal working example: query information about BWM data
-You can now use the following in Python after having setup ONE as described [here]()
+You can now use the following in Python after having setup ONE as described [here](https://int-brain-lab.github.io/iblenv/notebooks_external/one_quickstart.html)
 The first connection should take a minute, subsequent connections should be faster.
 
 
