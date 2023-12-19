@@ -10,7 +10,7 @@ from one.remote import aws
 import brainwidemap
 
 
-def bwm_query(one=None, alignment_resolved=True, return_details=False, freeze='2022_10_bwm_release'):
+def bwm_query(one=None, alignment_resolved=True, return_details=False, freeze='2023_12_bwm_release'):
     """
     Function to query for brainwide map sessions that pass the most important quality controls. Returns a dataframe
     with one row per insertions and columns ['pid', 'eid', 'probe_name', 'session_number', 'date', 'subject', 'lab']
@@ -25,8 +25,8 @@ def bwm_query(one=None, alignment_resolved=True, return_details=False, freeze='2
     return_details: bool
         Default is False. If True returns a second output a list containing the full insertion dictionary for all
         insertions returned by the query. Only needed if you need information that is not contained in the bwm_df.
-    freeze: {None, 2022_10_initial, 2022_10_update, 2022_bwm_release}
-        Default is 2022_10_bwm_release. If None, the database is queried for the current set of pids satisfying the
+    freeze: {None, 2022_10_initial, 2022_10_update, 2022_10_bwm_release, 2023_12_bwm_release}
+        Default is 2023_12_bwm_release. If None, the database is queried for the current set of pids satisfying the
         criteria. If a string is specified, a fixed set of eids and pids is returned instead of querying the database.
 
     Returns
@@ -57,10 +57,10 @@ def bwm_query(one=None, alignment_resolved=True, return_details=False, freeze='2
     assert one is not None, 'If freeze=None, you need to pass an instance of one.api.ONE'
     base_query = (
         'session__project__name__icontains,ibl_neuropixel_brainwide_01,'
-        'session__json__IS_MOCK,False,'
+        '~session__json__IS_MOCK,True,'
         'session__qc__lt,50,'
-        '~json__qc,CRITICAL,'
         'session__extended_qc__behavior,1,'
+        '~json__qc,CRITICAL,'
         'json__extended_qc__tracing_exists,True,'
     )
 
@@ -288,7 +288,7 @@ def load_trials_and_mask(
     return sess_loader.trials, mask
 
 
-def download_aggregate_tables(one, target_path=None, type='clusters', tag='2022_Q4_IBL_et_al_BWM', overwrite=False):
+def download_aggregate_tables(one, target_path=None, type='clusters', tag='2023_Q4_IBL_et_al_BWM_2', overwrite=False):
     """
     Function to download the aggregated clusters information associated with the given data release tag from AWS.
 
@@ -460,7 +460,7 @@ def filter_sessions(eids, trials_table, bwm_include=True, min_errors=3, min_tria
     return trials_agg.index.to_list()
 
 
-def bwm_units(one=None, freeze='2022_10_bwm_release', rt_range=(0.08, 0.2), min_errors=3,
+def bwm_units(one=None, freeze='2023_12_bwm_release', rt_range=(0.08, 0.2), min_errors=3,
               min_qc=1., min_units_sessions=(10, 2)):
     """
     Creates a dataframe with units that pass the current BWM inclusion criteria.
