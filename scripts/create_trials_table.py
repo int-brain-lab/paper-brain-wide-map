@@ -7,10 +7,10 @@ from brainwidemap import bwm_query, load_trials_and_mask
 
 
 year_week = date.today().isocalendar()[:2]
-STAGING_PATH = Path('/mnt/s0/aggregates/2022_Q4_IBL_et_al_BWM').joinpath(f'{year_week[0]}_W{year_week[1]:02}_bwm')
+STAGING_PATH = Path('/mnt/s1/aggregates/2023_Q4_IBL_et_al_BWM_2').joinpath(f'{year_week[0]}_W{year_week[1]:02}_bwm')
 
 
-one = ONE(base_url='https://alyx.internationalbrainlab.org')
+one = ONE(base_url='https://openalyx.internationalbrainlab.org')
 bwm_df = bwm_query()
 
 all_trials = []
@@ -36,4 +36,4 @@ df_trials.to_parquet(STAGING_PATH.joinpath('trials.pqt'))
 week_file = STAGING_PATH.joinpath('trials.pqt')
 root_file = STAGING_PATH.parent.joinpath('trials.pqt')
 print(f"cp {week_file} {root_file}")
-print(f'aws s3 sync "{STAGING_PATH.parent}" s3://ibl-brain-wide-map-private/aggregates/2022_Q4_IBL_et_al_BWM/')
+print(f'aws s3 sync "{STAGING_PATH.parent}" s3://ibl-brain-wide-map-private/aggregates/2023_Q4_IBL_et_al_BWM_2/')

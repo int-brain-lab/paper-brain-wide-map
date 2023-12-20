@@ -18,13 +18,13 @@ logger = setup_logger('brainbox')
 ba = AllenAtlas()
 
 year_week = date.today().isocalendar()[:2]
-STAGING_PATH = Path('/mnt/s0/aggregates/2022_Q4_IBL_et_al_BWM').joinpath(f'{year_week[0]}_W{year_week[1]:02}_bwm')
-CACHE_DIR = Path("/mnt/s1/bwm_julia")  # this is the path containing the metrics and clusters tables for fast releoading
+STAGING_PATH = Path('/mnt/s1/aggregates/2023_Q4_IBL_et_al_BWM_2').joinpath(f'{year_week[0]}_W{year_week[1]:02}_bwm')
+CACHE_DIR = Path("/mnt/s0/bwm_julia")  # this is the path containing the metrics and clusters tables for fast releoading
 
 excludes = []
 errorkey = []
 error404 = []
-one = ONE(base_url='https://alyx.internationalbrainlab.org')
+one = ONE(base_url='https://openalyx.internationalbrainlab.org')
 bwm_df = bwm_query()
 pids = bwm_df['pid']
 # init dataframes
@@ -113,6 +113,6 @@ df_probes.to_parquet(STAGING_PATH.joinpath('probes.pqt'))
 df_depths.to_parquet(STAGING_PATH.joinpath('depths.pqt'))
 
 print(f'cp {STAGING_PATH.joinpath("*")} {STAGING_PATH.parent}')
-print(f'aws s3 sync "{STAGING_PATH.parent}" s3://ibl-brain-wide-map-private/aggregates/2022_Q4_IBL_et_al_BWM')
+print(f'aws s3 sync "{STAGING_PATH.parent}" s3://ibl-brain-wide-map-private/aggregates/2023_Q4_IBL_et_al_BWM_2')
 print(errorkey)
 print(error404)
