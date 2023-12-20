@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import urllib.error
 from datetime import date
+import tqdm
 
 from one.api import ONE
 from ibllib.atlas import AllenAtlas
@@ -35,8 +36,7 @@ ldf_depths = []
 no_spike_sorting = []
 
 IMIN = 0
-
-for i, pid in enumerate(pids):
+for i, pid in tqdm.tqdm(enumerate(pids)):
     if i < IMIN:
         continue
     eid, pname = one.pid2eid(pid)
@@ -95,12 +95,7 @@ df_channels = pd.concat(ldf_channels, ignore_index=True)
 df_clusters = pd.concat(ldf_clusters, ignore_index=True)
 df_depths = pd.concat(ldf_depths)
 
-# convert the channels dataframe to a multi-index dataframe
-h = trace_header(version=1)
-_, chind = ismember2d(df_channels.loc[:, ['lateral_um', 'axial_um']].to_numpy(), np.c_[h['x'], h['y']])
-df_channels['raw_ind'] = chind
-df_channels = df_channels.set_index(['pid', 'raw_ind'])
-
+# todo: compute the df_channels['raw_ind'] field by modifying the spike sorting loader behaviour
 # convert the depths dataframe to a multi-index dataframe
 df_depths['depths'] = df_depths.index.values
 df_depths = df_depths.set_index(['pid', 'depths'])
