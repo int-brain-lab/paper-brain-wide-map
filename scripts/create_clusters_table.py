@@ -113,6 +113,6 @@ df_probes.to_parquet(STAGING_PATH.joinpath('probes.pqt'))
 df_depths.to_parquet(STAGING_PATH.joinpath('depths.pqt'))
 
 print(f'cp {STAGING_PATH.joinpath("*")} {STAGING_PATH.parent}')
-print(f'aws s3 sync "{STAGING_PATH.parent}" s3://ibl-brain-wide-map-private/aggregates/2023_Q4_IBL_et_al_BWM_2')
+print(f'aws s3 sync "{STAGING_PATH.parent}" s3://ibl-brain-wide-map-private/aggregates/2023_Q4_IBL_et_al_BWM_2 --profile ibl')
 print(errorkey)
 print(error404)

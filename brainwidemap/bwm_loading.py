@@ -492,8 +492,8 @@ def bwm_units(one=None, freeze='2023_12_bwm_release', rt_range=(0.08, 0.2), min_
     ----------
     one: one.api.ONE
         Instance to be used to connect to local or remote database.
-    freeze: {None, 2022_10_initial, 2022_10_update, 2022_bwm_release}
-        Default is 2022_10_bwm_release. If None, the database is queried for the current set of pids satisfying the
+    freeze: {None, 2022_10_initial, 2022_10_update, 2022_10_bwm_release, 2023_12_bwm_release}
+        Default is 2023_12_bwm_release. If None, the database is queried for the current set of pids satisfying the
         criteria. If a string is specified, a fixed set of eids and pids is returned instead of querying the database.
     rt_range: tuple
         Admissible range of trial length measured by goCue_time (start) and feedback_time (end).
