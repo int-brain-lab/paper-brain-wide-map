@@ -324,7 +324,7 @@ def download_aggregate_tables(one, target_path=None, type='clusters', tag='2023_
     type: {'clusters', 'trials'}
         Which type of aggregate table to load, clusters or trials table.
     tag: str
-        Tag for which to download the clusters table. Default is '2022_Q4_IBL_et_al_BWM'.
+        Tag for which to download the clusters table. Default is '2023_Q4_IBL_et_al_BWM_2''.
     overwrite : bool
         If True, will re-download files even if file exists locally and file sizes match.
 
