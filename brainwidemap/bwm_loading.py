@@ -5,6 +5,7 @@ from pathlib import Path
 
 from iblutil.numerical import ismember
 from brainbox.io.one import SpikeSortingLoader, SessionLoader
+from brainbox.behavior import training
 from ibllib.atlas.regions import BrainRegions
 from one.remote import aws
 import brainwidemap
@@ -196,7 +197,9 @@ def merge_probes(spikes_list, clusters_list):
 
 def load_trials_and_mask(
         one, eid, min_rt=0.08, max_rt=2., nan_exclude='default', min_trial_len=None,
-        max_trial_len=None, exclude_unbiased=False, exclude_nochoice=False, sess_loader=None):
+        max_trial_len=None, exclude_unbiased=False, exclude_nochoice=False, sess_loader=None,
+        truncate_to_pass=True
+):
     """
     Function to load all trials for a given session and create a mask to exclude all trials that have a reaction time
     shorter than min_rt or longer than max_rt or that have NaN for one of the specified events.
@@ -227,6 +230,9 @@ def load_trials_and_mask(
         True to exclude trials where the animal does not respond. Default is False.
     sess_loader: brainbox.io.one.SessionLoader or NoneType
         Optional SessionLoader object; if None, this object will be created internally
+    truncate_to_pass: bool
+        True to truncate sessions that dont pass performance on easy trials > 90 percent when all trials are used,
+        but do pass when the first x > 400 trials are used. Default is True.
 
     Returns
     -------
@@ -255,6 +261,23 @@ def load_trials_and_mask(
 
     if sess_loader.trials.empty:
         sess_loader.load_trials()
+
+    # Truncate trials to pass performance on easy trials > 0.9
+    good_enough = training.criterion_delay(
+        n_trials=sess_loader.trials.shape[0],
+        perf_easy=training.compute_performance_easy(sess_loader.trials),
+    )
+    if truncate_to_pass and not good_enough:
+        n_trials = sess_loader.trials.shape[0]
+        while not good_enough and n_trials > 400:
+            n_trials -= 1
+            sess_loader.trials = sess_loader.trials[:n_trials]
+            good_enough = training.criterion_delay(
+                n_trials=sess_loader.trials.shape[0],
+                perf_easy=training.compute_performance_easy(sess_loader.trials),
+            )
+        if not good_enough:
+            raise AssertionError('Session does not pass performance on easy trials > 0.9 for n_trials > 400')
 
     # Create a mask for trials to exclude
     # Remove trials that are outside the allowed reaction time range
@@ -301,7 +324,7 @@ def download_aggregate_tables(one, target_path=None, type='clusters', tag='2023_
     type: {'clusters', 'trials'}
         Which type of aggregate table to load, clusters or trials table.
     tag: str
-        Tag for which to download the clusters table. Default is '2022_Q4_IBL_et_al_BWM'.
+        Tag for which to download the clusters table. Default is '2023_Q4_IBL_et_al_BWM_2''.
     overwrite : bool
         If True, will re-download files even if file exists locally and file sizes match.
 
@@ -469,8 +492,8 @@ def bwm_units(one=None, freeze='2023_12_bwm_release', rt_range=(0.08, 0.2), min_
     ----------
     one: one.api.ONE
         Instance to be used to connect to local or remote database.
-    freeze: {None, 2022_10_initial, 2022_10_update, 2022_bwm_release}
-        Default is 2022_10_bwm_release. If None, the database is queried for the current set of pids satisfying the
+    freeze: {None, 2022_10_initial, 2022_10_update, 2022_10_bwm_release, 2023_12_bwm_release}
+        Default is 2023_12_bwm_release. If None, the database is queried for the current set of pids satisfying the
         criteria. If a string is specified, a fixed set of eids and pids is returned instead of querying the database.
     rt_range: tuple
         Admissible range of trial length measured by goCue_time (start) and feedback_time (end).
