@@ -7,7 +7,7 @@ import sys
 from tqdm import tqdm
 
 
-from behavior_models.models.utils import format_data as format_data_mut
+from behavior_models.utils import format_data as format_data_mut
 from brainwidemap.decoding.settings import RESULTS_DIR, SETTINGS_FORMAT_NAME, params
 from brainwidemap.decoding.functions.process_outputs import fix_pd_regions
 

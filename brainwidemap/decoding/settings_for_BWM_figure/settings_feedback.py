@@ -2,8 +2,8 @@ import numpy as np
 from pathlib import Path
 
 from brainwidemap.decoding.functions.process_targets import optimal_Bayesian
-from behavior_models.models.expSmoothing_prevAction import expSmoothing_prevAction
-from behavior_models.models.expSmoothing_stimside import expSmoothing_stimside
+from behavior_models.models import ActionKernel as expSmoothing_prevAction
+from behavior_models.models import StimulusKernel as expSmoothing_stimside
 from sklearn import linear_model as lm
 
 """

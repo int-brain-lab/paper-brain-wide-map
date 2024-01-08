@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from behavior_models.models.utils import format_input as mut_format_input
+from behavior_models.utils import format_input as mut_format_input
 from brainbox.task.closed_loop import generate_pseudo_session
 from brainwidemap.decoding.functions.process_targets import optimal_Bayesian, check_bhv_fit_exists
 
