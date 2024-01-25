@@ -3,11 +3,12 @@ import numpy as np
 from pathlib import Path
 import math, string
 from collections import Counter
+from functools import reduce
 
 from one.api import ONE
-from ibllib.atlas import AllenAtlas
-from ibllib.atlas.regions import BrainRegions
-from ibllib.atlas.flatmaps import plot_swanson_vector
+from iblatlas.atlas import AllenAtlas
+from iblatlas.regions import BrainRegions
+from iblatlas.plots import plot_swanson_vector 
 import ibllib
 
 from matplotlib.colors import LinearSegmentedColormap
@@ -15,7 +16,6 @@ from matplotlib import gridspec
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import seaborn as sns
-import dataframe_image as dfi
 from PIL import Image
 
 from brainwidemap.encoding.design import generate_design
@@ -25,7 +25,6 @@ from brainbox.plot import peri_event_time_histogram
 
 import neurencoding.linear as lm
 from neurencoding.utils import remove_regressors
-
 
 import warnings
 #warnings.filterwarnings("ignore")
@@ -74,6 +73,128 @@ meta (Swansons and table)
 #####
 '''
 
+def pool_results_across_analyses():
+
+    '''
+    input are various csv files from 
+    4 different analysis types ['glm','euc', 'mw', 'dec']
+    4 variables ['stimulus', ' choice', 'feedback', 'block']
+    '''
+    
+    varis = ['stimulus', 'choice', 'feedback', 'block']#, 'wheel']
+    
+    D = {}
+    
+    # glm   
+    df = pd.read_pickle(Path(one.cache_dir, 'bwm_res',
+            'res_for_meta','GLM') / 
+            '2023-04-10_glm_fit_abswheel_regionres.pkl')
+
+    d = {}
+    for vari in varis:
+        if vari in ['stimulus', 'choice', 'feedback']:
+            d[vari] = df['means']['pairs'
+                      ][vari].abs().to_frame(
+                      ).rename(columns = {0: 'glm_effect'})
+        elif vari == 'block':
+            d[vari] = df['means']['single_regressors']['pLeft'].to_frame(
+                        ).rename(columns = {'pLeft': 'glm_effect'})
+        elif vari == 'wheel':
+            d[vari] = df['means']['single_regressors']['wheel'].to_frame(
+                      ).rename(columns = {'wheel': 'glm_effect'})
+              
+    D['glm'] = d
+    print('intergated glm results')  
+     
+    # euclidean (euc) 
+    d = {}
+
+    
+    varis_euc = {'stim':'stimulus', 'choice':'choice',
+                 'fback':'feedback', 'block':'block'}
+    
+    for vari in varis_euc:
+        d[varis_euc[vari]] = pd.read_csv(Path(one.cache_dir, 'bwm_res',
+            'res_for_meta', 'Manifold') / f'{vari}_restr.csv')[[
+                    'region','amp_euc_can', 'lat_euc','p_euc']]
+    
+        d[varis_euc[vari]][
+            'euclidean_significant'] = d[varis_euc[vari]].p_euc.apply(
+                                               lambda x: x<sigl)
+                                               
+        d[varis_euc[vari]].set_index("region",inplace=True)
+        d[varis_euc[vari]].rename(columns = {'amp_euc_can': 'euclidean_effect',
+                                  'lat_euc': 'euclidean_latency'},
+                                  inplace=True)
+                                  
+        d[varis_euc[vari]] = d[varis_euc[vari]][['euclidean_effect',
+                           'euclidean_latency',
+                           'euclidean_significant']]
+
+    D['euc'] = d
+    print('intergated manifold results')    
+    
+    # Mann Whitney (mw) 
+    d = {}   
+    mw = pd.read_csv(Path(one.cache_dir, 'bwm_res',
+            'res_for_meta', 'MannWhitney') / 
+            'Single_cell_updated_May_28_2023 - Sheet1.csv')
+           
+    varis_mw = {'stim':'stimulus', 'choice':'choice',
+                 'feedback':'feedback', 'block':'block'}
+    
+    for vari in varis_mw:
+        d[varis_mw[vari]] = mw[['Acronym',
+                    f'[{vari}] fraction of significance',
+                    f'[{vari}] significance']].rename(
+                    columns = {'Acronym': 'region',
+                    f'[{vari}] fraction of significance':  
+                    'mannwhitney_effect',
+                    f'[{vari}] significance': 
+                    'mannwhitney_significant'})
+        d[varis_mw[vari]].mannwhitney_significant.replace(
+                                np.nan, False,inplace=True)
+        d[varis_mw[vari]].mannwhitney_significant.replace(
+                                1, True,inplace=True)    
+        d[varis_mw[vari]].set_index("region",inplace=True)
+    
+    D['mw'] = d
+    print('intergated MannWhitney results')
+    
+       
+    # decoding (dec)
+    d = {} 
+    for vari in varis:
+    
+        d[vari] = pd.read_csv(Path(one.cache_dir, 'bwm_res',
+                    'res_for_meta', 'Decoding') /
+                    f'decoding_results_{vari}.csv')[[
+                    'region','valuesminusnull_median',
+                    'frac_sig','combined_sig_corr']].rename(columns = {
+                    'valuesminusnull_median': 'decoding_effect',
+                    'frac_sig': 'decoding_frac_significant',
+                    'combined_sig_corr': 'decoding_significant'})
+                
+        d[vari].dropna(axis=0,how='any',subset=['decoding_effect'])
+        d[vari].set_index("region",inplace=True)
+        
+    D['dec'] = d   
+    print('intergated decoding results')
+    
+       
+    # merge frames across analyses
+    inv_varis = {v: k for k, v in varis_euc.items()}
+    
+    for vari in varis:
+        df_ = reduce(lambda left,right: 
+                     pd.merge(left,right,how='inner',on='region'), 
+                     [D[ana][vari] for ana in D])    
+        df_.to_pickle(meta_pth / f"{inv_varis[vari]}.pkl")
+        
+    print('pooled and saved results at')
+    print(meta_pth)   
+
+
 def load_meta_results(variable):
     ''' 
     Load meta results for Swanson and table
@@ -91,14 +212,14 @@ def load_meta_results(variable):
 
     # Reorder columns to match ordering in Figure
     res = res[['euclidean_latency',
-                               'euclidean_effect',
-                               'glm_effect',
-                               'mannwhitney_effect',
-                               'decoding_effect',
-                               'decoding_significant',
-                               'decoding_frac_significant',
-                               'mannwhitney_significant',
-                               'euclidean_significant']]
+               'euclidean_effect',
+               'glm_effect',
+               'mannwhitney_effect',
+               'decoding_effect',
+               'decoding_significant',
+               'decoding_frac_significant',
+               'mannwhitney_significant',
+               'euclidean_significant']]
     return res
 
 
@@ -142,7 +263,7 @@ def plot_swansons(variable, fig=None, axs=None):
 
     res = load_meta_results(variable) 
 
-    lw = .01
+    lw = 0.1  # .01
     
     # Labels for colorbars
     labels = ['Abs. diff. ' + r'$\Delta R^2$',
@@ -168,7 +289,8 @@ def plot_swansons(variable, fig=None, axs=None):
     alone = False
     if not fig:
         fig = plt.figure(figsize=(8,3), layout='constrained')  
-        gs = gridspec.GridSpec(1, len(res_types), figure=fig,hspace=.75)
+        gs = gridspec.GridSpec(1, len(res_types), 
+                               figure=fig,hspace=.75)
         axs = []
         alone = True
                  
@@ -292,7 +414,8 @@ def plot_table(variable):
                'mannwhitney_significant','euclidean_significant']]
             
     for rt in ['decoding', 'mannwhitney','euclidean']:
-        res[f'{rt}_effect'] = res[f'{rt}_effect'] * res[f'{rt}_significant']
+        res[f'{rt}_effect'] = res[f'{rt}_effect'
+                              ] * res[f'{rt}_significant']
     
     res = res[['region','region_color',
                'glm_effect','euclidean_effect',
@@ -361,23 +484,30 @@ def plot_table(variable):
         styler.set_properties(subset=['region'] , 
                               **{'font-size': '9pt'})
         styler.hide(axis="index")
-        styler.set_table_styles([
+        styler.set_table_styles([         
             {"selector": "tr", "props": "line-height: 11px"},
-            {"selector": "td,th", 
+            {"selector": "td, th", 
                 "props": "line-height: inherit; padding: 0 "},
+                
             {"selector": "tbody td", 
                 "props": [("border", "1px solid white")]},
-            {'selector': 'thead', 'props': [('display', 'none')]}])
+            {'selector': 'thead', 
+                'props': [('display', 'table-header-group')]},
+            {'selector': 'th.col_heading', 
+                        'props': [('writing-mode', 'vertical-rl')]},])
+
+                   
+#        styler.relabel_index(["row 1", "row 2",'r3',
+#                              'r4', 'r5', 'r6'], axis=1)   
             
         return styler
-
-
+ 
     ## Plot table
     res = res.style.pipe(make_pretty)
-    pf = Path(meta_pth / 'Figures')
+    pf = Path(meta_pth)
     pf.mkdir(parents=True,exist_ok=True)
-
-    res.export_png(str(pf / f'{variable}_df_styled.png'), 
+    print(pf / 'tabs' / f'{variable}_df_styled.png')
+    res.export_png(str(pf /  'tabs' /f'{variable}_df_styled.png'), 
                    max_rows=-1,
                    dpi = 200)
 
@@ -771,7 +901,7 @@ def get_example_results():
     return targetunits, alignsets, sortlookup
 
 
-def ecoding_plot_raster(variable, ax=None):    
+def ecoding_raster_lines(variable, ax=None):    
 
     '''
     plot raster and two line plots
@@ -824,6 +954,9 @@ def ecoding_plot_raster(variable, ax=None):
         raster_cbar=False,
         raster_bin=0.002,
         axs=ax[0])
+        
+    ax.set_ylabel('Resorted trial index')
+    ax.set_xlabel('Time from event (s)')   
     ax.set_title("{} unit {} : $\log \Delta R^2$ = {:.2f}".format(
                  region, clu_id, np.log(drsq)))
 
@@ -922,51 +1055,9 @@ def grad(c, nobs, fr=1):
     
     
 def get_allen_info():
-    '''
-    Function to load Allen atlas info, like region colors
-    '''
-
-    p = (Path(ibllib.__file__).parent /
-         'atlas/allen_structure_tree.csv')
-
-    dfa = pd.read_csv(p)
-
-    # replace yellow by brown #767a3a    
-    cosmos = []
-    cht = []
-    
-    for i in range(len(dfa)):
-        try:
-            ind = dfa.iloc[i]['structure_id_path'].split('/')[4]
-            cr = br.id2acronym(ind, mapping='Cosmos')[0]
-            cosmos.append(cr)
-            if cr == 'CB':
-                cht.append('767A3A')
-            else:
-                cht.append(dfa.iloc[i]['color_hex_triplet'])    
-                    
-        except:
-            cosmos.append('void')
-            cht.append('FFFFFF')
-            
-
-    dfa['Cosmos'] = cosmos
-    dfa['color_hex_triplet2'] = cht
-    
-    # get colors per acronym and transfomr into RGB
-    dfa['color_hex_triplet2'] = dfa['color_hex_triplet2'].fillna('FFFFFF')
-    dfa['color_hex_triplet2'] = dfa['color_hex_triplet2'
-                                   ].replace('19399', '19399a')
-    dfa['color_hex_triplet2'] = dfa['color_hex_triplet2'].replace(
-                                                     '0', 'FFFFFF')
-    dfa['color_hex_triplet2'] = '#' + dfa['color_hex_triplet2'].astype(str)
-    dfa['color_hex_triplet2'] = dfa['color_hex_triplet2'
-                                   ].apply(lambda x:
-                                           mpl.colors.to_rgba(x))
-
-    palette = dict(zip(dfa.acronym, dfa.color_hex_triplet2))
-
-    return dfa, palette
+    r = np.load(Path(one.cache_dir, 'dmn', 'alleninfo.npy'),
+                allow_pickle=True).flat[0]
+    return r['dfa'], r['palette']
 
 
 def plot_all(splits=None, curve='euc', show_tra=False, axs=None,
@@ -1254,20 +1345,17 @@ def plot_all(splits=None, curve='euc', show_tra=False, axs=None,
         d = np.load(Path(pth_res, f'{split}.npy'),
                     allow_pickle=True).flat[0]
 
-        acronyms = [tops[split][0][j] for j in range(len(tops[split][0]))]
+        acronyms = [tops[split][0][j] for j 
+                    in range(len(tops[split][0]))]
+                    
         ac_sig = np.array([True if tops[split][1][j] < sigl
-                           else False for j in range(len(tops[split][0]))])
+                           else False for
+                           j in range(len(tops[split][0]))])
 
         maxes = np.array([d[x][f'amp_{curve}'] for x in acronyms])
         lats = np.array([d[x][f'lat_{curve}'] for x in acronyms])
-        # stdes = np.array([d[x][f'stde_{curve}'] for x in acronyms])
         cols = [palette[reg] for reg in acronyms]
 
-#        if split == 'stim':
-#            fig0, ax0 = plt.subplots()
-#            axs[k] = ax0
-
-        # yerr = 100*maxes/d[reg]['nclus']
         axs[k].errorbar(lats, maxes, yerr=None, fmt='None',
                         ecolor=cols, ls='None', elinewidth=0.5)
 
@@ -1490,18 +1578,13 @@ def main_fig(variable):
     s3 = [[item for sublist in s2 for item in sublist]]*3
     
     # panels under swansons and table
-    if variable == 'block':
-        pe = [['dec']*4 + ['fr']*4 + ['tra_3d']*4,
-              ['p0']*4 + ['pr_fr']*4 + ['ex_d']*4]  
-                   
-    else:
-        pe = [['ras']*4 + ['dec']*4 + ['tra_3d']*4,
-              ['ras']*4 + ['ex_d']*4 + ['tra_3d']*4,
-              ['enc0']*4 + ['ex_ds']*4 + ['scat']*4,
-              ['enc1']*4 + ['ex_ds']*4 +['scat']*4]
+    pe = [['ras']*4 + ['dec']*4 + ['tra_3d']*4,
+          ['ras']*4 + ['ex_d']*4 + ['tra_3d']*4,
+          ['enc0']*4 + ['ex_ds']*4 + ['scat']*4,
+          ['enc1']*4 + ['ex_ds']*4 +['scat']*4]
 
      
-    mosaic = s3 + [['tab']*12] + pe
+    mosaic = s3 + [['tab']*12]*2 + pe
         
     axs = fig.subplot_mosaic(mosaic,
                              per_subplot_kw={
@@ -1510,6 +1593,11 @@ def main_fig(variable):
     # put panel labels                         
     pans = Counter([item for sublist in 
                     mosaic for item in sublist])
+                    
+    if variable == 'block':
+        del pans['p1']
+        axs['p1'].axis('off')    
+                     
     del pans['p0']
     axs['p0'].axis('off')
     
@@ -1525,10 +1613,11 @@ def main_fig(variable):
     plot_swansons(variable, fig=fig, axs=[axs[x] for x in s])
 
     # plot table, reading from png
-    if not Path(meta_pth / f'Figures/{variable}_df_styled.png').is_file():
+    if not Path(meta_pth / 'tabs' /
+                f'{variable}_df_styled.png').is_file():
         plot_table(variable)
     
-    im = Image.open(meta_pth / f'Figures/{variable}_df_styled.png')
+    im = Image.open(meta_pth / 'tabs' / f'{variable}_df_styled.png')
     axs['tab'].imshow(im.rotate(90, expand=True), aspect='auto')
                       
     axs['tab'].axis('off')                     
@@ -1557,10 +1646,10 @@ def main_fig(variable):
                        axs=[axs['tra_3d'],axs['ex_d']])
     axs['tra_3d'].axis('off')
 
-    if variable != 'block':
-        # manifold panels, line plot with more regions and scatter    
-        plot_all(splits=[variable+'_restr'], fig=fig, 
-                 axs=[axs['ex_ds'], axs['scat']]) 
+
+    # manifold panels, line plot with more regions and scatter    
+    plot_all(splits=[variable+'_restr'], fig=fig, 
+             axs=[axs['ex_ds'], axs['scat']]) 
 
 
     '''
@@ -1578,12 +1667,11 @@ def main_fig(variable):
     encoding
     '''
     
-    if variable != 'block':
-        # encoding panels 
-        ecoding_plot_raster(variable, ax=[axs['ras'], 
-                                          axs['enc0'],
-                                          axs['enc1']])    
-    else:
-        plot_block_box(ax=[axs['fr'], axs['pr_fr']])
+
+    # encoding panels 
+    ecoding_raster_lines(variable, ax=[axs['ras'], 
+                                      axs['enc0'],
+                                      axs['enc1']])    
+
 
     fig.tight_layout()
