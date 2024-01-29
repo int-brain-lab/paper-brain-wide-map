@@ -52,7 +52,7 @@ enc_pth.mkdir(parents=True, exist_ok=True)
 
 sigl = 0.05  # significance level (for stacking, plotting, fdr)
 
-variables = ['stim', 'choice', 'fback', 'block']
+variables = ['stim', 'choice', 'fback']
 
 plt.ion()  # interactive plotting on
 
@@ -78,10 +78,10 @@ def pool_results_across_analyses():
     '''
     input are various csv files from 
     4 different analysis types ['glm','euc', 'mw', 'dec']
-    4 variables ['stimulus', ' choice', 'feedback', 'block']
+    4 variables ['stimulus', ' choice', 'feedback']
     '''
     
-    varis = ['stimulus', 'choice', 'feedback', 'block']#, 'wheel']
+    varis = ['stimulus', 'choice', 'feedback']#, 'wheel']
     
     D = {}
     
@@ -96,9 +96,6 @@ def pool_results_across_analyses():
             d[vari] = df['means']['pairs'
                       ][vari].abs().to_frame(
                       ).rename(columns = {0: 'glm_effect'})
-        elif vari == 'block':
-            d[vari] = df['means']['single_regressors']['pLeft'].to_frame(
-                        ).rename(columns = {'pLeft': 'glm_effect'})
         elif vari == 'wheel':
             d[vari] = df['means']['single_regressors']['wheel'].to_frame(
                       ).rename(columns = {'wheel': 'glm_effect'})
@@ -111,7 +108,7 @@ def pool_results_across_analyses():
 
     
     varis_euc = {'stim':'stimulus', 'choice':'choice',
-                 'fback':'feedback', 'block':'block'}
+                 'fback':'feedback'}
     
     for vari in varis_euc:
         d[varis_euc[vari]] = pd.read_csv(Path(one.cache_dir, 'bwm_res',
@@ -141,7 +138,7 @@ def pool_results_across_analyses():
             'Single_cell_updated_May_28_2023 - Sheet1.csv')
            
     varis_mw = {'stim':'stimulus', 'choice':'choice',
-                 'feedback':'feedback', 'block':'block'}
+                 'feedback':'feedback'}
     
     for vari in varis_mw:
         d[varis_mw[vari]] = mw[['Acronym',
@@ -199,7 +196,7 @@ def load_meta_results(variable):
     ''' 
     Load meta results for Swanson and table
     
-    variable: ['stim', ' choice', 'fback', 'block']
+    variable: ['stim', ' choice', 'fback']
     '''
     
     res = pd.read_pickle(meta_pth / f"{variable}.pkl")
@@ -320,11 +317,6 @@ def plot_swansons(variable, fig=None, axs=None):
             mask = None
         
         eucb =False    
-        if 'euclidean' in res_type and variable == 'block':
-            acronyms = ['root']
-            scores = np.zeros(1)
-            mask = res[res[f'{ana}_significant'] == False].index.values
-            eucb = True
 
         
         plot_swanson_vector(acronyms,
@@ -540,8 +532,7 @@ def extract_dec_plot_numbers():
 
     dec_ex = { 'stim': ['5d01d14e-aced-4465-8f8e-9a1c674f62ec','VISp'],
                'choice': ['671c7ea7-6726-4fbe-adeb-f89c2c8e489b','GRN'], 
-               'fback': ['e012d3e3-fdbc-4661-9ffa-5fa284e4e706','IRN'],
-               'block': ['9e9c6fc0-4769-4d83-9ea4-b59a1230510e', 'MOp']}
+               'fback': ['e012d3e3-fdbc-4661-9ffa-5fa284e4e706','IRN']}
                
     D = {}                  
     for variable in variables:
@@ -624,7 +615,7 @@ def dec_scatter(variable,fig=None, ax=None):
 
     '''
     plot decoding scatter for
-    variable in [choice, fback, block]
+    variable in [choice, fback]
     '''   
                
     red = (255/255, 48/255, 23/255)
@@ -662,8 +653,6 @@ def dec_scatter(variable,fig=None, ax=None):
         l = ['Incorrect', 'Correct']
     elif variable == 'choice':
         l = ['Right choice', 'Left choice']
-    elif variable == 'block':
-        l = ['Right block', 'Left block']
 
     ax.legend(l,frameon=True)  
     ax.set_yticks([0, 0.5, 1])
@@ -883,14 +872,6 @@ def get_example_results():
             0.3077195113,  # drsq
             "feedback_times",
         ),
-        "block": (
-            "7bee9f09-a238-42cf-b499-f51f765c6ded",
-            "26118c10-35dd-4ab1-9f0f-b9a89a1da070",
-            207,
-            "MOp",
-            0.0043285,  # drsq
-            "stimOn_times",
-        ),
     }
 
     sortlookup = {"stim": "side", 
@@ -961,41 +942,6 @@ def ecoding_raster_lines(variable, ax=None):
                  region, clu_id, np.log(drsq)))
 
 
-def plot_block_box(ax=None):
-    ## Treat block separately since it's a different type of plot
-    variable = "block"
-    targetunits, alignsets, sortlookup = get_example_results()
-    eid, pid, clu_id, region, drsq, aligntime = targetunits[variable]
-    (stdf, sspkt, sspkclu, 
-        design, spkmask, nglm) = load_unit_fit_model(eid, pid, clu_id)
-    pred, trlabels = predict(nglm, glm_type="linear", retlab=True)
-    mask = design.dm[:, design.covar["pLeft"]["dmcol_idx"]] != 0
-    itipred = pred[clu_id][mask]
-    iticounts = nglm.binnedspikes[mask, :]
-    labels = trlabels[mask]
-    rates = pd.DataFrame(
-        index=stdf.index[stdf.probabilityLeft != 0.5],
-        columns=["firing_rate", "pred_rate", "pLeft"],
-        dtype=float)
-        
-    for p_val in [0.2, 0.8]:
-        trials = stdf.index[stdf.probabilityLeft == p_val]
-        for trial in trials:
-            trialmask = labels == trial
-            rates.loc[trial, "firing_rate"] = (
-                np.mean(iticounts[trialmask]) / design.binwidth)
-            rates.loc[trial, "pred_rate"] = (
-                np.mean(itipred[trialmask]) / design.binwidth)
-            rates.loc[trial, "pLeft"] = p_val
-    if not ax:        
-        fig, ax = plt.subplots(1, 2, figsize=(6, 6), sharey=True)
-    sns.boxplot(rates, x="pLeft", y="firing_rate", ax=ax[0])
-    sns.boxplot(rates, x="pLeft", y="pred_rate", ax=ax[1])
-    ax[0].set_title(f"{region} {clu_id} firing rate by block")
-    ax[1].set_title(f"{region} {clu_id} predicted rate by block")
-    ax[0].set_ylabel("Firing rate (spikes/s)")
-
-
 '''
 ##########
 manifold
@@ -1011,8 +957,7 @@ ntravis = 30  # #trajectories for vis, first 2 real, rest pseudo
 
 align = {'stim': 'stim on',
          'choice': 'motion on',
-         'fback': 'feedback',
-         'block': 'stim on'}
+         'fback': 'feedback'}
          
 def pre_post(split, can=False):
     '''
@@ -1025,14 +970,12 @@ def pre_post(split, can=False):
 
     pre_post0 = {'stim': [0, 0.15],
                  'choice': [0.15, 0],
-                 'fback': [0, 0.7],
-                 'block': [0.4, -0.1]}
+                 'fback': [0, 0.7]}
 
     # canonical windows
     pre_post_can =  {'stim': [0, 0.1],
                      'choice': [0.1, 0],
-                     'fback': [0, 0.2],
-                     'block': [0.4, -0.1]}
+                     'fback': [0, 0.2]}
 
     pp = pre_post_can if can else pre_post0
 
@@ -1174,8 +1117,7 @@ def plot_all(splits=None, curve='euc', show_tra=False, axs=None,
                        'MRN', 'RT', 'LGd', 'GRN','MV','ORBm'],
 
             'fback': ['IRN', 'SSp-n', 'PRNr', 'IC', 'MV', 'AUDp',
-                      'CENT3', 'SSp-ul', 'GPe'],
-            'block': ['Eth', 'IC']}
+                      'CENT3', 'SSp-ul', 'GPe']}
 
     # use same example regions for variant splits
     exs = exs0.copy()
@@ -1310,7 +1252,7 @@ def plot_all(splits=None, curve='euc', show_tra=False, axs=None,
 
         axs[k].axvline(x=0, lw=0.5, linestyle='--', c='k')
 
-        if split in ['block', 'choice']:
+        if split == 'choice':
             ha = 'left'
         else:
             ha = 'right'
@@ -1541,7 +1483,7 @@ def plot_traj_and_dist(split, reg='all', ga_pcs=False, curve='euc',
 
     axs[k].axvline(x=0, lw=0.5, linestyle='--', c='k')
 
-    if split in ['block', 'choice']:
+    if split == 'choice':
         ha = 'left'
     else:
         ha = 'right'
@@ -1565,11 +1507,11 @@ def main_fig(variable):
 
     '''
     combine panels into main figure;
-    variable in ['stim', 'choice', 'fback', 'block'] 
+    variable in ['stim', 'choice', 'fback'] 
     using mosaic grid of 8 rows and 12 columns
     '''
     
-    fig = plt.figure(figsize=(15, 13), facecolor='w', 
+    fig = plt.figure(figsize=(10, 13), facecolor='w', 
                      clear=True)
     
     # Swansons ('p0' placeholder for tight_layout to work)
@@ -1593,10 +1535,7 @@ def main_fig(variable):
     # put panel labels                         
     pans = Counter([item for sublist in 
                     mosaic for item in sublist])
-                    
-    if variable == 'block':
-        del pans['p1']
-        axs['p1'].axis('off')    
+
                      
     del pans['p0']
     axs['p0'].axis('off')
@@ -1629,8 +1568,7 @@ def main_fig(variable):
                       
     ex_regs = {'stim_restr': 'VISp', 
                'choice_restr': 'GRN', 
-               'fback_restr': 'IRN', 
-               'block_restr': 'MOp'}
+               'fback_restr': 'IRN'}
     
     # trajectory extra panels
     # example region 3d trajectory (tra_3d), line plot (ex_d)
