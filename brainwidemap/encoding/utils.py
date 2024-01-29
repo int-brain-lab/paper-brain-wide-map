@@ -11,6 +11,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # IBL libraries
+from one.api import ONE
 from iblutil.util import Bunch
 import brainbox.io.one as bbone
 from brainbox.io.one import SessionLoader
@@ -23,12 +24,14 @@ from brainwidemap.encoding.timeseries import TimeSeries, sync
 def load_regressors(
     session_id,
     pid,
-    one,
+    one=None,
     t_before=0.0,
     t_after=0.2,
     binwidth=0.02,
     abswheel=False,
     clu_criteria="bwm",
+    one_url="https://openalyx.internationalbrainlab.org",
+    one_pw="international"
 ):
     """
     Load in regressors for given session and probe. Returns a dictionary with the following keys:
@@ -61,6 +64,9 @@ def load_regressors(
     trialsdf, spk_times, spk_clu, clu_regions, clu_qc, clu_df, clu_qc (optional)
         Output regressors for GLM
     """
+    if one is None:
+        one = ONE(base_url=one_url, password=one_pw, silent=True)
+
     _, mask = load_trials_and_mask(one=one, eid=session_id)
     mask = mask.index[np.nonzero(mask.values)]
     trialsdf = load_trials_df(
@@ -213,6 +219,7 @@ def load_trials_df(
     wheel_binsize=0.02,
     addtl_types=[],
     trials_mask=None,
+    one=None,
 ):
     """
     Generate a pandas dataframe of per-trial timing information about a given session.
@@ -257,6 +264,8 @@ def load_trials_df(
         have a monotonic index. Has special columns trial_start and trial_end which define start
         and end times via t_before and t_after
     """
+    if one is None:
+        raise ValueError("one must be defined.")
     if ret_wheel and ret_abswheel:
         raise ValueError("ret_wheel and ret_abswheel cannot both be true.")
 
