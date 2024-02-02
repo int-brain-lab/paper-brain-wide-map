@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import seaborn as sns
 from PIL import Image
+import dataframe_image as dfi
 
 from brainwidemap.encoding.design import generate_design
 from brainwidemap.encoding.glm_predict import GLMPredictor, predict
@@ -66,6 +67,8 @@ def put_panel_label(ax, k):
                 xycoords='axes fraction',
                 fontsize=f_size * 1.5, va='top',
                 ha='right', weight='bold')
+
+
 
 '''
 #####
@@ -409,19 +412,22 @@ def plot_table(variable):
         res[f'{rt}_effect'] = res[f'{rt}_effect'
                               ] * res[f'{rt}_significant']
     
-    res = res[['region','region_color',
+    res = res[['region',#'region_color',
                'glm_effect','euclidean_effect',
                'mannwhitney_effect','decoding_effect']]
 
 
-    ## format table
+    #return beryl_palette
 
+    ## format table
+    _, pal = get_allen_info()
     def region_formatting(x):
         '''
         Formatting for acronym strings
         '''
-        color = beryl_palette[x]
-        return 'background-color: ' + color
+        color = mpl.colors.to_hex(pal[x])
+        
+        return 'background-color: w; color: ' + color
 
 
     def effect_formatting(x):
@@ -457,11 +463,12 @@ def plot_table(variable):
         styler.applymap(effect_formatting,
             subset=['decoding_effect','mannwhitney_effect',
                     'euclidean_effect','glm_effect'])
-        styler.applymap(region_formatting,subset=['region_color'])
-        styler.set_properties(subset=['region_color'], 
-                              **{'width': '15px'})
-        styler.set_properties(subset=['region_color'] , 
-                              **{'font-size': '0pt'})
+        #styler.applymap(region_formatting,subset=['region_color'])
+        styler.applymap(region_formatting,subset=['region'])
+#        styler.set_properties(subset=['region_color'], 
+#                              **{'width': '15px'})
+#        styler.set_properties(subset=['region_color'] , 
+#                              **{'font-size': '0pt'})
         styler.set_properties(subset=['decoding_effect',
                                       'euclidean_effect',
                                       'mannwhitney_effect',
@@ -473,9 +480,13 @@ def plot_table(variable):
                                       'mannwhitney_effect',
                                       'glm_effect'] , 
                                       **{'font-size': '0pt'})
+                                                                  
+
         styler.set_properties(subset=['region'] , 
                               **{'font-size': '9pt'})
         styler.hide(axis="index")
+
+       
         styler.set_table_styles([         
             {"selector": "tr", "props": "line-height: 11px"},
             {"selector": "td, th", 
@@ -486,7 +497,7 @@ def plot_table(variable):
             {'selector': 'thead', 
                 'props': [('display', 'table-header-group')]},
             {'selector': 'th.col_heading', 
-                        'props': [('writing-mode', 'vertical-rl')]},])
+                        'props': [('writing-mode', 'vertical-rl')]}])
 
                    
 #        styler.relabel_index(["row 1", "row 2",'r3',
@@ -495,13 +506,19 @@ def plot_table(variable):
         return styler
  
     ## Plot table
-    res = res.style.pipe(make_pretty)
+    res0 = res.style.pipe(make_pretty)
+    
+    
     pf = Path(meta_pth)
     pf.mkdir(parents=True,exist_ok=True)
     print(pf / 'tabs' / f'{variable}_df_styled.png')
-    res.export_png(str(pf /  'tabs' /f'{variable}_df_styled.png'), 
+    dfi.export(res0, str(pf /  'tabs' /f'{variable}_df_styled.png'), 
                    max_rows=-1,
                    dpi = 200)
+
+
+
+
 
 '''
 #####
