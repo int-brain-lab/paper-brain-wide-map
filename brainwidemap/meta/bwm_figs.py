@@ -34,10 +34,19 @@ ba = AllenAtlas()
 br = BrainRegions()
 one = ONE(base_url='https://openalyx.internationalbrainlab.org',
           password='international', silent=True)
-          
+
+
+variables = ['stim', 'choice', 'fback']
+ 
 # pooled results
 meta_pth = Path(one.cache_dir, 'bwm_res', 'bwm_figs_data', 'meta')
-meta_pth.mkdir(parents=True, exist_ok=True)          
+meta_pth.mkdir(parents=True, exist_ok=True)
+
+# main fig panels
+imgs_pth = Path(one.cache_dir, 'bwm_res', 'bwm_figs_imgs')
+for variable in variables:
+    Path(imgs_pth, variable).mkdir(parents=True, exist_ok=True)         
+
 
 # decoding results
 dec_pth = Path(one.cache_dir, 'bwm_res', 'bwm_figs_data','decoding')
@@ -53,7 +62,7 @@ enc_pth.mkdir(parents=True, exist_ok=True)
 
 sigl = 0.05  # significance level (for stacking, plotting, fdr)
 
-variables = ['stim', 'choice', 'fback']
+
 
 plt.ion()  # interactive plotting on
 
@@ -202,9 +211,10 @@ def load_meta_results(variable):
     variable: ['stim', ' choice', 'fback']
     '''
     
+    pd.set_option('future.no_silent_downcasting', True)
     res = pd.read_pickle(meta_pth / f"{variable}.pkl")
-    res = res.replace(True, 1)
-    res = res.replace(False, 0)
+    res.replace(to_replace=[True, False], 
+                      value=[1, 0], inplace=True)
 
     # ## Apply logarithm to GLM results
     res.glm_effect = np.log10(
@@ -223,9 +233,9 @@ def load_meta_results(variable):
     return res
 
 
-def get_cmap_(split):
+def get_cmap_(variable):
     '''
-    for each split, get a colormap defined by Yanliang,
+    for each variable, get a colormap defined by Yanliang,
     updated by Chris
     '''
     dc = {'stim': ["#EAF4B3","#D5E1A0", "#A3C968",
@@ -237,10 +247,10 @@ def get_cmap_(split):
           'block': ["#D0CDE4","#998DC3","#6159A6",
                     "#42328E", "#262054"]}
 
-    if '_' in split:
-        split = split.split('_')[0]
+    if '_' in variable:
+        variable = variable.split('_')[0]
 
-    return LinearSegmentedColormap.from_list("mycmap", dc[split])
+    return LinearSegmentedColormap.from_list("mycmap", dc[variable])
 
 
 def beryl_to_cosmos(beryl_acronym,br):
@@ -317,7 +327,7 @@ def plot_swansons(variable, fig=None, axs=None):
         else:
             acronyms = res.index.values
             scores = res[res_types[k]].values
-            mask = None
+            mask = []
         
         eucb =False    
 
@@ -350,12 +360,16 @@ def plot_swansons(variable, fig=None, axs=None):
         cbar.ax.tick_params(size=1)
         cbar.ax.xaxis.set_tick_params(pad=5)
         cbar.set_label(labels[k], fontsize=f_size)
-            
+        
+        axs[k].set_title(f'{len(scores)}/{len(scores) + len(mask)}')  
         axs[k].set_xticks([])
         axs[k].set_yticks([])
         axs[k].axis("off")
                         
-        k += 1    
+        k += 1  
+
+    if alone:
+        fig.savefig(Path(imgs_pth, variable, 'swansons.svg'))          
 
 
 def plot_table(variable):
@@ -463,12 +477,7 @@ def plot_table(variable):
         styler.applymap(effect_formatting,
             subset=['decoding_effect','mannwhitney_effect',
                     'euclidean_effect','glm_effect'])
-        #styler.applymap(region_formatting,subset=['region_color'])
         styler.applymap(region_formatting,subset=['region'])
-#        styler.set_properties(subset=['region_color'], 
-#                              **{'width': '15px'})
-#        styler.set_properties(subset=['region_color'] , 
-#                              **{'font-size': '0pt'})
         styler.set_properties(subset=['decoding_effect',
                                       'euclidean_effect',
                                       'mannwhitney_effect',
@@ -480,7 +489,6 @@ def plot_table(variable):
                                       'mannwhitney_effect',
                                       'glm_effect'] , 
                                       **{'font-size': '0pt'})
-                                                                  
 
         styler.set_properties(subset=['region'] , 
                               **{'font-size': '9pt'})
@@ -498,23 +506,15 @@ def plot_table(variable):
                 'props': [('display', 'table-header-group')]},
             {'selector': 'th.col_heading', 
                         'props': [('writing-mode', 'vertical-rl')]}])
-
-                   
-#        styler.relabel_index(["row 1", "row 2",'r3',
-#                              'r4', 'r5', 'r6'], axis=1)   
-            
+     
         return styler
  
     ## Plot table
     res0 = res.style.pipe(make_pretty)
-    
-    
-    pf = Path(meta_pth)
-    pf.mkdir(parents=True,exist_ok=True)
-    print(pf / 'tabs' / f'{variable}_df_styled.png')
-    dfi.export(res0, str(pf /  'tabs' /f'{variable}_df_styled.png'), 
-                   max_rows=-1,
-                   dpi = 200)
+      
+    pf = Path(imgs_pth, variable)
+    pf.mkdir(parents=True, exist_ok=True)
+    dfi.export(res0, Path(pf,'table.png'), max_rows=-1, dpi = 200)
 
 
 
@@ -582,7 +582,9 @@ def stim_dec_line(fig=None, ax=None):
     plot decoding extra panels for bwm main figure
     '''
 
-    if not fig: 
+    alone = False
+    if not fig:
+        alone = True
         fig, ax = plt.subplots(figsize=(3,2))
         
     d = np.load(dec_pth/'dec_panels.npy', 
@@ -625,7 +627,11 @@ def stim_dec_line(fig=None, ax=None):
     ax.set_ylabel('predicted \n P(stim = right)')
 
     ax.spines[['top','right']].set_visible(False)
-    #fig.tight_layout()
+    
+    if alone:
+        fig.tight_layout()  
+        fig.savefig(Path(imgs_pth, variable, 
+                         'stim_dec_line.svg')) 
 
 
 def dec_scatter(variable,fig=None, ax=None):
@@ -638,7 +644,9 @@ def dec_scatter(variable,fig=None, ax=None):
     red = (255/255, 48/255, 23/255)
     blue = (34/255,77/255,169/255)
     
-    if not fig: 
+    alone = False
+    if not fig:
+        alone = True
         fig, ax = plt.subplots(figsize=(3,2))        
 
     d = np.load(dec_pth/'dec_panels.npy', 
@@ -681,6 +689,12 @@ def dec_scatter(variable,fig=None, ax=None):
     ax.set_ylabel(f'Predicted \n {target}')
     ax.spines[['top','right']].set_visible(False)
     #fig.tight_layout()
+
+    if alone:        
+        fig.tight_layout()  
+        fig.savefig(Path(imgs_pth, variable, 
+                         'dec_scatter.svg')) 
+
 
 
 '''
@@ -905,8 +919,11 @@ def ecoding_raster_lines(variable, ax=None):
     plot raster and two line plots
     ax = [ax_raster, ax_line0, ax_line1]
     '''
+    
+    alone = False
     if not ax:
-        fig, ax = plt.subplots(nrows=1,ncols=3)
+        alone = True
+        fig, ax = plt.subplots(nrows=3,ncols=1)
 
     targetunits, alignsets, sortlookup = get_example_results()
     eid, pid, clu_id, region, drsq, aligntime = targetunits[variable]
@@ -957,6 +974,13 @@ def ecoding_raster_lines(variable, ax=None):
     ax.set_xlabel('Time from event (s)')   
     ax.set_title("{} unit {} : $\log \Delta R^2$ = {:.2f}".format(
                  region, clu_id, np.log(drsq)))
+    
+               
+    if alone:
+        fig.tight_layout()  
+        fig.savefig(Path(imgs_pth, variable, 
+                         'encoding_raster_lines.svg'))              
+                 
 
 
 '''
@@ -976,10 +1000,10 @@ align = {'stim': 'stim on',
          'choice': 'motion on',
          'fback': 'feedback'}
          
-def pre_post(split, can=False):
+def pre_post(variable, can=False):
     '''
     [pre_time, post_time] relative to alignment event
-    split could be contr or restr variant, then
+    variable could be contr or restr variant, then
     use base window
     
     ca: If true, use canonical time windows
@@ -996,10 +1020,10 @@ def pre_post(split, can=False):
 
     pp = pre_post_can if can else pre_post0
 
-    if '_' in split:
-        return pp[split.split('_')[0]]
+    if '_' in variable:
+        return pp[variable.split('_')[0]]
     else:
-        return pp[split]
+        return pp[variable]
 
 
 def grad(c, nobs, fr=1):
@@ -1020,7 +1044,7 @@ def get_allen_info():
     return r['dfa'], r['palette']
 
 
-def plot_all(splits=None, curve='euc', show_tra=False, axs=None,
+def plot_all(variables=None, curve='euc', show_tra=False, axs=None,
              all_labs=False,ga_pcs=True, extra_3d=False, fig=None):
     '''
     main manifold figure:
@@ -1036,8 +1060,8 @@ def plot_all(splits=None, curve='euc', show_tra=False, axs=None,
     all_labs: show all labels in scatters, else just examples
 
     '''
-    if splits is None:
-        splits = align
+    if variables is None:
+        variables = align
 
     # specify grid; scatter longer than other panels
     ncols = 12
@@ -1046,8 +1070,8 @@ def plot_all(splits=None, curve='euc', show_tra=False, axs=None,
         alone = True  # stand alone figure
         axs = []
         if show_tra:
-            fig = plt.figure(figsize=(20, 2.5*len(splits)))
-            gs = fig.add_gridspec(len(splits), ncols)
+            fig = plt.figure(figsize=(20, 2.5*len(variables)))
+            gs = fig.add_gridspec(len(variables), ncols)
         else:   
             fig = plt.figure(figsize=(4, 6), layout='constrained')
             gs = fig.add_gridspec(2, ncols)
@@ -1076,9 +1100,9 @@ def plot_all(splits=None, curve='euc', show_tra=False, axs=None,
     tops = {}
     regsa = []
 
-    for split in splits:
+    for variable in variables:
 
-        d = np.load(Path(pth_res, f'{split}.npy'),
+        d = np.load(Path(pth_res, f'{variable}.npy'),
                     allow_pickle=True).flat[0]
 
         maxs = np.array([d[x][f'amp_{curve}'] for x in d])
@@ -1087,7 +1111,7 @@ def plot_all(splits=None, curve='euc', show_tra=False, axs=None,
         maxs = maxs[order]
         acronyms = acronyms[order]
 
-        tops[split] = [acronyms,
+        tops[variable] = [acronyms,
                        [d[reg][f'p_{curve}'] for reg in acronyms], maxs]
 
         maxs = np.array([d[reg][f'amp_{curve}'] for reg in acronyms
@@ -1095,21 +1119,21 @@ def plot_all(splits=None, curve='euc', show_tra=False, axs=None,
 
         maxsf = [v for v in maxs if not (math.isinf(v) or math.isnan(v))]
 
-        print(split, curve)
+        print(variable, curve)
         print(f'{len(maxsf)}/{len(d)} are significant')
-        tops[split + '_s'] = (f'{len(maxsf)}/{len(d)} = '
+        tops[variable + '_s'] = (f'{len(maxsf)}/{len(d)} = '
                              f'{np.round(len(maxsf)/len(d),2)}')
                              
                              
-        regs_a = [tops[split][0][j] for j in range(len(tops[split][0]))
-                  if tops[split][1][j] < sigl]
+        regs_a = [tops[variable][0][j] for j in range(len(tops[variable][0]))
+                  if tops[variable][1][j] < sigl]
 
         regsa.append(list(d.keys()))
         print(regs_a)
         print(' ')
 
-    for split in splits:
-        print(split, tops[split + '_s'])
+    for variable in variables:
+        print(variable, tops[variable + '_s'])
 
     #  get Cosmos parent region for yellow color adjustment
     regsa = np.unique(np.concatenate(regsa))
@@ -1121,7 +1145,7 @@ def plot_all(splits=None, curve='euc', show_tra=False, axs=None,
     cosregs = dict(zip(regsa, cosregs_))
 
     '''
-    example regions per split for embedded space and line plots
+    example regions per variable for embedded space and line plots
     
     first in list is used for pca illustration
     '''
@@ -1136,12 +1160,12 @@ def plot_all(splits=None, curve='euc', show_tra=False, axs=None,
             'fback': ['IRN', 'SSp-n', 'PRNr', 'IC', 'MV', 'AUDp',
                       'CENT3', 'SSp-ul', 'GPe']}
 
-    # use same example regions for variant splits
+    # use same example regions for variant variables
     exs = exs0.copy()
-    for split in splits:
-        for split0 in  exs0:
-            if split0 in split:
-                exs[split] = exs0[split0]
+    for variable in variables:
+        for variable0 in  exs0:
+            if variable0 in variable:
+                exs[variable] = exs0[variable0]
 
 
     if show_tra:
@@ -1151,17 +1175,17 @@ def plot_all(splits=None, curve='euc', show_tra=False, axs=None,
         ''' 
             
         row = 0
-        for split in splits:
+        for variable in variables:
 
             if ga_pcs:
-                dd = np.load(Path(pth_res, f'{split}_grand_averages.npy'),
+                dd = np.load(Path(pth_res, f'{variable}_grand_averages.npy'),
                             allow_pickle=True).flat[0]
             else:
-                d = np.load(Path(pth_res, f'{split}.npy'),
+                d = np.load(Path(pth_res, f'{variable}.npy'),
                             allow_pickle=True).flat[0]
 
                 # pick example region
-                reg = exs[split][0]
+                reg = exs[variable][0]
                 dd = d[reg]
 
             if extra_3d:
@@ -1198,11 +1222,11 @@ def plot_all(splits=None, curve='euc', show_tra=False, axs=None,
                                depthshade=False)
 
             if extra_3d:
-                axs[k].set_title(split.split('_')[0])    
+                axs[k].set_title(variable.split('_')[0])    
 
             else:
-                axs[k].set_title(f"{split}, {reg} {d[reg]['nclus']}"
-                                 if not ga_pcs else split)
+                axs[k].set_title(f"{variable}, {reg} {d[reg]['nclus']}"
+                                 if not ga_pcs else variable)
             axs[k].grid(False)
             axs[k].axis('off')
 
@@ -1216,11 +1240,11 @@ def plot_all(splits=None, curve='euc', show_tra=False, axs=None,
             return
         
     '''
-    line plot per 5 example regions per split
+    line plot per 5 example regions per variable
     '''
     row = 0  # index
 
-    for split in splits:
+    for variable in variables:
 
         if show_tra:
             axs.append(fig.add_subplot(gs[row, 3:6]))
@@ -1229,11 +1253,11 @@ def plot_all(splits=None, curve='euc', show_tra=False, axs=None,
                 axs.append(fig.add_subplot(gs[0, :]))
 
 
-        d = np.load(Path(pth_res, f'{split}.npy'),
+        d = np.load(Path(pth_res, f'{variable}.npy'),
                     allow_pickle=True).flat[0]
 
         # example regions to illustrate line plots
-        regs = exs[split]
+        regs = exs[variable]
 
         texts = []
         for reg in regs:
@@ -1246,8 +1270,8 @@ def plot_all(splits=None, curve='euc', show_tra=False, axs=None,
                 print(f'inf in {curve} of {reg}')
                 continue
 
-            xx = np.linspace(-pre_post(split,can=can)[0],
-                             pre_post(split,can=can)[1],
+            xx = np.linspace(-pre_post(variable,can=can)[0],
+                             pre_post(variable,can=can)[1],
                              len(d[reg][f'd_{curve}']))
 
             # get units in Hz
@@ -1269,7 +1293,7 @@ def plot_all(splits=None, curve='euc', show_tra=False, axs=None,
 
         axs[k].axvline(x=0, lw=0.5, linestyle='--', c='k')
 
-        if split == 'choice':
+        if variable == 'choice':
             ha = 'left'
         else:
             ha = 'right'
@@ -1292,7 +1316,7 @@ def plot_all(splits=None, curve='euc', show_tra=False, axs=None,
 
     row = 0  # row idx
 
-    for split in splits:
+    for variable in variables:
 
         if show_tra:
             axs.append(fig.add_subplot(gs[row, 6:]))
@@ -1301,15 +1325,15 @@ def plot_all(splits=None, curve='euc', show_tra=False, axs=None,
                 axs.append(fig.add_subplot(gs[1,:]))    
 
 
-        d = np.load(Path(pth_res, f'{split}.npy'),
+        d = np.load(Path(pth_res, f'{variable}.npy'),
                     allow_pickle=True).flat[0]
 
-        acronyms = [tops[split][0][j] for j 
-                    in range(len(tops[split][0]))]
+        acronyms = [tops[variable][0][j] for j 
+                    in range(len(tops[variable][0]))]
                     
-        ac_sig = np.array([True if tops[split][1][j] < sigl
+        ac_sig = np.array([True if tops[variable][1][j] < sigl
                            else False for
-                           j in range(len(tops[split][0]))])
+                           j in range(len(tops[variable][0]))])
 
         maxes = np.array([d[x][f'amp_{curve}'] for x in acronyms])
         lats = np.array([d[x][f'lat_{curve}'] for x in acronyms])
@@ -1337,7 +1361,7 @@ def plot_all(splits=None, curve='euc', show_tra=False, axs=None,
             
                 reg = acronyms[i]
                 
-                if reg not in exs[split]:
+                if reg not in exs[variable]:
                     if not all_labs: # restrict to example regions   
                         continue
                 
@@ -1356,8 +1380,8 @@ def plot_all(splits=None, curve='euc', show_tra=False, axs=None,
         ha = 'left'
 
 
-        axs[k].text(0, 0.95, align[split.split('_')[0]
-                                   if '_' in split else split],
+        axs[k].text(0, 0.95, align[variable.split('_')[0]
+                                   if '_' in variable else variable],
                     transform=axs[k].get_xaxis_transform(),
                     horizontalalignment=ha, rotation=90,
                     fontsize=f_size * 0.8)
@@ -1372,7 +1396,7 @@ def plot_all(splits=None, curve='euc', show_tra=False, axs=None,
         
         if show_tra:
             put_panel_label(axs[k], k)
-            axs[k].set_title(f"{tops[split+'_s']} sig")
+            axs[k].set_title(f"{tops[variable+'_s']} sig")
 
 
         row += 1
@@ -1380,15 +1404,28 @@ def plot_all(splits=None, curve='euc', show_tra=False, axs=None,
 
     if not show_tra:
         axs[-1].sharex(axs[-2])
+        
+    if alone:        
+        if '_' in variable:
+            variable = variable.split('_')[0]
+        fig.tight_layout()    
+        fig.savefig(Path(imgs_pth, variable, 'manifold_lines_scatter.svg'))          
 
 
-def plot_traj_and_dist(split, reg='all', ga_pcs=False, curve='euc',
+def plot_traj_and_dist(variable, ga_pcs=False, curve='euc',
                        fig=None, axs=None):
 
     '''
     for a given region, plot 3d trajectory and 
     line plot below
     '''
+    
+    ex_regs = {'stim_restr': 'VISp', 
+           'choice_restr': 'GRN', 
+           'fback_restr': 'IRN'}
+    
+    reg = ex_regs[variable]
+    
     
     if 'can' in curve:
         print('using canonical time windows')
@@ -1415,10 +1452,10 @@ def plot_traj_and_dist(split, reg='all', ga_pcs=False, curve='euc',
       
     # 3d trajectory plot
     if ga_pcs:
-        dd = np.load(Path(pth_res, f'{split}_grand_averages.npy'),
+        dd = np.load(Path(pth_res, f'{variable}_grand_averages.npy'),
                     allow_pickle=True).flat[0]            
     else:
-        d = np.load(Path(pth_res, f'{split}.npy'),
+        d = np.load(Path(pth_res, f'{variable}.npy'),
                     allow_pickle=True).flat[0]
 
         # pick example region
@@ -1450,7 +1487,7 @@ def plot_traj_and_dist(split, reg='all', ga_pcs=False, curve='euc',
                        depthshade=False)
 
     if alone:
-        axs[k].set_title(f"{split}, {reg} {dd['nclus']}")
+        axs[k].set_title(f"{variable}, {reg} {dd['nclus']}")
                          
     axs[k].grid(False)
     axs[k].axis('off')
@@ -1470,10 +1507,10 @@ def plot_traj_and_dist(split, reg='all', ga_pcs=False, curve='euc',
         print(f'inf in {curve} of {reg}')
         return
         
-    print(split, reg, 'p_euc: ', dd['p_euc'])    
+    print(variable, reg, 'p_euc: ', dd['p_euc'])    
 
-    xx = np.linspace(-pre_post(split,can=can)[0],
-                     pre_post(split,can=can)[1],
+    xx = np.linspace(-pre_post(variable,can=can)[0],
+                     pre_post(variable,can=can)[1],
                      len(dd[f'd_{curve}']))
 
     # plot pseudo curves
@@ -1500,7 +1537,7 @@ def plot_traj_and_dist(split, reg='all', ga_pcs=False, curve='euc',
 
     axs[k].axvline(x=0, lw=0.5, linestyle='--', c='k')
 
-    if split == 'choice':
+    if variable == 'choice':
         ha = 'left'
     else:
         ha = 'right'
@@ -1511,6 +1548,12 @@ def plot_traj_and_dist(split, reg='all', ga_pcs=False, curve='euc',
     axs[k].set_ylabel('distance [Hz]')
     axs[k].set_xlabel('time [sec]')
 
+    if alone:    
+        if '_' in variable:
+            variable = variable.split('_')[0]
+        fig.tight_layout()    
+        fig.savefig(Path(imgs_pth, variable, 
+                         'manifold_single_reg_3d_line.svg')) 
 
 
 '''
@@ -1520,92 +1563,99 @@ combine all panels
 '''
     
 
-def main_fig(variable):
+def main_fig(variable, save_pans=False):
 
     '''
     combine panels into main figure;
     variable in ['stim', 'choice', 'fback'] 
     using mosaic grid of 8 rows and 12 columns
+    
+    save_pans: save individual panels as svg
     '''
     
-    fig = plt.figure(figsize=(10, 13), facecolor='w', 
-                     clear=True)
+    if not save_pans:
     
-    # Swansons ('p0' placeholder for tight_layout to work)
-    s = ['glm_eff', 'euc_lat', 'euc_eff', 'man_eff', 'dec_eff']
-    s2 = [[x]*2 for x in s] + [['p0']*2]
-    s3 = [[item for sublist in s2 for item in sublist]]*3
+        plt.ion()
+        # create mosaic plot
     
-    # panels under swansons and table
-    pe = [['ras']*4 + ['dec']*4 + ['tra_3d']*4,
-          ['ras']*4 + ['ex_d']*4 + ['tra_3d']*4,
-          ['enc0']*4 + ['ex_ds']*4 + ['scat']*4,
-          ['enc1']*4 + ['ex_ds']*4 +['scat']*4]
-
-     
-    mosaic = s3 + [['tab']*12]*2 + pe
+        fig = plt.figure(figsize=(10, 13), facecolor='w', 
+                         clear=True)
         
-    axs = fig.subplot_mosaic(mosaic,
-                             per_subplot_kw={
-                             "tra_3d": {"projection": "3d"}})
-                             
-    # put panel labels                         
-    pans = Counter([item for sublist in 
-                    mosaic for item in sublist])
+        # Swansons ('p0' placeholder for tight_layout to work)
+        s = ['glm_eff', 'euc_lat', 'euc_eff', 'man_eff', 'dec_eff']
+        s2 = [[x]*2 for x in s] + [['p0']*2]
+        s3 = [[item for sublist in s2 for item in sublist]]*3
+        
+        # panels under swansons and table
+        pe = [['ras']*4 + ['dec']*4 + ['tra_3d']*4,
+              ['ras']*4 + ['ex_d']*4 + ['tra_3d']*4,
+              ['enc0']*4 + ['ex_ds']*4 + ['scat']*4,
+              ['enc1']*4 + ['ex_ds']*4 +['scat']*4]
 
-                     
-    del pans['p0']
-    axs['p0'].axis('off')
+         
+        mosaic = s3 + [['tab']*12]*2 + pe
+            
+        axs = fig.subplot_mosaic(mosaic,
+                                 per_subplot_kw={
+                                 "tra_3d": {"projection": "3d"}})
+                                 
+        # put panel labels                         
+        pans = Counter([item for sublist in 
+                        mosaic for item in sublist])
+
+                         
+        del pans['p0']
+        axs['p0'].axis('off')
+        
+        for k,pa in enumerate(pans):
+            put_panel_label(axs[pa], k)
     
-    for k,pa in enumerate(pans):
-        put_panel_label(axs[pa], k)   
+    else:
+        plt.ioff() 
                         
 
     '''
     meta 
     '''
     
-    # 4 Swansons on top
-    plot_swansons(variable, fig=fig, axs=[axs[x] for x in s])
-
+    # 4 Swansons
+    if not save_pans:
+        plot_swansons(variable, fig=fig, axs=[axs[x] for x in s])
+    else:
+        plot_swansons(variable)
+        
+    pf = Path(imgs_pth, variable, 'table.png')  
     # plot table, reading from png
-    if not Path(meta_pth / 'tabs' /
-                f'{variable}_df_styled.png').is_file():
+    if not pf.is_file():
         plot_table(variable)
-    
-    im = Image.open(meta_pth / 'tabs' / f'{variable}_df_styled.png')
-    axs['tab'].imshow(im.rotate(90, expand=True), aspect='auto')
-                      
-    axs['tab'].axis('off')                     
+
+    if not save_pans:    
+        im = Image.open(pf)
+        axs['tab'].imshow(im.rotate(90, expand=True), aspect='auto')                  
+        axs['tab'].axis('off')                     
          
 
     '''
     manifold
     '''
-                      
-    ex_regs = {'stim_restr': 'VISp', 
-               'choice_restr': 'GRN', 
-               'fback_restr': 'IRN'}
-    
+
     # trajectory extra panels
-    # example region 3d trajectory (tra_3d), line plot (ex_d)
-    
-    
-    #axs['tra_3d'] = fig.add_subplot(4,2,6,projection='3d')
-    axs['tra_3d'].axis('off')
-    
-    # manifold example region line plot             
-    plot_traj_and_dist(variable+'_restr', 
-                       ex_regs[variable+'_restr'], 
-                       fig = fig,
-                       axs=[axs['tra_3d'],axs['ex_d']])
-    axs['tra_3d'].axis('off')
+    # manifold example region line plot 
+    if not save_pans:            
+        plot_traj_and_dist(variable+'_restr', 
+                           fig = fig,
+                           axs=[axs['tra_3d'],axs['ex_d']])
+        axs['tra_3d'].axis('off')
+    else:
+        plot_traj_and_dist(variable+'_restr')
 
-
-    # manifold panels, line plot with more regions and scatter    
-    plot_all(splits=[variable+'_restr'], fig=fig, 
-             axs=[axs['ex_ds'], axs['scat']]) 
-
+    # manifold panels, line plot with more regions and scatter
+    if not save_pans:  
+        plot_all(variables=[variable+'_restr'], fig=fig, 
+                 axs=[axs['ex_ds'], axs['scat']]) 
+    else:
+        plot_all(variables=[variable+'_restr'])         
+    
 
     '''
     decoding
@@ -1613,20 +1663,34 @@ def main_fig(variable):
     
     # decoding panel
     if variable == 'stim':
-        stim_dec_line(fig=fig, ax=axs['dec'])
-    else:   
-        dec_scatter(variable,fig=fig, ax=axs['dec'])
-
+        if not save_pans:
+            stim_dec_line(fig=fig, ax=axs['dec'])
+        else:
+            stim_dec_line()    
+    else:
+        if not save_pans:   
+            dec_scatter(variable,fig=fig, ax=axs['dec'])
+        else:
+            dec_scatter(variable)
 
     '''
     encoding
     '''
     
 
-    # encoding panels 
-    ecoding_raster_lines(variable, ax=[axs['ras'], 
-                                      axs['enc0'],
-                                      axs['enc1']])    
+    # encoding panels
+    if not save_pans:   
+        ecoding_raster_lines(variable, ax=[axs['ras'], 
+                                        axs['enc0'],
+                                        axs['enc1']])
+        fig.tight_layout()
+        fig.tight_layout()
+        fig.savefig(Path(imgs_pth, variable, 
+                         'main_fig.svg')) 
+    else:
+        ecoding_raster_lines(variable)
+                                      
 
-
-    fig.tight_layout()
+    
+    
+    
