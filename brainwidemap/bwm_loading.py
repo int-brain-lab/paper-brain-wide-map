@@ -531,5 +531,48 @@ def bwm_units(one=None, freeze='2023_12_bwm_release', rt_range=(0.08, 0.2), min_
     return unit_df
 
 
+def filter_video_data(one, eids, camera='left', min_video_qc='FAIL', min_dlc_qc='FAIL'):
+    """
+    Filters sessions for which video and/or video-derived data passes a given QC threshold
 
+    Parameters
+    ----------
+    one
+    eids
+    camera
+    min_video_qc
+    min_dlc_qc
 
+    Returns
+    -------
+    list:
+
+    """
+
+    # Check input arguments
+
+    # Can we do this with cached QC?
+
+    # Get the sessions that need to be removed
+    remove_eids = []
+    if min_video_qc:
+        # Figure out which qc labels to remove
+        # remove_qcs_video =
+        for qc in remove_qcs_video:
+            remove_eids.extend([
+                sess['id'] for sess in one.alyx.rest(
+                    'sessions', 'list', django=f'extended_qc__video{camera.capitalize()},{qc.upper()}'
+                )
+            ])
+
+    if min_dlc_qc:
+        # Figure out which qc labels to remove
+        # remove_qcs_dlc =
+        for qc in remove_qcs_dlc:
+            remove_eids.extend([
+                sess['id'] for sess in one.alyx.rest(
+                    'sessions', 'list', django=f'extended_qc__video{camera.capitalize()},{qc.upper()}'
+                )
+            ])
+
+    return [eid for eid in eids if eid not in remove_eids]
