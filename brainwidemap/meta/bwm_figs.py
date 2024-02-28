@@ -30,6 +30,17 @@ from neurencoding.utils import remove_regressors
 import warnings
 #warnings.filterwarnings("ignore")
 
+
+
+'''
+This script is used to plot the main result figures of the BWM paper.
+The raw results from each analysis can be found in bwm_figs_res.
+There are 4 analyses: manifold, decoding, glm, single-cell
+See first function in code block of this script for each analysis typoe
+for data format conversion.
+'''
+
+
 ba = AllenAtlas()
 br = BrainRegions()
 one = ONE(base_url='https://openalyx.internationalbrainlab.org',
@@ -47,22 +58,25 @@ imgs_pth = Path(one.cache_dir, 'bwm_res', 'bwm_figs_imgs')
 for variable in variables:
     Path(imgs_pth, variable).mkdir(parents=True, exist_ok=True)         
 
-
 # decoding results
 dec_pth = Path(one.cache_dir, 'bwm_res', 'bwm_figs_data','decoding')
 dec_pth.mkdir(parents=True, exist_ok=True)  
 
 # manifold results
-pth_res = Path(one.cache_dir, 'bwm_res', 'bwm_figs_data','manifold')
-pth_res.mkdir(parents=True, exist_ok=True)
+man_pth = Path(one.cache_dir, 'bwm_res', 'bwm_figs_data','manifold')
+man_pth.mkdir(parents=True, exist_ok=True)
 
 # encoding results
 enc_pth = Path(one.cache_dir, 'bwm_res', 'bwm_figs_data', 'encoding')
 enc_pth.mkdir(parents=True, exist_ok=True)
 
+
+# single_cell (MannWhitney) results
+sc_pth = Path(one.cache_dir, 'bwm_res', 'bwm_figs_data', 'single_cell')
+sc_pth.mkdir(parents=True, exist_ok=True)
+
+
 sigl = 0.05  # significance level (for stacking, plotting, fdr)
-
-
 
 plt.ion()  # interactive plotting on
 
@@ -85,75 +99,57 @@ meta (Swansons and table)
 #####
 '''
 
-def pool_results_across_analyses():
+def pool_results_across_analyses(return_raw=False):
 
     '''
     input are various csv files from 
     4 different analysis types ['glm','euc', 'mw', 'dec']
-    4 variables ['stimulus', ' choice', 'feedback']
+    variables ['stim', ' choice', 'fback']
     '''
-    
-    varis = ['stimulus', 'choice', 'feedback']#, 'wheel']
-    
+
     D = {}
     
-    # glm   
-    df = pd.read_pickle(Path(one.cache_dir, 'bwm_res',
-            'res_for_meta','GLM') / 
-            '2023-04-10_glm_fit_abswheel_regionres.pkl')
-
+    # encoding (glm)   
     d = {}
-    for vari in varis:
-        if vari in ['stimulus', 'choice', 'feedback']:
-            d[vari] = df['means']['pairs'
-                      ][vari].abs().to_frame(
-                      ).rename(columns = {0: 'glm_effect'})
-        elif vari == 'wheel':
-            d[vari] = df['means']['single_regressors']['wheel'].to_frame(
-                      ).rename(columns = {'wheel': 'glm_effect'})
-              
+    for vari in variables:
+        df = pd.read_csv(Path(enc_pth, f'{vari}.csv'))
+        df.rename(columns = {'0': 'glm_effect'}, inplace=True)
+        d[vari] = df
+
     D['glm'] = d
     print('intergated glm results')  
      
     # euclidean (euc) 
     d = {}
-
     
-    varis_euc = {'stim':'stimulus', 'choice':'choice',
-                 'fback':'feedback'}
-    
-    for vari in varis_euc:
-        d[varis_euc[vari]] = pd.read_csv(Path(one.cache_dir, 'bwm_res',
-            'res_for_meta', 'Manifold') / f'{vari}_restr.csv')[[
+    for vari in variables:
+        d[vari] = pd.read_csv(Path(man_pth / f'{vari}_restr.csv'))[[
                     'region','amp_euc_can', 'lat_euc','p_euc']]
     
-        d[varis_euc[vari]][
-            'euclidean_significant'] = d[varis_euc[vari]].p_euc.apply(
+        d[vari]['euclidean_significant'] = d[vari].p_euc.apply(
                                                lambda x: x<sigl)
                                                
-        d[varis_euc[vari]].set_index("region",inplace=True)
-        d[varis_euc[vari]].rename(columns = {'amp_euc_can': 'euclidean_effect',
+
+        d[vari].rename(columns = {'amp_euc_can': 'euclidean_effect',
                                   'lat_euc': 'euclidean_latency'},
                                   inplace=True)
                                   
-        d[varis_euc[vari]] = d[varis_euc[vari]][['euclidean_effect',
+        d[vari] = d[vari][['region',
+                           'euclidean_effect',
                            'euclidean_latency',
                            'euclidean_significant']]
 
-    D['euc'] = d
+    D['euclidean'] = d
     print('intergated manifold results')    
     
-    # Mann Whitney (mw) 
+    # Mann Whitney (single_cell)
     d = {}   
-    mw = pd.read_csv(Path(one.cache_dir, 'bwm_res',
-            'res_for_meta', 'MannWhitney') / 
-            'Single_cell_updated_May_28_2023 - Sheet1.csv')
-           
-    varis_mw = {'stim':'stimulus', 'choice':'choice',
-                 'feedback':'feedback'}
-    
-    for vari in varis_mw:
-        d[varis_mw[vari]] = mw[['Acronym',
+    mw = pd.read_csv(Path(sc_pth,  
+            'Single_cell_analysis_Feb_25_2024 - Sheet1.csv'))
+    pd.set_option('future.no_silent_downcasting', True)
+    for vari in variables:
+        # that fixes typos
+        d[vari] = mw[['Acronym',
                     f'[{vari}] fraction of significance',
                     f'[{vari}] significance']].rename(
                     columns = {'Acronym': 'region',
@@ -161,47 +157,51 @@ def pool_results_across_analyses():
                     'mannwhitney_effect',
                     f'[{vari}] significance': 
                     'mannwhitney_significant'})
-        d[varis_mw[vari]].mannwhitney_significant.replace(
+        d[vari].mannwhitney_significant.replace(
                                 np.nan, False,inplace=True)
-        d[varis_mw[vari]].mannwhitney_significant.replace(
-                                1, True,inplace=True)    
-        d[varis_mw[vari]].set_index("region",inplace=True)
+        d[vari].mannwhitney_significant.replace(
+                                1, True,inplace=True)
+        #d[vari].reset_index(inplace=True)    
+
     
-    D['mw'] = d
+    D['mannwhitney'] = d
     print('intergated MannWhitney results')
     
        
     # decoding (dec)
     d = {} 
-    for vari in varis:
     
-        d[vari] = pd.read_csv(Path(one.cache_dir, 'bwm_res',
-                    'res_for_meta', 'Decoding') /
-                    f'decoding_results_{vari}.csv')[[
+    dec_d = {'stim': 'stimside_stage3', 'choice': 'choice_stage3',
+             'fback': 'feedback_stage3'}
+              
+    for vari in variables:
+    
+        d[vari] = pd.read_parquet(Path(dec_pth,
+                    f'{dec_d[vari]}.pqt'))[[
                     'region','valuesminusnull_median',
-                    'frac_sig','combined_sig_corr']].rename(columns = {
+                    'sig_combined_corrected']].rename(columns = {
                     'valuesminusnull_median': 'decoding_effect',
-                    'frac_sig': 'decoding_frac_significant',
-                    'combined_sig_corr': 'decoding_significant'})
+                    'sig_combined_corrected': 'decoding_significant'})
                 
         d[vari].dropna(axis=0,how='any',subset=['decoding_effect'])
-        d[vari].set_index("region",inplace=True)
+        #d[vari].reset_index(inplace=True)
         
-    D['dec'] = d   
+    D['decoding'] = d   
     print('intergated decoding results')
-    
+    if return_raw:
+        return D
        
-    # merge frames across analyses
-    inv_varis = {v: k for k, v in varis_euc.items()}
-    
-    for vari in varis:
+    # merge frames across analyses    
+    for vari in variables:
         df_ = reduce(lambda left,right: 
-                     pd.merge(left,right,how='inner',on='region'), 
+                     pd.merge(left,right,on='region'), 
                      [D[ana][vari] for ana in D])    
-        df_.to_pickle(meta_pth / f"{inv_varis[vari]}.pkl")
+        df_.to_pickle(meta_pth / f"{vari}.pkl")
+        #df_.reset_index(inplace=True)
         
     print('pooled and saved results at')
     print(meta_pth)   
+
 
 
 def load_meta_results(variable):
@@ -221,13 +221,13 @@ def load_meta_results(variable):
                 res.glm_effect.clip(lower=1e-5))
 
     # Reorder columns to match ordering in Figure
-    res = res[['euclidean_latency',
+    res = res[['region',
+               'euclidean_latency',
                'euclidean_effect',
                'glm_effect',
                'mannwhitney_effect',
                'decoding_effect',
                'decoding_significant',
-               'decoding_frac_significant',
                'mannwhitney_significant',
                'euclidean_significant']]
     return res
@@ -292,8 +292,7 @@ def plot_swansons(variable, fig=None, axs=None):
     # reverse list (until we can flip Swansons
     res_types.reverse()
     labels.reverse()
- 
-    
+     
     cmap = get_cmap_(variable)
     
     alone = False
@@ -311,26 +310,23 @@ def plot_swansons(variable, fig=None, axs=None):
             
             
         ana = res_type.split('_')[0]
-        lat = True if (res_type.split('_')[1] == 'latency') else False
-        
+        lat = True if 'latency' in res_type else False
 
         if ana != 'glm':
             # check if there are p-values
             
-            acronyms = res[res[f'{ana}_significant'] == True].index.values
+            acronyms = res[res[f'{ana}_significant'] == True]['region'].values
             scores = res[res[
-                     f'{ana}_significant'] == True][
-                        res_types[k]].values
+                     f'{ana}_significant'] == True][f'{ana}_effect'].values
                         
-            mask = res[res[f'{ana}_significant'] == False].index.values
+            mask = res[res[f'{ana}_significant'] == False]['region'].values
         
         else:
-            acronyms = res.index.values
-            scores = res[res_types[k]].values
+            acronyms = res['region'].values
+            scores = res[f'{ana}_effect'].values
             mask = []
         
         eucb =False    
-
         
         plot_swanson_vector(acronyms,
                             scores,
@@ -351,7 +347,8 @@ def plot_swansons(variable, fig=None, axs=None):
                    
         norm = mpl.colors.Normalize(vmin=clevels[0], vmax=clevels[1])
         cbar = fig.colorbar(
-                   mpl.cm.ScalarMappable(norm=norm,cmap=cmap),
+                   mpl.cm.ScalarMappable(norm=norm,cmap=cmap.reversed() 
+                   if lat else cmap),
                    ax=axs[k],shrink=0.75,aspect=12,pad=.025,
                    orientation="horizontal")
                    
@@ -365,6 +362,8 @@ def plot_swansons(variable, fig=None, axs=None):
         axs[k].set_xticks([])
         axs[k].set_yticks([])
         axs[k].axis("off")
+        
+        axs[k].axes.invert_xaxis()
                         
         k += 1  
 
@@ -379,10 +378,13 @@ def plot_table(variable):
     res = load_meta_results(variable)
     cmap = get_cmap_(variable)
     
-    # ## Normalize values in each column to interval [0,1]
-
-    res.iloc[:,:5] = (res.iloc[:,:5] - res.iloc[:,:5].min())/(
-                      res.iloc[:,:5].max()-res.iloc[:,:5].min()) + 1e-4
+    # Normalize values in each amplitude column to interval [0,1]
+    # assuming columns 1:5 are 
+    #'euclidean_latency', 'euclidean_effect', 'glm_effect',
+    #'mannwhitney_effect', 'decoding_effect'
+    
+    res.iloc[:,1:5] = (res.iloc[:,1:5] - res.iloc[:,1:5].min())/(
+                      res.iloc[:,1:5].max()-res.iloc[:,1:5].min()) + 1e-4
 
     # ## Sum values in each row to use for sorting
     # The rows of the table are sorted by the sum of all effects 
@@ -518,8 +520,6 @@ def plot_table(variable):
 
 
 
-
-
 '''
 #####
 decoding 
@@ -539,43 +539,6 @@ def get_res_vals(res_table, eid, region):
     assert len(er_vals)==1
     return er_vals.iloc[0]
 
-
-def extract_dec_plot_numbers():
-
-    '''
-    For the decoding panels, extract plotting numbers 
-    of examples from complete result tables
-    '''
-
-    dec_ex = { 'stim': ['5d01d14e-aced-4465-8f8e-9a1c674f62ec','VISp'],
-               'choice': ['671c7ea7-6726-4fbe-adeb-f89c2c8e489b','GRN'], 
-               'fback': ['e012d3e3-fdbc-4661-9ffa-5fa284e4e706','IRN']}
-               
-    D = {}                  
-    for variable in variables:
-        
-        d = {}
-        
-        eid, region = dec_ex[variable]
-        
-        d['eid'] = eid
-        d['region'] = region
-        
-        file_all_results = dec_pth/f'{variable}.csv'
-        file_xy_results = dec_pth/f'{variable}.pkl'
-        if variable == 'stim':
-            d['extra_file'] = dec_pth/f'stim_{eid}_{region}.npy'
-
-        res_table = pd.read_csv(file_all_results)
-        xy_table = pd.read_pickle(file_xy_results)
-        d['xy_vals'] = get_xy_vals(xy_table, eid, region)
-        d['er_vals'] = get_res_vals(res_table, eid, region)
-        
-        D[variable] = d
-
-    np.save(dec_pth/'dec_panels.npy', D, allow_pickle=True)        
-
-
 def stim_dec_line(fig=None, ax=None):
 
     '''
@@ -586,42 +549,49 @@ def stim_dec_line(fig=None, ax=None):
     if not fig:
         alone = True
         fig, ax = plt.subplots(figsize=(3,2))
-        
-    d = np.load(dec_pth/'dec_panels.npy', 
-                allow_pickle=True).flat[0]['stim']
 
-    l = d['xy_vals']['regressors'].shape[0]
-    X = np.squeeze(d['xy_vals']['regressors']).T
-    ws = np.squeeze(d['xy_vals']['weights'])
-    assert len(ws.shape) == 3
-    W = np.stack([np.ndarray.flatten(ws[:,:,i]) 
-                  for i in range(ws.shape[2])]).T
-    assert W.shape[0] == 50
-    mask = d['xy_vals']['mask']
-    preds = np.mean(np.squeeze(d['xy_vals']['predictions']), axis=0)
-    targs = np.squeeze(d['xy_vals']['targets'])
-    trials = np.arange(len(mask))[[m==1 for m in mask]]
-             
-    targ_conts, trials_in = np.load(d['extra_file'])
-    assert np.all(trials == trials_in)
+    session_file = ('stim_e0928e11-2b86-4387'
+                    '-a203-80c77fab5d52_VISp_merged_'
+                    'probes_pseudo_ids_-1_100.pkl')
+
+    d = pd.read_pickle(open(Path(dec_pth, session_file), 'rb'))
+
+    # base fit
+    fit = d['fit'][0]
+
+    # get average predictions from all runs
+    run_idxs = np.unique([i for i, fit in enumerate(d['fit']) 
+        if fit['pseudo_id'] == -1])
+    preds_all = np.concatenate(
+        [np.squeeze(d['fit'][i]['predictions_test'])[:, None] 
+        for i in run_idxs], axis=1)
+    preds = np.mean(preds_all, axis=1)
+    # get decoding target (binary)
+    targs = np.squeeze(fit['target'])
+    # get signed stimulus contrast (categorical)
+    targ_conts = (np.nan_to_num(fit['trials_df'].contrastLeft) 
+        -np.nan_to_num(fit['trials_df'].contrastRight))
+    # get good trials
+    mask = fit['mask'][0]
+
+    # compute neurometric curve
+    targ_conts = targ_conts[mask]
     u_conts = np.unique(targ_conts)
-    neurometric_curve = 1-np.array([np.mean(preds[targ_conts==c]) 
-                                    for c in u_conts])
-    neurometric_curve_err = np.array([2*np.std(preds[targ_conts==c])
-                                     /np.sqrt(np.sum(targ_conts==c)) 
-                                      for c in u_conts])
+    neurometric_curve = 1 - np.array([np.mean(preds[targ_conts==c]) 
+                        for c in u_conts])
+    neurometric_curve_err = np.array(
+        [2 * np.std(preds[targ_conts==c]) / 
+        np.sqrt(np.sum(targ_conts==c)) for c in u_conts])
 
     ax.set_title(f"{d['region']}, single session")
-    ax.plot(-u_conts, neurometric_curve, lw = 2, c='k')
+    ax.plot(-u_conts, neurometric_curve, lw=2, c='k')
     ax.plot(-u_conts, neurometric_curve, 'ko', ms=4)
-    ax.errorbar(-u_conts, neurometric_curve, 
-                 neurometric_curve_err, color='k')
+    ax.errorbar(-u_conts, neurometric_curve, neurometric_curve_err, color='k')
     ax.set_ylim(0,1)
     ax.set_yticks([0, 0.5, 1.0])
     ax.set_xlim(-1.03,1.03)
-    ax.set_xticks([-1.0, -0.25, -0.125, -0.0625, 
-                 0, 0.0625, 0.125, 0.25, 1.0])
-                 
+    ax.set_xticks([-1.0, -0.25, -0.125, -0.0625, 0, 0.0625, 0.125, 0.25, 1.0])
+
     ax.set_xticklabels([-1] + ['']*7 + [1])             
     ax.set_xlabel('Stimulus contrast')
     ax.set_ylabel('predicted \n P(stim = right)')
@@ -649,31 +619,50 @@ def dec_scatter(variable,fig=None, ax=None):
         alone = True
         fig, ax = plt.subplots(figsize=(3,2))        
 
-    d = np.load(dec_pth/'dec_panels.npy', 
-                allow_pickle=True).flat[0][variable]
+    if variable == 'choice':
+        session_file = (f'{variable}_671c7ea7-6726-4fbe-adeb'
+                        '-f89c2c8e489b_GRN_merged_probes_'
+                        'pseudo_ids_-1_100.pkl')
+    elif variable == 'fback':
+        session_file = (f'{variable}_e012d3e3'
+                        '-fdbc-4661-9ffa-5fa284e4e706_IRN_'
+                        'merged_probes_pseudo_ids_-1_100.pkl')
+    else:
+        print('wrong variable')
+        return
+        
+    d = pd.read_pickle(open(Path(dec_pth, session_file), 'rb'))
+    # base fit
+    fit = d['fit'][0]
 
-    l = d['xy_vals']['regressors'].shape[0]
-    X = np.squeeze(d['xy_vals']['regressors']).T
-    ws = np.squeeze(d['xy_vals']['weights'])
-    assert len(ws.shape) == 3
-    W = np.stack([np.ndarray.flatten(ws[:,:,i]) 
-                  for i in range(ws.shape[2])]).T
-    assert W.shape[0] == 50
-    mask = d['xy_vals']['mask']
-    preds = np.mean(np.squeeze(d['xy_vals']['predictions']), axis=0)
-    targs = np.squeeze(d['xy_vals']['targets'])
+    # get average predictions from all runs
+    run_idxs = np.unique([i for i, fit in enumerate(d['fit']) 
+                          if fit['pseudo_id'] == -1])
+    preds_all = np.concatenate(
+        [np.squeeze(d['fit'][i]['predictions_test'])[:, None] 
+        for i in run_idxs], axis=1)
+
+    preds = np.mean(preds_all, axis=1)
+    # get decoding target (binary)
+    targs = np.squeeze(fit['target'])
+    # get good trials
+    mask = fit['mask'][0]
     trials = np.arange(len(mask))[[m==1 for m in mask]]
 
     ax.set_title(f"{d['region']}, single session")
-   
-    ax.plot(trials[targs==0], 
-            preds[targs==0] if variable=='fback' else 1-preds[targs==0],
-             'o', c = red, lw=2,ms=2)
-             
-    ax.plot(trials[targs==1], 
-            preds[targs==1] if variable=='fback' else 1-preds[targs==1],
-             'o', c = blue, lw=2,ms=2)
-    
+
+    ax.plot(
+        trials[targs==-1], 
+        preds[targs==-1] if variable=='feedback' else 1-preds[targs==-1],
+        'o', c=red, lw=2, ms=2,
+    )
+
+    ax.plot(
+        trials[targs==1], 
+        preds[targs==1] if variable=='feedback' else 1-preds[targs==1],
+        'o', c=blue, lw=2, ms=2,
+    )
+
     if variable == 'fback':
         l = ['Incorrect', 'Correct']
     elif variable == 'choice':
@@ -685,10 +674,9 @@ def dec_scatter(variable,fig=None, ax=None):
     ax.set_xlim(100,400)
 
     ax.set_xlabel('Trials')
-    target = l[0] if variable != 'fback' else l[1]
+    target = l[0] if variable != 'feedback' else l[1]
     ax.set_ylabel(f'Predicted \n {target}')
     ax.spines[['top','right']].set_visible(False)
-    #fig.tight_layout()
 
     if alone:        
         fig.tight_layout()  
@@ -699,12 +687,40 @@ def dec_scatter(variable,fig=None, ax=None):
 
 '''
 ##########
-encoding
+encoding (glm)
 ##########
 '''
 
 # Please use the saved parameters dict from 02_fit_sessions.py as params
 glm_params = pd.read_pickle(enc_pth /"glm_params.pkl")
+
+
+def glm_to_csv():
+
+    '''
+    encoding pkl to csv
+    '''
+
+    t = pd.read_pickle(
+            Path(enc_pth,'2024-02-26_glm_fit.pkl'))['mean_fit_results']
+                        
+    res = [abs(t['stimonL'] - t['stimonR']),
+           abs(t['fmoveR']  - t['fmoveL']),
+           abs(t['correct']  - t['incorrect'])]
+
+    d0 = dict(zip(variables,res))
+    d = {i: d0[i].to_frame().reset_index() for i in d0}
+    
+    rr = t['region'].reset_index()
+    acs = rr['region'].values
+    
+    for variable in d:
+        df = pd.DataFrame(d[variable])
+        df.drop(['eid', 'pid', 'clu_id'], axis=1, inplace=True)
+        df['region'] = acs
+        df = df.groupby(['region']).mean()               
+        df.to_csv(Path(enc_pth,f'{variable}.csv'))
+
 
 
 def plot_twocond(
@@ -989,6 +1005,46 @@ manifold
 ##########
 '''
 
+def get_name(brainregion):
+    regid = br.id[np.argwhere(br.acronym == brainregion)][0, 0]
+    return br.name[np.argwhere(br.id == regid)[0, 0]]
+    
+def manifold_to_csv():
+
+    '''
+    reformat results for table
+    '''
+    
+    mapping = 'Beryl'
+
+    columns = ['region','name','nclus', 
+               'p_var', 'amp_var', 'lat_var',
+               'p_euc', 'amp_euc', 'lat_euc', 'amp_euc_can',
+               'lat_euc_can', 'amp_eucn_can', 'lat_eucn_can']
+
+    for variable in variables:        
+        r = []
+        variable = variable + '_restr'
+        d = np.load(Path(one.cache_dir, 'bwm_res', 
+                    'manifold', 'res', f'{variable}.npy'),
+                    allow_pickle=True).flat[0] 
+        
+        for reg in d:
+
+            r.append([reg, get_name(reg), d[reg]['nclus'],
+                      d[reg]['p_var'], 
+                      d[reg]['amp_var'],
+                      d[reg]['lat_var'],                          
+                      d[reg]['p_euc'],
+                      d[reg]['amp_euc'], 
+                      d[reg]['lat_euc'],
+                      d[reg]['amp_euc_can'],
+                      d[reg]['lat_euc_can'],
+                      d[reg]['amp_eucn_can'],
+                      d[reg]['lat_eucn_can']])
+                      
+        df  = pd.DataFrame(data=r,columns=columns)        
+        df.to_csv(Path(man_pth,f'{variable}.csv'))        
 
 
 # canonical colors for left and right trial types
@@ -1102,7 +1158,7 @@ def plot_all(variables=None, curve='euc', show_tra=False, axs=None,
 
     for variable in variables:
 
-        d = np.load(Path(pth_res, f'{variable}.npy'),
+        d = np.load(Path(man_pth, f'{variable}.npy'),
                     allow_pickle=True).flat[0]
 
         maxs = np.array([d[x][f'amp_{curve}'] for x in d])
@@ -1178,10 +1234,10 @@ def plot_all(variables=None, curve='euc', show_tra=False, axs=None,
         for variable in variables:
 
             if ga_pcs:
-                dd = np.load(Path(pth_res, f'{variable}_grand_averages.npy'),
+                dd = np.load(Path(man_pth, f'{variable}_grand_averages.npy'),
                             allow_pickle=True).flat[0]
             else:
-                d = np.load(Path(pth_res, f'{variable}.npy'),
+                d = np.load(Path(man_pth, f'{variable}.npy'),
                             allow_pickle=True).flat[0]
 
                 # pick example region
@@ -1253,7 +1309,7 @@ def plot_all(variables=None, curve='euc', show_tra=False, axs=None,
                 axs.append(fig.add_subplot(gs[0, :]))
 
 
-        d = np.load(Path(pth_res, f'{variable}.npy'),
+        d = np.load(Path(man_pth, f'{variable}.npy'),
                     allow_pickle=True).flat[0]
 
         # example regions to illustrate line plots
@@ -1325,7 +1381,7 @@ def plot_all(variables=None, curve='euc', show_tra=False, axs=None,
                 axs.append(fig.add_subplot(gs[1,:]))    
 
 
-        d = np.load(Path(pth_res, f'{variable}.npy'),
+        d = np.load(Path(man_pth, f'{variable}.npy'),
                     allow_pickle=True).flat[0]
 
         acronyms = [tops[variable][0][j] for j 
@@ -1452,10 +1508,10 @@ def plot_traj_and_dist(variable, ga_pcs=False, curve='euc',
       
     # 3d trajectory plot
     if ga_pcs:
-        dd = np.load(Path(pth_res, f'{variable}_grand_averages.npy'),
+        dd = np.load(Path(man_pth, f'{variable}_grand_averages.npy'),
                     allow_pickle=True).flat[0]            
     else:
-        d = np.load(Path(pth_res, f'{variable}.npy'),
+        d = np.load(Path(man_pth, f'{variable}.npy'),
                     allow_pickle=True).flat[0]
 
         # pick example region
@@ -1578,7 +1634,7 @@ def main_fig(variable, save_pans=False):
         plt.ion()
         # create mosaic plot
     
-        fig = plt.figure(figsize=(10, 13), facecolor='w', 
+        fig = plt.figure(figsize=(20, 13), facecolor='w', 
                          clear=True)
         
         # Swansons ('p0' placeholder for tight_layout to work)
@@ -1686,7 +1742,9 @@ def main_fig(variable, save_pans=False):
         fig.tight_layout()
         fig.tight_layout()
         fig.savefig(Path(imgs_pth, variable, 
-                         'main_fig.svg')) 
+                         'main_fig.svg'))
+        fig.savefig(Path(imgs_pth, variable, 
+                         'main_fig.png'), dpi=250)                          
     else:
         ecoding_raster_lines(variable)
                                       
