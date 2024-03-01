@@ -142,10 +142,13 @@ def pool_results_across_analyses(return_raw=False):
     D['euclidean'] = d
     print('intergated manifold results')    
     
+    '''
     # Mann Whitney (single_cell)
+    '''
+    
     d = {}   
     mw = pd.read_csv(Path(sc_pth,  
-            'Single_cell_analysis_Feb_25_2024 - Sheet1.csv'))
+            'Updated_Single_cell_analysis_Feb_29_2024 - Sheet1.csv'))
     pd.set_option('future.no_silent_downcasting', True)
     for vari in variables:
         # that fixes typos
@@ -167,8 +170,10 @@ def pool_results_across_analyses(return_raw=False):
     D['mannwhitney'] = d
     print('intergated MannWhitney results')
     
-       
+    '''   
     # decoding (dec)
+    '''
+    
     d = {} 
     
     dec_d = {'stim': 'stimside_stage3', 'choice': 'choice_stage3',
@@ -231,6 +236,44 @@ def load_meta_results(variable):
                'mannwhitney_significant',
                'euclidean_significant']]
     return res
+
+
+def pool_wheel_res():
+
+    '''
+    For encoding and decoding, 
+    pool wheel velocity and speed results
+    '''
+
+
+    # CONTINUE HERE
+    '''
+    encoding (glm) pkl to csv
+    '''
+
+    t = pd.read_pickle(
+            Path(enc_pth,'2024-02-26_glm_fit.pkl'))['mean_fit_results']
+    
+    assert variables == ['stim', 'choice', 'fback']
+                        
+    res = [abs(t['stimonL'] - t['stimonR']),
+           abs(t['fmoveR']  - t['fmoveL']),
+           abs(t['correct']  - t['incorrect'])]
+
+    d0 = dict(zip(variables,res))
+    d = {i: d0[i].to_frame().reset_index() for i in d0}
+    
+    rr = t['region'].reset_index()
+    acs = rr['region'].values
+    
+    for variable in d:
+        df = pd.DataFrame(d[variable])
+        df.drop(['eid', 'pid', 'clu_id'], axis=1, inplace=True)
+        df['region'] = acs
+        df = df.groupby(['region']).mean()               
+        df.to_csv(Path(enc_pth,f'{variable}.csv'))    
+
+
 
 
 def get_cmap_(variable):
