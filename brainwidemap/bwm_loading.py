@@ -1,3 +1,4 @@
+import json
 from dateutil import parser
 import numpy as np
 import pandas as pd
@@ -7,6 +8,7 @@ from iblutil.numerical import ismember
 from brainbox.io.one import SpikeSortingLoader, SessionLoader
 from brainbox.behavior import training
 from ibllib.atlas.regions import BrainRegions
+from ibllib.qc.base import CRITERIA
 from one.remote import aws
 import brainwidemap
 
@@ -533,46 +535,67 @@ def bwm_units(one=None, freeze='2023_12_bwm_release', rt_range=(0.08, 0.2), min_
 
 def filter_video_data(one, eids, camera='left', min_video_qc='FAIL', min_dlc_qc='FAIL'):
     """
-    Filters sessions for which video and/or video-derived data passes a given QC threshold
+    Filters sessions for which video and/or DLC data passes a given QC threshold for a selected camera.
 
     Parameters
     ----------
-    one
-    eids
-    camera
-    min_video_qc
-    min_dlc_qc
+    one: one.api.ONE
+        Instance to be used to connect to local or remote database.
+    eids: list or str
+        List of session UUIDs to filter.
+    camera: {'left', 'right', 'body'}
+        Camera for which to filter QC. Default is 'left'.
+    min_video_qc: {'CRITICAL', 'FAIL', 'WARNING', 'PASS', 'NOT_SET'} or None
+        Minimum video QC threshold for a session to be retained. Default is 'FAIL'.
+    min_dlc_qc: {'CRITICAL', 'FAIL', 'WARNING', 'PASS', 'NOT_SET'} or None
+        Minimum dlc QC threshold for a session to be retained. Default is 'FAIL'.
 
     Returns
     -------
     list:
+        List of session UUIDs that pass both indicated QC thresholds for the selected camera.
+
+    Notes
+    -----
+    For the thresholds, note that 'NOT_SET' < 'PASS' < 'WARNING' < 'FAIL' < 'CRITICAL'
+    If a min_video_qc or min_dlc_qc is set to None, all sessions are retained for that criterion.
+    The intersection of sessions passing both criteria is returned.
 
     """
 
-    # Check input arguments
+    # Check inputs
+    if isinstance(eids, str):
+        eids = [eids]
+    assert isinstance(eids, list), 'eids must be a list of session uuids'
+    assert min_video_qc in list(CRITERIA.keys()) + [None], f'{min_video_qc} is not a valid value for min_video_qc '
+    assert min_dlc_qc in list(CRITERIA.keys()) + [None], f'{min_dlc_qc} is not a valid value for min_dlc_qc '
+    assert min_video_qc or min_dlc_qc, 'At least one of min_video_qc or min_dlc_qc must be set'
 
-    # Can we do this with cached QC?
+    # Load QC json from cache and restrict to desired sessions
+    with open(one.cache_dir.joinpath('QC.json'), 'r') as f:
+        qc_cache = json.load(f)
+    qc_cache = {qc['eid']: qc['extended_qc'] for qc in qc_cache if qc['eid'] in eids}
+    assert set(list(qc_cache.keys())) == set(eids), 'Not all eids found in cached QC.json'
 
-    # Get the sessions that need to be removed
-    remove_eids = []
-    if min_video_qc:
-        # Figure out which qc labels to remove
-        # remove_qcs_video =
-        for qc in remove_qcs_video:
-            remove_eids.extend([
-                sess['id'] for sess in one.alyx.rest(
-                    'sessions', 'list', django=f'extended_qc__video{camera.capitalize()},{qc.upper()}'
-                )
-            ])
+    # Passing video
+    if min_video_qc is None:
+        passing_vid = eids
+    else:
+        passing_vid = [
+            k for k, v in qc_cache.items() if f'video{camera.capitalize()}' in v.keys() and
+                                              CRITERIA[v[f'video{camera.capitalize()}']] <= CRITERIA[min_video_qc]
+        ]
 
-    if min_dlc_qc:
-        # Figure out which qc labels to remove
-        # remove_qcs_dlc =
-        for qc in remove_qcs_dlc:
-            remove_eids.extend([
-                sess['id'] for sess in one.alyx.rest(
-                    'sessions', 'list', django=f'extended_qc__video{camera.capitalize()},{qc.upper()}'
-                )
-            ])
+    # Passing dlc
+    if min_dlc_qc is None:
+        passing_dlc = eids
+    else:
+        passing_dlc = [
+            k for k, v in qc_cache.items() if f'dlc{camera.capitalize()}' in v.keys() and
+                                              CRITERIA[v[f'dlc{camera.capitalize()}']] <= CRITERIA[min_dlc_qc]
+        ]
 
-    return [eid for eid in eids if eid not in remove_eids]
+    # Combine
+    passing = list(set(passing_vid).intersection(set(passing_dlc)))
+
+    return passing

@@ -40,7 +40,7 @@ def test_data_freeze():
 
 
 def test_spike_load_and_merge_probes():
-    one = ONE()
+    one = ONE(base_url='https://openalyx.internationalbrainlab.org')
     df_bwm = bwm_loading.bwm_query()
     eid = df_bwm['eid'].iloc[99]
     tmp_df = df_bwm.set_index(['eid', 'subject']).xs(eid, level='eid')
@@ -79,7 +79,7 @@ def test_spike_load_and_merge_probes():
 
 
 def test_filter_units_region():
-    one = ONE()
+    one = ONE(base_url='https://openalyx.internationalbrainlab.org')
     bwm_df = bwm_loading.bwm_query()
 
     # Test with downloading clusters table first
@@ -112,7 +112,7 @@ def test_filter_units_region():
 
 
 def test_filter_trials():
-    one = ONE()
+    one = ONE(base_url='https://openalyx.internationalbrainlab.org')
     bwm_df = bwm_loading.bwm_query()
 
     # Test with downloading clusters table first
@@ -132,7 +132,7 @@ def test_filter_trials():
 
 
 def test_trials_and_mask():
-    one = ONE()
+    one = ONE(base_url='https://openalyx.internationalbrainlab.org')
     # Test two different sessions with default settings
     eid_1 = '5569f363-0934-464e-9a5b-77c8e67791a1'
     eid_2 = 'dda5fc59-f09a-4256-9fb5-66c67667a466'
@@ -147,3 +147,18 @@ def test_trials_and_mask():
     trials, mask = bwm_loading.load_trials_and_mask(one, eid_2, min_trial_len=0, max_trial_len=100,
                                                     exclude_nochoice=True, exclude_unbiased=True)
     assert mask.sum() == 395
+
+
+def test_video_filter():
+    one = ONE(base_url='https://openalyx.internationalbrainlab.org')
+    bwm_df = bwm_loading.bwm_query()
+    eids = list(bwm_df.eid.unique())
+
+    for cam, num in zip(['left', 'right', 'body'], [435, 432, 257]):
+        assert len(bwm_loading.filter_video_data(one, eids, camera=cam, min_video_qc='FAIL', min_dlc_qc='FAIL')) == num
+
+    for cam, num in zip(['left', 'right', 'body'], [437, 433, 257]):
+        assert len(bwm_loading.filter_video_data(one, eids, camera=cam, min_video_qc='FAIL', min_dlc_qc=None)) == num
+
+    for cam, num in zip(['left', 'right', 'body'], [435, 432, 257]):
+        assert len(bwm_loading.filter_video_data(one, eids, camera=cam, min_video_qc=None, min_dlc_qc='FAIL')) == num
