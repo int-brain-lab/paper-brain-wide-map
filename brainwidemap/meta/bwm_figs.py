@@ -324,7 +324,6 @@ def plot_swansons(variable, fig=None, axs=None):
                  'euclidean_effect': 'Nrml. Eucl. dist.',
                  'euclidean_latency': 'Latency (s)',
                  'glm_effect': 'Abs. diff. $\\Delta R^2$'}
-
      
     cmap = get_cmap_(variable)
     
@@ -418,22 +417,25 @@ def plot_table(variable):
     cmap = get_cmap_(variable)
     
     # Normalize values in each amplitude column to interval [0,1]
-    # assuming columns 1:5 are 
-    #'euclidean_latency', 'euclidean_effect', 'glm_effect',
-    #'mannwhitney_effect', 'decoding_effect'
-    
-    res.iloc[:,1:5] = (res.iloc[:,1:5] - res.iloc[:,1:5].min())/(
-                      res.iloc[:,1:5].max()-res.iloc[:,1:5].min()) + 1e-4
+    # assuming columns  
+    anas = ['euclidean_effect',     
+            'glm_effect', 
+            'mannwhitney_effect',
+            'decoding_effect']
+    assert  list(res.iloc[:,2:6].keys()) == anas       
+            
+    res.iloc[:,2:6] = (res.iloc[:,2:6] - res.iloc[:,2:6].min())/(
+                      res.iloc[:,2:6].max()-res.iloc[:,2:6].min()) + 1e-4
 
     # ## Sum values in each row to use for sorting
     # The rows of the table are sorted by the sum of all effects 
     # across the row(excluding latency). 
     # Here we create a new column with this sum.
 
-    res['sum']  = res[['decoding_effect',
-                       'mannwhitney_effect',
-                       'euclidean_effect',
-                       'glm_effect']].apply(np.sum,axis=1)
+
+
+            
+    res['sum']  = res[anas].apply(np.sum,axis=1)
                        
     res = res.reset_index()
 
@@ -1538,14 +1540,11 @@ def main_fig(variable, save_pans=False):
     if not save_pans:
     
         plt.ion()
-
-        # Swansons
-        s = ['glm_eff', 'euc_lat', 'euc_eff', 'man_eff', 'dec_eff']
-            
+ 
         nrows = 14
         ncols = 15
         
-        fig = plt.figure(figsize=(9, 15), facecolor='w', 
+        fig = plt.figure(figsize=(9, 9.77), facecolor='w', 
                          clear=True)
                                              
         gs = GridSpec(nrows=nrows, ncols=ncols, figure=fig)
@@ -1593,7 +1592,7 @@ def main_fig(variable, save_pans=False):
     
     # 4 Swansons
     if not save_pans:
-        #plot_swansons(variable, fig=fig, axs=[axs[x] for x in s])
+        s = ['dec_eff', 'man_eff', 'euc_eff', 'euc_lat', 'glm_eff']
         plot_swansons(variable, fig=fig, 
             axs=[ax_str(x) for x in s])
                   
@@ -1723,4 +1722,4 @@ def main_fig(variable, save_pans=False):
         fig.savefig(Path(imgs_pth, variable, 
                          'main_fig.png'), dpi=250)    
     
-    
+        #plt.close(fig)
