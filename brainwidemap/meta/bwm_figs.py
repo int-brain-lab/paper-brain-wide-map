@@ -124,14 +124,14 @@ def pool_results_across_analyses(return_raw=False):
     
     for vari in variables:
         d[vari] = pd.read_csv(Path(man_pth / f'{vari}_restr.csv'))[[
-                    'region','amp_euc_can', 'lat_euc','p_euc']]
+                    'region','amp_euc_can', 'lat_euc_can','p_euc']]
     
         d[vari]['euclidean_significant'] = d[vari].p_euc.apply(
                                                lambda x: x<sigl)
                                                
 
         d[vari].rename(columns = {'amp_euc_can': 'euclidean_effect',
-                                  'lat_euc': 'euclidean_latency'},
+                                  'lat_euc_can': 'euclidean_latency'},
                                   inplace=True)
                                   
         d[vari] = d[vari][['region',
@@ -562,15 +562,18 @@ decoding
 def acronym2name(acronym):
     return br.name[np.argwhere(br.acronym==acronym)[0]][0]
 
+
 def get_xy_vals(xy_table, eid, region):
     xy_vals = xy_table.loc[xy_table['eid_region']==f'{eid}_{region}']
     assert xy_vals.shape[0] == 1
     return xy_vals.iloc[0]
 
+
 def get_res_vals(res_table, eid, region):
     er_vals = res_table[(res_table['eid']==eid) & (res_table['region']==region)]
     assert len(er_vals)==1
     return er_vals.iloc[0]
+
 
 def stim_dec_line(fig=None, ax=None):
 
@@ -616,7 +619,7 @@ def stim_dec_line(fig=None, ax=None):
         [2 * np.std(preds[targ_conts==c]) / 
         np.sqrt(np.sum(targ_conts==c)) for c in u_conts])
 
-    ax.set_title(f"{d['region'][0]}, single session")
+    ax.set_title(f"{d['region'][0][0]}, single session")
     ax.plot(-u_conts, neurometric_curve, lw=2, c='k')
     ax.plot(-u_conts, neurometric_curve, 'ko', ms=4)
     ax.errorbar(-u_conts, neurometric_curve, neurometric_curve_err, color='k')
@@ -996,9 +999,14 @@ def ecoding_raster_lines(variable, ax=None):
         [reg1, reg2] if variable != "wheel" else ["wheel"],
         ax = [ax[1],ax[2]])
     
-    ax[1].legend(frameon=False)
     ax[1].set_ylabel('Firing rate (Hz)')
     ax[2].set_ylabel('Firing rate (Hz)')
+    ax[2].set_ylabel('Time (s)')
+    
+    ax[1].yaxis.set_major_locator(plt.MaxNLocator(4))
+    ax[2].yaxis.set_major_locator(plt.MaxNLocator(4))
+    
+
         
     # Wheel only has one regressor, unlike all the others. 
     if variable != "wheel":
@@ -1009,6 +1017,14 @@ def ecoding_raster_lines(variable, ax=None):
     names = [reg1, reg2, reg1 + remstr, reg2 + remstr]
     for subax, title in zip(axs, names):
         subax.set_title(title)
+
+
+    # custom legend
+    all_lines = ax[1].get_lines()
+    legend_labels = [reg2, reg1, 'model', 'model']
+    ax[1].legend(all_lines, legend_labels, loc='best',
+                 frameon=False)
+
 
     stdf["response_times"] = stdf["stimOn_times"]
     trial_idx, dividers = find_trial_ids(stdf, sort=sortlookup[variable])
@@ -1029,12 +1045,11 @@ def ecoding_raster_lines(variable, ax=None):
     ax[0].set_ylabel('Resorted trial index')
     #ax[0].set_xlabel('Time from event (s)')   
     ax[0].set_title("{} unit {} \n $\log \Delta R^2$ = {:.2f}".format(
-                 region, clu_id, np.log(drsq)))
-    
+                 region, clu_id, np.log(drsq)))    
     
     ax[0].sharex(ax[1])
     ax[1].set_xlabel(None)
-                   
+                  
     if alone:
         fig.tight_layout()  
         fig.savefig(Path(imgs_pth, variable, 
@@ -1061,9 +1076,8 @@ def manifold_to_csv():
     mapping = 'Beryl'
 
     columns = ['region','name','nclus', 
-               'p_var', 'amp_var', 'lat_var',
-               'p_euc', 'amp_euc', 'lat_euc', 'amp_euc_can',
-               'lat_euc_can', 'amp_eucn_can', 'lat_eucn_can']
+               'p_euc', 'amp_euc_can',
+               'lat_euc_can']
 
     for variable in variables:        
         r = []
@@ -1075,16 +1089,9 @@ def manifold_to_csv():
         for reg in d:
 
             r.append([reg, get_name(reg), d[reg]['nclus'],
-                      d[reg]['p_var'], 
-                      d[reg]['amp_var'],
-                      d[reg]['lat_var'],                          
                       d[reg]['p_euc'],
-                      d[reg]['amp_euc'], 
-                      d[reg]['lat_euc'],
                       d[reg]['amp_euc_can'],
-                      d[reg]['lat_euc_can'],
-                      d[reg]['amp_eucn_can'],
-                      d[reg]['lat_eucn_can']])
+                      d[reg]['lat_euc_can']])
                       
         df  = pd.DataFrame(data=r,columns=columns)        
         df.to_csv(Path(man_pth,f'{variable}.csv'))        
@@ -1098,6 +1105,7 @@ ntravis = 30  # #trajectories for vis, first 2 real, rest pseudo
 align = {'stim': 'stim on',
          'choice': 'motion on',
          'fback': 'feedback'}
+         
          
 def pre_post(variable, can=False):
     '''
@@ -1152,6 +1160,10 @@ ex_regs = {'stim_restr': 'VISp',
 def plot_traj3d(variable, ga_pcs=False, curve='euc',
                        fig=None, ax=None):
                        
+    '''
+    using full window (not canonical) to see lick oscillation
+    '''
+
                        
     if 'can' in curve:
         print('using canonical time windows')
@@ -1186,17 +1198,25 @@ def plot_traj3d(variable, ga_pcs=False, curve='euc',
     npcs, allnobs = dd['pcs'].shape
     nobs = allnobs // ntravis
 
+
     for j in range(ntravis):
 
         # 3d trajectory
         cs = dd['pcs'][:, nobs * j: nobs * (j + 1)].T
+        nobs_ = nobs
+        if can:
+            # restric to canonical window
+            nobs_ = d[reg][f'd_{curve}'].shape[0]
+            cs = cs[:nobs_]
+             
 
         if j == 0:
-            col = grad('Blues_r', nobs)
+            col = grad('Blues_r', nobs_)
         elif j == 1:
-            col = grad('Reds_r', nobs)
+            col = grad('Reds_r', nobs_)
         else:
-            col = grad('Greys_r', nobs)
+            col = grad('Greys_r', nobs_)
+
 
         ax.plot(cs[:, 0], cs[:, 1], cs[:, 2],
                     color=col[len(col) // 2],
@@ -1290,8 +1310,6 @@ def plot_curves_scatter(variable, ga_pcs=False, curve='euc',
         can = True
     else:
         can = False          
-    d = np.load(Path(man_pth, f'{variable}.npy'),
-                allow_pickle=True).flat[0]
                        
     k = 0
     
@@ -1346,8 +1364,8 @@ def plot_curves_scatter(variable, ga_pcs=False, curve='euc',
     axs[k].spines['top'].set_visible(False)
     axs[k].spines['right'].set_visible(False)
 
-    axs[k].set_ylabel('distance (Hz)')
-    axs[k].set_xlabel('time (s)')
+    axs[k].set_ylabel('Distance (Hz)')
+    axs[k].set_xlabel('Time (s)')
 
 
     
@@ -1372,8 +1390,6 @@ def plot_curves_scatter(variable, ga_pcs=False, curve='euc',
     for variable0 in  exs0:
         if variable0 in variable:
             exs[variable] = exs0[variable0]
-
-        
 
 
     d = np.load(Path(man_pth, f'{variable}.npy'),
@@ -1424,8 +1440,8 @@ def plot_curves_scatter(variable, ga_pcs=False, curve='euc',
     axs[k].spines['top'].set_visible(False)
     axs[k].spines['right'].set_visible(False)
 
-    axs[k].set_ylabel('distance (Hz)')
-    axs[k].set_xlabel('time (s)')
+    axs[k].set_ylabel('Distance (Hz)')
+    axs[k].set_xlabel('Time (s)')
     
     k += 1
 
@@ -1499,8 +1515,8 @@ def plot_curves_scatter(variable, ga_pcs=False, curve='euc',
     axs[k].spines['top'].set_visible(False)
     axs[k].spines['right'].set_visible(False)
 
-    axs[k].set_ylabel('max dist. (Hz)')
-    axs[k].set_xlabel('latency (s)')
+    axs[k].set_ylabel('Max dist. (Hz)')
+    axs[k].set_xlabel('Latency (s)')
     axs[k].sharey(axs[k-1])
 
     if alone:    
@@ -1612,7 +1628,7 @@ def main_fig(variable, save_pans=False):
         ax_tab = ax_str('tab')
                                     
         ax_tab.imshow(im.rotate(90, expand=True),
-            aspect='auto')                  
+            aspect='equal')                  
         ax_tab.axis('off')                                             
         
          
