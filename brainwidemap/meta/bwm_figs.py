@@ -1152,7 +1152,8 @@ def ecoding_raster_lines(variable, ax=None):
     # custom legend
     all_lines = ax[1].get_lines()
     legend_labels = [reg2, reg1, 'model', 'model']
-    ax[1].legend(all_lines, legend_labels, loc='best',
+    ax[1].legend(all_lines, legend_labels, loc='upper right',
+                 bbox_to_anchor=(1.2, 1.3), fontsize=f_size/2,
                  frameon=False)
 
 
@@ -1814,7 +1815,7 @@ def main_fig(variable, save_pans=False):
                                       
     if not save_pans: 
         # Manually set the layout parameters for a tight layout
-        left, right, top, bottom = 0.05, 0.90, 0.97, 0.05  
+        left, right, top, bottom = 0.05, 0.98, 0.97, 0.05  
         wspace, hspace = 0.9, 0.9  
         fig.subplots_adjust(left=left, right=right, 
                             top=top, bottom=bottom, 
@@ -1862,8 +1863,13 @@ def main_fig(variable, save_pans=False):
                 
 
         fig.savefig(Path(imgs_pth, variable, 
-                         'main_fig.svg'))
+                         'main_fig.svg'),  
+                         bbox_inches='tight')
         fig.savefig(Path(imgs_pth, variable, 
-                         'main_fig.png'), dpi=250)    
+                         'main_fig.pdf'), dpi=300,  
+                         bbox_inches='tight')                         
+        fig.savefig(Path(imgs_pth, variable, 
+                         'main_fig.png'), dpi=250,  
+                         bbox_inches='tight')    
     
         #plt.close(fig)
