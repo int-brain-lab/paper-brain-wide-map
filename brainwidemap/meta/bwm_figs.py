@@ -749,7 +749,7 @@ def stim_dec_line(fig=None, ax=None):
         [2 * np.std(preds[targ_conts==c]) / 
         np.sqrt(np.sum(targ_conts==c)) for c in u_conts])
 
-    ax.set_title(f"{d['region'][0][0]}, single session")
+    ax.set_title(f"{d['region'][0]}, single session")
     ax.plot(-u_conts, neurometric_curve, lw=2, c='k')
     ax.plot(-u_conts, neurometric_curve, 'ko', ms=4)
     ax.errorbar(-u_conts, neurometric_curve, neurometric_curve_err, color='k')
@@ -816,7 +816,7 @@ def dec_scatter(variable,fig=None, ax=None):
     mask = fit['mask'][0]
     trials = np.arange(len(mask))[[m==1 for m in mask]]
 
-    ax.set_title(f"{d['region']}, single session")
+    ax.set_title(f"{d['region'][0]}, single session")
 
     ax.plot(
         trials[targs==-1], 
@@ -835,7 +835,7 @@ def dec_scatter(variable,fig=None, ax=None):
     elif variable == 'choice':
         l = ['Right choice', 'Left choice']
 
-    ax.legend(l,frameon=True)  
+    ax.legend(l,frameon=False, fontsize=0.8*f_size)  
     ax.set_yticks([0, 0.5, 1])
 
     ax.set_xlim(100,400)
@@ -1863,13 +1863,13 @@ def main_fig(variable, save_pans=False):
                 
 
         fig.savefig(Path(imgs_pth, variable, 
-                         'main_fig.svg'),  
+                         f'n5_main_figure_{variverb[variable]}_revised.svg'),  
                          bbox_inches='tight')
         fig.savefig(Path(imgs_pth, variable, 
-                         'main_fig.pdf'), dpi=300,  
+                         f'n5_main_figure_{variverb[variable]}_revised.pdf'), dpi=300,  
                          bbox_inches='tight')                         
         fig.savefig(Path(imgs_pth, variable, 
-                         'main_fig.png'), dpi=250,  
+                         f'n5_main_figure_{variverb[variable]}_revised.png'), dpi=250,  
                          bbox_inches='tight')    
     
         #plt.close(fig)
