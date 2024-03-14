@@ -1,3 +1,8 @@
+""""
+This is run on parede. If any of the data have been patched, you need to remove the cached results for the relevant pid
+from the CACHE_DIR before running.
+"""
+
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -9,8 +14,6 @@ from one.api import ONE
 from ibllib.atlas import AllenAtlas
 from iblutil.util import setup_logger
 
-from neuropixel import trace_header
-from iblutil.numerical import ismember2d
 from brainwidemap import bwm_query
 from brainbox.io.one import SpikeSortingLoader
 

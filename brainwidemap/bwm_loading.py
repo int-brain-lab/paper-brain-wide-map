@@ -200,7 +200,7 @@ def merge_probes(spikes_list, clusters_list):
 def load_trials_and_mask(
         one, eid, min_rt=0.08, max_rt=2., nan_exclude='default', min_trial_len=None,
         max_trial_len=None, exclude_unbiased=False, exclude_nochoice=False, sess_loader=None,
-        truncate_to_pass=True
+        truncate_to_pass=True, saturation_intervals=None
 ):
     """
     Function to load all trials for a given session and create a mask to exclude all trials that have a reaction time
@@ -233,8 +233,17 @@ def load_trials_and_mask(
     sess_loader: brainbox.io.one.SessionLoader or NoneType
         Optional SessionLoader object; if None, this object will be created internally
     truncate_to_pass: bool
-        True to truncate sessions that dont pass performance on easy trials > 90 percent when all trials are used,
+        True to truncate sessions that don't pass performance on easy trials > 90 percent when all trials are used,
         but do pass when the first x > 400 trials are used. Default is True.
+    saturation_intervals: str or list of str or None
+         If str or list of str, the name of the interval(s) to be used to exclude trials if the ephys signal shows
+         saturation in the interval(s). Default is None. Possible values are:
+         'saturation_stim_0_0.4',
+         'saturation_feedback_0_0.4',
+         'saturation_move_-0.2_0',
+         'saturation_stim_-0.4_-0.1',
+         'saturation_stim_0_0.6',
+         'saturation_stim_-0.6_0.6'
 
     Returns
     -------
@@ -303,6 +312,12 @@ def load_trials_and_mask(
     # Remove trials where animal does not respond
     if exclude_nochoice:
         query += ' | (choice == 0)'
+    # Remove trials where the signal shows saturation in an interval of interest
+    if saturation_intervals is not None:
+        if isinstance(saturation_intervals, str):
+            saturation_intervals = [saturation_intervals]
+        for interval in saturation_intervals:
+            query += f' | ({interval} == True)'
     # If min_rt was None we have to clean up the string
     if min_rt is None:
         query = query[3:]
@@ -435,7 +450,7 @@ def filter_units_region(eids, clusters_table=None, one=None, mapping='Beryl', mi
     return clus_df
 
 
-def filter_sessions(eids, trials_table, bwm_include=True, min_errors=3, min_trials=None):
+def filter_sessions(eids, trials_table, bwm_include=True, min_errors=3, min_trials=None, saturation_intervals=None):
     """
     Filters eids for sessions that pass certain criteria.
     The function first loads an aggregate of all trials for the brain wide map dataset
@@ -456,6 +471,15 @@ def filter_sessions(eids, trials_table, bwm_include=True, min_errors=3, min_tria
     min_trials: int or None
         Minimum number of trials that pass default criteria (see load_trials_and_mask()) for a session to be retained.
         Default is None, i.e. not applied
+    saturation_intervals: str or list of str or None
+         If str or list of str, the name of the interval(s) to be used to exclude trials if the ephys signal shows
+         saturation in the interval(s). Default is None. Possible values are:
+         'saturation_stim_0_0.4',
+         'saturation_feedback_0_0.4',
+         'saturation_move_-0.2_0',
+         'saturation_stim_-0.4_-0.1',
+         'saturation_stim_0_0.6',
+         'saturation_stim_-0.6_0.6'
 
     Returns
     -------
@@ -472,6 +496,12 @@ def filter_sessions(eids, trials_table, bwm_include=True, min_errors=3, min_tria
     # Aggregate and filter
     if bwm_include:
         trials_df = trials_df[trials_df['bwm_include']]
+
+    if saturation_intervals is not None:
+        if isinstance(saturation_intervals, str):
+            saturation_intervals = [saturation_intervals]
+        for interval in saturation_intervals:
+            trials_df = trials_df[~trials_df[interval]]
 
     trials_agg = trials_df.groupby('eid').aggregate(
         n_trials=pd.NamedAgg(column='eid', aggfunc='count'),

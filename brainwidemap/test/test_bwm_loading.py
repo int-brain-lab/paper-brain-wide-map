@@ -128,6 +128,18 @@ def test_filter_trials():
     eids = bwm_loading.filter_sessions(bwm_df['eid'], trials_table=trials_table, bwm_include=True, min_errors=3)
     assert len(eids) == 457
 
+    eids = bwm_loading.filter_sessions(
+        bwm_df['eid'], trials_table=trials_table, bwm_include=True, min_errors=3,
+        saturation_intervals='saturation_stim_0_0.4'
+    )
+    assert len(eids) == 0
+
+    eids = bwm_loading.filter_sessions(
+        bwm_df['eid'], trials_table=trials_table, bwm_include=True, min_errors=3,
+        saturation_intervals=['saturation_stim_0_0.4', 'saturation_feedback_0_0.4']
+    )
+    assert len(eids) == 0
+
     trials_table.unlink()
 
 
@@ -147,6 +159,13 @@ def test_trials_and_mask():
     trials, mask = bwm_loading.load_trials_and_mask(one, eid_2, min_trial_len=0, max_trial_len=100,
                                                     exclude_nochoice=True, exclude_unbiased=True)
     assert mask.sum() == 395
+    # Test with different saturation intervals
+    trials, mask = bwm_loading.load_trials_and_mask(one, eid_1, saturation_intervals='saturation_move_-0.2_0')
+    assert mask.sum() == 0
+    trials, mask = bwm_loading.load_trials_and_mask(
+        one, eid_1, saturation_intervals=['saturation_stim_0_0.4', 'saturation_move_-0.2_0']
+    )
+    assert mask.sum() == 0
 
 
 def test_video_filter():
