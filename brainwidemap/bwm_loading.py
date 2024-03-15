@@ -59,7 +59,7 @@ def bwm_query(one=None, alignment_resolved=True, return_details=False, freeze='2
     # Else, query the database
     assert one is not None, 'If freeze=None, you need to pass an instance of one.api.ONE'
     base_query = (
-        'session__project__name__icontains,ibl_neuropixel_brainwide_01,'
+        'session__projects__name__icontains,ibl_neuropixel_brainwide_01,'
         '~session__json__IS_MOCK,True,'
         'session__qc__lt,50,'
         'session__extended_qc__behavior,1,'
