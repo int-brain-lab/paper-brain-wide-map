@@ -233,37 +233,74 @@ def pool_wheel_res():
     '''
     For encoding and decoding, 
     pool wheel velocity and speed results
+    
+    variable in ['speed', 'velocity']
+    '''
+    D = {}
+ 
+    '''
+    encoding (glm) 
     '''
 
+    d = {}
+    fs = {'speed': '2024-02-26_glm_fit.pkl',
+          'velocity': '2024-03-18_glm_fit_VELOCITY.pkl'} 
 
-    # CONTINUE HERE?????
+    for v in fs:
+        d[v] = pd.read_pickle(
+            Path(enc_pth, fs[v]))[
+            'mean_fit_results'].groupby(
+            "region").agg({"wheel":"mean"})
+        d[v].reset_index(inplace=True)
+        d[v].columns = ['region', 'glm_effect']
+        
+    D['glm'] = d           
+
     '''
-    encoding (glm) pkl to csv
+    decoding
     '''
-
-    t = pd.read_pickle(
-            Path(enc_pth,'2024-02-26_glm_fit.pkl'))['mean_fit_results']
+   
+    d = {}    
+    fs = {'speed': 'wheel-speed_stage3',
+          'velocity': 'wheel-velocity_stage3'}
+          
+    for vari in fs:
+        d[vari] = pd.read_parquet(Path(dec_pth,
+                    f'{fs[vari]}.pqt'))[[
+                    'region','valuesminusnull_median',
+                    'sig_combined_corrected']].rename(columns = {
+                    'valuesminusnull_median': 'decoding_effect',
+                    'sig_combined_corrected': 'decoding_significant'})
+                
+        d[vari].dropna(axis=0,how='any',subset=['decoding_effect'])    
     
-    assert variables == ['stim', 'choice', 'fback']
-                        
-    res = [abs(t['stimonL'] - t['stimonR']),
-           abs(t['fmoveR']  - t['fmoveL']),
-           abs(t['correct']  - t['incorrect'])]
-
-    d0 = dict(zip(variables,res))
-    d = {i: d0[i].to_frame().reset_index() for i in d0}
+    D['dec'] = d
     
-    rr = t['region'].reset_index()
-    acs = rr['region'].values
+    # merge frames across analyses    
+    for vari in fs:
+        df_ = reduce(lambda left,right: 
+                     pd.merge(left,right,on='region'), 
+                     [D[ana][vari] for ana in D])
+                     
+        df_.replace(to_replace=[True, False], 
+                      value=[1, 0], inplace=True)
+                      
+        # ## Apply logarithm to GLM results             
+        df_.glm_effect = np.log10(
+                df_.glm_effect.clip(lower=1e-5))
+        
+        # Reorder columns to match ordering in Figure       
+        df_ = df_[['region',
+                   'glm_effect',
+                   'decoding_effect',
+                   'decoding_significant']]                        
+                                
+        df_.to_pickle(meta_pth / f"{vari}.pkl")
+
+        
+    print('pooled and saved results at')
+    print(meta_pth)      
     
-    for variable in d:
-        df = pd.DataFrame(d[variable])
-        df.drop(['eid', 'pid', 'clu_id'], axis=1, inplace=True)
-        df['region'] = acs
-        df = df.groupby(['region']).mean()               
-        df.to_csv(Path(enc_pth,f'{variable}.csv'))    
-
-
 
 
 def get_cmap_(variable):
