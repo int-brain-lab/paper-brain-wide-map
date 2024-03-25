@@ -88,12 +88,12 @@ def test_filter_units_region():
 
     units_df = bwm_loading.filter_units_region(bwm_df['eid'], clusters_table=clusters_table)
     assert 'Beryl' in units_df.columns
-    assert units_df.shape == (31562, 30)
+    assert units_df.shape == (36841, 30)
 
     # Test without passing clusters table
     units_df = bwm_loading.filter_units_region(bwm_df['eid'], one=one)
     assert 'Beryl' in units_df.columns
-    assert units_df.shape == (31562, 30)
+    assert units_df.shape == (36841, 30)
 
     # Test QC filter only
     units_df = bwm_loading.filter_units_region(bwm_df['eid'], clusters_table=clusters_table, min_qc=1,
@@ -103,9 +103,14 @@ def test_filter_units_region():
 
     # Test units filter only
     units_df = bwm_loading.filter_units_region(bwm_df['eid'], clusters_table=clusters_table, min_qc=None,
-                                               min_units_sessions=(10, 2))
+                                               min_units_sessions=(5, 2))
     assert 'Beryl' in units_df.columns
-    assert units_df.shape == (323779, 30)
+    assert units_df.shape == (325558, 30)
+
+    units_df = bwm_loading.filter_units_region(bwm_df['eid'], clusters_table=clusters_table)
+    assert units_df.Beryl.nunique() == 187
+    units_df = bwm_loading.filter_units_region(bwm_df['eid'], clusters_table=clusters_table, min_units_sessions=(10, 2))
+    assert units_df.Beryl.nunique() == 138
 
     # Remove the table
     clusters_table.unlink()
@@ -128,6 +133,25 @@ def test_filter_trials():
     eids = bwm_loading.filter_sessions(bwm_df['eid'], trials_table=trials_table, bwm_include=True, min_errors=3)
     assert len(eids) == 457
 
+    eids = bwm_loading.filter_sessions(
+        bwm_df['eid'], trials_table=trials_table, bwm_include=True, min_errors=3,
+        saturation_intervals='saturation_stim_plus04'
+    )
+    assert len(eids) == 457
+
+    eids = bwm_loading.filter_sessions(
+        bwm_df['eid'], trials_table=trials_table, bwm_include=True, min_errors=3,
+        saturation_intervals=[
+            'saturation_stim_plus04',
+            'saturation_feedback_plus04',
+            'saturation_move_minus02',
+            'saturation_stim_minus04_minus01',
+            'saturation_stim_plus06',
+            'saturation_stim_minus06_plus06'
+        ]
+    )
+    assert len(eids) == 456
+
     trials_table.unlink()
 
 
@@ -147,6 +171,16 @@ def test_trials_and_mask():
     trials, mask = bwm_loading.load_trials_and_mask(one, eid_2, min_trial_len=0, max_trial_len=100,
                                                     exclude_nochoice=True, exclude_unbiased=True)
     assert mask.sum() == 395
+    # Test with different saturation intervals
+    trials, mask = bwm_loading.load_trials_and_mask(one, eid_1, saturation_intervals='saturation_stim_plus04')
+    assert mask.sum() == 513
+    trials, mask = bwm_loading.load_trials_and_mask(one, eid_2, nan_exclude=['choice'])
+    assert mask.sum() == 441
+    trials, mask = bwm_loading.load_trials_and_mask(one, eid_2, nan_exclude=['choice'],
+                                                    saturation_intervals=['saturation_stim_minus04_minus01',
+                                                                          'saturation_move_minus02']
+                                                    )
+    assert mask.sum() == 438
 
 
 def test_video_filter():

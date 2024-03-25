@@ -4,7 +4,7 @@ import pandas as pd
 from one.api import ONE
 from brainwidemap import bwm_loading
 
-one = ONE()
+one = ONE(base_url='https://openalyx.internationalbrainlab.org')
 trials_table = bwm_loading.download_aggregate_tables(one, type='trials')
 df_trials = pd.read_parquet(trials_table)
 
