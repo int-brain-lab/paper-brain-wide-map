@@ -33,12 +33,12 @@ df_trials = pd.concat(all_trials, ignore_index=True)
 # Add saturation info
 # Definition of windows of interest
 trial_epochs = {
-    'saturation_stim_0_0.4': {'event': 'stimOn_times', 'twin': [0, 0.4]},
-    'saturation_feedback_0_0.4': {'event': 'feedback_times', 'twin': [0, 0.4]},
-    'saturation_move_-0.2_0': {'event': 'firstMovement_times', 'twin': [-0.2, 0]},
-    'saturation_stim_-0.4_-0.1': {'event': 'stimOn_times', 'twin': [-0.4, -0.1]},
-    'saturation_stim_0_0.6': {'event': 'stimOn_times', 'twin': [0, 0.6]},
-    'saturation_stim_-0.6_0.6': {'event': 'stimOn_times', 'twin': [-0.6, 0.6]}
+    'saturation_stim_plus04': {'event': 'stimOn_times', 'twin': [0, 0.4]},
+    'saturation_feedback_plus04': {'event': 'feedback_times', 'twin': [0, 0.4]},
+    'saturation_move_minus02': {'event': 'firstMovement_times', 'twin': [-0.2, 0]},
+    'saturation_stim_minus04_minus01': {'event': 'stimOn_times', 'twin': [-0.4, -0.1]},
+    'saturation_stim_plus06': {'event': 'stimOn_times', 'twin': [0, 0.6]},
+    'saturation_stim_minus06_plus06': {'event': 'stimOn_times', 'twin': [-0.6, 0.6]}
 }
 
 for key in trial_epochs.keys():

@@ -130,15 +130,22 @@ def test_filter_trials():
 
     eids = bwm_loading.filter_sessions(
         bwm_df['eid'], trials_table=trials_table, bwm_include=True, min_errors=3,
-        saturation_intervals='saturation_stim_0_0.4'
+        saturation_intervals='saturation_stim_plus04'
     )
-    assert len(eids) == 0
+    assert len(eids) == 457
 
     eids = bwm_loading.filter_sessions(
         bwm_df['eid'], trials_table=trials_table, bwm_include=True, min_errors=3,
-        saturation_intervals=['saturation_stim_0_0.4', 'saturation_feedback_0_0.4']
+        saturation_intervals=[
+            'saturation_stim_plus04',
+            'saturation_feedback_plus04',
+            'saturation_move_minus02',
+            'saturation_stim_minus04_minus01',
+            'saturation_stim_plus06',
+            'saturation_stim_minus06_plus06'
+        ]
     )
-    assert len(eids) == 0
+    assert len(eids) == 456
 
     trials_table.unlink()
 
@@ -160,12 +167,15 @@ def test_trials_and_mask():
                                                     exclude_nochoice=True, exclude_unbiased=True)
     assert mask.sum() == 395
     # Test with different saturation intervals
-    trials, mask = bwm_loading.load_trials_and_mask(one, eid_1, saturation_intervals='saturation_move_-0.2_0')
-    assert mask.sum() == 0
-    trials, mask = bwm_loading.load_trials_and_mask(
-        one, eid_1, saturation_intervals=['saturation_stim_0_0.4', 'saturation_move_-0.2_0']
-    )
-    assert mask.sum() == 0
+    trials, mask = bwm_loading.load_trials_and_mask(one, eid_1, saturation_intervals='saturation_stim_plus04')
+    assert mask.sum() == 513
+    trials, mask = bwm_loading.load_trials_and_mask(one, eid_2, nan_exclude=['choice'])
+    assert mask.sum() == 441
+    trials, mask = bwm_loading.load_trials_and_mask(one, eid_2, nan_exclude=['choice'],
+                                                    saturation_intervals=['saturation_stim_minus04_minus01',
+                                                                          'saturation_move_minus02']
+                                                    )
+    assert mask.sum() == 438
 
 
 def test_video_filter():

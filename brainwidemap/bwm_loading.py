@@ -238,12 +238,12 @@ def load_trials_and_mask(
     saturation_intervals: str or list of str or None
          If str or list of str, the name of the interval(s) to be used to exclude trials if the ephys signal shows
          saturation in the interval(s). Default is None. Possible values are:
-         'saturation_stim_0_0.4',
-         'saturation_feedback_0_0.4',
-         'saturation_move_-0.2_0',
-         'saturation_stim_-0.4_-0.1',
-         'saturation_stim_0_0.6',
-         'saturation_stim_-0.6_0.6'
+            saturation_stim_plus04
+            saturation_feedback_plus04
+            saturation_move_minus02
+            saturation_stim_minus04_minus01
+            saturation_stim_plus06
+            saturation_stim_minus06_plus06
 
     Returns
     -------
@@ -312,18 +312,24 @@ def load_trials_and_mask(
     # Remove trials where animal does not respond
     if exclude_nochoice:
         query += ' | (choice == 0)'
-    # Remove trials where the signal shows saturation in an interval of interest
-    if saturation_intervals is not None:
-        if isinstance(saturation_intervals, str):
-            saturation_intervals = [saturation_intervals]
-        for interval in saturation_intervals:
-            query += f' | ({interval} == True)'
     # If min_rt was None we have to clean up the string
     if min_rt is None:
         query = query[3:]
 
     # Create mask
     mask = ~sess_loader.trials.eval(query)
+
+    # If saturation intervals are provided, download trials table to get information about saturation
+    # Remove trials where the signal shows saturation in an interval of interest
+    if saturation_intervals is not None:
+        all_trials = pd.read_parquet(download_aggregate_tables(one, type='trials'))
+        sess_trials = all_trials[all_trials['eid'] == eid]
+        sess_trials.reset_index(inplace=True)
+        assert sess_trials.shape[0] == sess_loader.trials.shape[0], 'Trials table does not match trials in session.'
+        if isinstance(saturation_intervals, str):
+            saturation_intervals = [saturation_intervals]
+        for interval in saturation_intervals:
+            mask[sess_trials[interval] == True] = False
 
     return sess_loader.trials, mask
 
@@ -474,12 +480,12 @@ def filter_sessions(eids, trials_table, bwm_include=True, min_errors=3, min_tria
     saturation_intervals: str or list of str or None
          If str or list of str, the name of the interval(s) to be used to exclude trials if the ephys signal shows
          saturation in the interval(s). Default is None. Possible values are:
-         'saturation_stim_0_0.4',
-         'saturation_feedback_0_0.4',
-         'saturation_move_-0.2_0',
-         'saturation_stim_-0.4_-0.1',
-         'saturation_stim_0_0.6',
-         'saturation_stim_-0.6_0.6'
+            saturation_stim_plus04
+            saturation_feedback_plus04
+            saturation_move_minus02
+            saturation_stim_minus04_minus01
+            saturation_stim_plus06
+            saturation_stim_minus06_plus06
 
     Returns
     -------
