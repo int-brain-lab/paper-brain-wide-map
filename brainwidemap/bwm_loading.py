@@ -374,7 +374,7 @@ def download_aggregate_tables(one, target_path=None, type='clusters', tag='2023_
     return agg_path
 
 
-def filter_units_region(eids, clusters_table=None, one=None, mapping='Beryl', min_qc=1., min_units_sessions=(10, 2)):
+def filter_units_region(eids, clusters_table=None, one=None, mapping='Beryl', min_qc=1., min_units_sessions=(5, 2)):
     """
     Filter to retain only units that satisfy certain region based criteria.
 
@@ -395,7 +395,7 @@ def filter_units_region(eids, clusters_table=None, one=None, mapping='Beryl', mi
     min_units_sessions: tuple or None
         If tuple, the first entry is the minimum of units per session per region for a session to be retained, the
         second entry is the minimum number of those sessions per region for a region to be retained.
-        Default is (10, 2). If None, criterion is not applied
+        Default is (5, 2). If None, criterion is not applied
 
     Returns
     -------

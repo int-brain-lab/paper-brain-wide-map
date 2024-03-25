@@ -88,12 +88,12 @@ def test_filter_units_region():
 
     units_df = bwm_loading.filter_units_region(bwm_df['eid'], clusters_table=clusters_table)
     assert 'Beryl' in units_df.columns
-    assert units_df.shape == (31562, 30)
+    assert units_df.shape == (36841, 30)
 
     # Test without passing clusters table
     units_df = bwm_loading.filter_units_region(bwm_df['eid'], one=one)
     assert 'Beryl' in units_df.columns
-    assert units_df.shape == (31562, 30)
+    assert units_df.shape == (36841, 30)
 
     # Test QC filter only
     units_df = bwm_loading.filter_units_region(bwm_df['eid'], clusters_table=clusters_table, min_qc=1,
@@ -103,9 +103,14 @@ def test_filter_units_region():
 
     # Test units filter only
     units_df = bwm_loading.filter_units_region(bwm_df['eid'], clusters_table=clusters_table, min_qc=None,
-                                               min_units_sessions=(10, 2))
+                                               min_units_sessions=(5, 2))
     assert 'Beryl' in units_df.columns
-    assert units_df.shape == (323779, 30)
+    assert units_df.shape == (325558, 30)
+
+    units_df = bwm_loading.filter_units_region(bwm_df['eid'], clusters_table=clusters_table)
+    assert units_df.Beryl.nunique() == 187
+    units_df = bwm_loading.filter_units_region(bwm_df['eid'], clusters_table=clusters_table, min_units_sessions=(10, 2))
+    assert units_df.Beryl.nunique() == 138
 
     # Remove the table
     clusters_table.unlink()
