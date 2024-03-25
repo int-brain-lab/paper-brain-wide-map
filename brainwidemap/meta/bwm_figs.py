@@ -315,6 +315,10 @@ def get_cmap_(variable):
           'fback': ["#F1D3D0","#F5968A","#E34335",
                     "#A23535","#842A2A"],
           'block': ["#D0CDE4","#998DC3","#6159A6",
+                    "#42328E", "#262054"],
+          'speed': ["#D0CDE4","#998DC3","#6159A6",
+                    "#42328E", "#262054"],                    
+          'velocity': ["#D0CDE4","#998DC3","#6159A6",
                     "#42328E", "#262054"]}
 
     if '_' in variable:
@@ -437,6 +441,11 @@ def plot_swansons(variable, fig=None, axs=None):
  
     
 def plot_all_swansons():
+
+    '''
+    SI figure swansons for all three main variables and analyses
+    ''' 
+
 
     lw = 0.1  
 
@@ -576,6 +585,111 @@ def plot_all_swansons():
     fig.savefig(Path(imgs_pth, 'si', 'all_swansons.pdf'))    
 
 
+def plot_wheel_swansons(fig=None, axs=None):
+
+    '''
+    For decoding and encoding, plot Swansons for speed and velocity
+    '''
+
+    lw = 0.1  # .01
+
+    # results to plot in Swansons with labels for colorbars
+    res_types = {'decoding_effect': ['Decoding. $R^2$ over null',[0.02,.43], 
+                    ['Decoding', 'Regularized logistic regression']],
+                 'glm_effect': ['Abs. diff. $\\Delta R^2$',[-5,-.3],
+                    ['Encoding', 'General linear model']]}
+    
+    varis = ['speed', 'velocity']
+     
+    cmap = get_cmap_('speed')
+    
+    alone = False
+    if not fig:
+        fig = plt.figure(figsize=(8,3), layout='constrained')  
+        gs = gridspec.GridSpec(1, len(res_types)*len(varis), 
+                               figure=fig,hspace=.75)
+        axs = []
+        alone = True
+                 
+    k = 0
+    for vari in varis:
+        res = pd.read_pickle(meta_pth / f"{vari}.pkl")
+        for res_type in res_types:
+            if alone:
+                axs.append(fig.add_subplot(gs[0,k]))
+                
+                
+            ana = res_type.split('_')[0]
+
+            if ana != 'glm':
+                # check if there are p-values
+                
+                acronyms = res[res[f'{ana}_significant'] == True]['region'].values
+                scores = res[res[
+                         f'{ana}_significant'] == True][f'{ana}_effect'].values
+                            
+                mask = res[res[f'{ana}_significant'] == False]['region'].values
+            
+            else:
+                acronyms = res['region'].values
+                scores = res[f'{ana}_effect'].values
+                mask = []
+                
+            vmin, vmax = res_types[res_type][1]
+            plot_swanson_vector(acronyms,
+                                scores,
+                                hemisphere=None, 
+                                orientation='portrait',
+                                cmap=cmap,
+                                br=br,
+                                ax=axs[k],
+                                empty_color="white",
+                                linewidth=lw,
+                                mask=mask,
+                                mask_color='silver',
+                                annotate= True,
+                                annotate_n=5,
+                                annotate_order='top',
+                                vmin=vmin,
+                                vmax=vmax)
+
+            clevels = (min(scores), max(scores))
+
+            num_ticks = 3  # Adjust as needed
+
+            # Use MaxNLocator to select a suitable number of ticks
+            locator = MaxNLocator(nbins=num_ticks)
+                       
+            norm = mpl.colors.Normalize(vmin=clevels[0], vmax=clevels[1])
+            cbar = fig.colorbar(
+                       mpl.cm.ScalarMappable(norm=norm,cmap=cmap),
+                       ax=axs[k],shrink=0.4,aspect=12,pad=.025,
+                       orientation="horizontal", ticks=locator)
+                       
+            cbar.ax.tick_params(axis='both', which='major',
+                                labelsize=f_size, size=6)
+            cbar.outline.set_visible(False)
+            cbar.ax.tick_params(size=2)
+            cbar.ax.xaxis.set_tick_params(pad=5)
+            cbar.set_label(res_types[res_type][0], fontsize=f_size)
+            axs[k].text(1.21, 0.9, f'{len(scores)}/{len(scores) + len(mask)}',
+                    fontsize=f_size, ha='right', 
+                    transform=axs[k].transAxes)  
+
+            axs[k].set_xticks([])
+            axs[k].set_yticks([])
+            axs[k].axis("off")
+            
+            axs[k].axes.invert_xaxis()
+                            
+            k += 1  
+
+    if alone:
+        fig.savefig(Path(imgs_pth, variable, 'wheel_swansons.svg')) 
+
+
+
+
 def plot_table(variable):
 
 
@@ -584,27 +698,31 @@ def plot_table(variable):
     cmap = get_cmap_(variable)
     
     # Normalize values in each amplitude column to interval [0,1]
-    # assuming columns  
-    anas = ['euclidean_effect',     
-            'glm_effect', 
-            'mannwhitney_effect',
-            'decoding_effect']
-    assert  list(res.iloc[:,2:6].keys()) == anas       
+    # assuming columns 
+    if variable in ['speed', 'velocity']:
+        anas = ['decoding', 'glm']
+        si, se = 1,3   
+    else:
+        anas = ['decoding', 'mannwhitney', 'glm', 'euclidean']
+        
+        si, se = 2,6
+
+    effs = ['_'.join([a,'effect']) for a in anas]
+
+    assert  (set(list(res.iloc[:,si:se].keys())) == 
+             set(effs))       
             
-    res.iloc[:,2:6] = (res.iloc[:,2:6] - res.iloc[:,2:6].min())/(
-                      res.iloc[:,2:6].max()-res.iloc[:,2:6].min()) + 1e-4
+    res.iloc[:,si:se] = (res.iloc[:,si:se] - res.iloc[:,si:se].min())/(
+                      res.iloc[:,si:se].max()-res.iloc[:,si:se].min()) + 1e-4
 
     # ## Sum values in each row to use for sorting
     # The rows of the table are sorted by the sum of all effects 
     # across the row(excluding latency). 
     # Here we create a new column with this sum.
 
-
-
-            
-    res['sum']  = res[anas].apply(np.sum,axis=1)
+    res['sum']  = res[effs].apply(np.sum,axis=1)
                        
-    res = res.reset_index()
+    #res = res.reset_index()
 
     # ## Sort rows by 'sum' within each Cosmos region
     # The sorting by sum of effects is done within each Cosmos region. 
@@ -614,23 +732,14 @@ def plot_table(variable):
     res = res.groupby('cosmos').apply(
               lambda x: x.sort_values(['sum'], ascending=False))
 
-
-    # ## Order columns according to panels in Figure
-
-    res = res[['region',
-               'decoding_effect','mannwhitney_effect',
-               'glm_effect','euclidean_effect',
-               'decoding_significant',
-               'mannwhitney_significant','euclidean_significant']]
             
-    for rt in ['decoding', 'mannwhitney','euclidean']:
-        res[f'{rt}_effect'] = res[f'{rt}_effect'
-                              ] * res[f'{rt}_significant']
-    
-    res = res[['region',
-               'glm_effect','euclidean_effect',
-               'mannwhitney_effect','decoding_effect']]
+    for ana in anas:
+        if ana == 'glm':
+            continue
+        res[f'{ana}_effect'] = res[f'{ana}_effect'
+                              ] * res[f'{ana}_significant']
 
+    res = res[['region'] + effs]
 
 
     ## format table
@@ -648,9 +757,9 @@ def plot_table(variable):
         '''
         Formatting for effect columns
         '''
-        if x==0:
+        if x==0:  # not significant (values were set to zero)
             color = 'silver'
-        elif pd.isna(x):
+        elif pd.isna(x):  # not analysed
             color = 'w'    
         else:
             rgb = cmap(x)
@@ -660,43 +769,16 @@ def plot_table(variable):
                          
         return 'background-color: ' + color
 
-
-    def significance_formatting(x):
-        if x==True:
-            color = colors[-1]
-            
-        if x==False:
-            color =  colors[0]
-            
-        if pd.isna(x):
-            color='silver'
-        return 'background-color: ' + color
-        
         
     # Format table  
     def make_pretty(styler):
         
-        styler.applymap(effect_formatting,
-            subset=['decoding_effect','mannwhitney_effect',
-                    'euclidean_effect','glm_effect'])
-        styler.applymap(region_formatting,subset=['region'])
-        styler.set_properties(subset=['decoding_effect',
-                                      'euclidean_effect',
-                                      'mannwhitney_effect',
-                                      'glm_effect'], 
-                                      **{'width': '16px'})
-        styler.set_properties(subset=['decoding_effect',
-                                      'euclidean_effect',
-                                      'mannwhitney_effect',
-                                      'glm_effect'] , 
-                                      **{'font-size': '0pt'})
-                                                                            
-                                      
+        styler.map(effect_formatting, subset=effs)
+        styler.map(region_formatting, subset=['region'])
+        styler.set_properties(subset=effs, **{'width': '16px'})
+        styler.set_properties(subset=effs, **{'font-size': '0pt'})
         styler.set_properties(subset=['region'], **{'width': 'max-content'})
-
-
-        styler.set_properties(subset=['region'] , 
-                              **{'font-size': '9pt'})
+        styler.set_properties(subset=['region'],**{'font-size': '9pt'})
         styler.hide(axis="index")
         styler.hide(axis="columns")  # Hide column headers
        
@@ -886,6 +968,85 @@ def dec_scatter(variable,fig=None, ax=None):
         fig.tight_layout()  
         fig.savefig(Path(imgs_pth, variable, 
                          'dec_scatter.svg')) 
+
+
+def wheel_decoding_ex(vari, fig=None, axs=None):
+
+    '''
+    for vari in speed, velocity
+    show example trials for decoding
+    '''
+    variable = f'wheel-{vari}'
+    n_pseudo = 5 if variable == 'wheel-velocity' else 10
+    session_file = (f'{variable}_671c7ea7-6726-4fbe-adeb'
+                    f'-f89c2c8e489b_GRN_merged_probes_pseudo_ids_-1_'
+                    f'{n_pseudo}.pkl')
+    d = pd.read_pickle(open(Path(dec_pth, session_file), 'rb'))
+    trials = [113, 216]
+
+    if variable == 'wheel-speed':
+        ymin, ymax = -0.9, 8.75
+    else:
+        ymin, ymax = -8.5, 8.5    
+        
+    # base fit
+    fit = d['fit'][0]
+
+    # get average predictions from all runs
+    run_idxs = np.unique([i for i, fit in enumerate(d['fit']) 
+        if fit['pseudo_id'] == -1])
+    preds = []
+    n_preds = len(fit['predictions_test'])
+    for n in range(n_preds):
+        preds_tmp = np.concatenate(
+            [np.squeeze(d['fit'][i]['predictions_test'][n])[:, None] 
+                for i in run_idxs], 
+            axis=1,)
+        preds.append(np.mean(preds_tmp, axis=1))
+    # get decoding target
+    targs = fit['target']
+    # get good trials
+    mask = fit['mask'][0]
+    trial_idxs = np.where(mask)[0]
+    # get some other metadata
+    eid = d['eid']
+    region = d['region']
+    r2 = np.mean([d['fit'][i]['scores_test_full'] for i in range(2)])
+
+    # build plot    
+    alone = False
+    if not fig:
+        alone = True
+        fig, axs = plt.subplots(1, len(trials), figsize=(3 * len(trials), 4))
+        fig.suptitle(f"session: {eid} \n region: {region}"
+                 f" \n $R^2$ = {r2:.3f} (average across 2 models)")
+
+    movetime = 0.2
+
+    for i, (t, ax) in enumerate(zip(trials, axs)):
+        targs_curr, preds_curr, trial_curr = targs[t], preds[t], trial_idxs[t]
+        ax.plot((np.arange(len(targs_curr))-10)*0.02 + movetime, 
+            targs_curr, 'k', lw=2)
+        ax.plot((np.arange(len(targs_curr))-10)*0.02 + movetime, 
+            preds_curr, 'r', lw=2)
+        ax.plot(np.zeros(50) + movetime, np.linspace(ymin, ymax), 'k--', lw=1)
+        ax.set_ylim(ymin, ymax)
+        ax.set_ylabel(f'{variable} (rad./s)')
+        ax.set_xticks([0, .20, 0.5, 1.0], ['-0.2', '0.0', '0.5', '1.0'])
+        ax.set_xlabel(' ')
+        ax.set_title(f'Trial {trial_curr}')
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        if i == 1:
+            ax.text(0.22, 0.8, 'Movement onset', transform=ax.transAxes)
+
+    fig.text(.5, 0.04, 'Time (s)', ha='center')
+    
+    if alone:
+        fig.legend([f'Actual {variable}', 
+            f'Predicted {variable}\n(avg across 2 models)'])
+    plt.tight_layout()
+    plt.show()    
 
 
 
@@ -1223,6 +1384,30 @@ def ecoding_raster_lines(variable, ax=None):
         fig.savefig(Path(imgs_pth, variable, 
                          'encoding_raster_lines.svg'))              
                  
+
+def encoding_wheel_boxen(ax=None):
+
+
+    d = {}
+    fs = {'speed': '2024-02-26_glm_fit.pkl',
+          'velocity': '2024-03-18_glm_fit_VELOCITY.pkl'} 
+
+    for v in fs:
+        d[v] = pd.read_pickle(
+            Path(enc_pth, fs[v]))['mean_fit_results']["wheel"].to_frame()
+
+    joinwheel = d['speed'].join(d['velocity'], how="inner", 
+                                rsuffix="_velocity", lsuffix="_speed")
+    meltwheel = joinwheel.melt()
+    
+    alone = False
+    if not ax:
+        alone = True
+        fig, ax = plt.subplots()    
+    
+    ax = sns.boxenplot(data=meltwheel, y="value", x="variable")
+    ax.set_ylim([-0.015, 0.025])    
+
 
 
 '''
@@ -1903,10 +2088,164 @@ def main_fig(variable, save_pans=False):
                          f'n5_main_figure_{variverb[variable]}_revised.svg'),  
                          bbox_inches='tight')
         fig.savefig(Path(imgs_pth, variable, 
-                         f'n5_main_figure_{variverb[variable]}_revised.pdf'), dpi=300,  
+                         f'n5_main_figure_{variverb[variable]}_revised.pdf'),
+                         dpi=300,
                          bbox_inches='tight')                         
         fig.savefig(Path(imgs_pth, variable, 
-                         f'n5_main_figure_{variverb[variable]}_revised.png'), dpi=250,  
+                         f'n5_main_figure_{variverb[variable]}_revised.png'),
+                         dpi=250,
                          bbox_inches='tight')    
     
         #plt.close(fig)
+        
+  
+        
+def main_wheel(save_pans=False):
+
+
+    '''
+    combine panels into wheel figure;
+    using grid of 8 rows and 12 columns
+    
+    save_pans: save individual panels as svg
+    '''
+    
+    if not save_pans:
+    
+        plt.ion()
+ 
+        nrows = 15
+        ncols = 16
+        
+        fig = plt.figure(figsize=(9, 9.77), facecolor='w', 
+                         clear=True)
+                                             
+        gs = GridSpec(nrows=nrows, ncols=ncols, figure=fig)
+        
+        # for each panel type, get 
+        # [row_start, row_end, col_start, col_end]
+        gsd = {'dec_speed': [0, 5, 0, 4],
+               'glm_speed': [0, 5, 4, 8],
+               'dec_velocity': [0, 5, 8, 12],
+               'glm_velocity': [0, 5, 12, 16],
+               'tab_speed': [5, 7, 0, 16],
+               'tab_velocity': [7, 9, 0, 16],
+               'dec_ex_speed0': [9, 12, 0, 4],
+               'dec_ex_speed1': [9, 12, 4, 8],
+               'dec_ex_velocity0': [12, 15, 0, 4],
+               'dec_ex_velocity1': [12, 15, 4, 8],
+               'dummy': [9, 15, 8, 16]}
+
+        def ax_str(x):
+            if x == 'dummy':
+                fig0 ,ax0 = plt.subplots()
+                plt.close(fig0)
+                return ax0
+                                                      
+            else:
+                return fig.add_subplot(gs[gsd[x][0]: gsd[x][1],
+                                          gsd[x][2]: gsd[x][3]], label=x)    
+            
+    
+    else:
+        plt.ioff()     
+    # use  plot_wheel_swansons to have 4 swansons on top
+    
+    plot_wheel_swansons
+    '''
+    meta 
+    '''
+    
+    # 4 Swansons
+    if not save_pans:
+        s = ['dec_speed', 'glm_speed', 'dec_velocity', 'glm_velocity']
+        plot_wheel_swansons(fig=fig, axs=[ax_str(x) for x in s])
+                  
+    else:
+        plot_wheel_swansons()
+        
+    
+    for vari in ['speed', 'velocity']:
+        plot_table(vari)
+        pf = Path(imgs_pth, vari, 'table.png')  
+        if not save_pans:    
+            im = Image.open(pf)                  
+            
+            ax_tab = ax_str(f'tab_{vari}')
+                                        
+            ax_tab.imshow(im.rotate(90, expand=True),
+                aspect='equal')                  
+            ax_tab.axis('off')
+            ax_tab.set_title(vari)                                            
+     
+    for vari in ['speed', 'velocity']: 
+        if not save_pans: 
+            axsw = [ax_str(s) for s in 
+                    [f'dec_ex_{vari}0', f'dec_ex_{vari}1']]  
+            wheel_decoding_ex(vari, fig=fig, 
+                axs=axsw)    
+                
+        else:
+            wheel_decoding_ex(vari)
+
+    ax_str('dummy') 
+                    
+    if not save_pans:        
+    
+        # Manually set the layout parameters for a tight layout
+        left, right, top, bottom = 0.05, 0.98, 0.97, 0.05  
+        wspace, hspace = 0.9, 0.9  
+        fig.subplots_adjust(left=left, right=right, 
+                            top=top, bottom=bottom, 
+                            wspace=wspace, hspace=hspace)
+                            
+        # manually reduce size as tight_layout fails
+        axs = fig.get_axes()
+        shrink = 0.7  # size reduction factor 
+        pans = ['dec_ex_speed0', 'dec_ex_speed1', 'dec_ex_velocity0',
+                'dec_ex_velocity1']   
+        #['dec_speed', 'glm_speed', 'dec_velocity', 'glm_velocity']
+        s = ['glm_eff', 'euc_lat', 'euc_eff', 'man_eff', 'dec_eff']
+        
+        lettered = dict([('dec_speed','a'),  
+                ('glm_speed','b'), 
+                ('dec_velocity','c'), 
+                ('glm_velocity','d'), 
+                ('tab_speed','e'), 
+                ('tab_velocity','f'), 
+                ('dec_ex_speed0','g'), 
+                ('dec_ex_speed1',''), 
+                ('dec_ex_velocity0','h'), 
+                ('dec_ex_velocity1',''), 
+                ('dummy','')])
+        
+        for ax in axs:
+            if ax.get_label() in pans:
+                bbox = ax.get_position()
+                left, bottom, width, height = (bbox.x0, bbox.y0, 
+                                               bbox.width, bbox.height)
+                ax.set_position([left + (width - width*shrink) / 2 + 0.02, 
+                                 bottom + (height - height*shrink) / 2, 
+                                 width*shrink, height*shrink])
+                
+                
+                title_text = ax.get_title()
+                ax.set_title(title_text, fontsize=8)
+                                 
+            if ax.get_label() in s:
+                title_text = ax.get_title()
+                ax.set_title(title_text, fontsize=8)                 
+        
+            if ax.get_label() in lettered:
+                put_panel_label(ax, lettered[ax.get_label()])
+                       
+        fig.savefig(Path(imgs_pth, 'speed', 
+                         f'n5_main_figure_wheel_revised.svg'),  
+                         bbox_inches='tight')
+        fig.savefig(Path(imgs_pth, variable, 
+                         f'n5_main_figure_wheel_revised.pdf'),
+                         dpi=300,
+                         bbox_inches='tight')          
+        
+        
+        
