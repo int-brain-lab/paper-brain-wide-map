@@ -8,7 +8,8 @@ from functools import reduce
 from one.api import ONE
 from iblatlas.atlas import AllenAtlas
 from iblatlas.regions import BrainRegions
-from iblatlas.plots import plot_swanson_vector 
+from iblatlas.plots import plot_swanson_vector, plot_scalar_on_slice
+
 import ibllib
 
 from matplotlib.colors import LinearSegmentedColormap
@@ -51,7 +52,7 @@ one = ONE(base_url='https://openalyx.internationalbrainlab.org',
 
 
 variables = ['stim', 'choice', 'fback']
-variverb = dict(zip(variables,['stimulus', 'choice', 'feddback']))
+variverb = dict(zip(variables,['stimulus', 'choice', 'feedback']))
  
 # pooled results
 meta_pth = Path(one.cache_dir, 'bwm_res', 'bwm_figs_data', 'meta')
@@ -228,6 +229,7 @@ def pool_results_across_analyses(return_raw=False):
     print(meta_pth)   
 
 
+
 def pool_wheel_res():
 
     '''
@@ -345,6 +347,12 @@ def rgb_to_hex(rgb):
 
 def plot_swansons(variable, fig=None, axs=None):
 
+    '''
+    for a single variable, plot 5 results swansons,
+    4 effects for the 4 analyses and latencies for manifold
+    '''
+
+
     res = pd.read_pickle(meta_pth / f"{variable}.pkl")
 
     lw = 0.1  # .01
@@ -374,13 +382,14 @@ def plot_swansons(variable, fig=None, axs=None):
             
         ana = res_type.split('_')[0]
         lat = True if 'latency' in res_type else False
+        dt = 'effect' if not lat else 'latency'
 
         if ana != 'glm':
             # check if there are p-values
             
             acronyms = res[res[f'{ana}_significant'] == True]['region'].values
             scores = res[res[
-                     f'{ana}_significant'] == True][f'{ana}_effect'].values
+                     f'{ana}_significant'] == True][f'{ana}_{dt}'].values
                         
             mask = res[res[f'{ana}_significant'] == False]['region'].values
         
@@ -428,8 +437,6 @@ def plot_swansons(variable, fig=None, axs=None):
         cbar.set_label(res_types[res_type], fontsize=f_size)
         
         axs[k].set_title(f'{len(scores)}/{len(scores) + len(mask)}')  
-        axs[k].set_xticks([])
-        axs[k].set_yticks([])
         axs[k].axis("off")
         
         axs[k].axes.invert_xaxis()
@@ -438,7 +445,170 @@ def plot_swansons(variable, fig=None, axs=None):
 
     if alone:
         fig.savefig(Path(imgs_pth, variable, 'swansons.svg'))          
- 
+
+
+def plot_slices(variable):
+
+    '''
+    For a single variable, plot effects for the 4 analyses and
+    latencies of manifolds onto brain slices
+    '''
+    
+    res = pd.read_pickle(meta_pth / f"{variable}.pkl")
+
+
+    # results to plot in Swansons with labels for colorbars
+    res_types = {'decoding_effect': ['Decoding. $R^2$ over null',[], 
+                    ['Decoding', 'Regularized logistic regression']],
+                 'mannwhitney_effect': ['Frac. sig. cells',[],
+                    ['Single cell statistics', 'C.C Mann-Whitney test']],
+                 'euclidean_effect': ['Nrml. Eucl. dist.',[],
+                    ['Manifold', 'Distance between trajectories']],
+                 'euclidean_latency': ['Latency of dist. (sec)',[],
+                    ['Manifold', 'Time near peak']],      
+                 'glm_effect': ['Abs. diff. $\\Delta R^2$',[],
+                    ['Encoding', 'General linear model']]}
+    
+    cmap = get_cmap_(variable)
+    cmap_mask = LinearSegmentedColormap.from_list('custom_colormap', 
+                                                 ['silver', 'silver'])
+                                                   
+    # Setup GridSpec with additional space for colorbars
+    nrows = 4  # Number of rows for plots
+    cb_height = 0.05  # Height of colorbar
+    cb_space = 0.02  # Space between colorbar and plot
+    fig = plt.figure(figsize=(8.16, 6.38))  
+    gs = gridspec.GridSpec(nrows + 1, len(res_types), 
+                           figure=fig,hspace=.75,
+                           height_ratios=[1]*nrows + [0.05])
+    axs = []
+                 
+    
+    colm = 0  # column index
+    k = 0  # panel index
+    for res_type in res_types:
+                       
+        ana = res_type.split('_')[0]
+        lat = True if 'latency' in res_type else False
+        dt = 'effect' if not lat else 'latency'
+        if ana != 'glm':
+            # check if there are p-values
+            
+            acronyms = res[res[f'{ana}_significant'] == True]['region'].values
+            scores = res[res[
+                     f'{ana}_significant'] == True][f'{ana}_{dt}'].values
+                        
+            mask = res[res[f'{ana}_significant'] == False]['region'].values
+        
+        else:
+            acronyms = res['region'].values
+            scores = res[f'{ana}_effect'].values
+            mask = []
+
+        vmin, vmax = (min(scores), max(scores))
+        res_types[res_type][1] = [vmin,vmax]
+        
+        row = 0  #row index
+      
+        for st in ['sagittal', 'top']:
+            if st == 'sagittal':
+                coords = [-1800, -800, -200]  # coordinate in [um]
+            else:
+                coords = [-1800]  # ignored for top view
+
+        
+            for coord in coords:
+                label = f'{res_type} {st} {coord}'
+                axs.append(fig.add_subplot(gs[row,colm], 
+                                           label=label))  
+        
+                # plot significant scores
+                plot_scalar_on_slice(acronyms, scores, coord=coord, 
+                                     slice=st, mapping='Beryl', 
+                                     hemisphere='left', background='boundary', 
+                                     cmap=cmap.reversed() if lat else cmap,
+                                     brain_atlas=ba, ax=axs[k],
+                                     empty_color='white')
+                
+                if len(mask) != 0:                               
+                    # plot insignificant scores      
+                    plot_scalar_on_slice(mask, np.random.rand(len(mask)), 
+                                        coord=coord, slice=st, 
+                                        mapping='Beryl', 
+                                        hemisphere='left',
+                                        background='boundary', 
+                                        cmap=cmap_mask, brain_atlas=ba,
+                                        ax=axs[k], empty_color='white')
+
+                axs[k].axis("off")
+                if row == 0:
+                    axs[k].text(0.5, 1.2, res_types[res_type][2][0],
+                            fontsize=f_size, ha='center', 
+                            transform=axs[k].transAxes)                 
+                    axs[k].text(0.5, 1, res_types[res_type][2][1],
+                            fontsize=0.7 * f_size, ha='center', 
+                            transform=axs[k].transAxes)
+                row += 1
+                k += 1
+        colm += 1                                                   
+
+    # tweak layout
+    fig.subplots_adjust(    
+                top=0.95,
+                bottom=0.1,
+                left=0.0,
+                right=1.0,
+                hspace=0.0,
+                wspace=0.0)
+                
+    # manually reduce size as tight_layout fails
+    shrink = 1.7  # size reduction factor 
+        
+    for ax in axs:
+        if 'top' in ax.get_label():
+            bbox = ax.get_position()
+            left, bottom, width, height = (bbox.x0, bbox.y0, 
+                                           bbox.width, bbox.height)
+            ax.set_position([left + (width - width*shrink) / 2 + 0.02, 
+                             bottom + (height - height*shrink) / 2, 
+                             width*shrink, height*shrink])
+                             
+    colorbar_width_proportion = 0.5                         
+    # Create colorbar axes at the bottom row of the GridSpec
+    for i, res_type in enumerate(res_types):
+        cax = fig.add_subplot(gs[-1, i])  # New axis for colorbar
+        vmin, vmax = res_types[res_type][1]
+        norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+        cbar = mpl.colorbar.ColorbarBase(cax, cmap=cmap,
+                                         norm=norm, orientation='horizontal')
+        cbar.set_label(res_types[res_type][0], fontsize=f_size)
+        cbar.ax.tick_params(labelsize=f_size)
+        cbar.outline.set_visible(False)
+        cbar.locator = MaxNLocator(nbins=1)  # Forces two ticks
+        cbar.update_ticks()
+        # Manually adjust colorbar axes if needed
+        bbox = cax.get_position()
+        center_offset = (bbox.width * (1 - colorbar_width_proportion)) / 2
+        new_x_position = bbox.x0 + center_offset
+
+        # Set the new position with the updated x position and adjusted width
+        cax.set_position([new_x_position, bbox.y0, 
+            bbox.width * colorbar_width_proportion, bbox.height])
+        
+        
+        
+                       
+    fig.savefig(Path(imgs_pth, 'si', 
+                     f'n6_supp_figure_{variverb[variable]}.svg'),  
+                     bbox_inches='tight')
+    fig.savefig(Path(imgs_pth, 'si', 
+                     f'n6_supp_figure_{variverb[variable]}.pdf'),
+                     dpi=300,
+                     bbox_inches='tight')          
+                        
+                
+
+
     
 def plot_all_swansons():
 
@@ -1033,14 +1203,14 @@ def wheel_decoding_ex(vari, fig=None, axs=None):
         ax.set_ylim(ymin, ymax)
         ax.set_ylabel(f'{variable} (rad./s)')
         ax.set_xticks([0, .20, 0.5, 1.0], ['-0.2', '0.0', '0.5', '1.0'])
-        ax.set_xlabel(' ')
+        ax.set_xlabel('Time (s)')
         ax.set_title(f'Trial {trial_curr}')
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
         if i == 1:
             ax.text(0.22, 0.8, 'Movement onset', transform=ax.transAxes)
 
-    fig.text(.5, 0.04, 'Time (s)', ha='center')
+    #fig.text(.5, 0.04, 'Time (s)', ha='center')
     
     if alone:
         fig.legend([f'Actual {variable}', 
@@ -1385,7 +1555,7 @@ def ecoding_raster_lines(variable, ax=None):
                          'encoding_raster_lines.svg'))              
                  
 
-def encoding_wheel_boxen(ax=None):
+def encoding_wheel_boxen(ax=None, fig=None):
 
 
     d = {}
@@ -1403,11 +1573,14 @@ def encoding_wheel_boxen(ax=None):
     alone = False
     if not ax:
         alone = True
-        fig, ax = plt.subplots()    
+        fig, ax = plt.subplots(constrained_layout=True)    
     
-    ax = sns.boxenplot(data=meltwheel, y="value", x="variable")
+    ax = sns.boxenplot(data=meltwheel, y="value", x="variable",
+                        hue="variable",
+                        palette={'wheel_speed': sns.color_palette()[0], 
+                                 'wheel_velocity': sns.color_palette()[1]})
     ax.set_ylim([-0.015, 0.025])    
-
+    ax.set_ylabel(r'Distribution of population $\Delta R^2$')
 
 
 '''
@@ -2134,7 +2307,7 @@ def main_wheel(save_pans=False):
                'dec_ex_speed1': [9, 12, 4, 8],
                'dec_ex_velocity0': [12, 15, 0, 4],
                'dec_ex_velocity1': [12, 15, 4, 8],
-               'dummy': [9, 15, 8, 16]}
+               'glm_boxen': [9, 15, 8, 16]}
 
         def ax_str(x):
             if x == 'dummy':
@@ -2177,7 +2350,8 @@ def main_wheel(save_pans=False):
                 aspect='equal')                  
             ax_tab.axis('off')
             ax_tab.set_title(vari)                                            
-     
+    
+    # decoding example trials 
     for vari in ['speed', 'velocity']: 
         if not save_pans: 
             axsw = [ax_str(s) for s in 
@@ -2188,12 +2362,16 @@ def main_wheel(save_pans=False):
         else:
             wheel_decoding_ex(vari)
 
-    ax_str('dummy') 
+    # glm boxen plot
+    if not save_pans: 
+        encoding_wheel_boxen(ax=ax_str('glm_boxen'), fig=fig)               
+    else:       
+        encoding_wheel_boxen()
                     
     if not save_pans:        
     
         # Manually set the layout parameters for a tight layout
-        left, right, top, bottom = 0.05, 0.98, 0.97, 0.05  
+        left, right, top, bottom = 0.08, 0.98, 0.95, 0.05  
         wspace, hspace = 0.9, 0.9  
         fig.subplots_adjust(left=left, right=right, 
                             top=top, bottom=bottom, 
@@ -2203,7 +2381,7 @@ def main_wheel(save_pans=False):
         axs = fig.get_axes()
         shrink = 0.7  # size reduction factor 
         pans = ['dec_ex_speed0', 'dec_ex_speed1', 'dec_ex_velocity0',
-                'dec_ex_velocity1']   
+                'dec_ex_velocity1', 'glm_boxen']   
         #['dec_speed', 'glm_speed', 'dec_velocity', 'glm_velocity']
         s = ['glm_eff', 'euc_lat', 'euc_eff', 'man_eff', 'dec_eff']
         
@@ -2217,7 +2395,7 @@ def main_wheel(save_pans=False):
                 ('dec_ex_speed1',''), 
                 ('dec_ex_velocity0','h'), 
                 ('dec_ex_velocity1',''), 
-                ('dummy','')])
+                ('glm_boxen','i')])
         
         for ax in axs:
             if ax.get_label() in pans:
@@ -2242,7 +2420,7 @@ def main_wheel(save_pans=False):
         fig.savefig(Path(imgs_pth, 'speed', 
                          f'n5_main_figure_wheel_revised.svg'),  
                          bbox_inches='tight')
-        fig.savefig(Path(imgs_pth, variable, 
+        fig.savefig(Path(imgs_pth, 'speed', 
                          f'n5_main_figure_wheel_revised.pdf'),
                          dpi=300,
                          bbox_inches='tight')          
