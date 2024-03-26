@@ -453,6 +453,8 @@ def plot_slices(variable):
     For a single variable, plot effects for the 4 analyses and
     latencies of manifolds onto brain slices
     '''
+
+    
     
     res = pd.read_pickle(meta_pth / f"{variable}.pkl")
 
@@ -605,9 +607,6 @@ def plot_slices(variable):
                      f'n6_supp_figure_{variverb[variable]}.pdf'),
                      dpi=300,
                      bbox_inches='tight')          
-                        
-                
-
 
     
 def plot_all_swansons():
