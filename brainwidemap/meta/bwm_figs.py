@@ -4,6 +4,7 @@ from pathlib import Path
 import math, string
 from collections import Counter, OrderedDict
 from functools import reduce
+import os
 
 from one.api import ONE
 from iblatlas.atlas import AllenAtlas
@@ -1218,6 +1219,119 @@ def wheel_decoding_ex(vari, fig=None, axs=None):
     plt.show()    
 
 
+def plot_SI_speed_velocity():
+
+    '''
+    SI figure comparing wheel velocity/speed decoding
+    '''
+    
+    MIN_UNITS = 5
+    MIN_TRIALS = 250
+    MIN_SESSIONS_PER_REGION = 2    
+    
+    targets = ['wheel-velocity', 'wheel-speed']
+    results = {target: {} for target in targets}
+    for target in targets: #, 'wheel-speed']:
+        
+        # load results combined across sessions for each region
+        file_stage3_results = os.path.join(dec_pth, f'{target}_stage3.pqt')
+        res_table_final = pd.read_parquet(file_stage3_results)
+
+        # only get regions from final results table
+        regions = res_table_final[
+            res_table_final.n_sessions >= MIN_SESSIONS_PER_REGION
+        ]['region'].values
+        
+        results[target]['vals'] = res_table_final
+        results[target]['regions'] = regions
+        
+    # load raw targets
+    dfs = {}
+    for target in targets:
+        imposter_file = os.path.join(dec_pth, 
+            f'imposterSessions_{target}.pqt')
+        df_tmp = pd.read_parquet(imposter_file)
+        vals = df_tmp.loc[:, target].to_numpy()
+        dfs[target] = np.concatenate([v[None, :] for v in vals], axis=0)    
+
+    metrics_to_plot = {
+        'valuesminusnull_median': '$R^2$, null corrected',
+        'values_median': '$R^2$',
+        'null_median_of_medians': '$R^2$, median null',
+    }
+    n_metrics = len(metrics_to_plot.keys())
+    n_panels = n_metrics + 1
+
+    fig, axes = plt.subplots(1, n_panels, figsize=(3 * n_panels, 3))
+
+    _, pal = get_allen_info()
+
+    
+    
+    # -----------------------
+    # metrics
+    # -----------------------
+    for ax, metric in zip(axes[:len(metrics_to_plot)], metrics_to_plot.keys()):
+        # plot values
+        
+        cols = [pal[reg] for reg in results['wheel-velocity']['vals'].region]
+        ax.scatter(
+            results['wheel-velocity']['vals'][metric], 
+            results['wheel-speed']['vals'][metric], s=1, color=cols,
+        )
+        # plot diagonal line
+        xs = np.linspace(0, 0.55)
+        if metric != 'null_median_of_medians':
+            ax.plot(xs, xs, 'k--')
+        # plot text
+        for x, y, s in zip(
+            results['wheel-velocity']['vals'][metric],
+            results['wheel-speed']['vals'][metric],
+            results['wheel-velocity']['vals'].region,
+        ):
+            if np.isnan(x) or np.isnan(y):
+                continue
+            ax.text(x, y, s, fontsize=6, color=pal[s])
+
+        ax.set_xlabel(f'Wheel-velocity ({metrics_to_plot[metric]})')
+        ax.set_ylabel(f'Wheel-speed ({metrics_to_plot[metric]})')
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+
+
+    # -----------------------
+    # target shapes
+    # -----------------------
+    ts = np.arange(60) * 0.020 - 0.2
+    axes[-1].plot(ts, np.median(dfs['wheel-speed'], axis=0), lw=2)
+    axes[-1].plot(ts, np.median(dfs['wheel-velocity'], axis=0), lw=2)
+    axes[-1].fill_between(
+        ts, 
+        np.percentile(dfs['wheel-speed'], 5, axis=0),
+        np.percentile(dfs['wheel-speed'], 95, axis=0), 
+        alpha=0.2, color='C0',
+    )
+    axes[-1].fill_between(
+        ts, 
+        np.percentile(dfs['wheel-velocity'], 5, axis=0),
+        np.percentile(dfs['wheel-velocity'], 95, axis=0), 
+        alpha=0.2, color='C1',
+    )
+    axes[-1].legend(['wheel-speed', 'wheel-velocity'], fontsize=10)
+    axes[-1].set_xlabel('Time from movement onset (s)')
+    axes[-1].set_ylabel('Within trial speed/velocity')
+    axes[-1].spines['top'].set_visible(False)
+    axes[-1].spines['right'].set_visible(False)
+
+    plt.tight_layout()
+    plt.show()
+
+    fig.savefig(Path(imgs_pth, 'si', 
+                     f'n6_supp_figure_decoding_wheelspeedvsvel.pdf'),
+                     dpi=250,
+                     bbox_inches='tight')
+
+
 
 '''
 ##########
@@ -1588,6 +1702,19 @@ manifold
 ##########
 '''
 
+# canonical colors for left and right trial types
+blue_left = [0.13850039, 0.41331206, 0.74052025]
+red_right = [0.66080672, 0.21526712, 0.23069468]
+ntravis = 30  # #trajectories for vis, first 2 real, rest pseudo
+
+align = {'stim': 'stim on',
+         'choice': 'motion on',
+         'fback': 'feedback'}
+         
+ex_regs = {'stim_restr': 'VISp', 
+       'choice_restr': 'GRN', 
+       'fback_restr': 'IRN'}
+
 def get_name(brainregion):
     regid = br.id[np.argwhere(br.acronym == brainregion)][0, 0]
     return br.name[np.argwhere(br.id == regid)[0, 0]]
@@ -1621,16 +1748,7 @@ def manifold_to_csv():
         df  = pd.DataFrame(data=r,columns=columns)        
         df.to_csv(Path(man_pth,f'{variable}.csv'))        
 
-
-# canonical colors for left and right trial types
-blue_left = [0.13850039, 0.41331206, 0.74052025]
-red_right = [0.66080672, 0.21526712, 0.23069468]
-ntravis = 30  # #trajectories for vis, first 2 real, rest pseudo
-
-align = {'stim': 'stim on',
-         'choice': 'motion on',
-         'fback': 'feedback'}
-         
+     
          
 def pre_post(variable, can=False):
     '''
@@ -1675,12 +1793,6 @@ def get_allen_info():
                 allow_pickle=True).flat[0]
     return r['dfa'], r['palette']
 
-      
-
-ex_regs = {'stim_restr': 'VISp', 
-       'choice_restr': 'GRN', 
-       'fback_restr': 'IRN'}
-       
        
 def plot_traj3d(variable, ga_pcs=False, curve='euc',
                        fig=None, ax=None):
