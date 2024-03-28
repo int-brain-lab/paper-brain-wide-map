@@ -38,7 +38,8 @@ trial_epochs = {
     'saturation_move_minus02': {'event': 'firstMovement_times', 'twin': [-0.2, 0]},
     'saturation_stim_minus04_minus01': {'event': 'stimOn_times', 'twin': [-0.4, -0.1]},
     'saturation_stim_plus06': {'event': 'stimOn_times', 'twin': [0, 0.6]},
-    'saturation_stim_minus06_plus06': {'event': 'stimOn_times', 'twin': [-0.6, 0.6]}
+    'saturation_stim_minus06_plus06': {'event': 'stimOn_times', 'twin': [-0.6, 0.6]},
+    'saturation_stim_minus06_minus01': {'event': 'stimOn_times', 'twin': [-0.6, -0.1]}
 }
 
 for key in trial_epochs.keys():
@@ -90,3 +91,11 @@ week_file = STAGING_PATH.joinpath('trials.pqt')
 root_file = STAGING_PATH.parent.joinpath('trials.pqt')
 print(f"cp {week_file} {root_file}")
 print(f'aws s3 sync "{STAGING_PATH.parent}" s3://ibl-brain-wide-map-private/aggregates/2023_Q4_IBL_et_al_BWM_2/ --profile ibl')
+
+
+# On SDSC, sync from S3 (might have to adjust the paths if you are working with a different tag)
+# aws s3 sync s3://ibl-brain-wide-map-private/aggregates/2023_Q4_IBL_et_al_BWM_2 /mnt/ibl/aggregates/2023_Q4_IBL_et_al_BWM_2/ --profile ibladmin
+
+# If you are ready to make this public, copy on SDSC to the public folder and sync to public S3
+# cp /mnt/ibl/aggregates/2023_Q4_IBL_et_al_BWM_2/trials.pqt /mnt/ibl/public/aggregates/2023_Q4_IBL_et_al_BWM_2/
+# aws s3 sync /mnt/ibl/public/aggregates/2023_Q4_IBL_et_al_BWM_2/ s3://ibl-brain-wide-map-public/aggregates/2023_Q4_IBL_et_al_BWM_2  --profile ibladmin

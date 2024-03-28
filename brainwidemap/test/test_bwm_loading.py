@@ -128,16 +128,16 @@ def test_filter_trials():
     assert len(eids) == 459
 
     eids = bwm_loading.filter_sessions(bwm_df['eid'], trials_table=trials_table, bwm_include=True, min_errors=None)
-    assert len(eids) == 458
+    assert len(eids) == 459
 
     eids = bwm_loading.filter_sessions(bwm_df['eid'], trials_table=trials_table, bwm_include=True, min_errors=3)
-    assert len(eids) == 457
+    assert len(eids) == 459
 
     eids = bwm_loading.filter_sessions(
         bwm_df['eid'], trials_table=trials_table, bwm_include=True, min_errors=3,
         saturation_intervals='saturation_stim_plus04'
     )
-    assert len(eids) == 457
+    assert len(eids) == 459
 
     eids = bwm_loading.filter_sessions(
         bwm_df['eid'], trials_table=trials_table, bwm_include=True, min_errors=3,
@@ -147,10 +147,11 @@ def test_filter_trials():
             'saturation_move_minus02',
             'saturation_stim_minus04_minus01',
             'saturation_stim_plus06',
-            'saturation_stim_minus06_plus06'
+            'saturation_stim_minus06_plus06',
+            'saturation_stim_minus06_minus01'
         ]
     )
-    assert len(eids) == 456
+    assert len(eids) == 458
 
     trials_table.unlink()
 
