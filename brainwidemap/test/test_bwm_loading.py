@@ -190,17 +190,17 @@ class TestBWMLoading(unittest.TestCase):
     def test_video_filter(self):
         eids = list(self.default_df.eid.unique())
 
-        for cam, num in zip(['left', 'right', 'body'], [435, 432, 257]):
+        for cam, num in zip(['left', 'right', 'body'], [435, 433, 257]):
             assert len(bwm_loading.filter_video_data(
                 self.one, eids, camera=cam, min_video_qc='FAIL', min_dlc_qc='FAIL'
             )) == num
 
-        for cam, num in zip(['left', 'right', 'body'], [437, 433, 257]):
+        for cam, num in zip(['left', 'right', 'body'], [436, 433, 257]):
             assert len(bwm_loading.filter_video_data(
                 self.one, eids, camera=cam, min_video_qc='FAIL', min_dlc_qc=None
             )) == num
 
-        for cam, num in zip(['left', 'right', 'body'], [435, 432, 257]):
+        for cam, num in zip(['left', 'right', 'body'], [435, 433, 258]):
             assert len(bwm_loading.filter_video_data(
                 self.one, eids, camera=cam, min_video_qc=None, min_dlc_qc='FAIL'
             )) == num
