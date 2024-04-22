@@ -118,8 +118,7 @@ def get_choice_time_shuffle(rate, c_L, c_R, block_label, choice_label, nShuf=300
     return p
 
 
-def BWM_choice_test(pid, eid, TimeWindow=np.array([-0.1, 0.0]), one=None):
-    one = one or ONE()
+def BWM_choice_test(one, pid, eid, TimeWindow=np.array([-0.1, 0.0]),):
     spikes, clusters = load_good_units(one, pid, compute_metrics=True)
 
     # load trial data
@@ -164,7 +163,8 @@ def BWM_choice_test(pid, eid, TimeWindow=np.array([-0.1, 0.0]), one=None):
 
 if __name__ == "__main__":
     # Example session
+    one = ONE(base_url="https://openalyx.internationalbrainlab.org")
     pid = "3675290c-8134-4598-b924-83edb7940269"
     eid = "15f742e1-1043-45c9-9504-f1e8a53c1744"  # probe00
 
-    p_1, area_label, QC_cluster_id = BWM_choice_test(pid, eid)
+    p_1, area_label, QC_cluster_id = BWM_choice_test(one, pid, eid)

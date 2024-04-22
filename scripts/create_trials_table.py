@@ -1,3 +1,8 @@
+""""
+This is run on parede. To sync to AWS see the commands at the end of the script
+"""
+
+
 from datetime import date
 import pandas as pd
 from pathlib import Path

@@ -1,6 +1,6 @@
 """"
 This is run on parede. If any of the data have been patched, you need to remove the cached results for the relevant pid
-from the CACHE_DIR before running.
+from the CACHE_DIR before running. To sync to AWS see the commands at the end of the script
 """
 
 from pathlib import Path
