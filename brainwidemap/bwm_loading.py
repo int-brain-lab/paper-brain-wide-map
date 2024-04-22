@@ -1,15 +1,16 @@
-import json
 from dateutil import parser
+import json
 import numpy as np
 import pandas as pd
 from pathlib import Path
 
-from iblutil.numerical import ismember
-from brainbox.io.one import SpikeSortingLoader, SessionLoader
 from brainbox.behavior import training
+from brainbox.io.one import SpikeSortingLoader, SessionLoader
 from ibllib.atlas.regions import BrainRegions
-from ibllib.qc.base import CRITERIA
+from iblutil.numerical import ismember
+from one.alf import spec
 from one.remote import aws
+
 import brainwidemap
 
 
@@ -603,8 +604,8 @@ def filter_video_data(one, eids, camera='left', min_video_qc='FAIL', min_dlc_qc=
     if isinstance(eids, str):
         eids = [eids]
     assert isinstance(eids, list), 'eids must be a list of session uuids'
-    assert min_video_qc in list(CRITERIA.keys()) + [None], f'{min_video_qc} is not a valid value for min_video_qc '
-    assert min_dlc_qc in list(CRITERIA.keys()) + [None], f'{min_dlc_qc} is not a valid value for min_dlc_qc '
+    assert min_video_qc in list(spec.QC._member_names_) + [None], f'{min_video_qc} is not a valid value for min_video_qc '
+    assert min_dlc_qc in list(spec.QC._member_names_) + [None], f'{min_dlc_qc} is not a valid value for min_dlc_qc '
     assert min_video_qc or min_dlc_qc, 'At least one of min_video_qc or min_dlc_qc must be set'
 
     # Load QC json from cache and restrict to desired sessions
@@ -618,8 +619,9 @@ def filter_video_data(one, eids, camera='left', min_video_qc='FAIL', min_dlc_qc=
         passing_vid = eids
     else:
         passing_vid = [
-            k for k, v in qc_cache.items() if f'video{camera.capitalize()}' in v.keys() and
-                                              CRITERIA[v[f'video{camera.capitalize()}']] <= CRITERIA[min_video_qc]
+            k for k, v in qc_cache.items() if
+            f'video{camera.capitalize()}' in v.keys() and
+            spec.QC[v[f'video{camera.capitalize()}']].value <= spec.QC[min_video_qc].value
         ]
 
     # Passing dlc
@@ -627,8 +629,9 @@ def filter_video_data(one, eids, camera='left', min_video_qc='FAIL', min_dlc_qc=
         passing_dlc = eids
     else:
         passing_dlc = [
-            k for k, v in qc_cache.items() if f'dlc{camera.capitalize()}' in v.keys() and
-                                              CRITERIA[v[f'dlc{camera.capitalize()}']] <= CRITERIA[min_dlc_qc]
+            k for k, v in qc_cache.items() if
+            f'dlc{camera.capitalize()}' in v.keys() and
+            spec.QC[v[f'dlc{camera.capitalize()}']].value <= spec.QC[min_dlc_qc].value
         ]
 
     # Combine
