@@ -245,6 +245,7 @@ def load_trials_and_mask(
             saturation_stim_minus04_minus01
             saturation_stim_plus06
             saturation_stim_minus06_plus06
+            saturation_stim_plus01
 
     Returns
     -------
@@ -487,6 +488,7 @@ def filter_sessions(eids, trials_table, bwm_include=True, min_errors=3, min_tria
             saturation_stim_minus04_minus01
             saturation_stim_plus06
             saturation_stim_minus06_plus06
+            saturation_stim_plus01
 
     Returns
     -------

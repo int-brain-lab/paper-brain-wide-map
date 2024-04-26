@@ -44,7 +44,8 @@ trial_epochs = {
     'saturation_stim_minus04_minus01': {'event': 'stimOn_times', 'twin': [-0.4, -0.1]},
     'saturation_stim_plus06': {'event': 'stimOn_times', 'twin': [0, 0.6]},
     'saturation_stim_minus06_plus06': {'event': 'stimOn_times', 'twin': [-0.6, 0.6]},
-    'saturation_stim_minus06_minus01': {'event': 'stimOn_times', 'twin': [-0.6, -0.1]}
+    'saturation_stim_minus06_minus01': {'event': 'stimOn_times', 'twin': [-0.6, -0.1]},
+    'saturation_stim_plus01': {'event': 'stimOn_times', 'twin': [0, 0.1]}
 }
 
 for key in trial_epochs.keys():
