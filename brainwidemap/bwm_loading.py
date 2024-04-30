@@ -270,7 +270,7 @@ def load_trials_and_mask(
         ]
 
     if sess_loader is None:
-        sess_loader = SessionLoader(one, eid)
+        sess_loader = SessionLoader(one=one, eid=eid)
 
     if sess_loader.trials.empty:
         sess_loader.load_trials()

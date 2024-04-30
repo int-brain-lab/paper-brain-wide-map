@@ -29,7 +29,7 @@ trials, mask = load_trials_and_mask(one, eid, min_rt=0.08, max_rt=2., nan_exclud
 
 
 # To load other session data such as wheel, pose (DLC) and motion energy, we just use the SessionLoader, e.g.
-sess_loader = SessionLoader(one, eid)
+sess_loader = SessionLoader(one=one, eid=eid)
 sess_loader.load_wheel(fs=1000)
 # wheel is a dataframe that contains wheel times and position interpolated to a uniform sampling rate, velocity and
 # acceleration computed using Gaussian smoothing
