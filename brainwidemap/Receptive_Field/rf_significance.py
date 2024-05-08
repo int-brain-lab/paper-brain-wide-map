@@ -2,7 +2,6 @@
 Compute the significance and parameters of a visual receptive field
 '''
 
-import matplotlib.pyplot as plt
 import numpy as np
 import scipy.ndimage as ndi
 from scipy.optimize import leastsq
