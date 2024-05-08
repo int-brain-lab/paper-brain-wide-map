@@ -4,13 +4,10 @@ Test the functions for receptive fields
 import numpy as np
 from pathlib import Path
 import pandas as pd
-from receptive_field.rf_significance import fit_2d_gaussian_stats
+from brainwidemap.receptive_field.rf_significance import fit_2d_gaussian_stats
+import brainwidemap
 
-__file__ = Path('/Users/gaelle/Documents/Git/int-brain-lab/paper-brain-wide-map/brainwidemap/'
-                'test/test_rf_significance.py')
-# TODO delete the above - should not be needed, but __file__ does not work ATM
-
-TEST_PATH = Path(__file__).parent.joinpath('fixtures')
+TEST_PATH = Path(brainwidemap.__file__).parent.joinpath('test/fixtures')
 
 # Load RF data
 rf_matrix = np.load(TEST_PATH.joinpath('rf_matrix.npy'))
@@ -26,8 +23,10 @@ fit_params_test = [np.array([24.06780504,  4.83560032, 10.41318107, -0.88336625,
 ##
 n_unit = rf_meta.shape[0]
 for i_unit in range(0, n_unit):
-    # Compute p-value, Rsq value, and fitting parameters of 2D guassian
-    p_value, rsq, fit_params = fit_2d_gaussian_stats(rf_matrix, nShuffle=1000)
+    # Compute z-score of RF:
+    rf_z = rf_matrix[i_unit, :, :] - np.mean(rf_matrix[i_unit, :, :])
+    # Compute p-value, Rsq value, and fitting parameters of 2D gaussian
+    p_value, rsq, fit_params = fit_2d_gaussian_stats(rf_z, nShuffle=1000)
     np.testing.assert_equal(p_value, p_value_test[i_unit])
     np.testing.assert_equal(rsq, rsq_test[i_unit])
     np.testing.assert_equal(fit_params_test, fit_params_test[i_unit])
