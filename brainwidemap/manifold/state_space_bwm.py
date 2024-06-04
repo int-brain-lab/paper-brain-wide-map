@@ -3,10 +3,9 @@ from brainbox.singlecell import bin_spikes2D
 from brainwidemap import (bwm_query, load_good_units,
                           load_trials_and_mask, bwm_units,
                           bwm_loading)
-from ibllib.atlas import AllenAtlas
-from ibllib.atlas.regions import BrainRegions
+from iblatlas.atlas import AllenAtlas, BrainRegions
 import ibllib
-from ibllib.atlas.plots import plot_swanson_vector
+from iblatlas.plots import plot_swanson_vector
 from brainbox.io.one import SessionLoader
 
 from scipy import signal

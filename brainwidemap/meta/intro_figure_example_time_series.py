@@ -1,8 +1,7 @@
 from one.api import ONE
 import brainbox.behavior.wheel as wh
 from brainbox.processing import bincount2D
-from ibllib.atlas import AllenAtlas
-from ibllib.atlas.regions import BrainRegions
+from iblatlas.atlas import AllenAtlas, BrainRegions
 from brainbox.io.one import SpikeSortingLoader
 from brainbox.io.one import SessionLoader
 import ibllib

@@ -9,7 +9,7 @@ from tqdm import tqdm
 from behavior_models.models.utils import format_data as format_data_mut
 from behavior_models.models.utils import format_input as format_input_mut
 
-from ibllib.atlas import BrainRegions
+from iblatlas.atlas import BrainRegions
 
 from brainwidemap.decoding.functions.balancedweightings import balanced_weighting
 from brainwidemap.decoding.functions.process_inputs import build_predictor_matrix

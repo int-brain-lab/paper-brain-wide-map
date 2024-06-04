@@ -8,15 +8,14 @@ from scipy.stats import (percentileofscore, spearmanr,
 combine_pvalues, fisher_exact, barnard_exact, boschloo_exact, ttest_ind)
 from pathlib import Path
 from one.api import ONE
-from ibllib.atlas import AllenAtlas
-from ibllib.atlas.regions import BrainRegions
+from iblatlas.atlas import AllenAtlas, BrainRegions
 from itertools import combinations
 from one.remote import aws
 from one.webclient import AlyxClient
 from brainwidemap import download_aggregate_tables, bwm_units
 import os
 import ibllib
-from ibllib.atlas.plots import plot_swanson, plot_swanson_vector
+from iblatlas.plots import plot_swanson, plot_swanson_vector
 from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 import string
 from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)

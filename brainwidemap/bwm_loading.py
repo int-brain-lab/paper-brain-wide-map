@@ -6,7 +6,7 @@ from pathlib import Path
 
 from brainbox.behavior import training
 from brainbox.io.one import SpikeSortingLoader, SessionLoader
-from ibllib.atlas.regions import BrainRegions
+from iblatlas.atlas import BrainRegions
 from iblutil.numerical import ismember
 from one.alf import spec
 from one.remote import aws
