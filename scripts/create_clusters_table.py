@@ -1,15 +1,19 @@
+""""
+This is run on parede. If any of the data have been patched, you need to remove the cached results for the relevant pid
+from the CACHE_DIR before running. To sync to AWS see the commands at the end of the script
+"""
+
 from pathlib import Path
 import numpy as np
 import pandas as pd
 import urllib.error
 from datetime import date
+import tqdm
 
 from one.api import ONE
 from ibllib.atlas import AllenAtlas
 from iblutil.util import setup_logger
 
-from neuropixel import trace_header
-from iblutil.numerical import ismember2d
 from brainwidemap import bwm_query
 from brainbox.io.one import SpikeSortingLoader
 
@@ -18,13 +22,13 @@ logger = setup_logger('brainbox')
 ba = AllenAtlas()
 
 year_week = date.today().isocalendar()[:2]
-STAGING_PATH = Path('/mnt/s0/aggregates/2022_Q4_IBL_et_al_BWM').joinpath(f'{year_week[0]}_W{year_week[1]:02}_bwm')
-CACHE_DIR = Path("/mnt/s1/bwm_julia")  # this is the path containing the metrics and clusters tables for fast releoading
+STAGING_PATH = Path('/mnt/s1/aggregates/2023_Q4_IBL_et_al_BWM_2').joinpath(f'{year_week[0]}_W{year_week[1]:02}_bwm')
+CACHE_DIR = Path("/mnt/s0/bwm_julia")  # this is the path containing the metrics and clusters tables for fast releoading
 
 excludes = []
 errorkey = []
 error404 = []
-one = ONE(base_url='https://alyx.internationalbrainlab.org')
+one = ONE()
 bwm_df = bwm_query()
 pids = bwm_df['pid']
 # init dataframes
@@ -35,8 +39,7 @@ ldf_depths = []
 no_spike_sorting = []
 
 IMIN = 0
-
-for i, pid in enumerate(pids):
+for i, pid in tqdm.tqdm(enumerate(pids)):
     if i < IMIN:
         continue
     eid, pname = one.pid2eid(pid)
@@ -95,12 +98,7 @@ df_channels = pd.concat(ldf_channels, ignore_index=True)
 df_clusters = pd.concat(ldf_clusters, ignore_index=True)
 df_depths = pd.concat(ldf_depths)
 
-# convert the channels dataframe to a multi-index dataframe
-h = trace_header(version=1)
-_, chind = ismember2d(df_channels.loc[:, ['lateral_um', 'axial_um']].to_numpy(), np.c_[h['x'], h['y']])
-df_channels['raw_ind'] = chind
-df_channels = df_channels.set_index(['pid', 'raw_ind'])
-
+# todo: compute the df_channels['raw_ind'] field by modifying the spike sorting loader behaviour
 # convert the depths dataframe to a multi-index dataframe
 df_depths['depths'] = df_depths.index.values
 df_depths = df_depths.set_index(['pid', 'depths'])
@@ -113,6 +111,13 @@ df_probes.to_parquet(STAGING_PATH.joinpath('probes.pqt'))
 df_depths.to_parquet(STAGING_PATH.joinpath('depths.pqt'))
 
 print(f'cp {STAGING_PATH.joinpath("*")} {STAGING_PATH.parent}')
-print(f'aws s3 sync "{STAGING_PATH.parent}" s3://ibl-brain-wide-map-private/aggregates/2022_Q4_IBL_et_al_BWM')
+print(f'aws s3 sync "{STAGING_PATH.parent}" s3://ibl-brain-wide-map-private/aggregates/2023_Q4_IBL_et_al_BWM_2 --profile ibl')
 print(errorkey)
 print(error404)
+
+# On SDSC, sync from S3 (might have to adjust the paths if you are working with a different tag)
+# aws s3 sync s3://ibl-brain-wide-map-private/aggregates/2023_Q4_IBL_et_al_BWM_2 /mnt/ibl/aggregates/2023_Q4_IBL_et_al_BWM_2/ --profile ibladmin
+
+# If you are ready to make this public, copy on SDSC to the public folder and sync to public S3
+# cp /mnt/ibl/aggregates/2023_Q4_IBL_et_al_BWM_2/clusters.pqt /mnt/ibl/public/aggregates/2023_Q4_IBL_et_al_BWM_2/
+# aws s3 sync /mnt/ibl/public/aggregates/2023_Q4_IBL_et_al_BWM_2/ s3://ibl-brain-wide-map-public/aggregates/2023_Q4_IBL_et_al_BWM_2  --profile ibladmin

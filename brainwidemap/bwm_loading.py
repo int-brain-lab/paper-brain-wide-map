@@ -1,16 +1,20 @@
 from dateutil import parser
+import json
 import numpy as np
 import pandas as pd
 from pathlib import Path
 
-from iblutil.numerical import ismember
+from brainbox.behavior import training
 from brainbox.io.one import SpikeSortingLoader, SessionLoader
 from ibllib.atlas.regions import BrainRegions
+from iblutil.numerical import ismember
+from one.alf import spec
 from one.remote import aws
+
 import brainwidemap
 
 
-def bwm_query(one=None, alignment_resolved=True, return_details=False, freeze='2022_10_bwm_release'):
+def bwm_query(one=None, alignment_resolved=True, return_details=False, freeze='2023_12_bwm_release'):
     """
     Function to query for brainwide map sessions that pass the most important quality controls. Returns a dataframe
     with one row per insertions and columns ['pid', 'eid', 'probe_name', 'session_number', 'date', 'subject', 'lab']
@@ -25,8 +29,8 @@ def bwm_query(one=None, alignment_resolved=True, return_details=False, freeze='2
     return_details: bool
         Default is False. If True returns a second output a list containing the full insertion dictionary for all
         insertions returned by the query. Only needed if you need information that is not contained in the bwm_df.
-    freeze: {None, 2022_10_initial, 2022_10_update, 2022_bwm_release}
-        Default is 2022_10_bwm_release. If None, the database is queried for the current set of pids satisfying the
+    freeze: {None, 2022_10_initial, 2022_10_update, 2022_10_bwm_release, 2023_12_bwm_release}
+        Default is 2023_12_bwm_release. If None, the database is queried for the current set of pids satisfying the
         criteria. If a string is specified, a fixed set of eids and pids is returned instead of querying the database.
 
     Returns
@@ -56,11 +60,11 @@ def bwm_query(one=None, alignment_resolved=True, return_details=False, freeze='2
     # Else, query the database
     assert one is not None, 'If freeze=None, you need to pass an instance of one.api.ONE'
     base_query = (
-        'session__project__name__icontains,ibl_neuropixel_brainwide_01,'
-        'session__json__IS_MOCK,False,'
+        'session__projects__name__icontains,ibl_neuropixel_brainwide_01,'
+        '~session__json__IS_MOCK,True,'
         'session__qc__lt,50,'
-        '~json__qc,CRITICAL,'
         'session__extended_qc__behavior,1,'
+        '~json__qc,CRITICAL,'
         'json__extended_qc__tracing_exists,True,'
     )
 
@@ -136,7 +140,7 @@ def load_good_units(one, pid, compute_metrics=False, qc=1., **kwargs):
     spikes, clusters, channels = spike_loader.load_spike_sorting(revision="2024-05-06")
     clusters_labeled = SpikeSortingLoader.merge_clusters(
         spikes, clusters, channels, compute_metrics=compute_metrics).to_df()
-    iok = clusters_labeled['label'] == qc
+    iok = clusters_labeled['label'] >= qc
     good_clusters = clusters_labeled[iok]
 
     spike_idx, ib = ismember(spikes['clusters'], good_clusters.index)
@@ -196,7 +200,9 @@ def merge_probes(spikes_list, clusters_list):
 
 def load_trials_and_mask(
         one, eid, min_rt=0.08, max_rt=2., nan_exclude='default', min_trial_len=None,
-        max_trial_len=None, exclude_unbiased=False, exclude_nochoice=False, sess_loader=None):
+        max_trial_len=None, exclude_unbiased=False, exclude_nochoice=False, sess_loader=None,
+        truncate_to_pass=True, saturation_intervals=None
+):
     """
     Function to load all trials for a given session and create a mask to exclude all trials that have a reaction time
     shorter than min_rt or longer than max_rt or that have NaN for one of the specified events.
@@ -227,6 +233,19 @@ def load_trials_and_mask(
         True to exclude trials where the animal does not respond. Default is False.
     sess_loader: brainbox.io.one.SessionLoader or NoneType
         Optional SessionLoader object; if None, this object will be created internally
+    truncate_to_pass: bool
+        True to truncate sessions that don't pass performance on easy trials > 90 percent when all trials are used,
+        but do pass when the first x > 400 trials are used. Default is True.
+    saturation_intervals: str or list of str or None
+         If str or list of str, the name of the interval(s) to be used to exclude trials if the ephys signal shows
+         saturation in the interval(s). Default is None. Possible values are:
+            saturation_stim_plus04
+            saturation_feedback_plus04
+            saturation_move_minus02
+            saturation_stim_minus04_minus01
+            saturation_stim_plus06
+            saturation_stim_minus06_plus06
+            saturation_stim_plus01
 
     Returns
     -------
@@ -251,10 +270,27 @@ def load_trials_and_mask(
         ]
 
     if sess_loader is None:
-        sess_loader = SessionLoader(one, eid)
+        sess_loader = SessionLoader(one=one, eid=eid)
 
     if sess_loader.trials.empty:
         sess_loader.load_trials()
+
+    # Truncate trials to pass performance on easy trials > 0.9
+    good_enough = training.criterion_delay(
+        n_trials=sess_loader.trials.shape[0],
+        perf_easy=training.compute_performance_easy(sess_loader.trials),
+    )
+    if truncate_to_pass and not good_enough:
+        n_trials = sess_loader.trials.shape[0]
+        while not good_enough and n_trials > 400:
+            n_trials -= 1
+            sess_loader.trials = sess_loader.trials[:n_trials]
+            good_enough = training.criterion_delay(
+                n_trials=sess_loader.trials.shape[0],
+                perf_easy=training.compute_performance_easy(sess_loader.trials),
+            )
+        if not good_enough:
+            raise AssertionError('Session does not pass performance on easy trials > 0.9 for n_trials > 400')
 
     # Create a mask for trials to exclude
     # Remove trials that are outside the allowed reaction time range
@@ -285,10 +321,22 @@ def load_trials_and_mask(
     # Create mask
     mask = ~sess_loader.trials.eval(query)
 
+    # If saturation intervals are provided, download trials table to get information about saturation
+    # Remove trials where the signal shows saturation in an interval of interest
+    if saturation_intervals is not None:
+        all_trials = pd.read_parquet(download_aggregate_tables(one, type='trials'))
+        sess_trials = all_trials[all_trials['eid'] == eid]
+        sess_trials.reset_index(inplace=True)
+        assert sess_trials.shape[0] == sess_loader.trials.shape[0], 'Trials table does not match trials in session.'
+        if isinstance(saturation_intervals, str):
+            saturation_intervals = [saturation_intervals]
+        for interval in saturation_intervals:
+            mask[sess_trials[interval] == True] = False
+
     return sess_loader.trials, mask
 
 
-def download_aggregate_tables(one, target_path=None, type='clusters', tag='2022_Q4_IBL_et_al_BWM', overwrite=False):
+def download_aggregate_tables(one, target_path=None, type='clusters', tag='2023_Q4_IBL_et_al_BWM_2', overwrite=False):
     """
     Function to download the aggregated clusters information associated with the given data release tag from AWS.
 
@@ -301,7 +349,7 @@ def download_aggregate_tables(one, target_path=None, type='clusters', tag='2022_
     type: {'clusters', 'trials'}
         Which type of aggregate table to load, clusters or trials table.
     tag: str
-        Tag for which to download the clusters table. Default is '2022_Q4_IBL_et_al_BWM'.
+        Tag for which to download the clusters table. Default is '2023_Q4_IBL_et_al_BWM_2''.
     overwrite : bool
         If True, will re-download files even if file exists locally and file sizes match.
 
@@ -328,7 +376,7 @@ def download_aggregate_tables(one, target_path=None, type='clusters', tag='2022_
     return agg_path
 
 
-def filter_units_region(eids, clusters_table=None, one=None, mapping='Beryl', min_qc=1., min_units_sessions=(10, 2)):
+def filter_units_region(eids, clusters_table=None, one=None, mapping='Beryl', min_qc=1., min_units_sessions=(5, 2)):
     """
     Filter to retain only units that satisfy certain region based criteria.
 
@@ -349,7 +397,7 @@ def filter_units_region(eids, clusters_table=None, one=None, mapping='Beryl', mi
     min_units_sessions: tuple or None
         If tuple, the first entry is the minimum of units per session per region for a session to be retained, the
         second entry is the minimum number of those sessions per region for a region to be retained.
-        Default is (10, 2). If None, criterion is not applied
+        Default is (5, 2). If None, criterion is not applied
 
     Returns
     -------
@@ -410,7 +458,7 @@ def filter_units_region(eids, clusters_table=None, one=None, mapping='Beryl', mi
     return clus_df
 
 
-def filter_sessions(eids, trials_table, bwm_include=True, min_errors=3, min_trials=None):
+def filter_sessions(eids, trials_table, bwm_include=True, min_errors=3, min_trials=None, saturation_intervals=None):
     """
     Filters eids for sessions that pass certain criteria.
     The function first loads an aggregate of all trials for the brain wide map dataset
@@ -431,6 +479,16 @@ def filter_sessions(eids, trials_table, bwm_include=True, min_errors=3, min_tria
     min_trials: int or None
         Minimum number of trials that pass default criteria (see load_trials_and_mask()) for a session to be retained.
         Default is None, i.e. not applied
+    saturation_intervals: str or list of str or None
+         If str or list of str, the name of the interval(s) to be used to exclude trials if the ephys signal shows
+         saturation in the interval(s). Default is None. Possible values are:
+            saturation_stim_plus04
+            saturation_feedback_plus04
+            saturation_move_minus02
+            saturation_stim_minus04_minus01
+            saturation_stim_plus06
+            saturation_stim_minus06_plus06
+            saturation_stim_plus01
 
     Returns
     -------
@@ -448,6 +506,12 @@ def filter_sessions(eids, trials_table, bwm_include=True, min_errors=3, min_tria
     if bwm_include:
         trials_df = trials_df[trials_df['bwm_include']]
 
+    if saturation_intervals is not None:
+        if isinstance(saturation_intervals, str):
+            saturation_intervals = [saturation_intervals]
+        for interval in saturation_intervals:
+            trials_df = trials_df[~trials_df[interval]]
+
     trials_agg = trials_df.groupby('eid').aggregate(
         n_trials=pd.NamedAgg(column='eid', aggfunc='count'),
         n_error=pd.NamedAgg(column='feedbackType', aggfunc=lambda x: (x == -1).sum()),
@@ -460,7 +524,7 @@ def filter_sessions(eids, trials_table, bwm_include=True, min_errors=3, min_tria
     return trials_agg.index.to_list()
 
 
-def bwm_units(one=None, freeze='2022_10_bwm_release', rt_range=(0.08, 0.2), min_errors=3,
+def bwm_units(one=None, freeze='2023_12_bwm_release', rt_range=(0.08, 0.2), min_errors=3,
               min_qc=1., min_units_sessions=(10, 2)):
     """
     Creates a dataframe with units that pass the current BWM inclusion criteria.
@@ -469,8 +533,8 @@ def bwm_units(one=None, freeze='2022_10_bwm_release', rt_range=(0.08, 0.2), min_
     ----------
     one: one.api.ONE
         Instance to be used to connect to local or remote database.
-    freeze: {None, 2022_10_initial, 2022_10_update, 2022_bwm_release}
-        Default is 2022_10_bwm_release. If None, the database is queried for the current set of pids satisfying the
+    freeze: {None, 2022_10_initial, 2022_10_update, 2022_10_bwm_release, 2023_12_bwm_release}
+        Default is 2023_12_bwm_release. If None, the database is queried for the current set of pids satisfying the
         criteria. If a string is specified, a fixed set of eids and pids is returned instead of querying the database.
     rt_range: tuple
         Admissible range of trial length measured by goCue_time (start) and feedback_time (end).
@@ -508,5 +572,71 @@ def bwm_units(one=None, freeze='2022_10_bwm_release', rt_range=(0.08, 0.2), min_
     return unit_df
 
 
+def filter_video_data(one, eids, camera='left', min_video_qc='FAIL', min_dlc_qc='FAIL'):
+    """
+    Filters sessions for which video and/or DLC data passes a given QC threshold for a selected camera.
 
+    Parameters
+    ----------
+    one: one.api.ONE
+        Instance to be used to connect to local or remote database.
+    eids: list or str
+        List of session UUIDs to filter.
+    camera: {'left', 'right', 'body'}
+        Camera for which to filter QC. Default is 'left'.
+    min_video_qc: {'CRITICAL', 'FAIL', 'WARNING', 'PASS', 'NOT_SET'} or None
+        Minimum video QC threshold for a session to be retained. Default is 'FAIL'.
+    min_dlc_qc: {'CRITICAL', 'FAIL', 'WARNING', 'PASS', 'NOT_SET'} or None
+        Minimum dlc QC threshold for a session to be retained. Default is 'FAIL'.
 
+    Returns
+    -------
+    list:
+        List of session UUIDs that pass both indicated QC thresholds for the selected camera.
+
+    Notes
+    -----
+    For the thresholds, note that 'NOT_SET' < 'PASS' < 'WARNING' < 'FAIL' < 'CRITICAL'
+    If a min_video_qc or min_dlc_qc is set to None, all sessions are retained for that criterion.
+    The intersection of sessions passing both criteria is returned.
+
+    """
+
+    # Check inputs
+    if isinstance(eids, str):
+        eids = [eids]
+    assert isinstance(eids, list), 'eids must be a list of session uuids'
+    assert min_video_qc in list(spec.QC._member_names_) + [None], f'{min_video_qc} is not a valid value for min_video_qc '
+    assert min_dlc_qc in list(spec.QC._member_names_) + [None], f'{min_dlc_qc} is not a valid value for min_dlc_qc '
+    assert min_video_qc or min_dlc_qc, 'At least one of min_video_qc or min_dlc_qc must be set'
+
+    # Load QC json from cache and restrict to desired sessions
+    with open(one.cache_dir.joinpath('QC.json'), 'r') as f:
+        qc_cache = json.load(f)
+    qc_cache = {qc['eid']: qc['extended_qc'] for qc in qc_cache if qc['eid'] in eids}
+    assert set(list(qc_cache.keys())) == set(eids), 'Not all eids found in cached QC.json'
+
+    # Passing video
+    if min_video_qc is None:
+        passing_vid = eids
+    else:
+        passing_vid = [
+            k for k, v in qc_cache.items() if
+            f'video{camera.capitalize()}' in v.keys() and
+            spec.QC[v[f'video{camera.capitalize()}']].value <= spec.QC[min_video_qc].value
+        ]
+
+    # Passing dlc
+    if min_dlc_qc is None:
+        passing_dlc = eids
+    else:
+        passing_dlc = [
+            k for k, v in qc_cache.items() if
+            f'dlc{camera.capitalize()}' in v.keys() and
+            spec.QC[v[f'dlc{camera.capitalize()}']].value <= spec.QC[min_dlc_qc].value
+        ]
+
+    # Combine
+    passing = list(set(passing_vid).intersection(set(passing_dlc)))
+
+    return passing

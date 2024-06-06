@@ -358,5 +358,5 @@ if __name__ == "__main__":
     illustrating time series and neural data for
     3 example trials
     '''
-        
-    bwm_data_series_fig(cnew=False)        
+    sl = SessionLoader(one=one, eid=eid)
+    sl.load_session_data()

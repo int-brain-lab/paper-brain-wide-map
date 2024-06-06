@@ -65,7 +65,7 @@ for count, eid in enumerate(bwm_df['eid']):
     else:  # Oddly not problem with errors here, dont need BAD_EIDS like wheel or spike sorting
         print(f"Downloading trials data for {eid}")
         try:
-            sess_loader = SessionLoader(one, eid)
+            sess_loader = SessionLoader(one=one, eid=eid)
             sess_loader.load_trials()
         except Exception as e:
             print(e)
@@ -80,7 +80,7 @@ if wheel_data:
             continue
         else:
             print(f"Downloading wheel data for {eid}")
-            sess_loader = SessionLoader(one, eid)
+            sess_loader = SessionLoader(one=one, eid=eid)
             sess_loader.load_wheel()
 
 # Download whisker data for all sessions
@@ -93,5 +93,5 @@ if whisker_data:
             continue
         else:
             print(f"Downloading motion energy data for {eid}")
-            sess_loader = SessionLoader(one, eid)
+            sess_loader = SessionLoader(one=one, eid=eid)
             sess_loader.load_motion_energy(views=['left', 'right'])
