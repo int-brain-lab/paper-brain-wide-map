@@ -137,7 +137,7 @@ def load_good_units(one, pid, compute_metrics=False, qc=1., **kwargs):
     eid = kwargs.pop('eid', '')
     pname = kwargs.pop('pname', '')
     spike_loader = SpikeSortingLoader(pid=pid, one=one, eid=eid, pname=pname)
-    spikes, clusters, channels = spike_loader.load_spike_sorting(revision="2024-05-06")
+    spikes, clusters, channels = spike_loader.load_spike_sorting(revision="2024-05-06", good_units=True)
     clusters_labeled = SpikeSortingLoader.merge_clusters(
         spikes, clusters, channels, compute_metrics=compute_metrics).to_df()
     iok = clusters_labeled['label'] >= qc
