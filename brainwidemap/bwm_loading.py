@@ -337,7 +337,7 @@ def load_trials_and_mask(
     return sess_loader.trials, mask
 
 
-def download_aggregate_tables(one, target_path=None, type='clusters', tag='2023_Q4_IBL_et_al_BWM_2', overwrite=False):
+def download_aggregate_tables(one, target_path=None, type='clusters', tag='2024_Q2_IBL_et_al_BWM', overwrite=False):
     """
     Function to download the aggregated clusters information associated with the given data release tag from AWS.
 
