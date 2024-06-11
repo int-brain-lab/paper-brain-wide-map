@@ -526,7 +526,7 @@ def filter_sessions(eids, trials_table, bwm_include=True, min_errors=3, min_tria
 
 
 def bwm_units(one=None, freeze='2023_12_bwm_release', rt_range=(0.08, 0.2), min_errors=3,
-              min_qc=1., min_units_sessions=(10, 2)):
+              min_qc=1., min_units_sessions=(5, 2)):
     """
     Creates a dataframe with units that pass the current BWM inclusion criteria.
 
