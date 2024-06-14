@@ -5,9 +5,9 @@ import pandas as pd
 import torch
 from scipy.interpolate import interp1d
 
-from behavior_models.models.utils import format_data as format_data_mut
-from behavior_models.models.utils import format_input as format_input_mut
-from behavior_models.models.utils import build_path as build_path_mut
+from behavior_models.utils import format_data as format_data_mut
+from behavior_models.utils import format_input as format_input_mut
+from behavior_models.utils import build_path as build_path_mut
 from brainwidemap.bwm_loading import load_trials_and_mask
 
 
