@@ -11,10 +11,6 @@ from brainbox.population.decode import get_spike_counts_in_bins
 from brainwidemap import load_good_units, load_trials_and_mask
 from brainwidemap.single_cell_stats.single_cell_util import Time_TwoNmannWhitneyUshuf
 
-# Specify a path to download the cluster and trials tables
-local_path = Path.home().joinpath("bwm_examples")
-local_path.mkdir(exist_ok=True)
-
 
 ########### p-value for  feedback ############
 
@@ -131,8 +127,7 @@ def get_feedback_time_shuffle(rate, c_L, c_R, block_label, reward_label, nShuf=3
 ####################################################################
 
 
-def BWM_feedback_test(pid, eid, TimeWindow=np.array([0.0, 0.2]), one=None):
-    one = one or ONE()
+def BWM_feedback_test(one, pid, eid, TimeWindow=np.array([0.0, 0.2])):
 
     # load spike data
     spikes, clusters = load_good_units(one, pid, compute_metrics=True)
@@ -187,7 +182,8 @@ def BWM_feedback_test(pid, eid, TimeWindow=np.array([0.0, 0.2]), one=None):
 
 
 if __name__ == "main":
+    one = ONE(base_url="https://openalyx.internationalbrainlab.org")
     pid = "56f2a378-78d2-4132-b3c8-8c1ba82be598"
     eid = "6713a4a7-faed-4df2-acab-ee4e63326f8d"
 
-    p_1, area_label, QC_cluster_id = BWM_feedback_test(pid, eid)
+    p_1, area_label, QC_cluster_id = BWM_feedback_test(one, pid, eid)
