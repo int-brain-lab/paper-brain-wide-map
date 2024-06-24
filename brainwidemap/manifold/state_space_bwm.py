@@ -289,7 +289,8 @@ def get_d_vars(split, pid, mapping='Beryl', control=True, get_fr=False,
 
 
     # Load in trials data and mask bad trials (False if bad)
-    trials, mask = load_trials_and_mask(one, eid) 
+    trials, mask = load_trials_and_mask(one, eid, 
+                   saturation_intervals = saturation_intervals) 
                                      
     events = []
     trn = []
