@@ -1,7 +1,7 @@
 import pandas as pd
 from pathlib import Path
 from one.api import ONE
-from ibllib.atlas.regions import BrainRegions
+from iblatlas.regions import BrainRegions
 from brainwidemap.bwm_loading import download_aggregate_tables, bwm_query, bwm_units
 import brainwidemap
 
