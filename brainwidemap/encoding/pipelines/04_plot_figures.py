@@ -9,8 +9,8 @@ import pandas as pd
 import seaborn as sns
 
 # IBL libraries
-from ibllib.atlas import BrainRegions
-from ibllib.atlas.plots import plot_swanson
+from iblatlas.atlas import BrainRegions
+from iblatlas.plots import plot_swanson
 
 # Brainwidemap repo imports
 from brainwidemap.encoding.params import GLM_FIT_PATH

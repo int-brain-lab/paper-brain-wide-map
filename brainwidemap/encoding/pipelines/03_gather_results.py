@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 # IBL libraries
-from ibllib.atlas import BrainRegions
+from iblatlas.atlas import BrainRegions
 
 
 if __name__ == "__main__":
