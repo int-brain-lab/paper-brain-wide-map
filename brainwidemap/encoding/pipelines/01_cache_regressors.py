@@ -65,7 +65,7 @@ DATE = str(dt.now().date())  # Date with which to save the dataset file
 T_BEF = 0.6  # Time before stimulus onset to include in the definition of the trial
 T_AFT = 0.6  # Time after feedback to include in the definition of a trial
 BINWIDTH = 0.02  # Size of binwidth for wheel velocity traces, in seconds
-ABSWHEEL = True  # Whether to return wheel velocity (False) or speed (True)
+ABSWHEEL = False  # Whether to return wheel velocity (False) or speed (True)
 CLU_CRITERIA = "bwm"  # Criteria on cluster inclusion in cache
 # End parameters
 
