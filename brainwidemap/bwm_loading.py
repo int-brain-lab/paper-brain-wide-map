@@ -7,7 +7,7 @@ from pathlib import Path
 from brainbox.behavior import training
 from brainbox.io.one import SpikeSortingLoader, SessionLoader
 from iblatlas.atlas import BrainRegions
-from iblutil.numerical import ismember
+from iblutil.numerical import ismember, hash_uuids
 from one.alf import spec
 from one.remote import aws
 
@@ -526,7 +526,7 @@ def filter_sessions(eids, trials_table, bwm_include=True, min_errors=3, min_tria
 
 
 def bwm_units(one=None, freeze='2023_12_bwm_release', rt_range=(0.08, 0.2), min_errors=3,
-              min_qc=1., min_units_sessions=(5, 2)):
+              min_qc=1., min_units_sessions=(5, 2), enforce_version=True):
     """
     Creates a dataframe with units that pass the current BWM inclusion criteria.
 
@@ -547,6 +547,7 @@ def bwm_units(one=None, freeze='2023_12_bwm_release', rt_range=(0.08, 0.2), min_
         If tuple, the first entry is the minimum of units per session per region for a session to be retained, the
         second entry is the minimum number of those sessions per region for a region to be retained.
         Default is (10, 2). If None, criterion is not applied
+    enforce_version: bool (True)
 
     Returns
     -------
@@ -569,6 +570,16 @@ def bwm_units(one=None, freeze='2023_12_bwm_release', rt_range=(0.08, 0.2), min_
     clusters_table = download_aggregate_tables(one, type='clusters')
     unit_df = filter_units_region(eids, clusters_table=clusters_table, mapping='Beryl', min_qc=min_qc,
                                   min_units_sessions=min_units_sessions)
+    print(hash_uuids(unit_df['uuids']))
+    if freeze == '2023_12_bwm_release' and enforce_version:
+        if 1.0 <= min_qc:
+            assert hash_uuids(unit_df['uuids']) == 'd16d0b38d392b18c0ce8b615ec89d60d7c901df2eeb3432986b62130af28ef01'
+        elif 1 / 3 < min_qc <= 2 / 3:
+            assert hash_uuids(unit_df['uuids']) == '931802298e1a79df49226f4a7ff9d0d865b06102d7d0bedbd76f87f632da8fae'
+        elif 0 < min_qc <= 1 / 3:
+            assert hash_uuids(unit_df['uuids']) == 'aef0abbe1e3cb743f24d40e5d9dd3b739b57adca79af66b2d86dc618fc4b9908'
+        else:
+            assert hash_uuids(unit_df['uuids']) == '82a43bb2344a960b0f39a5c28fa56406dd5788b7946d0d178cb36205b1029b92'
 
     return unit_df
 
