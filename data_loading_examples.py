@@ -29,7 +29,7 @@ trials, mask = load_trials_and_mask(one, eid, min_rt=0.08, max_rt=2., nan_exclud
 
 
 # To load other session data such as wheel, pose (DLC) and motion energy, we just use the SessionLoader, e.g.
-sess_loader = SessionLoader(one, eid)
+sess_loader = SessionLoader(one=one, eid=eid)
 sess_loader.load_wheel(fs=1000)
 # wheel is a dataframe that contains wheel times and position interpolated to a uniform sampling rate, velocity and
 # acceleration computed using Gaussian smoothing
@@ -63,7 +63,7 @@ one = ONE(base_url='https://openalyx.internationalbrainlab.org', password='inter
 # one = ONE(base_url='https://openalyx.internationalbrainlab.org', password='international', mode='local')
 
 # The bwm_units function downloads the relevant data tables and takes care of the filtering. The input parameters
-# shown are the default values, which are used in the paper, but you can change them to suit your needs. 
+# shown are the default values, which are used in the paper, but you can change them to suit your needs.
 unit_df = bwm_units(one, rt_range=(0.08, 0.2), min_errors=3, min_qc=1., min_units_sessions=(10, 2))
 
 # rt_range -- the admissible range of trial length measured by goCue_time (start) and feedback_time (end)

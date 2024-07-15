@@ -10,7 +10,7 @@ from brainwidemap.decoding.settings import RESULTS_DIR
 decoding_dir = RESULTS_DIR.joinpath('decoding')
 decoding_dir.mkdir(exist_ok=True, parents=True)
 one = ONE(base_url='https://alyx.internationalbrainlab.org', mode='remote')
-# eids = one.search(project='ibl_neuropixel_brainwide_01', task_protocol='biasedChoiceWorld')
+# eids = one.search(projects='ibl_neuropixel_brainwide_01', task_protocol='biasedChoiceWorld')
 qc_pass = (
     '~session__extended_qc___task_stimOn_goCue_delays__lt,0.9,'
     '~session__extended_qc___task_response_feedback_delays__lt,0.9,'
@@ -28,7 +28,7 @@ qc_pass = (
 sessions = one.alyx.rest(
     'sessions', 'list',
     task_protocol='biasedChoiceWorld',
-    project='ibl_neuropixel_brainwide_01',
+    projects='ibl_neuropixel_brainwide_01',
     dataset_types=['wheel.position'],
     performance_gte=70,
     django=qc_pass,
@@ -37,7 +37,7 @@ eids = [s['id'] for s in sessions]
 
 eid_df = pd.DataFrame(columns=['eid'], data=eids)
 eid_df.to_parquet(decoding_dir.joinpath('imposter_behavior_sessions.pqt'))
-    
+
 # save bwm dataframe of eids
 one = ONE(base_url="https://openalyx.internationalbrainlab.org", mode='local')
 bwm_df = bwm_query(freeze='2022_10_bwm_release')

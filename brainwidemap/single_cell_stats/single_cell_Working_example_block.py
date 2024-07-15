@@ -12,10 +12,6 @@ from brainbox.task.closed_loop import generate_pseudo_blocks
 from brainwidemap import load_good_units, load_trials_and_mask
 from brainwidemap.single_cell_stats.single_cell_util import TwoNmannWhitneyUshuf
 
-# Specify a path to download the cluster and trials tables
-local_path = Path.home().joinpath("bwm_examples")
-local_path.mkdir(exist_ok=True)
-
 
 def get_block(rate, c_L, c_R, block_label, choice_label):
     # nShuf=10000;
@@ -168,8 +164,7 @@ def Pseudo_block_test(spike_count, block, n_trial):
     return prob
 
 
-def BWM_block_test(pid, eid, TimeWindow=np.array([-0.4, -0.1]), one=None):
-    one = one or ONE()
+def BWM_block_test(one, pid, eid, TimeWindow=np.array([-0.4, -0.1])):
     # load spike data
     spikes, clusters = load_good_units(one, pid, compute_metrics=True)
 
@@ -219,7 +214,8 @@ def BWM_block_test(pid, eid, TimeWindow=np.array([-0.4, -0.1]), one=None):
 
 if __name__ == "__main__":
     ### example session ###
+    one = ONE(base_url="https://openalyx.internationalbrainlab.org")
     pid = "3675290c-8134-4598-b924-83edb7940269"
     eid = "15f742e1-1043-45c9-9504-f1e8a53c1744"  # probe00
 
-    p_1, p_2, area_label, QC_cluster_id = BWM_block_test(pid, eid)
+    p_1, p_2, area_label, QC_cluster_id = BWM_block_test(one, pid, eid)

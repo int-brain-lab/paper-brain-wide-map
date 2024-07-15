@@ -77,7 +77,7 @@ Load data
 """
 
 # load trials df
-sess_loader = SessionLoader(one, eid)
+sess_loader = SessionLoader(one=one, eid=eid)
 sess_loader.load_trials()
 
 # create mask

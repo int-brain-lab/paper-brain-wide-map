@@ -1,3 +1,8 @@
+""""
+This is run on parede. If any of the data have been patched, you need to remove the cached results for the relevant pid
+from the CACHE_DIR before running. To sync to AWS see the commands at the end of the script
+"""
+
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -6,11 +11,9 @@ from datetime import date
 import tqdm
 
 from one.api import ONE
-from ibllib.atlas import AllenAtlas
+from iblatlas.atlas import AllenAtlas
 from iblutil.util import setup_logger
 
-from neuropixel import trace_header
-from iblutil.numerical import ismember2d
 from brainwidemap import bwm_query
 from brainbox.io.one import SpikeSortingLoader
 
@@ -25,7 +28,7 @@ CACHE_DIR = Path("/mnt/s0/bwm_julia")  # this is the path containing the metrics
 excludes = []
 errorkey = []
 error404 = []
-one = ONE(base_url='https://openalyx.internationalbrainlab.org')
+one = ONE()
 bwm_df = bwm_query()
 pids = bwm_df['pid']
 # init dataframes
@@ -111,3 +114,10 @@ print(f'cp {STAGING_PATH.joinpath("*")} {STAGING_PATH.parent}')
 print(f'aws s3 sync "{STAGING_PATH.parent}" s3://ibl-brain-wide-map-private/aggregates/2023_Q4_IBL_et_al_BWM_2 --profile ibl')
 print(errorkey)
 print(error404)
+
+# On SDSC, sync from S3 (might have to adjust the paths if you are working with a different tag)
+# aws s3 sync s3://ibl-brain-wide-map-private/aggregates/2023_Q4_IBL_et_al_BWM_2 /mnt/ibl/aggregates/2023_Q4_IBL_et_al_BWM_2/ --profile ibladmin
+
+# If you are ready to make this public, copy on SDSC to the public folder and sync to public S3
+# cp /mnt/ibl/aggregates/2023_Q4_IBL_et_al_BWM_2/clusters.pqt /mnt/ibl/public/aggregates/2023_Q4_IBL_et_al_BWM_2/
+# aws s3 sync /mnt/ibl/public/aggregates/2023_Q4_IBL_et_al_BWM_2/ s3://ibl-brain-wide-map-public/aggregates/2023_Q4_IBL_et_al_BWM_2  --profile ibladmin
