@@ -10,7 +10,7 @@ from one.api import ONE
 from iblatlas.atlas import AllenAtlas
 from iblatlas.regions import BrainRegions
 from iblatlas.plots import plot_swanson_vector, plot_scalar_on_slice
-
+import iblatlas
 import ibllib
 
 from matplotlib.colors import LinearSegmentedColormap
@@ -48,8 +48,9 @@ for data format conversion.
 
 ba = AllenAtlas()
 br = BrainRegions()
-one = ONE(base_url='https://openalyx.internationalbrainlab.org',
-          password='international', silent=True)
+one = ONE()
+#one = ONE(base_url='https://openalyx.internationalbrainlab.org',
+#          password='international', silent=True)
 
 
 variables = ['stim', 'choice', 'fback']
@@ -97,12 +98,18 @@ meta (Swansons and table)
 #####
 '''
 
+
+
 def pool_results_across_analyses(return_raw=False):
 
     '''
     input are various csv files from 
     4 different analysis types ['glm','euc', 'mw', 'dec']
     variables ['stim', ' choice', 'fback']
+
+    some files need conversion to csv (manifold, glm); 
+    see first functions for in the subsequent sections
+
     '''
 
     D = {}
@@ -127,9 +134,9 @@ def pool_results_across_analyses(return_raw=False):
     
     for vari in variables:
         d[vari] = pd.read_csv(Path(man_pth / f'{vari}_restr.csv'))[[
-                    'region','amp_euc_can', 'lat_euc_can','p_euc']]
+                    'region','amp_euc_can', 'lat_euc_can','p_euc_can']]
     
-        d[vari]['euclidean_significant'] = d[vari].p_euc.apply(
+        d[vari]['euclidean_significant'] = d[vari].p_euc_can.apply(
                                                lambda x: x<sigl)
                                                
 
@@ -151,8 +158,8 @@ def pool_results_across_analyses(return_raw=False):
     
     d = {}   
     mw = pd.read_csv(Path(sc_pth,  
-            'Updated_Single_cell_analysis_Feb_29_2024 - Sheet1.csv'))
-    pd.set_option('future.no_silent_downcasting', True)
+            'Updated_Single_cell_analysis_July_10_2024 - Sheet1.csv'))
+    #pd.set_option('future.no_silent_downcasting', True)
     for vari in variables:
         # that fixes typos
         d[vari] = mw[['Acronym',
@@ -176,11 +183,10 @@ def pool_results_across_analyses(return_raw=False):
     '''   
     # decoding (dec)
     '''
-    
-    d = {} 
-    
+    # harmonize different file names
     dec_d = {'stim': 'stimside_stage3', 'choice': 'choice_stage3',
-             'fback': 'feedback_stage3'}
+             'fback': 'feedback_stage3'}    
+    d = {}     
               
     for vari in variables:
     
@@ -228,7 +234,6 @@ def pool_results_across_analyses(return_raw=False):
         
     print('pooled and saved results at')
     print(meta_pth)   
-
 
 
 def pool_wheel_res():
@@ -386,13 +391,30 @@ def plot_swansons(variable, fig=None, axs=None):
         dt = 'effect' if not lat else 'latency'
 
         if ana != 'glm':
-            # check if there are p-values
+            # check if there are p-values and mask
             
-            acronyms = res[res[f'{ana}_significant'] == True]['region'].values
-            scores = res[res[
-                     f'{ana}_significant'] == True][f'{ana}_{dt}'].values
-                        
-            mask = res[res[f'{ana}_significant'] == False]['region'].values
+            if lat:
+                acronyms = res[res[f'{ana}_significant'] == True][
+                            'region'].values
+                scores = res[res[
+                            f'{ana}_significant'] == True][
+                            f'{ana}_{dt}'].values
+                            
+                mask = res[res[
+                       f'{ana}_significant'] == False]['region'].values
+                       
+                # add also nan lat scores to mask       
+                       
+                                  
+            else:
+                acronyms = res[res[f'{ana}_significant'] == True][
+                            'region'].values
+                scores = res[res[
+                            f'{ana}_significant'] == True][
+                            f'{ana}_{dt}'].values
+                            
+                mask = res[res[
+                       f'{ana}_significant'] == False]['region'].values
         
         else:
             acronyms = res['region'].values
@@ -455,8 +477,6 @@ def plot_slices(variable):
     latencies of manifolds onto brain slices
     '''
 
-    
-    
     res = pd.read_pickle(meta_pth / f"{variable}.pkl")
 
 
@@ -606,7 +626,7 @@ def plot_slices(variable):
                      bbox_inches='tight')
     fig.savefig(Path(imgs_pth, 'si', 
                      f'n6_supp_figure_{variverb[variable]}.pdf'),
-                     dpi=300,
+                     dpi=150,
                      bbox_inches='tight')          
 
     
@@ -621,13 +641,13 @@ def plot_all_swansons():
 
     # results to plot in Swansons with labels for colorbars
     # and vmin, vmax for each analysis
-    res_types = {'decoding_effect': ['Decoding. $R^2$ over null',[0.02,.43], 
+    res_types = {'decoding_effect': ['Decoding. $R^2$ over null',[], 
                     ['Decoding', 'Regularized logistic regression']],
-                 'mannwhitney_effect': ['Frac. sig. cells',[0.01,.43],
+                 'mannwhitney_effect': ['Frac. sig. cells',[],
                     ['Single cell statistics', 'C.C Mann-Whitney test']],
-                 'euclidean_effect': ['Nrml. Eucl. dist.',[0.06,5.95],
+                 'euclidean_effect': ['Nrml. Eucl. dist.',[],
                     ['Manifold', 'Distance between trajectories']],
-                 'glm_effect': ['Abs. diff. $\\Delta R^2$',[-5,-.3],
+                 'glm_effect': ['Abs. diff. $\\Delta R^2$',[],
                     ['Encoding', 'General linear model']]}
      
     cmap = 'viridis'
@@ -670,8 +690,8 @@ def plot_all_swansons():
                 scores = res[f'{ana}_effect'].values
                 mask = []
             
-            vmin, vmax = res_types[res_type][1]
-            
+            vmin, vmax = (np.min(scores), np.max(scores))
+            res_types[res_type][1] = vmin, vmax
             plot_swanson_vector(acronyms,
                                 scores,
                                 hemisphere=None, 
@@ -751,8 +771,8 @@ def plot_all_swansons():
         rotation='vertical',  va='center')
 
     fig.suptitle('Analysis', fontsize=12, ha='center')        
-    fig.savefig(Path(imgs_pth, 'si', 'all_swansons.svg'))
-    fig.savefig(Path(imgs_pth, 'si', 'all_swansons.pdf'))    
+    fig.savefig(Path(imgs_pth, 'si', 'n6_supp_all_variables_revised.svg'))
+    fig.savefig(Path(imgs_pth, 'si', 'n6_supp_all_variables_revised.pdf'))    
 
 
 def plot_wheel_swansons(fig=None, axs=None):
@@ -764,9 +784,9 @@ def plot_wheel_swansons(fig=None, axs=None):
     lw = 0.1  # .01
 
     # results to plot in Swansons with labels for colorbars
-    res_types = {'decoding_effect': ['Decoding. $R^2$ over null',[0.02,.43], 
+    res_types = {'decoding_effect': ['Decoding. $R^2$ over null',[], 
                     ['Decoding', 'Regularized logistic regression']],
-                 'glm_effect': ['Abs. diff. $\\Delta R^2$',[-5,-.3],
+                 'glm_effect': ['Abs. diff. $\\Delta R^2$',[],
                     ['Encoding', 'General linear model']]}
     
     varis = ['speed', 'velocity']
@@ -805,7 +825,8 @@ def plot_wheel_swansons(fig=None, axs=None):
                 scores = res[f'{ana}_effect'].values
                 mask = []
                 
-            vmin, vmax = res_types[res_type][1]
+            vmin, vmax = (np.min(scores), np.max(scores))
+            res_types[res_type][1] = vmin, vmax
             plot_swanson_vector(acronyms,
                                 scores,
                                 hemisphere=None, 
@@ -860,7 +881,7 @@ def plot_wheel_swansons(fig=None, axs=None):
 
 
 
-def plot_table(variable):
+def plot_table(variable, sort_within_cosmos=False):
 
 
     # # Plot comparison table
@@ -885,24 +906,39 @@ def plot_table(variable):
     res.iloc[:,si:se] = (res.iloc[:,si:se] - res.iloc[:,si:se].min())/(
                       res.iloc[:,si:se].max()-res.iloc[:,si:se].min()) + 1e-4
 
-    # ## Sum values in each row to use for sorting
-    # The rows of the table are sorted by the sum of all effects 
-    # across the row(excluding latency). 
-    # Here we create a new column with this sum.
+    if sort_within_cosmos:
+        # ## Sum values in each row to use for sorting
+        # The rows of the table are sorted by the sum of all effects 
+        # across the row(excluding latency). 
+        # Here we create a new column with this sum.
 
-    res['sum']  = res[effs].apply(np.sum,axis=1)
-                       
-    #res = res.reset_index()
+        res['sum']  = res[effs].apply(np.sum,axis=1)
+                           
+        #res = res.reset_index()
 
-    # ## Sort rows by 'sum' within each Cosmos region
-    # The sorting by sum of effects is done within each Cosmos region. 
-    # So here I add the cosmos acronym as a column, group and then sort 'sum'.
+        # ## Sort rows by 'sum' within each Cosmos region
+        # The sorting by sum of effects is done within each Cosmos region. 
+        # So here I add the cosmos acronym as a column, group and then sort 'sum'.
 
-    res['cosmos'] = res.region.apply(lambda x : beryl_to_cosmos(x,br))
-    res = res.groupby('cosmos').apply(
-              lambda x: x.sort_values(['sum'], ascending=False))
+        res['cosmos'] = res.region.apply(lambda x : beryl_to_cosmos(x,br))
+        res = res.groupby('cosmos').apply(
+                  lambda x: x.sort_values(['sum'], ascending=False))
 
-            
+    else:
+        # order rows (regions) canonically, omitting those without data
+        regs0 = list(res['region']) 
+        p = (Path(iblatlas.__file__).parent / 'beryl.npy')
+        regs_can = br.id2acronym(np.load(p), mapping='Beryl')
+        regs1 = []
+        for reg in regs_can:
+            if reg in regs0:
+                regs1.append(reg)        
+
+        res['region'] = pd.Categorical(res['region'], 
+                                       categories=regs1, ordered=True)
+        res = res.sort_values('region')
+        res = res.reset_index(drop=True)
+
     for ana in anas:
         if ana == 'glm':
             continue
@@ -939,18 +975,31 @@ def plot_table(variable):
                          
         return 'background-color: ' + color
 
-        
+
+    column_labels = {
+        'region': 'region',
+        'glm_effect': 'GLM',
+        'euclidean_effect': 'Euclidean',
+        'mannwhitney_effect': 'Mann-Whitney',
+        'decoding_effect': 'Decoding'
+    }
+    res = res.rename(columns=column_labels)
+    effs = list(column_labels.values())[1:]
+    columns_order = ['region'] + list(reversed(effs[::-1]))
+    res = res[columns_order]
+      
+      
     # Format table  
     def make_pretty(styler):
         
-        styler.map(effect_formatting, subset=effs)
-        styler.map(region_formatting, subset=['region'])
+        styler.applymap(effect_formatting, subset=effs)
+        styler.applymap(region_formatting, subset=['region'])
         styler.set_properties(subset=effs, **{'width': '16px'})
         styler.set_properties(subset=effs, **{'font-size': '0pt'})
         styler.set_properties(subset=['region'], **{'width': 'max-content'})
         styler.set_properties(subset=['region'],**{'font-size': '9pt'})
         styler.hide(axis="index")
-        styler.hide(axis="columns")  # Hide column headers
+        #styler.hide(axis="columns")  # Hide column headers
        
         styler.set_table_styles([         
             {"selector": "tr", "props": "line-height: 11px"},
@@ -959,7 +1008,11 @@ def plot_table(variable):
             {"selector": "tbody td", 
                 "props": [("border", "1px solid white")]},
             {'selector': 'th.col_heading', 
-                        'props': [('writing-mode', 'vertical-rl')]}])
+                        'props': [('writing-mode', 'vertical-rl'),
+                              ('text-align', 'center'),
+                              ('font-size', '9pt'),
+                              ('padding', '5px 0'),
+                              ('white-space', 'nowrap')]}])
      
         return styler
  
@@ -1005,7 +1058,7 @@ def stim_dec_line(fig=None, ax=None):
         alone = True
         fig, ax = plt.subplots(figsize=(3,2))
 
-    session_file = ('stim_e0928e11-2b86-4387'
+    session_file = ('stimside_e0928e11-2b86-4387'
                     '-a203-80c77fab5d52_VISp_merged_'
                     'probes_pseudo_ids_-1_100.pkl')
 
@@ -1076,11 +1129,11 @@ def dec_scatter(variable,fig=None, ax=None):
         fig, ax = plt.subplots(figsize=(3,2))        
 
     if variable == 'choice':
-        session_file = (f'{variable}_671c7ea7-6726-4fbe-adeb'
+        session_file = (f'choice_671c7ea7-6726-4fbe-adeb'
                         '-f89c2c8e489b_GRN_merged_probes_'
                         'pseudo_ids_-1_100.pkl')
     elif variable == 'fback':
-        session_file = (f'{variable}_e012d3e3'
+        session_file = (f'feedback_e012d3e3'
                         '-fdbc-4661-9ffa-5fa284e4e706_IRN_'
                         'merged_probes_pseudo_ids_-1_100.pkl')
     else:
@@ -1350,7 +1403,7 @@ def glm_to_csv():
     '''
 
     t = pd.read_pickle(
-            Path(enc_pth,'2024-02-26_glm_fit.pkl'))['mean_fit_results']
+            Path(enc_pth,'2024-07-16_glm_fit.pkl'))['mean_fit_results']
                         
     res = [abs(t['stimonL'] - t['stimonR']),
            abs(t['fmoveR']  - t['fmoveL']),
@@ -1728,20 +1781,19 @@ def manifold_to_csv():
     mapping = 'Beryl'
 
     columns = ['region','name','nclus', 
-               'p_euc', 'amp_euc_can',
+               'p_euc_can', 'amp_euc_can',
                'lat_euc_can']
 
     for variable in variables:        
         r = []
         variable = variable + '_restr'
-        d = np.load(Path(one.cache_dir, 'bwm_res', 
-                    'manifold', 'res', f'{variable}.npy'),
+        d = np.load(Path(man_pth, f'{variable}.npy'),
                     allow_pickle=True).flat[0] 
         
         for reg in d:
 
             r.append([reg, get_name(reg), d[reg]['nclus'],
-                      d[reg]['p_euc'],
+                      d[reg]['p_euc_can'],
                       d[reg]['amp_euc_can'],
                       d[reg]['lat_euc_can']])
                       
@@ -1963,7 +2015,7 @@ def plot_curves_scatter(variable, ga_pcs=False, curve='euc',
         print(f'inf in {curve} of {reg}')
         return
         
-    print(variable, reg, 'p_euc: ', d[reg]['p_euc'])    
+    print(variable, reg, 'p_euc_can: ', d[reg]['p_euc_can'])    
 
     xx = np.linspace(-pre_post(variable,can=can)[0],
                      pre_post(variable,can=can)[1],
