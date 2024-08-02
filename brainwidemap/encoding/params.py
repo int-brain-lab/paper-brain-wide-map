@@ -4,5 +4,5 @@ Users must change these paths to valid locations on their own system for most of
 work.
 """
 
-GLM_CACHE = "/mnt/Storage/glm_cache/"
-GLM_FIT_PATH = "/mnt/Storage/results/glms/"
+GLM_CACHE = "/home/gercek/scratch/glm_cache/"
+GLM_FIT_PATH = "/home/gercek/scratch/results/glms/"

@@ -11,6 +11,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # IBL libraries
+from one.api import ONE
 from iblutil.util import Bunch
 import brainbox.io.one as bbone
 from brainbox.io.one import SessionLoader
@@ -23,12 +24,14 @@ from brainwidemap.encoding.timeseries import TimeSeries, sync
 def load_regressors(
     session_id,
     pid,
-    one,
+    one=None,
     t_before=0.0,
     t_after=0.2,
     binwidth=0.02,
     abswheel=False,
     clu_criteria="bwm",
+    one_url="https://openalyx.internationalbrainlab.org",
+    one_pw="international"
 ):
     """
     Load in regressors for given session and probe. Returns a dictionary with the following keys:
@@ -61,6 +64,9 @@ def load_regressors(
     trialsdf, spk_times, spk_clu, clu_regions, clu_qc, clu_df, clu_qc (optional)
         Output regressors for GLM
     """
+    if one is None:
+        one = ONE(base_url=one_url, password=one_pw, silent=True)
+
     _, mask = load_trials_and_mask(one=one, eid=session_id)
     mask = mask.index[np.nonzero(mask.values)]
     trialsdf = load_trials_df(
@@ -188,7 +194,8 @@ def make_batch_slurm_singularity(
     fw.write(f"#SBATCH --cpus-per-task={cores_per_job}\n")
     fw.write(f"#SBATCH --mem={memory}\n")
     fw.write("\n")
-    fw.write(f"module load {' '.join(singularity_modules)}\n")
+    if not len(singularity_modules) == 0:
+        fw.write(f"module load {' '.join(singularity_modules)}\n")
     bindstr = "" if len(mount_paths) == 0 else "-B "
     mountpairs = ",".join([f"{k}:{v}" for k, v in mount_paths.items()])
     fw.write(f"singularity run {bindstr} {mountpairs} {container_image} /bin/bash {workerscript}")
@@ -205,7 +212,6 @@ def make_batch_slurm_singularity(
 
 def load_trials_df(
     eid,
-    one,
     t_before=0.0,
     t_after=0.2,
     ret_wheel=False,
@@ -213,6 +219,7 @@ def load_trials_df(
     wheel_binsize=0.02,
     addtl_types=[],
     trials_mask=None,
+    one=None,
 ):
     """
     Generate a pandas dataframe of per-trial timing information about a given session.
@@ -257,6 +264,8 @@ def load_trials_df(
         have a monotonic index. Has special columns trial_start and trial_end which define start
         and end times via t_before and t_after
     """
+    if one is None:
+        raise ValueError("one must be defined.")
     if ret_wheel and ret_abswheel:
         raise ValueError("ret_wheel and ret_abswheel cannot both be true.")
 
@@ -341,6 +350,8 @@ def single_cluster_raster(
     pre_time=0.4,
     post_time=1.0,
     raster_bin=0.01,
+    raster_cbar=False,
+    raster_interp="none",
     show_psth=False,
     psth_bin=0.05,
     weights=None,
@@ -371,6 +382,10 @@ def single_cluster_raster(
         Time after event to plot, by default 1.
     raster_bin : float, optional
         Time bin size for the raster, by default 0.01
+    raster_cbar : bool, optional
+        Whether to include a color bar for the raster, which uses binned spike counts.
+    raster_interp : str, optional
+        Passed to matplotlib.pyplot.imshow, by default "none"
     psth : bool, optional
         Whether to plot the PSTH, by default False
     psth_bin : float, optional
@@ -392,7 +407,7 @@ def single_cluster_raster(
     """
     raster, t_raster = bin_spikes(
         spike_times,
-        events,
+        events.values,
         pre_time=pre_time,
         post_time=post_time,
         bin_size=raster_bin,
@@ -400,7 +415,7 @@ def single_cluster_raster(
     )
     psth, t_psth = bin_spikes(
         spike_times,
-        events,
+        events.values,
         pre_time=pre_time,
         post_time=post_time,
         bin_size=psth_bin,
@@ -466,6 +481,7 @@ def single_cluster_raster(
         cmap="binary",
         origin="lower",
         extent=[np.min(t_raster), np.max(t_raster), 0, len(trial_idx)],
+        interpolation=raster_interp,
         aspect="auto",
     )
 
@@ -479,6 +495,9 @@ def single_cluster_raster(
         )
 
     raster_ax.set_xlim([-1 * pre_time, post_time + raster_bin / 2 + width])
+    raster_ax.set_yticks(dividers)
+    if raster_cbar:
+        plt.colorbar(raster_ax.get_images()[0], ax=raster_ax, label="Spike count")
     secax = raster_ax.secondary_yaxis("right")
 
     secax.set_yticks(label_pos)

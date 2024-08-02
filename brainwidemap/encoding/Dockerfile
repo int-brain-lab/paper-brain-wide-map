@@ -26,11 +26,7 @@ RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh &&\
  conda clean --all -f -y"
 RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh &&\
  conda activate iblenv &&\
- pip install globus-sdk iblutil ibl-neuropixel ONE-api phylib pynrrd slidingRP &&\
- git clone https://github.com/int-brain-lab/iblapps.git &&\
- conda develop ./iblapps &&\
- git clone https://github.com/int-brain-lab/ibllib &&\
- conda develop ./ibllib &&\
+ pip install globus-sdk iblutil ibllib iblapps ibl-neuropixel ONE-api phylib pynrrd slidingRP &&\
  git clone https://github.com/berkgercek/neurencoding &&\
  conda develop ./neurencoding"
 # The below allows interactively running the container with the correct environment, but be warned

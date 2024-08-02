@@ -54,7 +54,7 @@ parser.add_argument(
     "--singularity_modules",
     type=str,
     nargs="+",
-    default=["GCC/9.3.0", "Singularity/3.7.3-Go-1.14"],
+    default=[],
     help="Modules to load when using singularity containers.",
 )
 parser.add_argument(
@@ -108,7 +108,7 @@ params = {
     "wheel_offset": -0.3,
     "contnorm": 5.0,
     "reduce_wheel_dim": False,
-    "dataset_fn": "2022-12-22_dataset_metadata.pkl",
+    "dataset_fn": "2024-01-06_dataset_metadata.pkl",
     "model": lm.LinearGLM,
     "alpha_grid": {"alpha": np.logspace(-3, 2, 50)},
     "contiguous": False,

@@ -14,6 +14,7 @@ from pathlib import Path
 
 # Third party libraries
 import numpy as np
+from pandas import read_pickle
 
 # Brainwidemap repo imports
 from brainwidemap.encoding.design import generate_design
@@ -23,7 +24,7 @@ from brainwidemap.encoding.params import GLM_FIT_PATH
 
 def get_cached_regressors(fpath):
     with open(fpath, "rb") as fo:
-        d = pickle.load(fo)
+        d = read_pickle(fo)
     return d["trialsdf"], d["spk_times"], d["spk_clu"], d["clu_regions"], d["clu_df"]
 
 
