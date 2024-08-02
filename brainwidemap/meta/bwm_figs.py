@@ -1597,9 +1597,9 @@ def get_example_results():
     # Which units we're going to use for plotting
     targetunits = {  # eid, pid, clu_id, region, drsq, alignset key
         "stim": (
-            "e0928e11-2b86-4387-a203-80c77fab5d52",  # EID
-            "799d899d-c398-4e81-abaf-1ef4b02d5475",  # PID
-            209,  # clu_id
+            '41431f53-69fd-4e3b-80ce-ea62e03bf9c7',  # EID was "e0928e11-2b86-4387-a203-80c77fab5d52"
+            'a9c9df46-85f3-46ad-848d-c6b8da4ae67c',  # PID was"799d899d-c398-4e81-abaf-1ef4b02d5475"
+            0,  # clu_id, was 235
             "VISp",  # region
             0.04540706,  # drsq (from 02_fit_sessions.py)
             "stimOn_times",  # Alignset key
@@ -1630,7 +1630,7 @@ def get_example_results():
     return targetunits, alignsets, sortlookup
 
 
-def ecoding_raster_lines(variable, ax=None):    
+def ecoding_raster_lines(variable, clu_id0=None, ax=None):    
 
     '''
     plot raster and two line plots
@@ -1644,8 +1644,13 @@ def ecoding_raster_lines(variable, ax=None):
                                figsize=(3.1,5.5), sharex=True,
                                gridspec_kw={'height_ratios': [2, 1, 1]})
 
+    print('alone:', alone)
+
     targetunits, alignsets, sortlookup = get_example_results()
     eid, pid, clu_id, region, drsq, aligntime = targetunits[variable]
+  
+    if clu_id0:
+        clu_id = clu_id0
 
     (aligncol, aligncond1, aligncond2, 
         t_before, t_after, reg1, reg2) = alignsets[aligntime]
@@ -1843,6 +1848,13 @@ def grad(c, nobs, fr=1):
 def get_allen_info():
     r = np.load(Path(one.cache_dir, 'dmn', 'alleninfo.npy'),
                 allow_pickle=True).flat[0]
+                
+   
+#    cosmos_indices = np.unique(br.mappings['Cosmos'])
+#    acronyms = br.acronym[cosmos_indices]
+#    colors = br.rgb[cosmos_indices]           
+                
+                
     return r['dfa'], r['palette']
 
        
@@ -2232,7 +2244,7 @@ def put_panel_label(ax, label):
 
 
 
-def main_fig(variable, save_pans=False):
+def main_fig(variable, clu_id0=None, save_pans=False):
 
     '''
     combine panels into main figure;
@@ -2360,11 +2372,12 @@ def main_fig(variable, save_pans=False):
 
     # encoding panels
     if not save_pans:   
-        ecoding_raster_lines(variable, ax=[ax_str(x) for x in 
-                                           ['ras', 'enc0', 'enc1']])
+        ecoding_raster_lines(variable,clu_id0= clu_id0, 
+                             ax=[ax_str(x) for x in 
+                             ['ras', 'enc0', 'enc1']])
                          
     else:
-        ecoding_raster_lines(variable)
+        ecoding_raster_lines(variable, clu_id0=clu_id0)
     
     
     '''
