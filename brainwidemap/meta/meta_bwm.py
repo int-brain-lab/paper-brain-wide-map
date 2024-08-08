@@ -1233,9 +1233,9 @@ def scatter_analysis_effects(variable, analysis_pair,sig_only=False,
         regs = df2['region'].values
     else:
         # Fetch data for both analyses in the pair
-        val1 = s[analysis_pair[0]].values
-        val2 = s[analysis_pair[1]].values
-        regs = s['region'].values
+        val1 = df[analysis_pair[0]].values
+        val2 = df[analysis_pair[1]].values
+        regs = df['region'].values
     
     # Load a color palette
     _, pal = get_allen_info()
@@ -1261,6 +1261,13 @@ def scatter_analysis_effects(variable, analysis_pair,sig_only=False,
     ax.set_xlabel(f'{analysis_pair[0].split("_")[0]}')
     ax.set_ylabel(f'{analysis_pair[1].split("_")[0]}')
     
+    # region count in upper right corner
+    ax.text(1.0, 1.0, len(regss), 
+        transform=ax.transAxes, 
+        fontsize=12, 
+        verticalalignment='top', 
+        horizontalalignment='right')
+        
     # Calculate and display correlation coefficients
     cors, ps = spearmanr(val1, val2)
     corp, pp = pearsonr(val1, val2)
