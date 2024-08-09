@@ -5,6 +5,7 @@ import math, string
 from collections import Counter, OrderedDict
 from functools import reduce
 import os
+import itertools
 
 from one.api import ONE
 from iblatlas.atlas import AllenAtlas
@@ -364,11 +365,17 @@ def plot_swansons(variable, fig=None, axs=None):
     lw = 0.1  # .01
 
     # results to plot in Swansons with labels for colorbars
-    res_types = {'decoding_effect': 'Decoding. $R^2$ over null',
-                 'mannwhitney_effect': 'Frac. sig. cells',
-                 'euclidean_effect': 'Nrml. Eucl. dist.',
-                 'euclidean_latency': 'Latency (s)',
-                 'glm_effect': 'Abs. diff. $\\Delta R^2$'}
+    res_types = {'decoding_effect': ['Decoding. $R^2$ over null',[], 
+                    ['Decoding', 'Regularized logistic regression']],
+                 'mannwhitney_effect': ['Frac. sig. cells',[],
+                    ['Single cell statistics', 'C.C Mann-Whitney test']],
+                 'euclidean_effect': ['Nrml. Eucl. dist.',[],
+                    ['Manifold', 'Distance between trajectories']],
+                 'euclidean_latency': ['Latency of dist. (sec)',[],
+                    ['Manifold', 'Time near peak']],      
+                 'glm_effect': ['Abs. diff. $\\Delta R^2$',[],
+                    ['Encoding', 'General linear model']]}
+
      
     cmap = get_cmap_(variable)
     
@@ -436,7 +443,8 @@ def plot_swansons(variable, fig=None, axs=None):
                             mask_color='silver',
                             annotate= True if not eucb else False,
                             annotate_n=5,
-                            annotate_order='bottom' if lat else 'top')
+                            annotate_order='bottom' if lat else 'top',
+                            fontsize=0.7 *f_size)
 
         clevels = (min(scores), max(scores))
 
@@ -457,9 +465,22 @@ def plot_swansons(variable, fig=None, axs=None):
         cbar.outline.set_visible(False)
         cbar.ax.tick_params(size=2)
         cbar.ax.xaxis.set_tick_params(pad=5)
-        cbar.set_label(res_types[res_type], fontsize=f_size)
+        cbar.set_label(res_types[res_type][0], fontsize=0.7 *f_size)
+        cbar.ax.tick_params(labelsize=0.5 *f_size)
         
-        axs[k].set_title(f'{len(scores)}/{len(scores) + len(mask)}')  
+        axs[k].text(-0.25, 0.5, res_types[res_type][2][0],
+                fontsize=f_size, ha='center',va = 'center', 
+                rotation='vertical', 
+                transform=axs[k].transAxes)
+        axs[k].text(-0.1, .5, res_types[res_type][2][1],
+                fontsize=0.7 * f_size, ha='center',va = 'center',
+                rotation='vertical', 
+                transform=axs[k].transAxes)
+        axs[k].text(0.85, 0.95, f' {len(scores)}/{len(scores) + len(mask)}',
+                fontsize=0.7 * f_size, ha='center', 
+                transform=axs[k].transAxes)                
+                
+
         axs[k].axis("off")
         
         axs[k].axes.invert_xaxis()
@@ -634,6 +655,7 @@ def plot_all_swansons():
 
     '''
     SI figure swansons for all three main variables and analyses
+    scores are normalized across variables per analysis
     ''' 
 
 
@@ -645,7 +667,7 @@ def plot_all_swansons():
                     ['Decoding', 'Regularized logistic regression']],
                  'mannwhitney_effect': ['Frac. sig. cells',[],
                     ['Single cell statistics', 'C.C Mann-Whitney test']],
-                 'euclidean_effect': ['Nrml. Eucl. dist.',[],
+                 'euclidean_effect': ['Nrml. Eucl. dist. (log)',[],
                     ['Manifold', 'Distance between trajectories']],
                  'glm_effect': ['Abs. diff. $\\Delta R^2$',[],
                     ['Encoding', 'General linear model']]}
@@ -666,7 +688,23 @@ def plot_all_swansons():
         res = pd.read_pickle(meta_pth / f"{variable}.pkl")
         col = 0
         for res_type in res_types:
-
+        
+            ana = res_type.split('_')[0]
+            # get vmin vmax across variable
+            all_scores = []
+            for vari in variables:
+                res_ = pd.read_pickle(meta_pth / f"{vari}.pkl")
+                if ana != 'glm':
+                    scores = res_[res_[
+                             f'{ana}_significant'] == True][
+                             f'{ana}_effect'].values            
+                else:    
+                    scores = res_[f'{ana}_effect'].values
+                all_scores.append(scores)
+            
+            all_scores = list(itertools.chain(*all_scores))        
+        
+                    
             axs.append(fig.add_subplot(gs[row, col]))
             
             if col == 0:
@@ -674,7 +712,7 @@ def plot_all_swansons():
                  rotation='vertical', va='center', ha='right', 
                  transform=axs[-1].transAxes)
                   
-            ana = res_type.split('_')[0]
+            
 
             if ana != 'glm':
                 # check if there are p-values
@@ -689,9 +727,14 @@ def plot_all_swansons():
                 acronyms = res['region'].values
                 scores = res[f'{ana}_effect'].values
                 mask = []
+
+            if ana == 'euclidean':
+                scores = np.log(scores)
+                all_scores = np.log(all_scores)
+                
+            vmin, vmax = (np.min(all_scores), np.max(all_scores))
+            res_types[res_type][1] = vmin, vmax  
             
-            vmin, vmax = (np.min(scores), np.max(scores))
-            res_types[res_type][1] = vmin, vmax
             plot_swanson_vector(acronyms,
                                 scores,
                                 hemisphere=None, 
@@ -1023,6 +1066,119 @@ def plot_table(variable, sort_within_cosmos=False):
     pf.mkdir(parents=True, exist_ok=True)
     dfi.export(res0, Path(pf,'table.png'), max_rows=-1, dpi = 200)
 
+
+'''
+#####
+SI figures for single-cell
+#####
+'''
+
+
+def load_single_cell():
+    '''
+    # Mann Whitney (single_cell)
+    '''
+    
+    d = {}   
+    mw = pd.read_csv(Path(sc_pth,  
+            'Updated_Single_cell_analysis_July_10_2024 - Sheet1.csv'))
+            
+    vas = ['correct_vs_baseline', 'incorrect_vs_baseline', 'task']        
+
+    for vari in vas:
+        # that fixes typos
+        d[vari] = mw[['Acronym',
+                    f'[{vari}] fraction of significance',
+                    f'[{vari}] significance']].rename(
+                    columns = {'Acronym': 'region',
+                    f'[{vari}] fraction of significance':  
+                    'mannwhitney_effect',
+                    f'[{vari}] significance': 
+                    'mannwhitney_significant'})
+        d[vari].mannwhitney_significant.replace(
+                                np.nan, False,inplace=True)
+        d[vari].mannwhitney_significant.replace(
+                                1, True,inplace=True)
+
+    return d
+
+
+
+def swansons_SI(vari):
+
+    '''
+    SI figure swanson for single-cell results
+    vari in ['correct_vs_baseline', 'incorrect_vs_baseline', 'task']
+    ''' 
+
+#    cmaps = {'correct_vs_baseline': get_cmap_('fback'),
+#             'incorrect_vs_baseline':get_cmap_('fback'),
+#             'task': get_cmap_('block')}
+             
+    cmap = get_cmap_('fback')
+
+    lw = 0.1  
+
+    fig, ax = plt.subplots(figsize=(4.73, 2.38))  
+
+    res = load_single_cell()[vari]
+    ana = 'mannwhitney'
+          
+    acronyms = res[res[f'{ana}_significant'] == True]['region'].values
+    scores = res[res[
+             f'{ana}_significant'] == True][f'{ana}_effect'].values
+    
+    # turn fraction into percentage
+    scores = scores * 100
+                
+    mask = res[res[f'{ana}_significant'] == False]['region'].values
+        
+    if vari == 'task':
+        vmin, vmax = (np.min(scores), np.max(scores))
+    else:
+        vmin, vmax = (0, 100)
+    
+    plot_swanson_vector(acronyms,
+                        scores,
+                        hemisphere=None, 
+                        orientation='landscape',
+                        cmap=cmap,
+                        br=br,
+                        ax=ax,
+                        empty_color="white",
+                        linewidth=lw,
+                        mask=mask,
+                        mask_color='silver',
+                        annotate= False,
+                        vmin=vmin,
+                        vmax=vmax)
+                        
+    ax.set_axis_off() 
+    
+                      
+    clevels = (vmin, vmax)
+
+    num_ticks = 3  # Adjust as needed
+
+    # Use MaxNLocator to select a suitable number of ticks
+    locator = MaxNLocator(nbins=num_ticks)
+               
+    norm = mpl.colors.Normalize(vmin=clevels[0], vmax=clevels[1])
+    cbar = fig.colorbar(
+               mpl.cm.ScalarMappable(norm=norm,cmap=cmap),
+               ax=ax,shrink=0.4,aspect=12,pad=.025,
+               orientation="horizontal", ticks=locator)
+               
+    cbar.ax.tick_params(axis='both', which='major',
+                        labelsize=f_size, size=6)
+    cbar.outline.set_visible(False)
+    cbar.ax.tick_params(size=2)
+    cbar.ax.xaxis.set_tick_params(pad=5)
+    #cbar.set_label(res_types[res_type][0], fontsize=0.7 *f_size)
+    cbar.ax.tick_params(labelsize=0.7 *f_size)                        
+
+    fig.tight_layout()    
+    fig.savefig(Path(imgs_pth, 'si', f'mannwhitney_SI_{vari}.svg'))    
 
 
 '''
@@ -1384,8 +1540,6 @@ def plot_SI_speed_velocity():
                      dpi=250,
                      bbox_inches='tight')
 
-
-
 '''
 ##########
 encoding (glm)
@@ -1597,9 +1751,9 @@ def get_example_results():
     # Which units we're going to use for plotting
     targetunits = {  # eid, pid, clu_id, region, drsq, alignset key
         "stim": (
-            "e0928e11-2b86-4387-a203-80c77fab5d52",  # EID
-            "799d899d-c398-4e81-abaf-1ef4b02d5475",  # PID
-            209,  # clu_id
+            'e0928e11-2b86-4387-a203-80c77fab5d52',  # EID 
+            '799d899d-c398-4e81-abaf-1ef4b02d5475',  # PID 
+            235,  # clu_id, was 235
             "VISp",  # region
             0.04540706,  # drsq (from 02_fit_sessions.py)
             "stimOn_times",  # Alignset key
@@ -1630,7 +1784,7 @@ def get_example_results():
     return targetunits, alignsets, sortlookup
 
 
-def ecoding_raster_lines(variable, ax=None):    
+def ecoding_raster_lines(variable, clu_id0=None, ax=None):    
 
     '''
     plot raster and two line plots
@@ -1644,8 +1798,13 @@ def ecoding_raster_lines(variable, ax=None):
                                figsize=(3.1,5.5), sharex=True,
                                gridspec_kw={'height_ratios': [2, 1, 1]})
 
+    print('alone:', alone)
+
     targetunits, alignsets, sortlookup = get_example_results()
     eid, pid, clu_id, region, drsq, aligntime = targetunits[variable]
+  
+    if clu_id0:
+        clu_id = clu_id0
 
     (aligncol, aligncond1, aligncond2, 
         t_before, t_after, reg1, reg2) = alignsets[aligntime]
@@ -1843,6 +2002,13 @@ def grad(c, nobs, fr=1):
 def get_allen_info():
     r = np.load(Path(one.cache_dir, 'dmn', 'alleninfo.npy'),
                 allow_pickle=True).flat[0]
+                
+   
+#    cosmos_indices = np.unique(br.mappings['Cosmos'])
+#    acronyms = br.acronym[cosmos_indices]
+#    colors = br.rgb[cosmos_indices]           
+                
+                
     return r['dfa'], r['palette']
 
        
@@ -2232,7 +2398,7 @@ def put_panel_label(ax, label):
 
 
 
-def main_fig(variable, save_pans=False):
+def main_fig(variable, clu_id0=None, save_pans=False):
 
     '''
     combine panels into main figure;
@@ -2360,11 +2526,12 @@ def main_fig(variable, save_pans=False):
 
     # encoding panels
     if not save_pans:   
-        ecoding_raster_lines(variable, ax=[ax_str(x) for x in 
-                                           ['ras', 'enc0', 'enc1']])
+        ecoding_raster_lines(variable,clu_id0= clu_id0, 
+                             ax=[ax_str(x) for x in 
+                             ['ras', 'enc0', 'enc1']])
                          
     else:
-        ecoding_raster_lines(variable)
+        ecoding_raster_lines(variable, clu_id0=clu_id0)
     
     
     '''
@@ -2423,14 +2590,14 @@ def main_fig(variable, save_pans=False):
         fig.savefig(Path(imgs_pth, variable, 
                          f'n5_main_figure_{variverb[variable]}_revised.svg'),  
                          bbox_inches='tight')
-        fig.savefig(Path(imgs_pth, variable, 
-                         f'n5_main_figure_{variverb[variable]}_revised.pdf'),
-                         dpi=300,
-                         bbox_inches='tight')                         
-        fig.savefig(Path(imgs_pth, variable, 
-                         f'n5_main_figure_{variverb[variable]}_revised.png'),
-                         dpi=250,
-                         bbox_inches='tight')    
+#        fig.savefig(Path(imgs_pth, variable, 
+#                         f'n5_main_figure_{variverb[variable]}_revised.pdf'),
+#                         dpi=300,
+#                         bbox_inches='tight')                         
+#        fig.savefig(Path(imgs_pth, variable, 
+#                         f'n5_main_figure_{variverb[variable]}_revised.png'),
+#                         dpi=250,
+#                         bbox_inches='tight')    
     
         #plt.close(fig)
         
