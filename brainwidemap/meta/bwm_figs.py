@@ -1761,7 +1761,7 @@ def get_example_results():
         "choice": (
             "671c7ea7-6726-4fbe-adeb-f89c2c8e489b",
             "04c9890f-2276-4c20-854f-305ff5c9b6cf",
-            123,
+            143,
             "GRN",
             0.000992895,  # drsq
             "firstMovement_times",
@@ -1769,7 +1769,7 @@ def get_example_results():
         "fback": (
             "a7763417-e0d6-4f2a-aa55-e382fd9b5fb8",
             "57c5856a-c7bd-4d0f-87c6-37005b1484aa",
-            98,
+            83,
             "IRN",
             0.3077195113,  # drsq
             "feedback_times",
@@ -1824,7 +1824,7 @@ def ecoding_raster_lines(variable, clu_id0=None, ax=None):
     
     ax[1].set_ylabel('Firing rate (Hz)')
     ax[2].set_ylabel('Firing rate (Hz)')
-    ax[2].set_ylabel('Time (s)')
+    #ax[2].set_ylabel('Time (s)')
     
     ax[1].yaxis.set_major_locator(plt.MaxNLocator(4))
     ax[2].yaxis.set_major_locator(plt.MaxNLocator(4))
@@ -2221,8 +2221,6 @@ def plot_curves_scatter(variable, ga_pcs=False, curve='euc',
 
     axs[k].set_ylabel('Distance (Hz)')
     axs[k].set_xlabel('Time (s)')
-
-
     
     '''
     line plot per 5 example regions per variable
