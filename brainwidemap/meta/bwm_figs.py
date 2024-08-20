@@ -404,12 +404,16 @@ def plot_swansons(variable, fig=None, axs=None):
             scores = res[res[
                         f'{ana}_significant'] == True][
                         f'{ana}_{dt}'].values
-                        
-            # remove regs from mask with nan amps (not analyzed)            
-            mask = res[np.bitwise_and(
-                        res[f'{ana}_significant'] == False,
-                        ~np.isnan(res[f'{ana}_{dt}']))][
-                        'region'].values
+            if lat:
+                mask = res[np.isnan(res[f'{ana}_{dt}'])][
+                            'region'].values            
+            
+            else:            
+                # remove regs from mask with nan amps (not analyzed)            
+                mask = res[np.bitwise_and(
+                            res[f'{ana}_significant'] == False,
+                            ~np.isnan(res[f'{ana}_{dt}']))][
+                            'region'].values
         
         else:
             acronyms = res['region'].values
@@ -531,11 +535,16 @@ def plot_slices(variable):
             scores = res[res[
                      f'{ana}_significant'] == True][f'{ana}_{dt}'].values
                         
-            # remove regs from mask with nan amps (not analyzed)            
-            mask = res[np.bitwise_and(
-                        res[f'{ana}_significant'] == False,
-                        ~np.isnan(res[f'{ana}_{dt}']))][
-                        'region'].values
+            if lat:
+                mask = res[np.isnan(res[f'{ana}_{dt}'])][
+                            'region'].values            
+            
+            else:            
+                # remove regs from mask with nan amps (not analyzed)            
+                mask = res[np.bitwise_and(
+                            res[f'{ana}_significant'] == False,
+                            ~np.isnan(res[f'{ana}_{dt}']))][
+                            'region'].values
         
         else:
             acronyms = res['region'].values
@@ -1959,7 +1968,6 @@ def ecoding_raster_lines(variable, clu_id0=None, ax=None):
     names = [reg1, reg2, reg1 + remstr, reg2 + remstr]
     for subax, title in zip(axs, names):
         subax.set_title(title)
-
 
     # custom legend
     all_lines = ax[1].get_lines()
