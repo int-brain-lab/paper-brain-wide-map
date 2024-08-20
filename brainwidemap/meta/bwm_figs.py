@@ -399,34 +399,22 @@ def plot_swansons(variable, fig=None, axs=None):
 
         if ana != 'glm':
             # check if there are p-values and mask
-            
-            if lat:
-                acronyms = res[res[f'{ana}_significant'] == True][
-                            'region'].values
-                scores = res[res[
-                            f'{ana}_significant'] == True][
-                            f'{ana}_{dt}'].values
-                            
-                mask = res[res[
-                       f'{ana}_significant'] == False]['region'].values
-                       
-                # add also nan lat scores to mask       
-                       
-                                  
-            else:
-                acronyms = res[res[f'{ana}_significant'] == True][
-                            'region'].values
-                scores = res[res[
-                            f'{ana}_significant'] == True][
-                            f'{ana}_{dt}'].values
-                            
-                mask = res[res[
-                       f'{ana}_significant'] == False]['region'].values
+            acronyms = res[res[f'{ana}_significant'] == True][
+                        'region'].values
+            scores = res[res[
+                        f'{ana}_significant'] == True][
+                        f'{ana}_{dt}'].values
+                        
+            # remove regs from mask with nan amps (not analyzed)            
+            mask = res[np.bitwise_and(
+                        res[f'{ana}_significant'] == False,
+                        ~np.isnan(res[f'{ana}_{dt}']))][
+                        'region'].values
         
         else:
             acronyms = res['region'].values
             scores = res[f'{ana}_effect'].values
-            mask = []
+            mask = [] 
         
         eucb =False    
         
@@ -535,6 +523,7 @@ def plot_slices(variable):
         ana = res_type.split('_')[0]
         lat = True if 'latency' in res_type else False
         dt = 'effect' if not lat else 'latency'
+        
         if ana != 'glm':
             # check if there are p-values
             
@@ -542,7 +531,11 @@ def plot_slices(variable):
             scores = res[res[
                      f'{ana}_significant'] == True][f'{ana}_{dt}'].values
                         
-            mask = res[res[f'{ana}_significant'] == False]['region'].values
+            # remove regs from mask with nan amps (not analyzed)            
+            mask = res[np.bitwise_and(
+                        res[f'{ana}_significant'] == False,
+                        ~np.isnan(res[f'{ana}_{dt}']))][
+                        'region'].values
         
         else:
             acronyms = res['region'].values
@@ -721,7 +714,11 @@ def plot_all_swansons():
                 scores = res[res[
                          f'{ana}_significant'] == True][f'{ana}_effect'].values
                             
-                mask = res[res[f'{ana}_significant'] == False]['region'].values
+                # remove regs from mask with nan amps (not analyzed)
+                mask = res[np.bitwise_and(
+                            res[f'{ana}_significant'] == False,
+                            ~np.isnan(res[f'{ana}_{dt}']))][
+                            'region'].values
             
             else:
                 acronyms = res['region'].values
@@ -861,7 +858,11 @@ def plot_wheel_swansons(fig=None, axs=None):
                 scores = res[res[
                          f'{ana}_significant'] == True][f'{ana}_effect'].values
                             
-                mask = res[res[f'{ana}_significant'] == False]['region'].values
+                # remove regs from mask with nan amps (not analyzed)
+                mask = res[np.bitwise_and(
+                            res[f'{ana}_significant'] == False,
+                            ~np.isnan(res[f'{ana}_{dt}']))][
+                            'region'].values
             
             else:
                 acronyms = res['region'].values
@@ -1067,6 +1068,120 @@ def plot_table(variable, sort_within_cosmos=False):
     dfi.export(res0, Path(pf,'table.png'), max_rows=-1, dpi = 200)
 
 
+def scatter_analysis_effects(variable, analysis_pair,sig_only=False,
+                             ax=None):
+    '''
+    Scatter plot: comparison of two analysis amplitudes for a given variable
+    
+    Parameters:
+        variable (str): One of 'stim', 'choice', 'fback'
+        analysis_pair (tuple): Pair of analyses, e.g., 
+        ('glm_effect', 'decoding_effect')
+        meta_pth (Path): Path to the directory containing data files
+    
+    '''
+    
+    # Load the data for the specified variable
+    df = pd.read_pickle(Path(meta_pth) / f"{variable}.pkl")
+    df['glm_significant'] = 1
+    
+    alone = False
+    ss = 5 # scatter plot dot size
+    fig = plt.gcf()
+    if not ax:
+        alone = True
+        ss = 20
+        # Prepare the figure
+        fig, ax = plt.subplots(figsize=(6,6))
+    
+    if sig_only:
+        # Fetch data for both analyses, sig regions only
+        df2 = df.query(f'{analysis_pair[0].split("_")[0]}_significant == 1 &'
+                       f'{analysis_pair[1].split("_")[0]}_significant == 1')
+        val1 = df2[analysis_pair[0]].values
+        val2 = df2[analysis_pair[1]].values
+        regs = df2['region'].values
+    else:
+        # Fetch data for both analyses in the pair
+        val1 = df[analysis_pair[0]].values
+        val2 = df[analysis_pair[1]].values
+        regs = df['region'].values
+    
+    # Load a color palette
+    _, pal = get_allen_info()
+    cols = np.array([pal[reg] for reg in regs])
+    
+    # Remove NaN values
+    valid_indices = ~np.isnan(val1) & ~np.isnan(val2)
+    val1 = val1[valid_indices]
+    val2 = val2[valid_indices]
+    cols = cols[valid_indices]
+    regss = regs[valid_indices]
+    
+    # Scatter plot
+    scatter = ax.scatter(val1, val2, color=cols, s=ss)
+    
+    if alone:
+        # Annotating each point with the region code
+        for i, reg in enumerate(regss):
+            ax.annotate(' ' + reg, (val1[i], val2[i]), 
+                        fontsize=8, color=cols[i])
+    
+    # Set labels
+    ax.set_xlabel(f'{analysis_pair[0].split("_")[0]}')
+    ax.set_ylabel(f'{analysis_pair[1].split("_")[0]}')
+        
+#    # Calculate and display correlation coefficients
+#    cors, ps = spearmanr(val1, val2)
+#    corp, pp = pearsonr(val1, val2)
+    
+
+    
+    fig.tight_layout()   
+
+#    fig.savefig(Path(fgs_path,
+#        f'{variable}_{analysis_pair[0]}_{analysis_pair[1]}.png'))
+
+
+def scatter_analysis_effects_grid(sig_only=True):
+
+    '''
+    for the three main variables and 4 analyses,
+    plot grid of scatters of amplitudes
+    '''
+    
+    ylabs = ['euclidean_effect',
+             'glm_effect',
+             'mannwhitney_effect',
+             'decoding_effect'] 
+
+    variables = ['stim', 'choice', 'fback']
+
+    fig, axs = plt.subplots(nrows =len(list(itertools.combinations(ylabs,2))),
+                           ncols=len(variables), 
+                           figsize=(8.73,9.7))
+    
+    axs = axs.flatten('F')
+    
+    k = 0
+    for variable in variables:
+        for p in itertools.combinations(ylabs,2):
+            scatter_analysis_effects(variable, p,sig_only = sig_only,
+                                     ax =axs[k])
+            axs[k].spines['top'].set_visible(False)
+            axs[k].spines['right'].set_visible(False)
+            if k%len(list(itertools.combinations(ylabs,2))) == 0:
+                axs[k].set_title(f'{variverb[variable]}')
+            else:
+                axs[k].set_title(None)    
+            k +=1 
+
+    fig.tight_layout()
+
+    fig.savefig(Path(imgs_pth, 'si',
+        f'n6_supp_analyses_amp_pairs_grid.pdf'), dpi=150)
+        
+        
 '''
 #####
 SI figures for single-cell
@@ -1131,7 +1246,11 @@ def swansons_SI(vari):
     # turn fraction into percentage
     scores = scores * 100
                 
-    mask = res[res[f'{ana}_significant'] == False]['region'].values
+    # remove regs from mask with nan amps (not analyzed)
+    mask = res[np.bitwise_and(
+                res[f'{ana}_significant'] == False,
+                ~np.isnan(res[f'{ana}_{dt}']))][
+                'region'].values
         
     if vari == 'task':
         vmin, vmax = (np.min(scores), np.max(scores))
