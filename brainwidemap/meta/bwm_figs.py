@@ -1315,6 +1315,31 @@ decoding
 #####
 '''
 
+def get_eid_exclude():
+    '''
+     decoding analysis excluded further some sessions due to low trial number
+     return: dict per variable to exclude in addition before pooling 
+             into per region results
+    '''
+    units_df = bwm_units(one, min_units_sessions=(5, 2))  
+    
+    dec_d = {'stim': 'stimside_stage2', 'choice': 'choice_stage2',
+             'fback': 'feedback_stage2'}    
+    d = {}        
+
+    MIN_TRIALS = 250
+              
+    for vari in variables:    
+        df = pd.read_parquet(Path(dec_pth,
+                    f'{dec_d[vari]}.pqt'))
+        dec_eids = np.unique(df[df['n_trials'] < MIN_TRIALS]['eid'])
+        d[vari] = set(np.unique(units_df['eid'])).intersection(set(dec_eids))
+
+    return d                 
+    
+
+
+
 def acronym2name(acronym):
     return br.name[np.argwhere(br.acronym==acronym)[0]][0]
 
@@ -1677,8 +1702,7 @@ encoding (glm)
 # Please use the saved parameters dict from 02_fit_sessions.py as params
 glm_params = pd.read_pickle(enc_pth /"glm_params.pkl")
 
-
-def glm_to_csv():
+def glm_to_csv(restr_ntr=True):
 
     '''
     encoding pkl to csv
@@ -1699,8 +1723,22 @@ def glm_to_csv():
     
     for variable in d:
         df = pd.DataFrame(d[variable])
-        df.drop(['eid', 'pid', 'clu_id'], axis=1, inplace=True)
         df['region'] = acs
+        
+        # drop void and root
+        df = df[~df['region'].isin(['root','void'])]
+        
+        if restr_ntr:
+            eids_excl = np.load(Path(one.cache_dir,'bwm_res',
+                                     'low_n_trials_eids.npy'), 
+                                     allow_pickle=True).flat[0][variable]
+                                     
+            print(f'{variable}; excluding {len(eids_excl)} eids')
+            print(f' before: {len(df)} cells')                         
+            df = df[~df['eid'].isin(eids_excl)]
+            print(f' after: {len(df)} cells')                         
+
+        df.drop(['eid', 'pid', 'clu_id'], axis=1, inplace=True)
         df = df.groupby(['region']).mean()               
         df.to_csv(Path(enc_pth,f'{variable}.csv'))
 
