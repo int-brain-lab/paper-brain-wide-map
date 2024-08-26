@@ -90,7 +90,9 @@ sigl = 0.05  # significance level (for stacking, plotting, fdr)
 
 plt.ion()  # interactive plotting on
 
-f_size = 10  # font size
+f_size = 8  # font size large
+f_size_s = 0.7 * f_size # font size small
+
 #mpl.rcParams['figure.autolayout']  = True
 mpl.rcParams.update({'font.size': f_size})
 
@@ -381,7 +383,7 @@ def plot_swansons(variable, fig=None, axs=None):
     
     alone = False
     if not fig:
-        fig = plt.figure(figsize=(8,3), layout='constrained')  
+        fig = plt.figure(figsize=(8,3.34), layout='constrained')  
         gs = gridspec.GridSpec(1, len(res_types), 
                                figure=fig,hspace=.75)
         axs = []
@@ -398,17 +400,21 @@ def plot_swansons(variable, fig=None, axs=None):
         dt = 'effect' if not lat else 'latency'
 
         if ana != 'glm':
+        
             # check if there are p-values and mask
             acronyms = res[res[f'{ana}_significant'] == True][
                         'region'].values
             scores = res[res[
                         f'{ana}_significant'] == True][
                         f'{ana}_{dt}'].values
-            if lat:
-                mask = res[np.isnan(res[f'{ana}_{dt}'])][
-                            'region'].values            
-            
+
+            if lat:            
+                mask = res[np.bitwise_or(
+                            res[f'{ana}_significant'] == False,
+                            np.isnan(res[f'{ana}_{dt}']))][
+                            'region'].values               
             else:            
+  
                 # remove regs from mask with nan amps (not analyzed)            
                 mask = res[np.bitwise_and(
                             res[f'{ana}_significant'] == False,
@@ -436,7 +442,7 @@ def plot_swansons(variable, fig=None, axs=None):
                             annotate= True if not eucb else False,
                             annotate_n=5,
                             annotate_order='bottom' if lat else 'top',
-                            fontsize=0.7 *f_size)
+                            fontsize=f_size_s)
 
         clevels = (min(scores), max(scores))
 
@@ -452,24 +458,23 @@ def plot_swansons(variable, fig=None, axs=None):
                    ax=axs[k],shrink=0.4,aspect=12,pad=.025,
                    orientation="horizontal", ticks=locator)
                    
-        cbar.ax.tick_params(axis='both', which='major',
-                            labelsize=f_size, size=6)
+        ticks = np.round(np.linspace(cbar.vmin, cbar.vmax, num=3), 2)             
+        cbar.set_ticks(ticks)
         cbar.outline.set_visible(False)
-        cbar.ax.tick_params(size=2)
         cbar.ax.xaxis.set_tick_params(pad=5)
-        cbar.set_label(res_types[res_type][0], fontsize=0.7 *f_size)
-        cbar.ax.tick_params(labelsize=0.5 *f_size)
+        cbar.set_label(res_types[res_type][0], fontsize=f_size_s)
+        cbar.ax.tick_params(labelsize=f_size_s)
         
         axs[k].text(-0.25, 0.5, res_types[res_type][2][0],
                 fontsize=f_size, ha='center',va = 'center', 
                 rotation='vertical', 
                 transform=axs[k].transAxes)
         axs[k].text(-0.1, .5, res_types[res_type][2][1],
-                fontsize=0.7 * f_size, ha='center',va = 'center',
+                fontsize=f_size_s, ha='center',va = 'center',
                 rotation='vertical', 
                 transform=axs[k].transAxes)
         axs[k].text(0.85, 0.95, f' {len(scores)}/{len(scores) + len(mask)}',
-                fontsize=0.7 * f_size, ha='center', 
+                fontsize=f_size_s, ha='center', 
                 transform=axs[k].transAxes)                
                 
 
@@ -536,7 +541,9 @@ def plot_slices(variable):
                      f'{ana}_significant'] == True][f'{ana}_{dt}'].values
                         
             if lat:
-                mask = res[np.isnan(res[f'{ana}_{dt}'])][
+                mask = res[np.bitwise_or(
+                            res[f'{ana}_significant'] == False,
+                            np.isnan(res[f'{ana}_{dt}']))][
                             'region'].values            
             
             else:            
@@ -592,7 +599,7 @@ def plot_slices(variable):
                             fontsize=f_size, ha='center', 
                             transform=axs[k].transAxes)                 
                     axs[k].text(0.5, 1, res_types[res_type][2][1],
-                            fontsize=0.7 * f_size, ha='center', 
+                            fontsize=f_size_s, ha='center', 
                             transform=axs[k].transAxes)
                 row += 1
                 k += 1
@@ -765,7 +772,7 @@ def plot_all_swansons():
                         fontsize=f_size, ha='center', 
                         transform=axs[k].transAxes)                 
                 axs[k].text(0.5, 1.05, res_types[res_type][2][1],
-                        fontsize=0.7 * f_size, ha='center', 
+                        fontsize=f_size_s, ha='center', 
                         transform=axs[k].transAxes)                             
                                
                                
@@ -816,10 +823,10 @@ def plot_all_swansons():
                          new_y_position, new_width, bbox.height])
 
 
-    fig.text(0.01, 0.5, 'Task variable', fontsize=12, 
+    fig.text(0.01, 0.5, 'Task variable', fontsize=f_size, 
         rotation='vertical',  va='center')
 
-    fig.suptitle('Analysis', fontsize=12, ha='center')        
+    fig.suptitle('Analysis', fontsize=f_size, ha='center')        
     fig.savefig(Path(imgs_pth, 'si', 'n6_supp_all_variables_revised.svg'))
     fig.savefig(Path(imgs_pth, 'si', 'n6_supp_all_variables_revised.pdf'))    
 
@@ -934,7 +941,7 @@ def plot_wheel_swansons(fig=None, axs=None):
 
 
 
-def plot_table(variable, sort_within_cosmos=False):
+def plot_table(variable):
 
 
     # # Plot comparison table
@@ -959,38 +966,19 @@ def plot_table(variable, sort_within_cosmos=False):
     res.iloc[:,si:se] = (res.iloc[:,si:se] - res.iloc[:,si:se].min())/(
                       res.iloc[:,si:se].max()-res.iloc[:,si:se].min()) + 1e-4
 
-    if sort_within_cosmos:
-        # ## Sum values in each row to use for sorting
-        # The rows of the table are sorted by the sum of all effects 
-        # across the row(excluding latency). 
-        # Here we create a new column with this sum.
+    # order rows (regions) canonically, omitting those without data
+    regs0 = list(res['region']) 
+    p = (Path(iblatlas.__file__).parent / 'beryl.npy')
+    regs_can = br.id2acronym(np.load(p), mapping='Beryl')
+    regs1 = []
+    for reg in regs_can:
+        if reg in regs0:
+            regs1.append(reg)        
 
-        res['sum']  = res[effs].apply(np.sum,axis=1)
-                           
-        #res = res.reset_index()
-
-        # ## Sort rows by 'sum' within each Cosmos region
-        # The sorting by sum of effects is done within each Cosmos region. 
-        # So here I add the cosmos acronym as a column, group and then sort 'sum'.
-
-        res['cosmos'] = res.region.apply(lambda x : beryl_to_cosmos(x,br))
-        res = res.groupby('cosmos').apply(
-                  lambda x: x.sort_values(['sum'], ascending=False))
-
-    else:
-        # order rows (regions) canonically, omitting those without data
-        regs0 = list(res['region']) 
-        p = (Path(iblatlas.__file__).parent / 'beryl.npy')
-        regs_can = br.id2acronym(np.load(p), mapping='Beryl')
-        regs1 = []
-        for reg in regs_can:
-            if reg in regs0:
-                regs1.append(reg)        
-
-        res['region'] = pd.Categorical(res['region'], 
-                                       categories=regs1, ordered=True)
-        res = res.sort_values('region')
-        res = res.reset_index(drop=True)
+    res['region'] = pd.Categorical(res['region'], 
+                                   categories=regs1, ordered=True)
+    res = res.sort_values('region')
+    res = res.reset_index(drop=True)
 
     for ana in anas:
         if ana == 'glm':
@@ -1040,22 +1028,28 @@ def plot_table(variable, sort_within_cosmos=False):
     effs = list(column_labels.values())[1:]
     columns_order = ['region'] + list(reversed(effs[::-1]))
     res = res[columns_order]
-      
+    
+    # split data in two to have two tables
+    midpoint = len(res) // 2
+    df1 = res.iloc[:midpoint].reset_index(drop=True)
+    df2 = res.iloc[midpoint:].reset_index(drop=True)
+
+    return df1, df2
       
     # Format table  
     def make_pretty(styler):
         
         styler.applymap(effect_formatting, subset=effs)
         styler.applymap(region_formatting, subset=['region'])
-        styler.set_properties(subset=effs, **{'width': '16px'})
+        styler.set_properties(subset=effs, **{'width': '8px'})
         styler.set_properties(subset=effs, **{'font-size': '0pt'})
         styler.set_properties(subset=['region'], **{'width': 'max-content'})
-        styler.set_properties(subset=['region'],**{'font-size': '9pt'})
+        styler.set_properties(subset=['region'],**{'font-size': '5pt'})
         styler.hide(axis="index")
         #styler.hide(axis="columns")  # Hide column headers
        
         styler.set_table_styles([         
-            {"selector": "tr", "props": "line-height: 11px"},
+            {"selector": "tr", "props": "line-height: 5px"}, #was 9
             {"selector": "td, th", 
                 "props": "line-height: inherit; padding: 0 "},               
             {"selector": "tbody td", 
@@ -1063,19 +1057,23 @@ def plot_table(variable, sort_within_cosmos=False):
             {'selector': 'th.col_heading', 
                         'props': [('writing-mode', 'vertical-rl'),
                               ('text-align', 'center'),
-                              ('font-size', '9pt'),
-                              ('padding', '5px 0'),
+                              ('font-size', '3pt'),
+                              ('padding', '1px 0'),
                               ('white-space', 'nowrap')]}])
      
         return styler
  
-    ## Plot table
-    res0 = res.style.pipe(make_pretty)
-      
-    pf = Path(imgs_pth, variable)
-    pf.mkdir(parents=True, exist_ok=True)
-    dfi.export(res0, Path(pf,'table.png'), max_rows=-1, dpi = 200)
-
+    k = 0
+    for daf in [df1, df2]:
+        ## Plot table
+        res0 = daf.style.pipe(make_pretty)
+          
+        pf = Path(imgs_pth, variable)
+        pf.mkdir(parents=True, exist_ok=True)
+        dfi.export(res0, Path(pf,f'table_{k}.png'), max_rows=-1, dpi = 200)
+        k +=1
+        
+        
 
 def scatter_analysis_effects(variable, analysis_pair,sig_only=False,
                              ax=None):
@@ -1134,7 +1132,7 @@ def scatter_analysis_effects(variable, analysis_pair,sig_only=False,
         # Annotating each point with the region code
         for i, reg in enumerate(regss):
             ax.annotate(' ' + reg, (val1[i], val2[i]), 
-                        fontsize=8, color=cols[i])
+                        fontsize=f_size, color=cols[i])
     
     # Set labels
     ax.set_xlabel(f'{analysis_pair[0].split("_")[0]}')
@@ -1302,7 +1300,7 @@ def swansons_SI(vari):
     cbar.outline.set_visible(False)
     cbar.ax.tick_params(size=2)
     cbar.ax.xaxis.set_tick_params(pad=5)
-    #cbar.set_label(res_types[res_type][0], fontsize=0.7 *f_size)
+    #cbar.set_label(res_types[res_type][0], fontsize=f_size_s)
     cbar.ax.tick_params(labelsize=0.7 *f_size)                        
 
     fig.tight_layout()    
@@ -1392,33 +1390,6 @@ def group_into_regions():
         print(f"saving parquet {vari}")
         df2.to_parquet(filename)
         print("parquet saved")
-
-
-
-
-def get_eid_exclude():
-    '''
-     decoding analysis excluded further some sessions due to low trial number
-     return: dict per variable to exclude in addition before pooling 
-             into per region results
-    '''
-    units_df = bwm_units(one, min_units_sessions=(5, 2))  
-    
-    dec_d = {'stim': 'stimside_stage2', 'choice': 'choice_stage2',
-             'fback': 'feedback_stage2'}    
-    d = {}        
-
-    MIN_TRIALS = 250
-              
-    for vari in variables:    
-        df = pd.read_parquet(Path(dec_pth,
-                    f'{dec_d[vari]}.pqt'))
-        dec_eids = np.unique(df[df['n_trials'] < MIN_TRIALS]['eid'])
-        d[vari] = set(np.unique(units_df['eid'])).intersection(set(dec_eids))
-
-    return d                 
-    
-
 
 
 def acronym2name(acronym):
@@ -1567,7 +1538,7 @@ def dec_scatter(variable,fig=None, ax=None):
     elif variable == 'choice':
         l = ['Right choice', 'Left choice']
 
-    ax.legend(l,frameon=False, fontsize=0.8*f_size)  
+    ax.legend(l,frameon=False, fontsize=f_size_s)  
     ax.set_yticks([0, 0.5, 1])
 
     ax.set_xlim(100,400)
@@ -1734,7 +1705,7 @@ def plot_SI_speed_velocity():
         ):
             if np.isnan(x) or np.isnan(y):
                 continue
-            ax.text(x, y, s, fontsize=6, color=pal[s])
+            ax.text(x, y, s, fontsize=f_size_s, color=pal[s])
 
         ax.set_xlabel(f'Wheel-velocity ({metrics_to_plot[metric]})')
         ax.set_ylabel(f'Wheel-speed ({metrics_to_plot[metric]})')
@@ -1760,7 +1731,7 @@ def plot_SI_speed_velocity():
         np.percentile(dfs['wheel-velocity'], 95, axis=0), 
         alpha=0.2, color='C1',
     )
-    axes[-1].legend(['wheel-speed', 'wheel-velocity'], fontsize=10)
+    axes[-1].legend(['wheel-speed', 'wheel-velocity'], fontsize=f_size)
     axes[-1].set_xlabel('Time from movement onset (s)')
     axes[-1].set_ylabel('Within trial speed/velocity')
     axes[-1].spines['top'].set_visible(False)
@@ -1783,7 +1754,7 @@ encoding (glm)
 # Please use the saved parameters dict from 02_fit_sessions.py as params
 glm_params = pd.read_pickle(enc_pth /"glm_params.pkl")
 
-def glm_to_csv(restr_ntr=True):
+def glm_to_csv():
 
     '''
     encoding pkl to csv
@@ -1807,17 +1778,7 @@ def glm_to_csv(restr_ntr=True):
         df['region'] = acs
         
         # drop void and root
-        df = df[~df['region'].isin(['root','void'])]
-        
-        if restr_ntr:
-            eids_excl = np.load(Path(one.cache_dir,'bwm_res',
-                                     'low_n_trials_eids.npy'), 
-                                     allow_pickle=True).flat[0][variable]
-                                     
-            print(f'{variable}; excluding {len(eids_excl)} eids')
-            print(f' before: {len(df)} cells')                         
-            df = df[~df['eid'].isin(eids_excl)]
-            print(f' after: {len(df)} cells')                         
+        df = df[~df['region'].isin(['root','void'])]                                 
 
         df.drop(['eid', 'pid', 'clu_id'], axis=1, inplace=True)
         df = df.groupby(['region']).mean()               
@@ -1981,8 +1942,8 @@ def get_example_results():
             lambda c: c == -1,
             0.2,
             0.05,
-            "fmoveL",
-            "fmoveR",
+            "fmoveL", #fmoveL
+            "fmoveR", #fmoveR
         ),
         "feedback_times": (
             "feedbackType",
@@ -1990,8 +1951,8 @@ def get_example_results():
             lambda f: f == -1,
             0.1,
             0.4,
-            "correct",
-            "incorrect",
+            "correct", #correct
+            "incorrect", #incorrect
         ),
     }
 
@@ -2031,7 +1992,7 @@ def get_example_results():
     return targetunits, alignsets, sortlookup
 
 
-def ecoding_raster_lines(variable, clu_id0=None, ax=None):    
+def ecoding_raster_lines(variable, clu_id0=None, axs=None):    
 
     '''
     plot raster and two line plots
@@ -2039,11 +2000,15 @@ def ecoding_raster_lines(variable, clu_id0=None, ax=None):
     '''
     
     alone = False
-    if not ax:
+    if not axs:
         alone = True
-        fig, ax = plt.subplots(nrows=3,ncols=1, 
+        fig, axs = plt.subplots(nrows=3,ncols=1, 
                                figsize=(3.1,5.5), sharex=True,
                                gridspec_kw={'height_ratios': [2, 1, 1]})
+
+    for k in range(len(axs)):
+        axs[k].spines['top'].set_visible(False)
+        axs[k].spines['right'].set_visible(False)
 
     print('alone:', alone)
 
@@ -2056,7 +2021,7 @@ def ecoding_raster_lines(variable, clu_id0=None, ax=None):
     (aligncol, aligncond1, aligncond2, 
         t_before, t_after, reg1, reg2) = alignsets[aligntime]
         
-    _, axs, sspkt, sspkclu, stdf = plot_twocond(
+    _, _, sspkt, sspkclu, stdf = plot_twocond(
         eid,
         pid,
         clu_id,
@@ -2067,32 +2032,32 @@ def ecoding_raster_lines(variable, clu_id0=None, ax=None):
         t_before,
         t_after,
         [reg1, reg2] if variable != "wheel" else ["wheel"],
-        ax = [ax[1],ax[2]])
+        ax = [axs[1],axs[2]])
     
-    ax[1].set_ylabel('Firing rate (Hz)')
-    ax[2].set_ylabel('Firing rate (Hz)')
+    axs[1].set_ylabel('Firing rate (Hz)')
+    axs[2].set_ylabel('Firing rate (Hz)')
     #ax[2].set_ylabel('Time (s)')
     
-    ax[1].yaxis.set_major_locator(plt.MaxNLocator(4))
-    ax[2].yaxis.set_major_locator(plt.MaxNLocator(4))
-    
-
+    axs[1].yaxis.set_major_locator(plt.MaxNLocator(4))
+    axs[2].yaxis.set_major_locator(plt.MaxNLocator(4))
         
     # Wheel only has one regressor, unlike all the others. 
     if variable != "wheel":
         remstr = f"\n[{reg1}, {reg2}] regressors rem."
     else:
         remstr = "\nwheel regressor rem."
+    
         
-    names = [reg1, reg2, reg1 + remstr, reg2 + remstr]
-    for subax, title in zip(axs, names):
+    #names = [reg1, reg2, reg1 + remstr, reg2 + remstr]
+    names = ['model with regressors', 'model without regressors']
+    for subax, title in zip([axs[1],axs[2]], names):
         subax.set_title(title)
 
     # custom legend
-    all_lines = ax[1].get_lines()
+    all_lines = axs[1].get_lines()
     legend_labels = [reg2, reg1, 'model', 'model']
-    ax[1].legend(all_lines, legend_labels, loc='upper right',
-                 bbox_to_anchor=(1.2, 1.3), fontsize=f_size/2,
+    axs[1].legend(all_lines, legend_labels, loc='upper right',
+                 bbox_to_anchor=(1.2, 1.3), fontsize=f_size_s,
                  frameon=False)
 
 
@@ -2110,15 +2075,16 @@ def ecoding_raster_lines(variable, clu_id0=None, ax=None):
         post_time=t_after,
         raster_cbar=False,
         raster_bin=0.002,
-        axs=ax[0])
+        axs=axs[0])
         
-    ax[0].set_ylabel('Resorted trial index')
+    axs[0].axhline(y=dividers[0],c='k', linewidth=0.5)    
+    axs[0].set_ylabel('Resorted trial index')
     #ax[0].set_xlabel('Time from event (s)')   
-    ax[0].set_title("{} unit {} \n $\log \Delta R^2$ = {:.2f}".format(
+    axs[0].set_title("{} unit {} \n $\log \Delta R^2$ = {:.2f}".format(
                  region, clu_id, np.log(drsq)))    
     
-    ax[0].sharex(ax[1])
-    ax[1].set_xlabel(None)
+    axs[0].sharex(axs[1])
+    axs[1].set_xlabel(None)
                   
     if alone:
         fig.tight_layout()  
@@ -2262,7 +2228,8 @@ def plot_traj3d(variable, ga_pcs=False, curve='euc',
                        fig=None, ax=None):
                        
     '''
-    using full window (not canonical) to see lick oscillation
+    using full window (not canonical!!) to see lick oscillation
+    and auditory response in IC at 0.5 sec after fback
     '''
 
                        
@@ -2609,7 +2576,7 @@ def plot_curves_scatter(variable, ga_pcs=False, curve='euc',
                                if '_' in variable else variable],
                 transform=axs[k].get_xaxis_transform(),
                 horizontalalignment=ha, rotation=90,
-                fontsize=f_size * 0.8)
+                fontsize=f_size_s)
 
     axs[k].spines['top'].set_visible(False)
     axs[k].spines['right'].set_visible(False)
@@ -2637,7 +2604,7 @@ def put_panel_label(ax, label):
     #string.ascii_lowercase[k]
     ax.annotate(label, (-0.05, 1.15),
                 xycoords='axes fraction',
-                fontsize=f_size * 1.5, va='top',
+                fontsize=f_size, va='top',
                 ha='right', weight='bold')    
 
 
@@ -2656,7 +2623,7 @@ def main_fig(variable, clu_id0=None, save_pans=False):
     
         plt.ion()
  
-        nrows = 14
+        nrows = 16
         ncols = 15
         
         fig = plt.figure(figsize=(9, 9.77), facecolor='w', 
@@ -2671,15 +2638,16 @@ def main_fig(variable, clu_id0=None, save_pans=False):
                'euc_eff': [0, 4, 6,9],
                'euc_lat': [0, 4, 9, 12],
                'glm_eff': [0, 4, 12, 15],
-               'tab': [4, 6, 0, 15],
-               'ras': [6, 10, 0, 5],
-               'dec': [6, 8, 5, 10],
-               'tra_3d': [6, 10, 10, 15],
-               'ex_d': [8, 10, 5, 10],
-               'enc0': [10, 12, 0, 5],
-               'ex_ds': [10, 14, 5, 10],
-               'scat': [10, 14, 10, 15],
-               'enc1': [12, 14, 0, 5]}
+               'tab0': [4, 6, 0, 13],
+               'tab1': [6, 8, 0, 13],
+               'ras': [8, 12, 0, 5],
+               'dec': [8, 10, 5, 10],
+               'tra_3d': [8, 12, 10, 15],
+               'ex_d': [10, 12, 5, 10],
+               'enc0': [12, 14, 0, 5],
+               'ex_ds': [12, 16, 5, 10],
+               'scat': [12, 16, 10, 15],
+               'enc1': [14, 16, 0, 5]}
 
         def ax_str(x):
             if '3d' in x:
@@ -2716,19 +2684,18 @@ def main_fig(variable, clu_id0=None, save_pans=False):
         
     
     # plot table, reading from png
-#    '''
-#    REPLOT TABLE!!!
-#    '''
     plot_table(variable)
-    pf = Path(imgs_pth, variable, 'table.png')  
-    if not save_pans:    
-        im = Image.open(pf)                  
-        
-        ax_tab = ax_str('tab')
-                                    
-        ax_tab.imshow(im.rotate(90, expand=True),
-            aspect='equal')                  
-        ax_tab.axis('off')                                             
+      
+    if not save_pans:
+        for tt in [0,1]:
+            pf = Path(imgs_pth, variable, f'table_{tt}.png')   
+            im = Image.open(pf)                  
+            
+            ax_tab = ax_str(f'tab{tt}')
+                                        
+            ax_tab.imshow(im.rotate(90, expand=True),
+                aspect='equal')                  
+            ax_tab.axis('off')                                             
         
          
 
@@ -2771,7 +2738,7 @@ def main_fig(variable, clu_id0=None, save_pans=False):
     # encoding panels
     if not save_pans:   
         ecoding_raster_lines(variable,clu_id0= clu_id0, 
-                             ax=[ax_str(x) for x in 
+                             axs=[ax_str(x) for x in 
                              ['ras', 'enc0', 'enc1']])
                          
     else:
@@ -2821,11 +2788,11 @@ def main_fig(variable, clu_id0=None, save_pans=False):
                 
                 
                 title_text = ax.get_title()
-                ax.set_title(title_text, fontsize=8)
+                ax.set_title(title_text, fontsize=f_size)
                                  
             if ax.get_label() in s:
                 title_text = ax.get_title()
-                ax.set_title(title_text, fontsize=8)                 
+                ax.set_title(title_text, fontsize=f_size)                 
         
             if ax.get_label() in lettered:
                 put_panel_label(ax, lettered[ax.get_label()])    
@@ -2982,11 +2949,11 @@ def main_wheel(save_pans=False):
                 
                 
                 title_text = ax.get_title()
-                ax.set_title(title_text, fontsize=8)
+                ax.set_title(title_text, fontsize=f_size)
                                  
             if ax.get_label() in s:
                 title_text = ax.get_title()
-                ax.set_title(title_text, fontsize=8)                 
+                ax.set_title(title_text, fontsize=f_size)                 
         
             if ax.get_label() in lettered:
                 put_panel_label(ax, lettered[ax.get_label()])
