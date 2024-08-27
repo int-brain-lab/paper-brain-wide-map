@@ -476,9 +476,11 @@ def single_cluster_raster(
         lab_max = idx[np.argmax(t_ints)]
         label_pos.append((dividers[lab_max + 1] - dividers[lab_max]) / 2 + dividers[lab_max])
 
+    cmap = plt.cm.binary
+    cmap.set_bad(color='black')
     raster_ax.imshow(
-        raster[trial_idx],
-        cmap="binary",
+        raster[trial_idx][::3], # picking each third trial only,
+        cmap=cmap,
         origin="lower",
         extent=[np.min(t_raster), np.max(t_raster), 0, len(trial_idx)],
         interpolation=raster_interp,
