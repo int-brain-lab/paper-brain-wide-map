@@ -220,6 +220,10 @@ def pool_results_across_analyses(return_raw=False):
         # ## Apply logarithm to GLM results             
         df_.glm_effect = np.log10(
                 df_.glm_effect.clip(lower=1e-5))
+                
+        # ## Apply logarithm to manifold results              
+        df_.euclidean_effect = np.log10(df_.euclidean_effect)                
+                
         
         # Reorder columns to match ordering in Figure       
         df_ = df_[['region',
@@ -299,6 +303,7 @@ def pool_wheel_res():
         # ## Apply logarithm to GLM results             
         df_.glm_effect = np.log10(
                 df_.glm_effect.clip(lower=1e-5))
+               
         
         # Reorder columns to match ordering in Figure       
         df_ = df_[['region',
@@ -371,11 +376,11 @@ def plot_swansons(variable, fig=None, axs=None):
                     ['Decoding', 'Regularized logistic regression']],
                  'mannwhitney_effect': ['Frac. sig. cells',[],
                     ['Single cell statistics', 'C.C Mann-Whitney test']],
-                 'euclidean_effect': ['Nrml. Eucl. dist.',[],
+                 'euclidean_effect': ['Nrml. Eucl. dist. (log)',[],
                     ['Manifold', 'Distance between trajectories']],
                  'euclidean_latency': ['Latency of dist. (sec)',[],
                     ['Manifold', 'Time near peak']],      
-                 'glm_effect': ['Abs. diff. $\\Delta R^2$',[],
+                 'glm_effect': ['Abs. diff. $\\Delta R^2$ (log)',[],
                     ['Encoding', 'General linear model']]}
 
      
@@ -426,8 +431,6 @@ def plot_swansons(variable, fig=None, axs=None):
             scores = res[f'{ana}_effect'].values
             mask = [] 
         
-        eucb =False    
-        
         plot_swanson_vector(acronyms,
                             scores,
                             hemisphere=None, 
@@ -439,24 +442,18 @@ def plot_swansons(variable, fig=None, axs=None):
                             linewidth=lw,
                             mask=mask,
                             mask_color='silver',
-                            annotate= True if not eucb else False,
+                            annotate= True,
                             annotate_n=5,
                             annotate_order='bottom' if lat else 'top',
                             fontsize=f_size_s)
 
-        clevels = (min(scores), max(scores))
-
-        num_ticks = 3  # Adjust as needed
-
-        # Use MaxNLocator to select a suitable number of ticks
-        locator = MaxNLocator(nbins=num_ticks)
-                   
+        clevels = (min(scores), max(scores))    
         norm = mpl.colors.Normalize(vmin=clevels[0], vmax=clevels[1])
         cbar = fig.colorbar(
                    mpl.cm.ScalarMappable(norm=norm,cmap=cmap.reversed() 
                    if lat else cmap),
                    ax=axs[k],shrink=0.4,aspect=12,pad=.025,
-                   orientation="horizontal", ticks=locator)
+                   orientation="horizontal")
                    
         ticks = np.round(np.linspace(cbar.vmin, cbar.vmax, num=3), 2)             
         cbar.set_ticks(ticks)
@@ -476,7 +473,26 @@ def plot_swansons(variable, fig=None, axs=None):
         axs[k].text(0.85, 0.95, f' {len(scores)}/{len(scores) + len(mask)}',
                 fontsize=f_size_s, ha='center', 
                 transform=axs[k].transAxes)                
-                
+
+        # print regions with largest (smallest) amp (lat) scores 
+        if lat:
+            exxregs = acronyms[np.argsort(scores)][:5]
+        else:
+            exxregs = acronyms[np.argsort(scores)][-5:]
+               
+        print('highlight regs')
+        print(exxregs)
+#        for i, text in enumerate(exxregs[:3]):
+#            axs[k].text(-0.2, 0.2 - i * 0.05,  
+#            text, fontsize=f_size_s, 
+#            ha='left', va='top',
+#            transform=axs[k].transAxes)
+#                   
+#        for i, text in enumerate(exxregs[3:]):
+#            axs[k].text(0.85, 0.1 - i * 0.05,  
+#            text, fontsize=f_size_s, 
+#            ha='left', va='top',
+#            transform=axs[k].transAxes)                                
 
         axs[k].axis("off")
         
@@ -500,15 +516,15 @@ def plot_slices(variable):
 
     # results to plot in Swansons with labels for colorbars
     res_types = {'decoding_effect': ['Decoding. $R^2$ over null',[], 
-                    ['Decoding', 'Regularized logistic regression']],
+                    ['Decoding \n', 'Regularized logistic regression \n']],
                  'mannwhitney_effect': ['Frac. sig. cells',[],
-                    ['Single cell statistics', 'C.C Mann-Whitney test']],
-                 'euclidean_effect': ['Nrml. Eucl. dist.',[],
-                    ['Manifold', 'Distance between trajectories']],
+                    ['Single cell statistics \n', 'C.C Mann-Whitney test \n']],
+                 'euclidean_effect': ['Nrml. Eucl. dist. (log)',[],
+                    ['Manifold \n', 'Distance between trajectories \n']],
                  'euclidean_latency': ['Latency of dist. (sec)',[],
-                    ['Manifold', 'Time near peak']],      
-                 'glm_effect': ['Abs. diff. $\\Delta R^2$',[],
-                    ['Encoding', 'General linear model']]}
+                    ['Manifold \n', 'Time near peak \n']],      
+                 'glm_effect': ['Abs. diff. $\\Delta R^2$ (log)',[],
+                    ['Encoding \n', 'General linear model \n']]}
     
     cmap = get_cmap_(variable)
     cmap_mask = LinearSegmentedColormap.from_list('custom_colormap', 
@@ -607,7 +623,7 @@ def plot_slices(variable):
 
     # tweak layout
     fig.subplots_adjust(    
-                top=0.95,
+                top=0.92,
                 bottom=0.1,
                 left=0.0,
                 right=1.0,
@@ -635,13 +651,13 @@ def plot_slices(variable):
         cbar = mpl.colorbar.ColorbarBase(cax, cmap=cmap,
                                          norm=norm, orientation='horizontal')
         cbar.set_label(res_types[res_type][0], fontsize=f_size)
-        cbar.ax.tick_params(labelsize=f_size)
+        cbar.ax.tick_params(labelsize=f_size_s)
         cbar.outline.set_visible(False)
-        cbar.locator = MaxNLocator(nbins=1)  # Forces two ticks
-        cbar.update_ticks()
-        # Manually adjust colorbar axes if needed
+        
+        ticks = np.round(np.linspace(cbar.vmin, cbar.vmax, num=3), 2)             
+        cbar.set_ticks(ticks)
         bbox = cax.get_position()
-        center_offset = (bbox.width * (1 - colorbar_width_proportion)) / 2
+        center_offset = (bbox.width * (1 - colorbar_width_proportion)) / 1.5
         new_x_position = bbox.x0 + center_offset
 
         # Set the new position with the updated x position and adjusted width
@@ -678,7 +694,7 @@ def plot_all_swansons():
                     ['Single cell statistics', 'C.C Mann-Whitney test']],
                  'euclidean_effect': ['Nrml. Eucl. dist. (log)',[],
                     ['Manifold', 'Distance between trajectories']],
-                 'glm_effect': ['Abs. diff. $\\Delta R^2$',[],
+                 'glm_effect': ['Abs. diff. $\\Delta R^2$ (log)',[],
                     ['Encoding', 'General linear model']]}
      
     cmap = 'viridis'
@@ -733,7 +749,7 @@ def plot_all_swansons():
                 # remove regs from mask with nan amps (not analyzed)
                 mask = res[np.bitwise_and(
                             res[f'{ana}_significant'] == False,
-                            ~np.isnan(res[f'{ana}_{dt}']))][
+                            ~np.isnan(res[f'{ana}_effect']))][
                             'region'].values
             
             else:
@@ -741,9 +757,9 @@ def plot_all_swansons():
                 scores = res[f'{ana}_effect'].values
                 mask = []
 
-            if ana == 'euclidean':
-                scores = np.log(scores)
-                all_scores = np.log(all_scores)
+#            if ana == 'euclidean':
+#                scores = np.log(scores)
+#                all_scores = np.log(all_scores)
                 
             vmin, vmax = (np.min(all_scores), np.max(all_scores))
             res_types[res_type][1] = vmin, vmax  
@@ -795,9 +811,10 @@ def plot_all_swansons():
         cbar = mpl.colorbar.ColorbarBase(axs[-1], cmap=cmap, norm=norm,
          orientation='horizontal')
         cbar.set_label(res_types[res_type][0], fontsize=f_size)
-        cbar.ax.tick_params(labelsize=5)
+        cbar.ax.tick_params(labelsize=f_size_s)
         cbar.outline.set_visible(False)
-
+        ticks = np.round(np.linspace(cbar.vmin, cbar.vmax, num=3), 2)             
+        cbar.set_ticks(ticks)
 
     # manually adjust layout as tight_layout is not working
     fig.subplots_adjust(left=0.01, right=0.95, top=0.87, 
@@ -905,20 +922,18 @@ def plot_wheel_swansons(fig=None, axs=None):
                                 vmax=vmax)
 
             clevels = (min(scores), max(scores))
-
-            num_ticks = 3  # Adjust as needed
-
-            # Use MaxNLocator to select a suitable number of ticks
-            locator = MaxNLocator(nbins=num_ticks)
-                       
+        
             norm = mpl.colors.Normalize(vmin=clevels[0], vmax=clevels[1])
             cbar = fig.colorbar(
                        mpl.cm.ScalarMappable(norm=norm,cmap=cmap),
                        ax=axs[k],shrink=0.4,aspect=12,pad=.025,
-                       orientation="horizontal", ticks=locator)
+                       orientation="horizontal")
                        
             cbar.ax.tick_params(axis='both', which='major',
-                                labelsize=f_size, size=6)
+                                labelsize=f_size_s)
+            ticks = np.round(np.linspace(cbar.vmin, cbar.vmax, num=3),
+                             2)
+            cbar.set_ticks(ticks)                    
             cbar.outline.set_visible(False)
             cbar.ax.tick_params(size=2)
             cbar.ax.xaxis.set_tick_params(pad=5)
@@ -937,8 +952,6 @@ def plot_wheel_swansons(fig=None, axs=None):
 
     if alone:
         fig.savefig(Path(imgs_pth, variable, 'wheel_swansons.svg')) 
-
-
 
 
 def plot_table(variable):
@@ -1033,8 +1046,6 @@ def plot_table(variable):
     midpoint = len(res) // 2
     df1 = res.iloc[:midpoint].reset_index(drop=True)
     df2 = res.iloc[midpoint:].reset_index(drop=True)
-
-    return df1, df2
       
     # Format table  
     def make_pretty(styler):
@@ -1283,25 +1294,23 @@ def swansons_SI(vari):
     
                       
     clevels = (vmin, vmax)
-
-    num_ticks = 3  # Adjust as needed
-
-    # Use MaxNLocator to select a suitable number of ticks
-    locator = MaxNLocator(nbins=num_ticks)
                
     norm = mpl.colors.Normalize(vmin=clevels[0], vmax=clevels[1])
     cbar = fig.colorbar(
                mpl.cm.ScalarMappable(norm=norm,cmap=cmap),
                ax=ax,shrink=0.4,aspect=12,pad=.025,
-               orientation="horizontal", ticks=locator)
+               orientation="horizontal")
+               
+    ticks = np.round(np.linspace(cbar.vmin, cbar.vmax, num=3), 2)             
+    cbar.set_ticks(ticks)           
                
     cbar.ax.tick_params(axis='both', which='major',
-                        labelsize=f_size, size=6)
+                        labelsize=f_size_s)
     cbar.outline.set_visible(False)
     cbar.ax.tick_params(size=2)
     cbar.ax.xaxis.set_tick_params(pad=5)
     #cbar.set_label(res_types[res_type][0], fontsize=f_size_s)
-    cbar.ax.tick_params(labelsize=0.7 *f_size)                        
+    cbar.ax.tick_params(labelsize=f_size_s)                        
 
     fig.tight_layout()    
     fig.savefig(Path(imgs_pth, 'si', f'mannwhitney_SI_{vari}.svg'))    
@@ -1368,7 +1377,9 @@ def group_into_regions():
     dec_d = {'stim': 'stimside', 'choice': 'choice',
              'fback': 'feedback'} 
 
-
+    # indicate in file name constraint
+    exx = '' if MIN_TRIALS == 0 else ('_' + str(MIN_TRIALS))
+    
     for vari in variables:
         pqt_file = os.path.join(dec_pth,f"{dec_d[vari]}_stage2.pqt")
         df1 = pd.read_parquet(pqt_file)
@@ -1386,7 +1397,8 @@ def group_into_regions():
         df2.loc[mask, 'pval_combined_corrected'] = pvals_combined_corrected
         df2.loc[:, 'sig_combined_corrected'] = df2.pval_combined_corrected < Q_LEVEL
         # save out
-        filename = os.path.join(dec_pth, f"{vari}_stage3.pqt")
+        
+        filename = os.path.join(dec_pth, f"{vari}_stage3{exx}.pqt")
         print(f"saving parquet {vari}")
         df2.to_parquet(filename)
         print("parquet saved")
@@ -1417,7 +1429,7 @@ def stim_dec_line(fig=None, ax=None):
     alone = False
     if not fig:
         alone = True
-        fig, ax = plt.subplots(figsize=(3,2))
+        fig, ax = plt.subplots(figsize=(2.232,1.488))
 
     session_file = ('stimside_e0928e11-2b86-4387'
                     '-a203-80c77fab5d52_VISp_merged_'
@@ -1990,8 +2002,8 @@ def get_example_results():
                   "wheel": "movement"}
     
     return targetunits, alignsets, sortlookup
-
-
+    
+    
 def ecoding_raster_lines(variable, clu_id0=None, axs=None):    
 
     '''
@@ -2051,7 +2063,7 @@ def ecoding_raster_lines(variable, clu_id0=None, axs=None):
     #names = [reg1, reg2, reg1 + remstr, reg2 + remstr]
     names = ['model with regressors', 'model without regressors']
     for subax, title in zip([axs[1],axs[2]], names):
-        subax.set_title(title)
+        subax.set_title(title, fontsize=f_size)
 
     # custom legend
     all_lines = axs[1].get_lines()
@@ -2075,13 +2087,16 @@ def ecoding_raster_lines(variable, clu_id0=None, axs=None):
         post_time=t_after,
         raster_cbar=False,
         raster_bin=0.002,
+        raster_interp='nearest',
         axs=axs[0])
+        
+    mpl.rcParams.update({'font.size': f_size})    
         
     axs[0].axhline(y=dividers[0],c='k', linewidth=0.5)    
     axs[0].set_ylabel('Resorted trial index')
     #ax[0].set_xlabel('Time from event (s)')   
     axs[0].set_title("{} unit {} \n $\log \Delta R^2$ = {:.2f}".format(
-                 region, clu_id, np.log(drsq)))    
+                 region, clu_id, np.log10(drsq)), fontsize=f_size)    
     
     axs[0].sharex(axs[1])
     axs[1].set_xlabel(None)
@@ -2323,7 +2338,7 @@ def plot_curves_scatter(variable, ga_pcs=False, curve='euc',
      
     if not fig:
         alone = True     
-        fig, axs = plt.subplots(2, 2, figsize=(6, 6), 
+        fig, axs = plt.subplots(2, 2, figsize=(5.089, 4), 
                        gridspec_kw={'height_ratios': [1, 2]},
                        sharex=True)
         axs = axs.flatten()
@@ -2687,6 +2702,7 @@ def main_fig(variable, clu_id0=None, save_pans=False):
     plot_table(variable)
       
     if not save_pans:
+        plot_table(variable)
         for tt in [0,1]:
             pf = Path(imgs_pth, variable, f'table_{tt}.png')   
             im = Image.open(pf)                  
@@ -2768,7 +2784,7 @@ def main_fig(variable, clu_id0=None, save_pans=False):
                      ('euc_eff', 'c'),
                      ('euc_lat', 'd'),
                      ('glm_eff', 'e'),
-                     ('tab', 'f'),
+                     ('tab0', 'f'),
                      ('ex_d', 'k'),
                      ('ex_ds', 'l'),
                      ('scat', 'm'),
@@ -2799,12 +2815,12 @@ def main_fig(variable, clu_id0=None, save_pans=False):
                 
 
         fig.savefig(Path(imgs_pth, variable, 
-                         f'n5_main_figure_{variverb[variable]}_revised.svg'),  
+                         f'n5_main_figure_{variverb[variable]}_revised_raw.svg'),  
                          bbox_inches='tight')
-#        fig.savefig(Path(imgs_pth, variable, 
-#                         f'n5_main_figure_{variverb[variable]}_revised.pdf'),
-#                         dpi=300,
-#                         bbox_inches='tight')                         
+        fig.savefig(Path(imgs_pth, variable, 
+                         f'n5_main_figure_{variverb[variable]}_revised_raw.pdf'),
+                         dpi=300,
+                         bbox_inches='tight')                         
 #        fig.savefig(Path(imgs_pth, variable, 
 #                         f'n5_main_figure_{variverb[variable]}_revised.png'),
 #                         dpi=250,
@@ -2959,12 +2975,10 @@ def main_wheel(save_pans=False):
                 put_panel_label(ax, lettered[ax.get_label()])
                        
         fig.savefig(Path(imgs_pth, 'speed', 
-                         f'n5_main_figure_wheel_revised.svg'),  
+                         f'n5_main_figure_wheel_revised_raw.svg'),  
                          bbox_inches='tight')
         fig.savefig(Path(imgs_pth, 'speed', 
-                         f'n5_main_figure_wheel_revised.pdf'),
+                         f'n5_main_figure_wheel_revised_raw.pdf'),
                          dpi=300,
                          bbox_inches='tight')          
-        
-        
         
