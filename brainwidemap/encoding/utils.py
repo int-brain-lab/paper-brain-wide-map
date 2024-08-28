@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-
+import matplotlib.colors as colors_
 # IBL libraries
 from one.api import ONE
 from iblutil.util import Bunch
@@ -479,11 +479,13 @@ def single_cluster_raster(
         lab_max = idx[np.argmax(t_ints)]
         label_pos.append((dividers[lab_max + 1] - dividers[lab_max]) / 2 + dividers[lab_max])
 
-    cmap = plt.cm.binary
-    cmap.set_bad(color='black')
+    cmap = colors_.LinearSegmentedColormap.from_list(
+        "custom_binary", ["white", "black"])
+    norm_ = colors_.Normalize(vmin=0, vmax=0.5)
     raster_ax.imshow(
         raster[trial_idx][::frac_tr], # picking each third trial only,
         cmap=cmap,
+        norm=norm_,
         origin="lower",
         extent=[np.min(t_raster), np.max(t_raster), 0, len(trial_idx)],
         interpolation=raster_interp,
