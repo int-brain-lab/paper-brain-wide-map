@@ -430,6 +430,7 @@ def plot_swansons(variable, fig=None, axs=None):
             acronyms = res['region'].values
             scores = res[f'{ana}_effect'].values
             mask = [] 
+
         
         plot_swanson_vector(acronyms,
                             scores,
@@ -476,10 +477,11 @@ def plot_swansons(variable, fig=None, axs=None):
 
         # print regions with largest (smallest) amp (lat) scores 
         if lat:
-            exxregs = acronyms[np.argsort(scores)][:5]
+            exxregs = acronyms[np.argsort(scores)][:7]
         else:
-            exxregs = acronyms[np.argsort(scores)][-5:]
-               
+            exxregs = acronyms[np.argsort(scores)][-7:]
+        
+        print(res_type)       
         print('highlight regs')
         print(exxregs)
 #        for i, text in enumerate(exxregs[:3]):
@@ -1499,7 +1501,7 @@ def dec_scatter(variable,fig=None, ax=None):
     alone = False
     if not fig:
         alone = True
-        fig, ax = plt.subplots(figsize=(3,2))        
+        fig, ax = plt.subplots(figsize=(2.232,1.488))        
 
     if variable == 'choice':
         session_file = (f'choice_671c7ea7-6726-4fbe-adeb'
@@ -2004,12 +2006,16 @@ def get_example_results():
     return targetunits, alignsets, sortlookup
     
     
-def ecoding_raster_lines(variable, clu_id0=None, axs=None):    
+def ecoding_raster_lines(variable, clu_id0=None, axs=None,
+                         frac_tr=3):    
 
     '''
     plot raster and two line plots
     ax = [ax_raster, ax_line0, ax_line1]
     '''
+    if variable == 'fback':
+        frac_tr=10
+    
     
     alone = False
     if not axs:
@@ -2087,7 +2093,7 @@ def ecoding_raster_lines(variable, clu_id0=None, axs=None):
         post_time=t_after,
         raster_cbar=False,
         raster_bin=0.002,
-        raster_interp='nearest',
+        frac_tr=frac_tr,
         axs=axs[0])
         
     mpl.rcParams.update({'font.size': f_size})    
