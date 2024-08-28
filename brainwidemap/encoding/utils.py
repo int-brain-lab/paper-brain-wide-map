@@ -357,6 +357,7 @@ def single_cluster_raster(
     weights=None,
     fr=True,
     norm=False,
+    frac_tr=3,
     axs=None,
 ):
     """
@@ -396,6 +397,8 @@ def single_cluster_raster(
         Whether to plot as a firing rate or spike count, by default True
     norm : bool, optional
         Whether to normalize PSTH, by default False
+    frac_tr: int
+        WWhich fraction of trials to show    
     axs : matplotlib.pyplot.axes, optional
         Either a single axis if no PSTH or an array of 2 axes, by default None
 
@@ -479,7 +482,7 @@ def single_cluster_raster(
     cmap = plt.cm.binary
     cmap.set_bad(color='black')
     raster_ax.imshow(
-        raster[trial_idx][::3], # picking each third trial only,
+        raster[trial_idx][::frac_tr], # picking each third trial only,
         cmap=cmap,
         origin="lower",
         extent=[np.min(t_raster), np.max(t_raster), 0, len(trial_idx)],
