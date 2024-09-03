@@ -356,8 +356,8 @@ def single_cluster_raster(
     psth_bin=0.05,
     weights=None,
     fr=True,
+    frac_tr=1,
     norm=False,
-    frac_tr=3,
     axs=None,
 ):
     """
@@ -483,7 +483,7 @@ def single_cluster_raster(
         "custom_binary", ["white", "black"])
     norm_ = colors_.Normalize(vmin=0, vmax=0.5)
     raster_ax.imshow(
-        raster[trial_idx][::frac_tr], # picking each third trial only,
+        raster[trial_idx][::frac_tr],
         cmap=cmap,
         norm=norm_,
         origin="lower",
@@ -502,7 +502,13 @@ def single_cluster_raster(
         )
 
     raster_ax.set_xlim([-1 * pre_time, post_time + raster_bin / 2 + width])
+    
     raster_ax.set_yticks(dividers)
+    
+    num_rows = len(trial_idx)//frac_tr  
+    raster_ax.set_yticklabels([str(x) for x in [0, num_rows // 2, num_rows - 1]])
+    
+    
     if raster_cbar:
         plt.colorbar(raster_ax.get_images()[0], ax=raster_ax, label="Spike count")
     secax = raster_ax.secondary_yaxis("right")
