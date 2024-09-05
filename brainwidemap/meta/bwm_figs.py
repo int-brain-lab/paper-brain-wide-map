@@ -28,6 +28,7 @@ from matplotlib.gridspec import GridSpec
 from matplotlib.ticker import MaxNLocator
 from matplotlib.patches import Rectangle
 
+from brainwidemap import download_aggregate_tables, bwm_units
 from brainwidemap.encoding.design import generate_design
 from brainwidemap.encoding.glm_predict import GLMPredictor, predict
 from brainwidemap.encoding.utils import load_regressors, single_cluster_raster, find_trial_ids
@@ -100,11 +101,9 @@ mpl.rcParams.update({'font.size': f_size})
 
 '''
 #####
-meta (Swansons and table)
+meta (Data pooling, Swansons, intro bar and tables)
 #####
 '''
-
-
 
 def pool_results_across_analyses(return_raw=False):
 
@@ -871,7 +870,7 @@ def plot_wheel_swansons(fig=None, axs=None):
     
     alone = False
     if not fig:
-        fig = plt.figure(figsize=(8.49,3.75), layout='constrained')  
+        fig = plt.figure(figsize=(8.25,3.75), layout='constrained')  
         gs = gridspec.GridSpec(1, len(res_types)*len(varis), 
                                figure=fig,hspace=.75)
         axs = []
@@ -964,7 +963,7 @@ def plot_wheel_swansons(fig=None, axs=None):
             k += 1  
 
     if alone:
-        fig.savefig(Path(imgs_pth, variable, 'wheel_swansons.svg')) 
+        fig.savefig(Path(imgs_pth, 'speed', 'wheel_swansons.svg')) 
 
 
 def plot_table(variable):
@@ -1226,6 +1225,207 @@ def scatter_analysis_effects_grid(sig_only=True):
     fig.savefig(Path(imgs_pth, 'si',
         f'n6_supp_analyses_amp_pairs_grid.pdf'), dpi=150)
         
+
+def plot_bar_neuron_count(table_only=False, ssvers='_rerun'):
+
+    '''
+    bar plot for neuron count per region 
+    second bar for recording count per region
+    
+    for BWM intro figure;
+    
+    Adding additional info in the table, including effect sizes
+    
+    ssvers: spike sorting version in ['_rerun', '']
+    '''
+
+    file_ = download_aggregate_tables(one)
+    df = pd.read_parquet(file_)
+    dfa, palette = get_allen_info()
+    df['Beryl'] = br.id2acronym(df['atlas_id'], mapping='Beryl')
+    df['Cosmos'] = br.id2acronym(df['atlas_id'], mapping='Cosmos')    
+    cosregs = dict(list(Counter(zip(df['Beryl'],df['Cosmos']))))
+    
+    # number of clusters per region, c0
+    c0 = dict(Counter(df['Beryl']))
+    del c0['root']
+    del c0['void']   
+    
+    # good neurons per region
+    c_good = dict(Counter(df['Beryl'][df['label'] == 1]))
+    
+    for reg in c0:
+        if reg not in c_good:
+            c_good[reg] = 0
+    
+    # number of recordings per region
+    ps = list(set(['_'.join(x) for x in zip(df['Beryl'],df['pid'])]))    
+    n_ins = Counter([x.split('_')[0] for x in ps])
+
+    # order by beryl
+    regs0 = list(c0.keys()) 
+    p = (Path(iblatlas.__file__).parent / 'beryl.npy')
+    regs = br.id2acronym(np.load(p), mapping='Beryl')
+    regs1 = []
+    for reg in regs:
+        if reg in regs0:
+            regs1.append(reg)
+
+    nclus_nins = [[c0[reg], n_ins[reg],c_good[reg]] for reg in regs1]
+
+ 
+    cols = [palette[reg]  
+            if cosregs[reg] not in ['CBX', 'CBN']
+            else mpl.colors.to_rgba('#757a3d') for reg in regs1]
+
+    # reverse numbers
+    cols.reverse()
+    nclus_nins.reverse()
+    regs1.reverse()
+
+    nclus_nins = np.array(nclus_nins)
+    print('raw bwm dataset')
+    print(f'{len(regs1)} regions')
+    print(len(df['Beryl']), 'neurons')
+    print(len(df['Beryl'][df['label'] == 1]),' good neurons')
+    #print(len(np.unique(df['pid'])), 'recordings'
+
+    if table_only:
+        vs0 = ['stim', 'choice', 'fback']
+        ans0 = ['dec', 'man', 'euc', 'glm', ]
+        effects = [('_').join([x,y]) for x in vs0 for y in ans0]
+        
+        vs1 = ['speed', 'velocity']
+        ans1 = ['dec', 'glm']
+        effects += [('_').join([x,y]) for x in vs1 for y in ans1]        
+
+        vs = vs0 + vs1
+        ans = ans0 + ans1
+        
+        res = {}
+        
+        for v in vs:
+            res[v] = pd.read_pickle(meta_pth / f"{v}.pkl")
+   
+        res2 = {}
+        for reg in regs1:
+            res3 = {}
+            for v in vs:
+                for a in ans:
+                    if (v in vs1) and (a not in ans1):
+                        continue 
+                
+                    key = [x for x in res[v].keys()
+                           if ((a in x) and ('effect' in x))]
+                    if key == []:
+                        res3[('_').join([v,a])] = None
+                        continue
+                    else:   
+                        key = key[0]
+                                  
+                    if reg in res[v]['region'].values:
+                        score = np.round(res[v][
+                                    res[v]['region'] == reg][key].item(),2)      
+                        res3[('_').join([v,a])] = score
+                    else:
+                        res3[('_').join([v,a])] = None
+                       
+            res2[reg] = res3   
+    
+                    
+        # get all regions in the canonical set
+        units_df = bwm_units(one)
+        gregs = Counter(units_df['Beryl'])
+    
+        columns = (['Beryl', 'Beryl', 'Cosmos', 'Cosmos', 
+                   '# recordings', '# neurons', 
+                   '# good neurons', 'canonical'] + effects)
+                                      
+        r = []                       
+        for k in range(len(regs1)):
+            cano = True if regs1[k] in gregs else False
+
+            a = ([regs1[k], get_name(regs1[k]),
+                 cosregs[regs1[k]],
+                 get_name(cosregs[regs1[k]]), nclus_nins[k,1],
+                 nclus_nins[k,0], nclus_nins[k,2], cano] + 
+                 list(res2[regs1[k]].values()))
+                      
+            r.append(a)          
+                      
+        df  = pd.DataFrame(data=r,columns=columns)
+        df  = df.reindex(index=df.index[::-1])       
+        df.to_csv(meta_pth / 'region_info.csv')
+                 
+        print('saving table only')
+        return 
+
+
+    # plotting; figure options
+    
+    ncols = 3 
+    fig, ax = plt.subplots(ncols=ncols, figsize=(ncols*4/3,ncols* 7/3))
+    
+    fs = 5
+    barwidth = 0.6
+    
+    cols_ = cols
+    nclus_nins_ = nclus_nins
+    regs1_ = regs1
+    L = len(regs1)
+     
+    for k, k0 in zip(range(3), reversed(range(3))):
+
+        cols = cols_[k0 * L//ncols : (k0+1) * L//ncols]
+        nclus_nins = nclus_nins_[k0 * L//ncols : (k0+1) * L//ncols]
+        regs1 = regs1_[k0 * L//ncols : (k0+1) * L//ncols]
+
+
+        Bars = ax[k].barh(range(len(regs1)), nclus_nins[:,0],
+                   fill=False, edgecolor = cols, height=barwidth)
+        ax[k].barh(range(len(regs1)), nclus_nins[:,2],color=cols, 
+                   height=barwidth)
+        ax[k].set_xscale("log")
+        ax[k].tick_params(axis='y', pad=19,left = False) 
+        ax[k].set_yticks(range(len(regs1)))
+        ax[k].set_yticklabels([reg for reg in regs1],
+                              fontsize=fs, ha = 'left')
+                              
+        # indicate 10% with black line                         
+        y_start = np.array([plt.getp(item, 'y') for item in Bars])
+        y_end   = y_start+[plt.getp(item, 'height') for item in Bars]
+
+        ax[k].vlines(0.1 * nclus_nins[:,0], y_start, y_end, 
+                  color='k', linewidth =1)                     
+                              
+                              
+        for ytick, color in zip(ax[k].get_yticklabels(), cols):
+            ytick.set_color(color)     
+            
+       
+        # #recs
+        ax2 = ax[k].secondary_yaxis("right")
+        ax2.tick_params(right = False)
+        ax2.set_yticks(range(len(regs1)))
+        ax2.set_yticklabels(nclus_nins[:,1],fontsize=fs)
+        for ytick, color in zip(ax2.get_yticklabels(), cols):
+            ytick.set_color(color)
+        ax2.spines['right'].set_visible(False)    
+
+        ax[k].spines['bottom'].set_visible(False)
+        ax[k].spines['right'].set_visible(False)
+        ax[k].spines['left'].set_visible(False)
+        ax[k].xaxis.set_ticks_position('top')
+        ax[k].xaxis.set_label_position('top')
+        ax[k].set_xlabel('Neurons')
+        ax[k].xaxis.set_minor_locator(MultipleLocator(450))
+        plt.setp(ax[k].get_xminorticklabels(), visible=False)
+        #ax[k].xaxis.set_major_locator(plt.MaxNLocator(10))
+
+        
+    fig.tight_layout()
+
+
         
 '''
 #####
@@ -1599,6 +1799,9 @@ def wheel_decoding_ex(vari, fig=None, axs=None):
     for vari in speed, velocity
     show example trials for decoding
     '''
+    
+    mpl.rcParams.update({'font.size': f_size_s})
+    
     variable = f'wheel-{vari}'
     n_pseudo = 2 if variable == 'wheel-velocity' else 4
     session_file = (f'{variable}_671c7ea7-6726-4fbe-adeb'
@@ -1640,9 +1843,9 @@ def wheel_decoding_ex(vari, fig=None, axs=None):
     alone = False
     if not fig:
         alone = True
-        fig, axs = plt.subplots(1, len(trials), figsize=(3 * len(trials), 4))
-        fig.suptitle(f"session: {eid} \n region: {region}"
-                 f" \n $R^2$ = {r2:.3f} (average across 2 models)")
+        fig, axs = plt.subplots(1, len(trials), figsize=(4.32, 1.63))
+        print(f"session: {eid} \n region: {region}")
+        print(f" \n $R^2$ = {r2:.3f} (average across 2 models)")
 
     movetime = 0.2
 
@@ -1666,11 +1869,14 @@ def wheel_decoding_ex(vari, fig=None, axs=None):
     #fig.text(.5, 0.04, 'Time (s)', ha='center')
     
     if alone:
-        fig.legend([f'Actual {variable}', 
-            f'Predicted {variable}\n(avg across 2 models)'])
+        fig.legend([f'Actual', 
+            f'Predicted'], frameon=False)
     plt.tight_layout()
-    plt.show()    
-
+    fig.savefig(Path(imgs_pth, vari, 
+                     f'wheel_decoding_ex.svg'),
+                     bbox_inches='tight')
+                     
+                     
 
 def plot_SI_speed_velocity():
 
@@ -2143,7 +2349,9 @@ def ecoding_raster_lines(variable, clu_id0=None, axs=None,
 
 def encoding_wheel_boxen(ax=None, fig=None):
 
-
+    mpl.rcParams.update({'font.size': f_size_s})
+    
+    
     d = {}
     fs = {'speed': 'GLMs_wheel_speed.pkl',
           'velocity': 'GLMs_wheel_velocity.pkl'} 
@@ -2159,7 +2367,7 @@ def encoding_wheel_boxen(ax=None, fig=None):
     alone = False
     if not ax:
         alone = True
-        fig, ax = plt.subplots(constrained_layout=True)    
+        fig, ax = plt.subplots(constrained_layout=True, figsize=[3.42, 2.7 ])    
     
     ax = sns.boxenplot(data=meltwheel, y="value", x="variable",
                         hue="variable", dodge = False,
@@ -2170,7 +2378,13 @@ def encoding_wheel_boxen(ax=None, fig=None):
     ax.set_ylabel(r'Distribution of population $\Delta R^2$')
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
+    ax.get_legend().remove()
     
+    if alone:
+        fig.tight_layout()  
+        fig.savefig(Path(imgs_pth, 'speed', 
+                         'glm_boxen.svg')) 
+                             
 
 '''
 ##########
@@ -3023,11 +3237,24 @@ def ghostscript_compress_pdf(variable):
     take manually edited inkscape pdf and compress
     '''
 
-    #for variable in variables:
-    input_path = Path(imgs_pth, variable, 
-                     f'n5_main_figure_{variverb[variable]}_revised_raw.pdf')
-    output_path = Path(imgs_pth, variable, 
-                     f'n5_main_figure_{variverb[variable]}_revised.pdf')
+
+    
+    if variable in variables:
+        input_path = Path(imgs_pth, variable, 
+                         f'n5_main_figure_{variverb[variable]}_revised_raw.pdf')
+        output_path = Path(imgs_pth, variable, 
+                         f'n5_main_figure_{variverb[variable]}_revised.pdf')
+                         
+    if variable == 'wheel':
+        input_path = Path(imgs_pth, 'speed', 
+                         f'n5_main_figure_wheel_revised_raw.pdf')
+        output_path = Path(imgs_pth, 'speed', 
+                         f'n5_main_figure_wheel_revised.pdf')
+                         
+    if variable == 'manuscript':
+        input_path = Path('/home/mic/Brainwide_Map_Paper.pdf')
+        output_path = Path('/home/mic/Brainwide_Map_Paper2.pdf')    
+                         
 
     # Ghostscript command to compress PDF
     command = [
