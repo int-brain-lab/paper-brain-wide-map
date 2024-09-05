@@ -27,6 +27,8 @@ import dataframe_image as dfi
 from matplotlib.gridspec import GridSpec
 from matplotlib.ticker import MaxNLocator
 from matplotlib.patches import Rectangle
+from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
+import matplotlib.ticker as tck
 
 from brainwidemap import download_aggregate_tables, bwm_units
 from brainwidemap.encoding.design import generate_design
@@ -1336,6 +1338,10 @@ def plot_bar_neuron_count(table_only=False, ssvers='_rerun'):
         # get all regions in the canonical set
         units_df = bwm_units(one)
         gregs = Counter(units_df['Beryl'])
+        
+        print('canonical bwm dataset')
+        print(f"{len(np.unique(units_df['Beryl']))} regions")
+        print(len(units_df['Beryl']), 'good neurons')
     
         columns = (['Beryl', 'Beryl', 'Cosmos', 'Cosmos', 
                    '# recordings', '# neurons', 
