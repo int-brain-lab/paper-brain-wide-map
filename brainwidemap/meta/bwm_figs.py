@@ -8,6 +8,7 @@ import os
 import itertools
 from scipy import stats
 from statsmodels.stats.multitest import multipletests
+import subprocess
 
 from one.api import ONE
 from iblatlas.atlas import AllenAtlas
@@ -258,8 +259,8 @@ def pool_wheel_res():
     '''
 
     d = {}
-    fs = {'speed': '2024-02-26_glm_fit.pkl',
-          'velocity': '2024-03-18_glm_fit_VELOCITY.pkl'} 
+    fs = {'speed': 'GLMs_wheel_speed.pkl',
+          'velocity': 'GLMs_wheel_velocity.pkl'} 
 
     for v in fs:
         d[v] = pd.read_pickle(
@@ -870,7 +871,7 @@ def plot_wheel_swansons(fig=None, axs=None):
     
     alone = False
     if not fig:
-        fig = plt.figure(figsize=(8,3), layout='constrained')  
+        fig = plt.figure(figsize=(8.49,3.75), layout='constrained')  
         gs = gridspec.GridSpec(1, len(res_types)*len(varis), 
                                figure=fig,hspace=.75)
         axs = []
@@ -896,7 +897,7 @@ def plot_wheel_swansons(fig=None, axs=None):
                 # remove regs from mask with nan amps (not analyzed)
                 mask = res[np.bitwise_and(
                             res[f'{ana}_significant'] == False,
-                            ~np.isnan(res[f'{ana}_{dt}']))][
+                            ~np.isnan(res[f'{ana}_effect']))][
                             'region'].values
             
             else:
@@ -921,7 +922,8 @@ def plot_wheel_swansons(fig=None, axs=None):
                                 annotate_n=5,
                                 annotate_order='top',
                                 vmin=vmin,
-                                vmax=vmax)
+                                vmax=vmax,
+                                fontsize=f_size_s)
 
             clevels = (min(scores), max(scores))
         
@@ -940,10 +942,19 @@ def plot_wheel_swansons(fig=None, axs=None):
             cbar.ax.tick_params(size=2)
             cbar.ax.xaxis.set_tick_params(pad=5)
             cbar.set_label(res_types[res_type][0], fontsize=f_size)
-            axs[k].text(1.21, 0.9, f'{len(scores)}/{len(scores) + len(mask)}',
-                    fontsize=f_size, ha='right', 
-                    transform=axs[k].transAxes)  
-
+                     
+            axs[k].text(-0.25, 0.5, res_types[res_type][2][0],
+                    fontsize=f_size, ha='center',va = 'center', 
+                    rotation='vertical', 
+                    transform=axs[k].transAxes)
+            axs[k].text(-0.1, .5, res_types[res_type][2][1],
+                    fontsize=f_size_s, ha='center',va = 'center',
+                    rotation='vertical', 
+                    transform=axs[k].transAxes)
+            axs[k].text(0.85, 0.95, f' {len(scores)}/{len(scores) + len(mask)}',
+                    fontsize=f_size_s, ha='center', 
+                    transform=axs[k].transAxes) 
+                  
             axs[k].set_xticks([])
             axs[k].set_yticks([])
             axs[k].axis("off")
@@ -967,11 +978,24 @@ def plot_table(variable):
     # assuming columns 
     if variable in ['speed', 'velocity']:
         anas = ['decoding', 'glm']
-        si, se = 1,3   
+        si, se = 1,3
+        column_labels = {
+        'region': 'region',
+        'glm_effect': 'encoding',
+        'decoding_effect': 'decoding'}
+        
+           
     else:
         anas = ['decoding', 'mannwhitney', 'glm', 'euclidean']
-        
         si, se = 2,6
+        column_labels = {
+        'region': 'region',
+        'glm_effect': 'encoding',
+        'euclidean_effect': 'manifold',
+        'mannwhitney_effect': 'single-cell',
+        'decoding_effect': 'decoding'}        
+        
+        
 
     effs = ['_'.join([a,'effect']) for a in anas]
 
@@ -1032,13 +1056,7 @@ def plot_table(variable):
         return 'background-color: ' + color
 
 
-    column_labels = {
-        'region': 'region',
-        'glm_effect': 'GLM',
-        'euclidean_effect': 'Euclidean',
-        'mannwhitney_effect': 'Mann-Whitney',
-        'decoding_effect': 'Decoding'
-    }
+
     res = res.rename(columns=column_labels)
     effs = list(column_labels.values())[1:]
     columns_order = ['region'] + list(reversed(effs[::-1]))
@@ -1100,6 +1118,13 @@ def scatter_analysis_effects(variable, analysis_pair,sig_only=False,
         meta_pth (Path): Path to the directory containing data files
     
     '''
+
+    ana_labs = {
+        'glm': 'encoding',
+        'euclidean': 'manifold',
+        'mannwhitney': 'single-cell',
+        'decoding': 'decoding'}
+
     
     # Load the data for the specified variable
     df = pd.read_pickle(Path(meta_pth) / f"{variable}.pkl")
@@ -1148,8 +1173,8 @@ def scatter_analysis_effects(variable, analysis_pair,sig_only=False,
                         fontsize=f_size, color=cols[i])
     
     # Set labels
-    ax.set_xlabel(f'{analysis_pair[0].split("_")[0]}')
-    ax.set_ylabel(f'{analysis_pair[1].split("_")[0]}')
+    ax.set_xlabel(ana_labs[f'{analysis_pair[0].split("_")[0]}'])
+    ax.set_ylabel(ana_labs[f'{analysis_pair[1].split("_")[0]}'])
         
 #    # Calculate and display correlation coefficients
 #    cors, ps = spearmanr(val1, val2)
@@ -1533,7 +1558,7 @@ def dec_scatter(variable,fig=None, ax=None):
     mask = fit['mask'][0]
     trials = np.arange(len(mask))[[m==1 for m in mask]]
 
-    ax.set_title(f"{d['region'][0]}, single session")
+    ax.set_title(f"{d['region'][0]}, single session", fontsize=f_size)
 
     ax.plot(
         trials[targs==-1], 
@@ -1575,7 +1600,7 @@ def wheel_decoding_ex(vari, fig=None, axs=None):
     show example trials for decoding
     '''
     variable = f'wheel-{vari}'
-    n_pseudo = 5 if variable == 'wheel-velocity' else 10
+    n_pseudo = 2 if variable == 'wheel-velocity' else 4
     session_file = (f'{variable}_671c7ea7-6726-4fbe-adeb'
                     f'-f89c2c8e489b_GRN_merged_probes_pseudo_ids_-1_'
                     f'{n_pseudo}.pkl')
@@ -2081,7 +2106,7 @@ def ecoding_raster_lines(variable, clu_id0=None, axs=None,
 
     stdf["response_times"] = stdf["stimOn_times"]
     trial_idx, dividers = find_trial_ids(stdf, sort=sortlookup[variable])
-    
+
     _, _ = single_cluster_raster(
         sspkt[sspkclu == clu_id],
         stdf[aligntime],
@@ -2093,13 +2118,16 @@ def ecoding_raster_lines(variable, clu_id0=None, axs=None,
         post_time=t_after,
         raster_cbar=False,
         raster_bin=0.002,
-        frac_tr=frac_tr,
+        frac_tr = frac_tr,
         axs=axs[0])
         
     mpl.rcParams.update({'font.size': f_size})    
+    ymin, ymax = axs[0].get_ylim()
+
         
     axs[0].axhline(y=dividers[0],c='k', linewidth=0.5)    
-    axs[0].set_ylabel('Resorted trial index')
+    axs[0].set_ylabel('Trials')
+    
     #ax[0].set_xlabel('Time from event (s)')   
     axs[0].set_title("{} unit {} \n $\log \Delta R^2$ = {:.2f}".format(
                  region, clu_id, np.log10(drsq)), fontsize=f_size)    
@@ -2117,8 +2145,8 @@ def encoding_wheel_boxen(ax=None, fig=None):
 
 
     d = {}
-    fs = {'speed': '2024-02-26_glm_fit.pkl',
-          'velocity': '2024-03-18_glm_fit_VELOCITY.pkl'} 
+    fs = {'speed': 'GLMs_wheel_speed.pkl',
+          'velocity': 'GLMs_wheel_velocity.pkl'} 
 
     for v in fs:
         d[v] = pd.read_pickle(
@@ -2134,12 +2162,15 @@ def encoding_wheel_boxen(ax=None, fig=None):
         fig, ax = plt.subplots(constrained_layout=True)    
     
     ax = sns.boxenplot(data=meltwheel, y="value", x="variable",
-                        hue="variable",
+                        hue="variable", dodge = False,
                         palette={'wheel_speed': sns.color_palette()[0], 
                                  'wheel_velocity': sns.color_palette()[1]})
-    ax.set_ylim([-0.015, 0.025])    
+                                 
+    ax.set_ylim([-0.015, 0.04])    
     ax.set_ylabel(r'Distribution of population $\Delta R^2$')
-
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    
 
 '''
 ##########
@@ -2845,32 +2876,35 @@ def main_wheel(save_pans=False):
     
     save_pans: save individual panels as svg
     '''
+
+
+    # for each panel type, get 
+    # [row_start, row_end, col_start, col_end]
+    gsd = {'dec_speed': [0, 5, 0, 4,'a'],
+           'glm_speed': [0, 5, 4, 8,'b'],
+           'dec_velocity': [0, 5, 8, 12,'c'],
+           'glm_velocity': [0, 5, 12, 16,'d'],
+           'tab_speed0': [5, 7, 0, 16,'e'],
+           'tab_speed1': [7, 9, 0, 16,''],
+           'tab_velocity0': [9, 11, 0, 16,'f'],
+           'tab_velocity1': [11, 13, 0, 16,''],
+           'dec_ex_speed0': [13, 16, 0, 4,'g'],
+           'dec_ex_speed1': [13, 16, 4, 8,''],
+           'dec_ex_velocity0': [16, 18, 0, 4,'h'],
+           'dec_ex_velocity1': [16, 18, 4, 8,''],
+           'glm_boxen': [12, 18, 8, 16,'i']}
     
     if not save_pans:
     
         plt.ion()
  
-        nrows = 15
+        nrows = 19
         ncols = 16
         
         fig = plt.figure(figsize=(9, 9.77), facecolor='w', 
                          clear=True)
                                              
         gs = GridSpec(nrows=nrows, ncols=ncols, figure=fig)
-        
-        # for each panel type, get 
-        # [row_start, row_end, col_start, col_end]
-        gsd = {'dec_speed': [0, 5, 0, 4],
-               'glm_speed': [0, 5, 4, 8],
-               'dec_velocity': [0, 5, 8, 12],
-               'glm_velocity': [0, 5, 12, 16],
-               'tab_speed': [5, 7, 0, 16],
-               'tab_velocity': [7, 9, 0, 16],
-               'dec_ex_speed0': [9, 12, 0, 4],
-               'dec_ex_speed1': [9, 12, 4, 8],
-               'dec_ex_velocity0': [12, 15, 0, 4],
-               'dec_ex_velocity1': [12, 15, 4, 8],
-               'glm_boxen': [9, 15, 8, 16]}
 
         def ax_str(x):
             if x == 'dummy':
@@ -2900,19 +2934,23 @@ def main_wheel(save_pans=False):
     else:
         plot_wheel_swansons()
         
-    
-    for vari in ['speed', 'velocity']:
-        plot_table(vari)
-        pf = Path(imgs_pth, vari, 'table.png')  
-        if not save_pans:    
-            im = Image.open(pf)                  
-            
-            ax_tab = ax_str(f'tab_{vari}')
-                                        
-            ax_tab.imshow(im.rotate(90, expand=True),
-                aspect='equal')                  
-            ax_tab.axis('off')
-            ax_tab.set_title(vari)                                            
+        
+    for variable in ['speed', 'velocity']:    
+        # plot table, reading from png
+        plot_table(variable)
+          
+        if not save_pans:
+            plot_table(variable)
+            for tt in [0,1]:
+                pf = Path(imgs_pth, variable, f'table_{tt}.png')   
+                im = Image.open(pf)                  
+                
+                ax_tab = ax_str(f'tab_{variable}{tt}')
+                                            
+                ax_tab.imshow(im.rotate(90, expand=True),
+                    aspect='equal')                  
+                ax_tab.axis('off')
+                                                      
     
     # decoding example trials 
     for vari in ['speed', 'velocity']: 
@@ -2946,19 +2984,8 @@ def main_wheel(save_pans=False):
         pans = ['dec_ex_speed0', 'dec_ex_speed1', 'dec_ex_velocity0',
                 'dec_ex_velocity1', 'glm_boxen']   
         #['dec_speed', 'glm_speed', 'dec_velocity', 'glm_velocity']
-        s = ['glm_eff', 'euc_lat', 'euc_eff', 'man_eff', 'dec_eff']
-        
-        lettered = dict([('dec_speed','a'),  
-                ('glm_speed','b'), 
-                ('dec_velocity','c'), 
-                ('glm_velocity','d'), 
-                ('tab_speed','e'), 
-                ('tab_velocity','f'), 
-                ('dec_ex_speed0','g'), 
-                ('dec_ex_speed1',''), 
-                ('dec_ex_velocity0','h'), 
-                ('dec_ex_velocity1',''), 
-                ('glm_boxen','i')])
+        s = ['glm_eff', 'euc_lat', 'euc_eff', 'man_eff', 'dec_eff']       
+
         
         for ax in axs:
             if ax.get_label() in pans:
@@ -2976,9 +3003,9 @@ def main_wheel(save_pans=False):
             if ax.get_label() in s:
                 title_text = ax.get_title()
                 ax.set_title(title_text, fontsize=f_size)                 
-        
-            if ax.get_label() in lettered:
-                put_panel_label(ax, lettered[ax.get_label()])
+
+            if (ax.get_label() in gsd) and (gsd[ax.get_label()][-1] != ''):
+                put_panel_label(ax, gsd[ax.get_label()][-1])
                        
         fig.savefig(Path(imgs_pth, 'speed', 
                          f'n5_main_figure_wheel_revised_raw.svg'),  
@@ -2987,4 +3014,35 @@ def main_wheel(save_pans=False):
                          f'n5_main_figure_wheel_revised_raw.pdf'),
                          dpi=300,
                          bbox_inches='tight')          
-        
+
+
+
+def ghostscript_compress_pdf(variable):
+
+    '''
+    take manually edited inkscape pdf and compress
+    '''
+
+    #for variable in variables:
+    input_path = Path(imgs_pth, variable, 
+                     f'n5_main_figure_{variverb[variable]}_revised_raw.pdf')
+    output_path = Path(imgs_pth, variable, 
+                     f'n5_main_figure_{variverb[variable]}_revised.pdf')
+
+    # Ghostscript command to compress PDF
+    command = [
+        'gs', '-sDEVICE=pdfwrite', '-dCompatibilityLevel=1.4',
+        '-dPDFSETTINGS=/ebook', '-dNOPAUSE', '-dQUIET', '-dBATCH',
+        f'-sOutputFile={output_path}', input_path
+    ]
+
+    # Execute the command
+    try:
+        subprocess.run(command, check=True)
+        print(f"PDF successfully compressed and saved to {output_path}")
+    except subprocess.CalledProcessError as e:
+        print(f"An error occurred: {e}")
+
+
+
+
