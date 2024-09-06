@@ -123,14 +123,42 @@ def pool_results_across_analyses(return_raw=False):
     '''
     # encoding (glm)   
     '''
-    
-    d = {}
-    for vari in variables:
-        df = pd.read_csv(Path(enc_pth, f'{vari}.csv'))
-        df.rename(columns = {'0': 'glm_effect'}, inplace=True)
-        d[vari] = df
 
-    D['glm'] = d
+    t = pd.read_pickle(
+            Path(enc_pth,'2024-07-16_glm_fit.pkl'))['mean_fit_results']
+
+    # possible indexing bug on Berk's end?
+#    # for GLM data restriction
+#    units_df = bwm_units(one)
+#    valid_pairs = set(zip(units_df['pid'], units_df['cluster_id']))
+#    
+#    t = t.loc[[index for index in t.index if
+#                     (index[1], index[2]) in valid_pairs]]
+                        
+    res = [abs(t['stimonL'] - t['stimonR']),
+           abs(t['fmoveR']  - t['fmoveL']),
+           abs(t['correct']  - t['incorrect'])]
+
+    d0 = dict(zip(variables,res))
+    d = {i: d0[i].to_frame().reset_index() for i in d0}
+    
+    rr = t['region'].reset_index()
+    acs = rr['region'].values
+
+    dd = {}
+    for variable in d:
+        df = pd.DataFrame(d[variable])
+        
+        df['region'] = acs
+        
+        # drop void and root
+        df = df[~df['region'].isin(['root','void'])]
+        df.drop(['eid', 'pid', 'clu_id'], axis=1, inplace=True)
+        df = df.groupby(['region']).mean()
+        df.rename(columns = {0: 'glm_effect'}, inplace=True)
+        dd[variable] = df               
+
+    D['glm'] = dd
     print('intergated glm results')  
     
     ''' 
@@ -212,8 +240,12 @@ def pool_results_across_analyses(return_raw=False):
        
     # merge frames across analyses    
     for vari in variables:
+    
+        # merge such that only regions are kept for which all 
+        # analyses have a score (how='inner')
+        
         df_ = reduce(lambda left,right: 
-                     pd.merge(left,right,on='region'), 
+                     pd.merge(left,right,on='region', how='inner'), 
                      [D[ana][vari] for ana in D])
                      
         df_.replace(to_replace=[True, False], 
@@ -263,10 +295,20 @@ def pool_wheel_res():
     fs = {'speed': 'GLMs_wheel_speed.pkl',
           'velocity': 'GLMs_wheel_velocity.pkl'} 
 
+    # odd cluster indices???    
+#    # for GLM data restriction
+#    units_df = bwm_units(one)
+#    valid_pairs = set(zip(units_df['pid'], units_df['cluster_id']))
+    
     for v in fs:
-        d[v] = pd.read_pickle(
-            Path(enc_pth, fs[v]))[
-            'mean_fit_results'].groupby(
+    
+        # filter GLM results bu units_df 
+        data = pd.read_pickle(Path(enc_pth, fs[v]))['mean_fit_results']
+        
+#        data = data.loc[[index for index in data.index if
+#                         (index[1], index[2]) in valid_pairs]]
+
+        d[v] = data.groupby(
             "region").agg({"wheel":"mean"})
         d[v].reset_index(inplace=True)
         d[v].columns = ['region', 'glm_effect']
@@ -289,14 +331,15 @@ def pool_wheel_res():
                     'valuesminusnull_median': 'decoding_effect',
                     'sig_combined_corrected': 'decoding_significant'})
                 
-        d[vari].dropna(axis=0,how='any',subset=['decoding_effect'])    
+        d[vari].dropna(axis=0,how='any',subset=['decoding_effect'],
+                       inplace=True)    
     
     D['dec'] = d
     
     # merge frames across analyses    
     for vari in fs:
         df_ = reduce(lambda left,right: 
-                     pd.merge(left,right,on='region'), 
+                     pd.merge(left,right,on='region', how='inner'), 
                      [D[ana][vari] for ana in D])
                      
         df_.replace(to_replace=[True, False], 
@@ -2005,37 +2048,6 @@ encoding (glm)
 # Please use the saved parameters dict from 02_fit_sessions.py as params
 glm_params = pd.read_pickle(enc_pth /"glm_params.pkl")
 
-def glm_to_csv():
-
-    '''
-    encoding pkl to csv
-    '''
-
-    t = pd.read_pickle(
-            Path(enc_pth,'2024-07-16_glm_fit.pkl'))['mean_fit_results']
-                        
-    res = [abs(t['stimonL'] - t['stimonR']),
-           abs(t['fmoveR']  - t['fmoveL']),
-           abs(t['correct']  - t['incorrect'])]
-
-    d0 = dict(zip(variables,res))
-    d = {i: d0[i].to_frame().reset_index() for i in d0}
-    
-    rr = t['region'].reset_index()
-    acs = rr['region'].values
-    
-    for variable in d:
-        df = pd.DataFrame(d[variable])
-        df['region'] = acs
-        
-        # drop void and root
-        df = df[~df['region'].isin(['root','void'])]                                 
-
-        df.drop(['eid', 'pid', 'clu_id'], axis=1, inplace=True)
-        df = df.groupby(['region']).mean()               
-        df.to_csv(Path(enc_pth,f'{variable}.csv'))
-
-
 
 def plot_twocond(
     eid,
@@ -3230,21 +3242,19 @@ def main_wheel(save_pans=False):
         fig.savefig(Path(imgs_pth, 'speed', 
                          f'n5_main_figure_wheel_revised_raw.svg'),  
                          bbox_inches='tight')
-        fig.savefig(Path(imgs_pth, 'speed', 
-                         f'n5_main_figure_wheel_revised_raw.pdf'),
-                         dpi=300,
-                         bbox_inches='tight')          
+#        fig.savefig(Path(imgs_pth, 'speed', 
+#                         f'n5_main_figure_wheel_revised_raw.pdf'),
+#                         dpi=300,
+#                         bbox_inches='tight')          
 
 
 
 def ghostscript_compress_pdf(variable):
 
     '''
-    take manually edited inkscape pdf and compress
+    Compress main figs (inkscape pdfs) or whole manuscript    
     '''
 
-
-    
     if variable in variables:
         input_path = Path(imgs_pth, variable, 
                          f'n5_main_figure_{variverb[variable]}_revised_raw.pdf')
