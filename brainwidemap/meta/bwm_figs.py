@@ -230,7 +230,7 @@ def pool_results_across_analyses(return_raw=False):
                     'valuesminusnull_median': 'decoding_effect',
                     'sig_combined_corrected': 'decoding_significant'})
                 
-        d[vari].dropna(axis=0,how='any',subset=['decoding_effect'])
+        d[vari].dropna(axis=0,how='any',subset=['decoding_effect'], inplace=True)
         #d[vari].reset_index(inplace=True)
         
     D['decoding'] = d   
