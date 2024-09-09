@@ -89,14 +89,14 @@ if __name__ == "__main__":
         folds = []
         for i in range(len(tmpfile["scores"])):
             tmpdf = tmpfile["deltas"][i]["test"]
-            tmpdf.index = tmpfile["clu_df"].index[tmpdf.index]
             tmpdf.index.name = "clu_id"
             tmpdf["full_model"] = tmpfile["scores"][i]["basescores"]["test"]
             tmpdf["eid"] = fitname.parts[-2]
             tmpdf["pid"] = fitname.parts[-1].split("_")[1]
-            tmpdf["acronym"] = tmpfile["clu_regions"][tmpdf.index]
-            tmpdf["qc_label"] = tmpfile["clu_df"]["label"][tmpdf.index]
+            tmpdf["acronym"] = tmpfile["clu_regions"]
+            tmpdf["qc_label"] = tmpfile["clu_df"]["label"]
             tmpdf["fold"] = i
+            tmpdf.index = tmpfile["clu_df"].iloc[tmpdf.index].cluster_id
             tmpdf.index.set_names(["clu_id"], inplace=True)
             folds.append(tmpdf.reset_index())
         sess_master = pd.concat(folds)

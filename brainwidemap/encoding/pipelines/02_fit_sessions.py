@@ -110,7 +110,7 @@ params = {
     "wheel_offset": -0.3,
     "contnorm": 5.0,
     "reduce_wheel_dim": False,
-    "dataset_fn": "2024-08-12_dataset_metadata.pkl",
+    "dataset_fn": "2024-09-09_dataset_metadata.pkl",
     "model": lm.LinearGLM,
     "alpha_grid": {"alpha": np.logspace(-3, 2, 50)},
     "contiguous": False,
