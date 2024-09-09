@@ -17,7 +17,7 @@ import brainbox.io.one as bbone
 from brainbox.io.one import SessionLoader
 
 # Brainwidemap repo imports
-from brainwidemap.bwm_loading import load_trials_and_mask, bwm_units
+from brainwidemap.bwm_loading import load_good_units, load_trials_and_mask, bwm_units
 from brainwidemap.encoding.timeseries import TimeSeries, sync
 
 
@@ -81,34 +81,12 @@ def load_regressors(
         trials_mask=mask,
     )
 
-    clusters = {}
-    ssl = bbone.SpikeSortingLoader(one=one, pid=pid, eid=session_id)
-    origspikes, tmpclu, channels = ssl.load_spike_sorting()
-    if "metrics" not in tmpclu:
-        tmpclu["metrics"] = np.ones(tmpclu["channels"].size)
-    clusters[pid] = ssl.merge_clusters(origspikes, tmpclu, channels)
-    clu_df = pd.DataFrame(clusters[pid]).set_index(["cluster_id"])
-    clu_df["pid"] = pid
-
     if clu_criteria == "bwm":
-        allunits = (
-            bwm_units(one=one)
-            .rename(columns={"cluster_id": "clu_id"})
-            .set_index(["eid", "pid", "clu_id"])
-        )
-        keepclu = clu_df.index.intersection(allunits.loc[session_id, pid, :].index)
-    elif clu_criteria == "all":
-        keepclu = clu_df.index
-    else:
-        raise ValueError("clu_criteria must be 'bwm' or 'all'")
-
-    clu_df = clu_df.loc[keepclu]
-    keepmask = np.isin(origspikes.clusters, keepclu)
-    spikes = Bunch({k: v[keepmask] for k, v in origspikes.items()})
-    sortinds = np.argsort(spikes.times)
-    spk_times = spikes.times[sortinds]
-    spk_clu = spikes.clusters[sortinds]
-    clu_regions = clusters[pid].acronym
+        spikes, clu_df = load_good_units(one=one, pid=pid)
+    spk_times = spikes["times"]
+    spk_clu = spikes["clusters"]
+    clu_df["pid"] = pid
+    clu_regions = clu_df.acronym
     return trialsdf, spk_times, spk_clu, clu_regions, clu_df
 
 

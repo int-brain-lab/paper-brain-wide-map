@@ -1,18 +1,18 @@
 # Standard library
+import argparse
 import os
 import pickle
-import argparse
 from datetime import date
 from pathlib import Path
+
+# IBL libraries
+import neurencoding.linear as lm
+import neurencoding.utils as mut
 
 # Third party libraries
 import numpy as np
 import sklearn.linear_model as skl
 from sklearn.model_selection import GridSearchCV
-
-# IBL libraries
-import neurencoding.linear as lm
-import neurencoding.utils as mut
 
 # Brainwide repo imports
 from brainwidemap.encoding.params import GLM_CACHE, GLM_FIT_PATH
@@ -27,7 +27,7 @@ parser = argparse.ArgumentParser(
     " parameters for the actual GLM fitting are defined within the script itself."
     " The arguments passed to the script via this parser are only for cluster control."
     " If you would like to change parameters of the actual fit please adjust the contents"
-    " of the \"parameters\" section in the file."
+    ' of the "parameters" section in the file.'
 )
 parser.add_argument(
     "--basefilepath",
@@ -94,11 +94,13 @@ parser.add_argument(
 
 args = parser.parse_args()
 
+
 # Model parameters
 # The GLM constructor class requires a function that converts time to bin index, here we define it
-# using the binwidth parameter created shortly. 
-def tmp_binf(t): 
+# using the binwidth parameter created shortly.
+def tmp_binf(t):
     return np.ceil(t / params["binwidth"]).astype(int)
+
 
 ######### PARAMETERS #########
 params = {
@@ -108,7 +110,7 @@ params = {
     "wheel_offset": -0.3,
     "contnorm": 5.0,
     "reduce_wheel_dim": False,
-    "dataset_fn": "2024-03-18_dataset_metadata.pkl",
+    "dataset_fn": "2024-08-12_dataset_metadata.pkl",
     "model": lm.LinearGLM,
     "alpha_grid": {"alpha": np.logspace(-3, 2, 50)},
     "contiguous": False,
@@ -128,6 +130,7 @@ params["bases"] = {
 }
 # Estimator relies on alpha grid in case of GridSearchCV, needs to be defined after main params
 params["estimator"] = GridSearchCV(skl.Ridge(), params["alpha_grid"])
+earlyrt_flag = "--earlyrt" if "rt_thresh" in params else ""
 
 # Output parameters file for workers
 currdate = str(date.today())

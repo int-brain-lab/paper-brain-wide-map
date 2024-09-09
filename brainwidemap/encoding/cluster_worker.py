@@ -17,7 +17,7 @@ import numpy as np
 from pandas import read_pickle
 
 # Brainwidemap repo imports
-from brainwidemap.encoding.design import generate_design
+from brainwidemap.encoding.design import generate_design, generate_design_earlyrts
 from brainwidemap.encoding.fit import fit_stepwise, fit_stepwise_with_pseudoblocks
 from brainwidemap.encoding.params import GLM_FIT_PATH
 
@@ -82,10 +82,16 @@ def fit_save_inputs(
     t_before,
     fitdate,
     null=None,
+    earlyrts=False,
 ):
     stdf, sspkt, sspkclu, sclureg, scluqc = get_cached_regressors(eidfn)
     sessprior = stdf["probabilityLeft"]
-    sessdesign = generate_design(stdf, sessprior, t_before, **params)
+    if not earlyrts:
+        sessdesign = generate_design(stdf, sessprior, t_before, **params)
+    else:
+        if "rt_thresh" not in params:
+            print('WARNING: No threshold to define an "early" RT passed. Defaulting to 50ms.')
+        sessdesign = generate_design_earlyrts(stdf, sessprior, t_before, **params)
     if null is None:
         sessfit = fit_stepwise(sessdesign, sspkt, sspkclu, **params)
         outputfn = save_stepwise(
@@ -115,11 +121,13 @@ def fit_save_inputs(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Cluster GLM fitter. This script is called by"
-                                                 "the batch script generated in "
-                                                 "pipelines/02_fit_sessions.py and should in most "
-                                                 "cases beyond debugging not be used in a "
-                                                 "standalone fashion.")
+    parser = argparse.ArgumentParser(
+        description="Cluster GLM fitter. This script is called by"
+        "the batch script generated in "
+        "pipelines/02_fit_sessions.py and should in most "
+        "cases beyond debugging not be used in a "
+        "standalone fashion."
+    )
     parser.add_argument(
         "datafile",
         type=Path,
@@ -132,6 +140,12 @@ if __name__ == "__main__":
     )
     parser.add_argument("fitdate", help="Date of fit for output file")
     parser.add_argument("--impostor_path", type=Path, help="Path to main impostor df file")
+    parser.add_argument(
+        "--earlyrt",
+        type=bool,
+        default=False,
+        help="Whether to fit separate movement kernels to early trials",
+    )
     args = parser.parse_args()
 
     with open(args.datafile, "rb") as fo:
@@ -155,6 +169,7 @@ if __name__ == "__main__":
         t_before,
         args.fitdate,
         null=params["null"],
+        earlyrts=args.earlyrt,
     )
     print("Fitting completed successfully!")
     print(outputfn)
