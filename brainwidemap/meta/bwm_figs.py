@@ -125,15 +125,14 @@ def pool_results_across_analyses(return_raw=False):
     '''
 
     t = pd.read_pickle(
-            Path(enc_pth,'2024-07-16_glm_fit.pkl'))['mean_fit_results']
+            Path(enc_pth,'2024-08-12_GLM_WheelSpeed_fit.pkl'))['mean_fit_results']
 
-    # possible indexing bug on Berk's end?
-#    # for GLM data restriction
-#    units_df = bwm_units(one)
-#    valid_pairs = set(zip(units_df['pid'], units_df['cluster_id']))
-#    
-#    t = t.loc[[index for index in t.index if
-#                     (index[1], index[2]) in valid_pairs]]
+    # for GLM data restriction
+    units_df = bwm_units(one)
+    valid_pairs = set(zip(units_df['pid'], units_df['cluster_id']))
+    
+    t = t.loc[[index for index in t.index if
+                     (index[1], index[2]) in valid_pairs]]
                         
     res = [abs(t['stimonL'] - t['stimonR']),
            abs(t['fmoveR']  - t['fmoveL']),
@@ -292,21 +291,26 @@ def pool_wheel_res():
     '''
 
     d = {}
-    fs = {'speed': 'GLMs_wheel_speed.pkl',
+    fs = {'speed': '2024-08-12_GLM_WheelSpeed_fit.pkl',
           'velocity': 'GLMs_wheel_velocity.pkl'} 
 
     # odd cluster indices???    
-#    # for GLM data restriction
-#    units_df = bwm_units(one)
-#    valid_pairs = set(zip(units_df['pid'], units_df['cluster_id']))
+    # for GLM data restriction
+    units_df = bwm_units(one)
+    valid_pairs = set(zip(units_df['pid'], units_df['cluster_id']))
+    
+    # get regions that have after pooling at least 20 neurons
+    rr = units_df['Beryl'].value_counts() >= 20
+    valid_regs = rr[rr == True].index.tolist()
+    
     
     for v in fs:
     
         # filter GLM results bu units_df 
         data = pd.read_pickle(Path(enc_pth, fs[v]))['mean_fit_results']
         
-#        data = data.loc[[index for index in data.index if
-#                         (index[1], index[2]) in valid_pairs]]
+        data = data.loc[[index for index in data.index if
+                         (index[1], index[2]) in valid_pairs]]
 
         d[v] = data.groupby(
             "region").agg({"wheel":"mean"})
@@ -335,6 +339,8 @@ def pool_wheel_res():
                        inplace=True)    
     
     D['dec'] = d
+
+
     
     # merge frames across analyses    
     for vari in fs:
@@ -354,7 +360,9 @@ def pool_wheel_res():
         df_ = df_[['region',
                    'glm_effect',
                    'decoding_effect',
-                   'decoding_significant']]                        
+                   'decoding_significant']]
+                                           
+        df_ = df_[df_['region'].isin(valid_regs)]
                                 
         df_.to_pickle(meta_pth / f"{vari}.pkl")
 
@@ -3083,13 +3091,13 @@ def main_fig(variable, clu_id0=None, save_pans=False):
                 put_panel_label(ax, lettered[ax.get_label()])    
                 
 
-        fig.savefig(Path(imgs_pth, variable, 
-                         f'n5_main_figure_{variverb[variable]}_revised_raw.svg'),  
-                         bbox_inches='tight')
-        fig.savefig(Path(imgs_pth, variable, 
-                         f'n5_main_figure_{variverb[variable]}_revised_raw.pdf'),
-                         dpi=300,
-                         bbox_inches='tight')                         
+#        fig.savefig(Path(imgs_pth, variable, 
+#                         f'n5_main_figure_{variverb[variable]}_revised_raw.svg'),  
+#                         bbox_inches='tight')
+#        fig.savefig(Path(imgs_pth, variable, 
+#                         f'n5_main_figure_{variverb[variable]}_revised_raw.pdf'),
+#                         dpi=300,
+#                         bbox_inches='tight')                         
 #        fig.savefig(Path(imgs_pth, variable, 
 #                         f'n5_main_figure_{variverb[variable]}_revised.png'),
 #                         dpi=250,
@@ -3239,9 +3247,9 @@ def main_wheel(save_pans=False):
             if (ax.get_label() in gsd) and (gsd[ax.get_label()][-1] != ''):
                 put_panel_label(ax, gsd[ax.get_label()][-1])
                        
-        fig.savefig(Path(imgs_pth, 'speed', 
-                         f'n5_main_figure_wheel_revised_raw.svg'),  
-                         bbox_inches='tight')
+#        fig.savefig(Path(imgs_pth, 'speed', 
+#                         f'n5_main_figure_wheel_revised_raw.svg'),  
+#                         bbox_inches='tight')
 #        fig.savefig(Path(imgs_pth, 'speed', 
 #                         f'n5_main_figure_wheel_revised_raw.pdf'),
 #                         dpi=300,
