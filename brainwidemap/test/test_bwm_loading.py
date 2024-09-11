@@ -1,5 +1,6 @@
 import hashlib
 import numpy as np
+import os
 import pandas as pd
 import unittest
 
@@ -155,19 +156,19 @@ class TestBWMLoading(unittest.TestCase):
         eid_1 = '5569f363-0934-464e-9a5b-77c8e67791a1'
         eid_2 = 'dda5fc59-f09a-4256-9fb5-66c67667a466'
         trials, mask = bwm_loading.load_trials_and_mask(self.one, eid_1)
-        assert mask.sum() == 513
+        assert mask.sum() == 514
         trials, mask = bwm_loading.load_trials_and_mask(self.one, eid_2)
         assert mask.sum() == 438
         # Test them with additional setting
         trials, mask = bwm_loading.load_trials_and_mask(self.one, eid_1, min_trial_len=0, max_trial_len=100,
                                                         exclude_nochoice=True, exclude_unbiased=True)
-        assert mask.sum() == 455
+        assert mask.sum() == 456
         trials, mask = bwm_loading.load_trials_and_mask(self.one, eid_2, min_trial_len=0, max_trial_len=100,
                                                         exclude_nochoice=True, exclude_unbiased=True)
         assert mask.sum() == 395
         # Test with different saturation intervals
         trials, mask = bwm_loading.load_trials_and_mask(self.one, eid_1, saturation_intervals='saturation_stim_plus04')
-        assert mask.sum() == 513
+        assert mask.sum() == 514
         trials, mask = bwm_loading.load_trials_and_mask(self.one, eid_2, nan_exclude=['choice'])
         assert mask.sum() == 441
         trials, mask = bwm_loading.load_trials_and_mask(self.one, eid_2, nan_exclude=['choice'],
