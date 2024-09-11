@@ -193,7 +193,7 @@ def pool_results_across_analyses(return_raw=False):
     d = {}   
     mw = pd.read_csv(Path(sc_pth,  
             'Updated_Single_cell_analysis_July_10_2024 - Sheet1.csv'))
-    #pd.set_option('future.no_silent_downcasting', True)
+
     for vari in variables:
         # that fixes typos
         d[vari] = mw[['Acronym',
@@ -208,7 +208,7 @@ def pool_results_across_analyses(return_raw=False):
                                 np.nan, False,inplace=True)
         d[vari].mannwhitney_significant.replace(
                                 1, True,inplace=True)
-        #d[vari].reset_index(inplace=True)    
+
 
     
     D['mannwhitney'] = d
@@ -229,8 +229,9 @@ def pool_results_across_analyses(return_raw=False):
                     'valuesminusnull_median': 'decoding_effect',
                     'sig_combined_corrected': 'decoding_significant'})
                 
-        d[vari].dropna(axis=0,how='any',subset=['decoding_effect'], inplace=True)
-        #d[vari].reset_index(inplace=True)
+        d[vari].dropna(axis=0,how='any',
+            subset=['decoding_effect'], inplace=True)
+
         
     D['decoding'] = d   
     print('intergated decoding results')
@@ -509,7 +510,7 @@ def plot_swansons(variable, fig=None, axs=None):
                    ax=axs[k],shrink=0.4,aspect=12,pad=.025,
                    orientation="horizontal")
                    
-        ticks = np.round(np.linspace(cbar.vmin, cbar.vmax, num=3), 2)             
+        ticks = np.round(np.linspace(cbar.vmin, cbar.vmax, num=3), 2)
         cbar.set_ticks(ticks)
         cbar.outline.set_visible(False)
         cbar.ax.xaxis.set_tick_params(pad=5)
@@ -709,7 +710,7 @@ def plot_slices(variable):
         cbar.ax.tick_params(labelsize=f_size_s)
         cbar.outline.set_visible(False)
         
-        ticks = np.round(np.linspace(cbar.vmin, cbar.vmax, num=3), 2)             
+        ticks = np.round(np.linspace(cbar.vmin, cbar.vmax, num=3), 2)
         cbar.set_ticks(ticks)
         bbox = cax.get_position()
         center_offset = (bbox.width * (1 - colorbar_width_proportion)) / 1.5
@@ -723,12 +724,9 @@ def plot_slices(variable):
         
                        
     fig.savefig(Path(imgs_pth, 'si', 
-                     f'n6_supp_figure_{variverb[variable]}.svg'),  
+                     f'n6_supp_figure_{variverb[variable]}_raw.svg'),  
                      bbox_inches='tight')
-    fig.savefig(Path(imgs_pth, 'si', 
-                     f'n6_supp_figure_{variverb[variable]}.pdf'),
-                     dpi=150,
-                     bbox_inches='tight')          
+          
 
     
 def plot_all_swansons():
@@ -797,7 +795,8 @@ def plot_all_swansons():
             if ana != 'glm':
                 # check if there are p-values
                 
-                acronyms = res[res[f'{ana}_significant'] == True]['region'].values
+                acronyms = res[res[
+                         f'{ana}_significant'] == True]['region'].values
                 scores = res[res[
                          f'{ana}_significant'] == True][f'{ana}_effect'].values
                             
@@ -811,10 +810,6 @@ def plot_all_swansons():
                 acronyms = res['region'].values
                 scores = res[f'{ana}_effect'].values
                 mask = []
-
-#            if ana == 'euclidean':
-#                scores = np.log(scores)
-#                all_scores = np.log(all_scores)
                 
             vmin, vmax = (np.min(all_scores), np.max(all_scores))
             res_types[res_type][1] = vmin, vmax  
@@ -868,7 +863,7 @@ def plot_all_swansons():
         cbar.set_label(res_types[res_type][0], fontsize=f_size)
         cbar.ax.tick_params(labelsize=f_size_s)
         cbar.outline.set_visible(False)
-        ticks = np.round(np.linspace(cbar.vmin, cbar.vmax, num=3), 2)             
+        ticks = np.round(np.linspace(cbar.vmin, cbar.vmax, num=3), 2)
         cbar.set_ticks(ticks)
 
     # manually adjust layout as tight_layout is not working
@@ -942,9 +937,11 @@ def plot_wheel_swansons(fig=None, axs=None):
             if ana != 'glm':
                 # check if there are p-values
                 
-                acronyms = res[res[f'{ana}_significant'] == True]['region'].values
+                acronyms = res[res[
+                         f'{ana}_significant'] == True]['region'].values
                 scores = res[res[
-                         f'{ana}_significant'] == True][f'{ana}_effect'].values
+                         f'{ana}_significant'] == True][
+                         f'{ana}_effect'].values
                             
                 # remove regs from mask with nan amps (not analyzed)
                 mask = res[np.bitwise_and(
@@ -1047,8 +1044,6 @@ def plot_table(variable):
         'mannwhitney_effect': 'single-cell',
         'decoding_effect': 'decoding'}        
         
-        
-
     effs = ['_'.join([a,'effect']) for a in anas]
 
     assert  (set(list(res.iloc[:,si:se].keys())) == 
@@ -1106,8 +1101,6 @@ def plot_table(variable):
                                         int(255*rgb[2]))))
                          
         return 'background-color: ' + color
-
-
 
     res = res.rename(columns=column_labels)
     effs = list(column_labels.values())[1:]
@@ -2046,6 +2039,90 @@ def plot_SI_speed_velocity():
                      f'n6_supp_figure_decoding_wheelspeedvsvel.pdf'),
                      dpi=250,
                      bbox_inches='tight')
+
+
+
+def swansons_SI_dec(vari):
+
+    '''
+    SI figure swanson for decoding results above slices 
+    (needs manual assembly, putting swansons on top of slices)
+    showing the fraction of significant sessions per region
+    
+    vari in variables
+    ''' 
+             
+    cmap = get_cmap_(vari)
+
+    lw = 0.1  
+
+    fig, ax = plt.subplots(figsize=(5.67, 3.18))  
+
+    dec_d = {'stim': 'stimside', 'choice': 'choice',
+             'fback': 'feedback'}
+             
+    pqt_file = os.path.join(dec_pth,f"{dec_d[vari]}_stage2.pqt")
+    df1 = pd.read_parquet(pqt_file)
+    
+    # fraction of significant sessions per region
+    regs = np.unique(df1['region'])
+    res = {reg: len(np.unique(df1[(df1['region'] == reg)
+                      & (df1['p-value'] < sigl)]['eid']))/
+                len(np.unique(df1[df1['region'] == reg]['eid'])) 
+                      for reg in regs}
+
+    acronyms = np.array(list(res.keys()))
+    scores =  np.array(list(res.values()))
+    
+    # turn fraction into percentage
+    scores = scores * 100
+  
+    vmin, vmax = (0, 100)
+    
+    plot_swanson_vector(acronyms,
+                        scores,
+                        hemisphere=None, 
+                        orientation='landscape',
+                        cmap=cmap,
+                        br=br,
+                        ax=ax,
+                        empty_color="white",
+                        linewidth=lw,
+                        mask_color='silver',
+                        annotate= True,
+                        annotate_n=8,
+                        annotate_order='top',
+                        fontsize=f_size,
+                        vmin=vmin,
+                        vmax=vmax)
+                        
+    ax.set_axis_off() 
+    
+                      
+    clevels = (vmin, vmax)
+               
+    norm = mpl.colors.Normalize(vmin=clevels[0], vmax=clevels[1])
+    cbar = fig.colorbar(
+               mpl.cm.ScalarMappable(norm=norm,cmap=cmap),
+               ax=ax,shrink=0.2,aspect=12,pad=.025,
+               orientation="horizontal")
+               
+    ticks = np.round(np.linspace(cbar.vmin, cbar.vmax, num=3), 2)             
+    cbar.set_ticks(ticks)           
+               
+    cbar.ax.tick_params(axis='both', which='major',
+                        labelsize=f_size_s)
+    cbar.outline.set_visible(False)
+    cbar.ax.tick_params(size=2)
+    cbar.ax.xaxis.set_tick_params(pad=5)
+    cbar.set_label('Frac. sig. sessions (%)', fontsize=f_size_s)
+    cbar.ax.tick_params(labelsize=f_size_s)                        
+    ax.set_title('Decoding',fontsize=f_size) 
+    fig.tight_layout()    
+    fig.savefig(Path(imgs_pth, 'si', f'decSwanson_SI_{vari}.svg'))    
+
+
+
 
 '''
 ##########
