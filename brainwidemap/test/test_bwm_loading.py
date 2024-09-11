@@ -1,5 +1,6 @@
 import hashlib
 import numpy as np
+import os
 import pandas as pd
 import unittest
 
@@ -10,7 +11,7 @@ from brainwidemap import bwm_loading
 
 class TestBWMLoading(unittest.TestCase):
     def setUp(self):
-        self.one = ONE(base_url='https://openalyx.internationalbrainlab.org')
+        self.one = ONE(base_url='https://alyx.internationalbrainlab.org')
         self.default_df = bwm_loading.bwm_query()
 
     def test_data_freeze(self):
@@ -87,36 +88,25 @@ class TestBWMLoading(unittest.TestCase):
         clusters_table = bwm_loading.download_aggregate_tables(self.one, type='clusters', overwrite=True)
         assert clusters_table.exists()
 
+        from iblutil.numerical import hash_uuids
         units_df = bwm_loading.filter_units_region(self.default_df['eid'], clusters_table=clusters_table)
-        assert 'Beryl' in units_df.columns
-        assert units_df.shape == (33898, 30)
+        assert units_df.Beryl.nunique() == 210
+        assert hash_uuids(units_df['uuids']) == 'd16d0b38d392b18c0ce8b615ec89d60d7c901df2eeb3432986b62130af28ef01'
 
         # Test without passing clusters table
         units_df = bwm_loading.filter_units_region(self.default_df['eid'], one=self.one)
-        assert 'Beryl' in units_df.columns
-        assert units_df.shape == (33898, 30)
+        assert hash_uuids(units_df['uuids']) == 'd16d0b38d392b18c0ce8b615ec89d60d7c901df2eeb3432986b62130af28ef01'
 
         # Test QC filter only
         units_df = bwm_loading.filter_units_region(self.default_df['eid'], clusters_table=clusters_table, min_qc=1,
                                                    min_units_sessions=None)
-        assert 'Beryl' in units_df.columns
-        assert units_df.shape == (36920, 30)
+        assert hash_uuids(units_df['uuids']) == 'ed80af64a83a055f049e4b9f57fdc3a0d135cb867d1eebb31073bd213ebb386c'
 
         # Test units filter only
         units_df = bwm_loading.filter_units_region(self.default_df['eid'], clusters_table=clusters_table, min_qc=None,
                                                    min_units_sessions=(5, 2))
-        assert 'Beryl' in units_df.columns
-        assert units_df.shape == (325558, 30)
+        assert hash_uuids(units_df['uuids']) == '82a43bb2344a960b0f39a5c28fa56406dd5788b7946d0d178cb36205b1029b92'
 
-        units_df = bwm_loading.filter_units_region(self.default_df['eid'], clusters_table=clusters_table)
-        assert units_df.Beryl.nunique() == 184
-        units_df = bwm_loading.filter_units_region(
-            self.default_df['eid'], clusters_table=clusters_table, min_units_sessions=(10, 2)
-        )
-        assert units_df.Beryl.nunique() == 131
-
-        # Remove the table
-        clusters_table.unlink()
 
     def test_filter_trials(self):
 
@@ -166,19 +156,19 @@ class TestBWMLoading(unittest.TestCase):
         eid_1 = '5569f363-0934-464e-9a5b-77c8e67791a1'
         eid_2 = 'dda5fc59-f09a-4256-9fb5-66c67667a466'
         trials, mask = bwm_loading.load_trials_and_mask(self.one, eid_1)
-        assert mask.sum() == 513
+        assert mask.sum() == 514
         trials, mask = bwm_loading.load_trials_and_mask(self.one, eid_2)
         assert mask.sum() == 438
         # Test them with additional setting
         trials, mask = bwm_loading.load_trials_and_mask(self.one, eid_1, min_trial_len=0, max_trial_len=100,
                                                         exclude_nochoice=True, exclude_unbiased=True)
-        assert mask.sum() == 455
+        assert mask.sum() == 456
         trials, mask = bwm_loading.load_trials_and_mask(self.one, eid_2, min_trial_len=0, max_trial_len=100,
                                                         exclude_nochoice=True, exclude_unbiased=True)
         assert mask.sum() == 395
         # Test with different saturation intervals
         trials, mask = bwm_loading.load_trials_and_mask(self.one, eid_1, saturation_intervals='saturation_stim_plus04')
-        assert mask.sum() == 513
+        assert mask.sum() == 514
         trials, mask = bwm_loading.load_trials_and_mask(self.one, eid_2, nan_exclude=['choice'])
         assert mask.sum() == 441
         trials, mask = bwm_loading.load_trials_and_mask(self.one, eid_2, nan_exclude=['choice'],
