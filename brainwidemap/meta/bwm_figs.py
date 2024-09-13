@@ -293,9 +293,8 @@ def pool_wheel_res():
 
     d = {}
     fs = {'speed': '2024-08-12_GLM_WheelSpeed_fit.pkl',
-          'velocity': 'GLMs_wheel_velocity.pkl'} 
+          'velocity': '2024-09-09_GLM_WheelVel_fit.pkl'} 
 
-    # odd cluster indices???    
     # for GLM data restriction
     units_df = bwm_units(one)
     valid_pairs = set(zip(units_df['pid'], units_df['cluster_id']))
@@ -3340,6 +3339,8 @@ def ghostscript_compress_pdf(variable):
     Compress main figs (inkscape pdfs) or whole manuscript    
     '''
 
+
+
     if variable in variables:
         input_path = Path(imgs_pth, variable, 
                          f'n5_main_figure_{variverb[variable]}_revised_raw.pdf')
@@ -3355,7 +3356,17 @@ def ghostscript_compress_pdf(variable):
     if variable == 'manuscript':
         input_path = Path('/home/mic/Brainwide_Map_Paper.pdf')
         output_path = Path('/home/mic/Brainwide_Map_Paper2.pdf')    
-                         
+
+
+    else:
+       input_path = input("Please enter pdf input_path: ")
+       output_path = input("Please enter pdf output_path: ")
+       
+       input_path = Path(input_path.strip("'\""))
+       output_path = Path(output_path.strip("'\""))
+       
+       print('input_path', input_path)
+       print('output_path', output_path)                 
 
     # Ghostscript command to compress PDF
     command = [
