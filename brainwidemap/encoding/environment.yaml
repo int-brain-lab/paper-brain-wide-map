@@ -1,6 +1,6 @@
 name: iblenv
 dependencies:
-  - python=3.9
+  - python=3.10
   - apptools >= 4.5.0
   - boto3
   - click

@@ -17,7 +17,7 @@ import numpy as np
 from pandas import read_pickle
 
 # Brainwidemap repo imports
-from brainwidemap.encoding.design import generate_design, generate_design_earlyrts
+from brainwidemap.encoding.design import generate_design
 from brainwidemap.encoding.fit import fit_stepwise, fit_stepwise_with_pseudoblocks
 from brainwidemap.encoding.params import GLM_FIT_PATH
 
@@ -83,15 +83,29 @@ def fit_save_inputs(
     fitdate,
     null=None,
     earlyrts=False,
+    laterts=False,
 ):
     stdf, sspkt, sspkclu, sclureg, scluqc = get_cached_regressors(eidfn)
     sessprior = stdf["probabilityLeft"]
-    if not earlyrts:
+    if not earlyrts and not laterts:
         sessdesign = generate_design(stdf, sessprior, t_before, **params)
     else:
+        # Handle early and late RT flags, compute median for session if necessary
         if "rt_thresh" not in params:
-            print('WARNING: No threshold to define an "early" RT passed. Defaulting to 50ms.')
-        sessdesign = generate_design_earlyrts(stdf, sessprior, t_before, **params)
+            raise ValueError("Must specify rt_thresh if fitting early or late RTs")
+        if laterts and earlyrts:
+            raise ValueError(
+                "Cannot fit both early and late RTs. Disable both flags to fit all trials."
+            )
+        if params["rt_thresh"] == "session_median":
+            params["rt_thresh"] = np.median(stdf["firstMovement_times"] - stdf["trial_start"])
+
+        if earlyrts:
+            mask = (stdf["firstMovement_times"] - stdf["trial_start"]) < params["rt_thresh"]
+        elif laterts:
+            mask = (stdf["firstMovement_times"] - stdf["trial_start"]) >= params["rt_thresh"]
+        stdf = stdf[mask]
+        sessdesign = generate_design(stdf, sessprior, t_before, **params)
     if null is None:
         sessfit = fit_stepwise(sessdesign, sspkt, sspkclu, **params)
         outputfn = save_stepwise(
@@ -142,9 +156,13 @@ if __name__ == "__main__":
     parser.add_argument("--impostor_path", type=Path, help="Path to main impostor df file")
     parser.add_argument(
         "--earlyrt",
-        type=bool,
-        default=False,
+        action="store_true",
         help="Whether to fit separate movement kernels to early trials",
+    )
+    parser.add_argument(
+        "--latert",
+        action="store_true",
+        help="Whether to fit separate movement kernels to late trials",
     )
     args = parser.parse_args()
 
@@ -170,6 +188,7 @@ if __name__ == "__main__":
         args.fitdate,
         null=params["null"],
         earlyrts=args.earlyrt,
+        laterts=args.latert,
     )
     print("Fitting completed successfully!")
     print(outputfn)
