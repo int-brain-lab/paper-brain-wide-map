@@ -16,7 +16,7 @@ SHELL ["/bin/bash", "-c"]
 # For some reason ibllib.io.video needs opencv which requires libgl1-mesa-dev ¯\_(ツ)_/¯
 RUN apt update && apt install -y wget git libgl1-mesa-dev
 RUN wget "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
-RUN bash Miniforge3-$(uname)-$(uname -m).sh -b -p /opt/conda && rm Mambaforge.sh
+RUN /bin/bash -c "bash Miniforge3-$(uname)-$(uname -m).sh -b -p /opt/conda && rm Mambaforge.sh"
 RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh && \
  mamba install --yes conda-build &&\
  mamba env create -n iblenv --file=environment.yaml"
