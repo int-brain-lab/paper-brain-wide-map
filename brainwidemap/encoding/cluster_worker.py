@@ -94,7 +94,6 @@ def fit_save_inputs(
             splitstr = "_earlyrt"
         case (False, True):
             splitstr = "_latert"
-    paramsp["splitstr"] = splitstr
     if not earlyrts and not laterts:
         sessdesign = generate_design(stdf, sessprior, t_before, **params)
     else:
@@ -117,7 +116,7 @@ def fit_save_inputs(
     if null is None:
         sessfit = fit_stepwise(sessdesign, sspkt, sspkclu, **params)
         outputfn = save_stepwise(
-            subject, eid, sessfit, params, probes, eidfn, sclureg, scluqc, fitdate
+            subject, eid, sessfit, params, probes, eidfn, sclureg, scluqc, fitdate, splitstr
         )
     elif null == "pseudosession_pleft_iti":
         sessfit, nullfits = fit_stepwise_with_pseudoblocks(
