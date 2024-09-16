@@ -4,7 +4,6 @@ dependencies:
   - ipython
   - matplotlib
   - numba
-  - numpy
   - pandas
   - scikit-learn
   - scipy >=1.4.1
@@ -12,14 +11,4 @@ dependencies:
   - statsmodels
   - tqdm
   - pip
-  - pip:
-    - iblutil
-    - ibllib
-    - iblapps
-    - ibl-neuropixel
-    - ONE-api
-    - phylib
-    - phy
-    - pynrrd
-    - slidingRP
-    - neurencoding
+  - pyqt<6
