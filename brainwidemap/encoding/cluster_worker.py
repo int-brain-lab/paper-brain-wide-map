@@ -38,9 +38,9 @@ def _create_sub_sess_path(parent, subject, session):
     return sesspath
 
 
-def save_stepwise(subject, session_id, fitout, params, probes, input_fn, clu_reg, clu_df, fitdate):
+def save_stepwise(subject, session_id, fitout, params, probes, input_fn, clu_reg, clu_df, fitdate, splitstr=""):
     sesspath = _create_sub_sess_path(GLM_FIT_PATH, subject, session_id)
-    fn = sesspath.joinpath(f"{fitdate}_{probes}_stepwise_regression.pkl")
+    fn = sesspath.joinpath(f"{fitdate}_{probes}{splitstr}_stepwise_regression.pkl")
     outdict = {
         "params": params,
         "probes": probes,
@@ -87,6 +87,14 @@ def fit_save_inputs(
 ):
     stdf, sspkt, sspkclu, sclureg, scluqc = get_cached_regressors(eidfn)
     sessprior = stdf["probabilityLeft"]
+    match (earlyrts, laterts):
+        case (False, False):
+            splitstr = ""
+        case (True, False):
+            splitstr = "_earlyrt"
+        case (False, True):
+            splitstr = "_latert"
+    paramsp["splitstr"] = splitstr
     if not earlyrts and not laterts:
         sessdesign = generate_design(stdf, sessprior, t_before, **params)
     else:

@@ -1,26 +1,11 @@
 name: iblenv
 dependencies:
   - python=3.10
-  - apptools >= 4.5.0
-  - boto3
-  - click
-  - colorcet
-  - colorlog
-  - cython
-  - dataclasses
-  - flake8
-  - graphviz
-  - h5py
   - ipython
   - matplotlib
   - numba
   - numpy
   - pandas
-  - plotly
-  - pyarrow
-  - pyflakes >= 2.4.0
-  - pytest
-  - requests
   - scikit-learn
   - scipy >=1.4.1
   - seaborn
@@ -28,4 +13,13 @@ dependencies:
   - tqdm
   - pip
   - pip:
-    - opencv-python
+    - iblutil
+    - ibllib
+    - iblapps
+    - ibl-neuropixel
+    - ONE-api
+    - phylib
+    - phy
+    - pynrrd
+    - slidingRP
+    - neurencoding

@@ -53,15 +53,12 @@ if __name__ == "__main__":
     # Brainwide repo imports
     from brainwidemap.encoding.params import GLM_CACHE, GLM_FIT_PATH
 
-    currdate = "2024-09-09"  # Date on which fit was run
+    currdate = "2024-09-15"  # Date on which fit was run
     n_cov = 9  # Modify if you change the model!
     parpath = Path(GLM_FIT_PATH).joinpath(f"{currdate}_glm_fit_pars.pkl")
     early_split = False
     with open(parpath, "rb") as fo:
         params = pickle.load(fo)
-    if "rt_thresh" in params:
-        early_split = True
-        n_cov += 2
     datapath = Path(GLM_CACHE).joinpath(params["dataset_fn"])
     with open(datapath, "rb") as fo:
         dataset = pickle.load(fo)
@@ -114,9 +111,6 @@ if __name__ == "__main__":
         "wheel",
         "full_model",
     ]
-    if early_split:
-        kernels.insert(6, "fmoveL_early")
-        kernels.insert(6, "fmoveR_early")
 
     meanmaster = (
         masterscores.set_index(["eid", "pid", "clu_id", "acronym", "qc_label", "fold"])

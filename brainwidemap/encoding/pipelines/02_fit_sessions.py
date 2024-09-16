@@ -114,6 +114,7 @@ params = {
     "seqselfit_kwargs": {"full_scores": True},
     "seed": 0,
     "rt_thresh": "session_median",
+    "mintrials": 50,
 }
 
 params["bases"] = {
