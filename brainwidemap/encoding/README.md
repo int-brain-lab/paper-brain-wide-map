@@ -38,7 +38,7 @@ The `scripts/` folder contains small scripts that either run plotting or simple 
 
 ### Cluster worker
 
-`cluster_worker.py` implements a mother script for cluster workers to process individual probe insertions. This relies on a cached dataset, produced using the `pipelines/01_cache_regressors.py` script, as well as several files specifying the identity and parameters of a cached dataset and the parameters of the current run of the model.
+`cluster_worker.py` implements a mother script for cluster workers to process individual probe insertions. This relies on a cached dataset, produced using the `pipelines/01_cache_regressors.py` script, as well as several files specifying the identity and parameters of a cached dataset and the parameters of the current run of the model. Note that the params.py file wil need to point to the appropriate cache locations as well for the worker to function.
 
 ### Design matrix
 

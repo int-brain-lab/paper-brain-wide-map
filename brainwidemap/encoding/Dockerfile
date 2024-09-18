@@ -1,4 +1,4 @@
-FROM nvidia/cuda:11.7.1-devel-ubuntu22.04
+FROM ubuntu:latest
 # This can optionally be built with just ubuntu, rather than the nvidia cuda container.
 # If saving space is a concern, this is the way to go.
 LABEL description="Core container which has the basic necessities to run analyses in the\
@@ -15,24 +15,17 @@ COPY ./environment.yaml /data/environment.yaml
 SHELL ["/bin/bash", "-c"]
 # For some reason ibllib.io.video needs opencv which requires libgl1-mesa-dev ¯\_(ツ)_/¯
 RUN apt update && apt install -y wget git libgl1-mesa-dev
-RUN wget -O Mambaforge.sh  "https://github.com/conda-forge/miniforge/releases/latest/download/Mambaforge-$(uname)-$(uname -m).sh"
-RUN bash Mambaforge.sh -b -p /opt/conda && rm Mambaforge.sh
+RUN wget -O Miniforge3.sh "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
+RUN bash Miniforge3.sh -b -p /opt/conda && rm Miniforge3.sh
+RUN wget -O iblreq.txt "https://raw.githubusercontent.com/int-brain-lab/ibllib/master/requirements.txt"
+RUN head -n -1 iblreq.txt > requirements.txt
+RUN rm iblreq.txt
 RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh && \
  mamba install --yes conda-build &&\
  mamba env create -n iblenv --file=environment.yaml"
-RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh &&\
- conda activate iblenv &&\
- mamba install --yes pytorch pytorch-cuda=11.7 -c pytorch -c nvidia &&\
- conda clean --all -f -y"
-RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh &&\
- conda activate iblenv &&\
- pip install globus-sdk iblutil ibl-neuropixel ONE-api phylib pynrrd slidingRP &&\
- git clone https://github.com/int-brain-lab/iblapps.git &&\
- conda develop ./iblapps &&\
- git clone https://github.com/int-brain-lab/ibllib &&\
- conda develop ./ibllib &&\
- git clone https://github.com/berkgercek/neurencoding &&\
- conda develop ./neurencoding"
+RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh && \
+ conda activate iblenv && pip install -r requirements.txt && pip install ibllib --no-deps"
+RUN rm requirements.txt
 # The below allows interactively running the container with the correct environment, but be warned
 # that this will not work with commands passed to the container in a non-interactive shell.
 # In the case of e.g. `docker run thiscontainer python myscript.py`, the environment will not
