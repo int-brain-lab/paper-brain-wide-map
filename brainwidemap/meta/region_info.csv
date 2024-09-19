@@ -1,280 +1,280 @@
 ,Beryl,Beryl,Cosmos,Cosmos,# recordings,# neurons,# good neurons,canonical,stim_dec,stim_man,stim_euc,stim_glm,choice_dec,choice_man,choice_euc,choice_glm,fback_dec,fback_man,fback_euc,fback_glm,speed_dec,speed_glm,velocity_dec,velocity_glm
-278,FRP,Frontal pole cerebral cortex,Isocortex,Isocortex,11,812,88,True,-0.0,0.0,-0.22,-2.31,0.14,0.05,-0.1,-3.13,0.19,0.16,-0.32,-2.34,0.13,-2.51,0.06,-3.04
-277,MOp,Primary motor area,Isocortex,Isocortex,37,8796,1458,True,0.01,0.0,-0.98,-2.66,0.14,0.05,-0.67,-3.15,0.34,0.24,-0.11,-1.97,0.14,-2.47,0.23,-2.8
-276,MOs,Secondary motor area,Isocortex,Isocortex,60,10023,1293,True,0.04,0.0,-0.59,-2.55,0.17,0.07,-0.36,-3.2,0.25,0.16,-0.26,-2.1,0.08,-2.29,0.09,-2.87
-275,SSp-n,Primary somatosensory area nose,Isocortex,Isocortex,9,1214,72,True,-0.01,0.0,-0.86,-3.04,0.18,0.02,-0.57,-3.37,0.11,0.09,0.4,-1.94,0.02,-2.77,0.07,-3.99
-274,SSp-bfd,Primary somatosensory area barrel field,Isocortex,Isocortex,32,5226,488,True,0.01,0.01,-1.04,-2.86,0.1,0.04,-0.82,-3.25,0.17,0.1,-0.48,-2.51,0.06,-2.6,0.05,-3.17
-273,SSp-ll,Primary somatosensory area lower limb,Isocortex,Isocortex,13,1434,130,True,0.01,0.0,-0.88,-2.63,0.08,0.06,-0.82,-2.98,0.14,0.08,-0.21,-2.08,0.08,-2.18,0.14,-2.73
-272,SSp-m,Primary somatosensory area mouth,Isocortex,Isocortex,13,3567,354,True,-0.01,0.0,-1.03,-2.83,0.08,0.01,-0.94,-3.38,0.32,0.19,-0.09,-1.99,0.07,-2.77,0.08,-3.4
-271,SSp-ul,Primary somatosensory area upper limb,Isocortex,Isocortex,16,1761,196,True,0.05,0.01,-0.44,-2.47,0.19,0.08,-0.38,-2.88,0.18,0.18,-0.06,-2.23,0.12,-2.47,0.22,-2.73
-270,SSp-tr,Primary somatosensory area trunk,Isocortex,Isocortex,15,1930,303,True,0.01,0.0,-1.02,-2.74,0.07,0.04,-0.91,-3.17,0.12,0.04,-0.27,-2.22,0.1,-2.73,0.06,-3.41
-269,SSp-un,Primary somatosensory area unassigned,Isocortex,Isocortex,8,600,67,True,-0.01,0.0,-0.88,-2.59,0.13,0.22,-0.36,-2.88,0.12,0.0,0.16,-2.14,0.16,-2.1,0.07,-3.62
-268,SSs,Supplemental somatosensory area,Isocortex,Isocortex,15,3168,439,True,0.01,0.0,-1.04,-2.93,0.08,0.01,-0.75,-3.16,0.26,0.16,-0.23,-2.31,0.12,-2.34,0.09,-2.72
-267,GU,Gustatory areas,Isocortex,Isocortex,5,445,69,True,-0.0,0.0,-0.78,-2.83,0.02,0.0,-0.76,-3.37,0.36,0.28,0.17,-1.76,0.04,-2.94,0.05,-4.16
-266,VISC,Visceral area,Isocortex,Isocortex,6,375,61,True,0.01,0.0,-0.9,-3.28,0.06,0.02,-1.02,-3.44,0.23,0.13,-0.31,-2.46,0.18,-2.67,0.19,-3.09
-265,AUDd,Dorsal auditory area,Isocortex,Isocortex,9,991,133,True,0.04,0.0,-0.57,-2.61,0.14,0.05,-0.72,-3.26,0.19,0.39,0.42,-1.88,0.14,-2.09,0.12,-3.01
-264,AUDp,Primary auditory area,Isocortex,Isocortex,7,1450,167,True,-0.01,0.0,-0.96,-2.77,0.08,0.01,-0.78,-3.28,0.44,0.28,0.54,-1.71,0.06,-2.6,0.04,-5.0
-263,AUDpo,Posterior auditory area,Isocortex,Isocortex,6,439,46,True,0.06,0.02,-0.8,-3.27,0.07,0.02,-0.58,-3.16,0.24,0.11,0.3,-1.94,0.07,-2.92,0.02,-5.0
-262,AUDv,Ventral auditory area,Isocortex,Isocortex,10,1061,253,True,0.01,0.01,-0.83,-3.01,0.08,0.0,-0.99,-3.39,0.39,0.22,-0.09,-2.38,0.11,-2.63,0.04,-3.61
-261,VISal,Anterolateral visual area,Isocortex,Isocortex,5,697,95,True,0.01,0.01,-0.41,-2.81,0.14,0.05,-0.61,-3.39,0.12,0.03,-0.16,-2.34,0.15,-2.57,0.12,-4.36
-260,VISam,Anteromedial visual area,Isocortex,Isocortex,26,2581,374,True,0.05,0.02,-0.51,-2.61,0.09,0.02,-0.77,-3.31,0.12,0.04,-0.14,-2.32,0.1,-2.76,0.03,-3.86
-259,VISl,Lateral visual area,Isocortex,Isocortex,14,1559,151,True,0.04,0.04,-0.45,-2.87,0.07,0.02,-0.63,-3.5,0.06,0.01,-0.32,-2.76,0.02,-3.06,0.02,-3.22
-258,VISp,Primary visual area,Isocortex,Isocortex,65,8559,880,True,0.02,0.03,-0.44,-2.69,0.06,0.02,-0.97,-3.41,0.11,0.05,-0.28,-2.56,0.06,-2.9,0.03,-4.17
-257,VISpl,Posterolateral visual area,Isocortex,Isocortex,14,523,95,True,0.07,0.01,-1.03,-2.91,0.11,0.0,-1.03,-3.24,0.18,0.05,-0.21,-2.58,0.06,-3.26,0.03,-5.0
-256,VISpm,posteromedial visual area,Isocortex,Isocortex,22,1995,241,True,0.01,0.02,-0.41,-2.72,0.07,0.0,-0.55,-3.5,0.1,0.03,-0.46,-2.68,0.05,-2.92,0.03,-4.59
-255,VISli,Laterointermediate area,Isocortex,Isocortex,9,656,83,True,0.04,0.02,-0.59,-2.68,0.08,0.04,-0.62,-3.58,0.13,0.06,-0.34,-2.52,0.08,-2.9,0.05,-3.5
-254,VISpor,Postrhinal area,Isocortex,Isocortex,8,889,99,True,0.01,0.01,-0.9,-2.93,0.07,0.01,-1.0,-3.48,0.06,0.03,-0.74,-2.67,0.05,-4.32,0.04,-4.11
-253,ACAd,Anterior cingulate area dorsal part,Isocortex,Isocortex,24,1960,369,True,0.04,0.0,-0.66,-2.52,0.11,0.07,-0.53,-3.18,0.15,0.12,-0.41,-2.29,0.08,-2.56,0.05,-3.33
-252,ACAv,Anterior cingulate area ventral part,Isocortex,Isocortex,18,1388,195,True,0.01,0.0,-1.18,-2.91,0.07,0.01,-1.19,-3.4,0.09,0.04,-0.25,-2.7,0.06,-2.84,0.01,-4.35
-251,PL,Prelimbic area,Isocortex,Isocortex,21,2165,420,True,0.03,0.0,-0.66,-2.59,0.09,0.05,-0.49,-3.12,0.18,0.17,-0.28,-2.19,0.05,-2.41,0.04,-2.82
-250,ILA,Infralimbic area,Isocortex,Isocortex,12,2008,314,True,0.01,0.0,-1.25,-3.05,0.06,0.02,-0.94,-3.64,0.13,0.08,-0.37,-2.44,0.05,-2.81,0.01,-3.42
-249,ORBl,Orbital area lateral part,Isocortex,Isocortex,8,2164,199,True,0.02,0.0,-0.83,-2.72,0.07,0.01,-0.75,-3.31,0.18,0.11,-0.12,-2.16,-0.0,-2.63,0.09,-3.52
-248,ORBm,Orbital area medial part,Isocortex,Isocortex,10,1856,313,True,0.01,0.0,-0.83,-2.95,0.04,0.02,-0.71,-3.37,0.11,0.09,-0.32,-2.41,0.09,-2.52,0.06,-3.99
-247,ORBvl,Orbital area ventrolateral part,Isocortex,Isocortex,10,3060,669,True,0.01,0.0,-0.5,-2.7,0.13,0.04,-0.43,-3.47,0.38,0.11,-0.64,-2.24,0.18,-2.51,0.11,-3.15
-246,AId,Agranular insular area dorsal part,Isocortex,Isocortex,10,1100,188,True,0.01,0.0,-0.85,-2.57,0.05,0.03,-0.79,-3.43,0.36,0.26,0.01,-1.92,0.09,-2.55,0.1,-3.26
-245,AIp,Agranular insular area posterior part,Isocortex,Isocortex,8,533,93,True,0.01,0.0,-0.92,-2.89,0.08,0.03,-0.7,-3.41,0.23,0.19,-0.35,-1.97,0.08,-2.87,0.09,-3.5
-244,AIv,Agranular insular area ventral part,Isocortex,Isocortex,8,725,149,True,0.01,0.0,-0.95,-3.11,0.03,0.03,-0.58,-3.8,0.09,0.07,-0.58,-2.89,0.01,-3.54,0.0,-5.0
-243,RSPagl,Retrosplenial area lateral agranular part,Isocortex,Isocortex,36,2281,310,True,-0.01,0.0,-0.92,-2.74,0.05,0.02,-0.9,-3.25,0.08,0.08,-0.24,-2.45,0.03,-2.73,0.02,-3.42
-242,RSPd,Retrosplenial area dorsal part,Isocortex,Isocortex,38,3088,318,True,-0.0,0.0,-1.09,-2.88,0.02,0.01,-0.85,-3.39,0.06,0.03,-0.21,-2.66,0.04,-2.88,0.02,-3.79
-241,RSPv,Retrosplenial area ventral part,Isocortex,Isocortex,38,4617,528,True,0.01,0.01,-0.74,-2.58,0.05,0.02,-1.02,-3.22,0.1,0.06,-0.4,-2.36,0.13,-2.72,0.02,-3.68
-240,VISa,Anterior area,Isocortex,Isocortex,56,6222,940,True,0.03,0.01,-0.85,-2.81,0.1,0.03,-0.8,-3.18,0.13,0.05,-0.06,-2.48,0.07,-2.68,0.05,-3.49
-239,VISrl,Rostrolateral visual area,Isocortex,Isocortex,10,1191,75,True,0.0,0.0,-0.99,-2.63,0.08,0.04,-0.87,-3.2,0.13,0.06,-0.25,-2.34,0.17,-2.51,0.05,-3.45
-238,TEa,Temporal association areas,Isocortex,Isocortex,11,1040,166,True,0.02,0.0,-1.03,-3.25,0.05,0.01,-1.04,-3.76,0.22,0.13,-0.35,-2.58,0.01,-3.18,0.01,-4.11
-237,PERI,Perirhinal area,Isocortex,Isocortex,7,163,36,False,,,,,,,,,,,,,,-3.6,,-4.65
-236,ECT,Ectorhinal area,Isocortex,Isocortex,9,729,85,True,-0.01,0.0,-0.96,-3.36,0.05,0.0,-0.87,-3.52,0.02,0.03,-0.68,-2.72,0.01,-3.94,0.0,-5.0
-235,MOB,Main olfactory bulb,OLF,Olfactory areas,3,1227,140,True,-0.02,0.0,-1.09,-3.28,0.02,0.0,-0.8,-3.56,0.0,0.0,-0.43,-2.75,-0.0,-3.83,-0.0,-5.0
-234,AOB,Accessory olfactory bulb,OLF,Olfactory areas,2,90,0,False,,,,,,,,,,,,,,,,
-233,AON,Anterior olfactory nucleus,OLF,Olfactory areas,15,3534,428,True,-0.01,0.0,-1.09,-3.03,0.06,0.01,-0.99,-3.61,0.11,0.03,-0.54,-2.5,0.03,-2.88,0.01,-3.77
-232,TTd,Taenia tecta dorsal part,OLF,Olfactory areas,14,1771,270,True,-0.0,0.0,-1.17,-3.29,0.04,0.0,-1.06,-3.6,0.15,0.05,-0.18,-2.37,0.03,-2.9,0.01,-3.54
-231,TTv,Taenia tecta ventral part,OLF,Olfactory areas,1,7,0,False,,,,,,,,,,,,,,,,
-230,DP,Dorsal peduncular area,OLF,Olfactory areas,19,1637,318,True,0.02,0.0,-1.17,-3.39,0.04,0.01,-1.17,-3.73,0.11,0.1,0.01,-2.36,0.01,-2.91,0.02,-3.62
-229,PIR,Piriform area,OLF,Olfactory areas,33,3735,614,True,0.01,0.0,-1.37,-3.31,0.02,0.0,-1.52,-3.6,0.06,0.04,-0.65,-2.48,0.02,-3.93,0.0,-5.0
-228,COAa,Cortical amygdalar area anterior part,OLF,Olfactory areas,4,113,17,False,,,,,,,,,,,,,,-3.34,,-4.34
-227,COAp,Cortical amygdalar area posterior part,OLF,Olfactory areas,20,1899,121,True,-0.01,0.0,-1.04,-2.98,0.0,0.01,-1.04,-3.36,0.07,0.08,-0.21,-2.17,0.01,-2.71,0.0,-5.0
-226,PAA,Piriform-amygdalar area,OLF,Olfactory areas,5,490,82,True,0.0,0.0,-1.1,-3.59,0.01,0.0,-1.05,-3.94,0.23,0.12,-0.51,-2.66,0.0,-3.42,0.01,-4.58
-225,TR,Postpiriform transition area,OLF,Olfactory areas,9,508,37,True,-0.01,0.0,-0.93,-3.14,0.02,0.0,-0.72,-3.6,0.03,0.0,-0.38,-2.23,0.01,-3.5,0.0,-5.0
-224,CA1,Field CA1,HPF,Hippocampal formation,168,23169,1807,True,0.01,0.0,-1.14,-2.86,0.03,0.01,-1.1,-3.34,0.1,0.06,-0.04,-2.38,0.07,-2.69,0.02,-3.86
-223,CA2,Field CA2,HPF,Hippocampal formation,33,656,39,True,,,,,,,,,,,,,0.0,-2.65,0.01,-3.78
-222,CA3,Field CA3,HPF,Hippocampal formation,88,12085,950,True,0.01,0.0,-0.76,-2.73,0.04,0.02,-0.79,-3.29,0.1,0.04,-0.3,-2.41,0.06,-2.67,0.02,-3.45
-221,DG,Dentate gyrus,HPF,Hippocampal formation,171,18156,1137,True,-0.0,0.0,-1.32,-2.88,0.04,0.01,-1.12,-3.27,0.11,0.11,-0.14,-2.27,0.06,-2.76,0.01,-3.65
-220,FC,Fasciola cinerea,HPF,Hippocampal formation,6,221,23,True,,,,,,,,,,,,,0.14,-2.0,0.01,-4.37
-219,IG,Induseum griseum,HPF,Hippocampal formation,5,134,9,False,,,,,,,,,,,,,,,,
-218,ENTl,Entorhinal area lateral part,HPF,Hippocampal formation,22,4321,585,True,0.0,0.0,-1.17,-2.97,0.04,0.0,-1.37,-3.62,0.11,0.03,-0.36,-2.23,0.03,-3.27,0.01,-4.69
-217,ENTm,Entorhinal area medial part dorsal zone,HPF,Hippocampal formation,20,4151,639,True,0.01,0.0,-1.02,-2.58,0.06,0.0,-1.12,-3.37,0.17,0.07,-0.11,-2.4,0.04,-3.41,0.02,-4.18
-216,PAR,Parasubiculum,HPF,Hippocampal formation,10,2119,117,True,0.03,0.0,-0.39,-2.63,0.09,0.02,-0.75,-2.98,0.27,0.28,0.17,-2.1,0.1,-2.69,0.04,-3.12
-215,POST,Postsubiculum,HPF,Hippocampal formation,26,3243,233,True,0.01,0.0,-0.7,-2.39,0.04,0.03,-0.41,-3.0,0.09,0.15,0.11,-1.55,0.11,-2.14,0.04,-2.77
-214,PRE,Presubiculum,HPF,Hippocampal formation,11,1693,115,True,0.03,0.0,-0.51,-2.84,0.09,0.01,-0.8,-3.17,0.11,0.04,0.21,-2.7,0.12,-2.69,0.03,-4.28
-213,SUB,Subiculum,HPF,Hippocampal formation,42,7346,914,True,0.0,0.0,-1.11,-2.82,0.02,0.01,-0.87,-3.35,0.11,0.04,-0.12,-2.49,0.06,-2.41,0.02,-3.24
-212,ProS,Prosubiculum,HPF,Hippocampal formation,29,3095,378,True,-0.01,0.01,-0.69,-2.68,0.03,0.01,-0.76,-3.38,0.14,0.07,-0.21,-2.28,0.03,-3.02,0.02,-3.74
-211,HATA,Hippocampo-amygdalar transition area,HPF,Hippocampal formation,8,578,59,True,0.01,0.0,-0.54,-2.39,0.02,0.0,-0.46,-3.25,0.04,0.0,-0.52,-2.04,0.01,-5.0,0.0,-5.0
-210,APr,Area prostriata,HPF,Hippocampal formation,9,328,16,True,,,,,,,,,,,,,0.01,-3.42,-0.0,-5.0
-209,CLA,Claustrum,CTXsp,Cortical subplate,6,355,49,True,0.0,0.0,-0.69,-2.66,0.14,0.06,-0.39,-3.38,0.23,0.15,-0.04,-2.11,0.12,-2.65,0.11,-2.97
-208,EPd,Endopiriform nucleus dorsal part,CTXsp,Cortical subplate,15,1254,199,True,-0.01,0.0,-1.14,-2.93,0.03,0.01,-1.15,-3.71,0.06,0.04,-0.4,-2.43,0.01,-3.25,0.0,-5.0
-207,EPv,Endopiriform nucleus ventral part,CTXsp,Cortical subplate,12,822,124,True,0.0,0.0,-1.01,-2.77,0.03,0.0,-1.03,-3.5,0.11,0.04,-0.56,-2.4,0.03,-3.21,0.01,-5.0
-206,LA,Lateral amygdalar nucleus,CTXsp,Cortical subplate,8,583,63,True,0.02,0.0,-0.86,-2.98,0.03,0.02,-0.98,-3.44,0.15,0.12,-0.03,-2.33,0.01,-2.88,0.01,-5.0
-205,BLA,Basolateral amygdalar nucleus,CTXsp,Cortical subplate,15,1565,150,True,0.02,0.0,-0.92,-3.02,0.02,0.01,-0.92,-3.28,0.08,0.12,-0.08,-2.14,0.0,-2.98,0.01,-5.0
-204,BMA,Basomedial amygdalar nucleus,CTXsp,Cortical subplate,16,1645,175,True,-0.0,0.0,-1.07,-3.27,0.02,0.0,-1.05,-3.6,0.08,0.14,-0.28,-2.26,0.01,-3.07,0.01,-5.0
-203,PA,Posterior amygdalar nucleus,CTXsp,Cortical subplate,17,925,113,True,0.0,0.0,-0.95,-3.56,-0.02,0.0,-0.99,-3.79,-0.01,0.0,-0.76,-3.08,0.0,-3.57,0.0,-5.0
-202,CP,Caudoputamen,CNU,Cerebral nuclei,83,25339,2892,True,0.03,0.0,-0.7,-2.4,0.17,0.05,-0.58,-3.12,0.34,0.21,-0.18,-1.9,0.11,-2.33,0.19,-2.87
-201,ACB,Nucleus accumbens,CNU,Cerebral nuclei,24,2655,340,True,-0.0,0.0,-0.91,-2.85,0.04,0.02,-0.8,-3.46,0.21,0.15,-0.34,-2.14,0.07,-2.61,0.03,-3.42
-200,FS,Fundus of striatum,CNU,Cerebral nuclei,5,166,32,True,0.01,0.0,-0.61,-2.45,0.12,0.06,-0.53,-3.3,0.38,0.32,0.35,-1.73,0.02,-2.41,0.04,-3.36
-199,OT,Olfactory tubercle,CNU,Cerebral nuclei,20,872,79,True,-0.0,0.0,-0.77,-2.77,0.07,0.0,-0.7,-3.4,0.09,0.04,-0.16,-2.2,0.04,-2.75,0.04,-4.02
-198,LSc,Lateral septal nucleus caudal (caudodorsal) part,CNU,Cerebral nuclei,12,749,111,True,0.0,0.0,-1.11,-3.09,0.03,0.01,-1.05,-3.46,0.1,0.04,-0.34,-2.68,0.04,-2.48,0.0,-4.09
-197,LSr,Lateral septal nucleus rostral (rostroventral) part,CNU,Cerebral nuclei,32,5686,1156,True,0.0,0.0,-1.02,-3.11,0.04,0.0,-0.92,-3.55,0.11,0.06,-0.36,-2.64,0.08,-2.75,0.02,-3.93
-196,LSv,Lateral septal nucleus ventral part,CNU,Cerebral nuclei,17,1303,164,True,-0.01,0.0,-0.53,-3.22,0.03,0.01,-0.8,-3.61,0.05,0.06,0.24,-2.68,0.04,-3.03,0.01,-4.05
-195,SF,Septofimbrial nucleus,CNU,Cerebral nuclei,12,751,115,True,-0.01,0.0,-1.11,-2.87,0.07,0.02,-0.74,-3.32,0.08,0.06,-0.17,-2.57,0.05,-2.33,0.03,-4.67
-194,SH,Septohippocampal nucleus,CNU,Cerebral nuclei,2,61,4,False,,,,,,,,,,,,,,,,
-193,AAA,Anterior amygdalar area,CNU,Cerebral nuclei,3,265,25,True,0.03,0.0,-0.5,-2.93,0.07,0.0,-0.57,-3.5,0.35,0.32,0.2,-1.96,0.13,-2.6,0.04,-4.13
-192,CEA,Central amygdalar nucleus,CNU,Cerebral nuclei,15,1101,159,True,0.02,0.0,-0.62,-2.69,0.04,0.01,-0.43,-3.5,0.08,0.13,-0.05,-2.06,0.01,-2.98,0.03,-3.79
-191,IA,Intercalated amygdalar nucleus,CNU,Cerebral nuclei,2,82,18,True,,,,,,,,,,,,,0.0,-3.0,0.01,-5.0
-190,MEA,Medial amygdalar nucleus,CNU,Cerebral nuclei,13,1435,184,True,0.0,0.0,-0.96,-3.59,0.03,0.0,-0.92,-3.72,0.11,0.07,-0.13,-2.64,0.01,-3.66,0.01,-5.0
-189,GPe,Globus pallidus external segment,CNU,Cerebral nuclei,13,1807,322,True,0.02,0.01,-0.41,-2.45,0.18,0.08,-0.36,-3.08,0.29,0.3,0.1,-1.81,0.12,-2.29,0.21,-2.7
-188,GPi,Globus pallidus internal segment,CNU,Cerebral nuclei,6,415,45,True,0.02,0.02,-0.37,-2.31,0.17,0.05,-0.14,-3.04,0.37,0.52,0.49,-1.61,0.07,-2.23,0.19,-2.6
-187,SI,Substantia innominata,CNU,Cerebral nuclei,27,1592,256,True,0.01,0.0,-0.73,-2.9,0.05,0.02,-0.7,-3.3,0.22,0.21,-0.2,-1.99,0.05,-2.53,0.01,-3.45
-186,MA,Magnocellular nucleus,CNU,Cerebral nuclei,7,363,48,True,0.0,0.0,-0.64,-2.91,0.11,0.03,-0.61,-3.33,0.17,0.21,0.02,-2.22,0.03,-2.74,0.05,-3.64
-185,MS,Medial septal nucleus,CNU,Cerebral nuclei,6,724,106,True,0.01,0.0,-0.49,-2.81,0.06,0.01,-0.6,-3.21,0.22,0.18,0.02,-2.3,0.17,-2.33,0.02,-3.06
-184,NDB,Diagonal band nucleus,CNU,Cerebral nuclei,5,347,50,True,0.02,0.0,-0.44,-2.8,0.15,0.07,-0.14,-2.9,0.26,0.16,0.01,-1.89,0.17,-2.32,0.13,-3.23
-183,TRS,Triangular nucleus of septum,CNU,Cerebral nuclei,8,578,73,True,-0.01,0.0,-0.98,-3.02,-0.0,0.0,-0.88,-3.4,0.06,0.03,0.02,-2.62,0.07,-2.3,0.0,-3.57
-182,BST,Bed nuclei of the stria terminalis,CNU,Cerebral nuclei,17,1797,207,True,-0.0,0.0,-1.07,-2.8,0.03,0.0,-1.01,-3.41,0.16,0.09,-0.4,-2.43,0.05,-2.99,0.02,-3.69
-181,VAL,Ventral anterior-lateral complex of the thalamus,TH,Thalamus,11,1544,295,True,0.03,0.0,-0.65,-2.56,0.12,0.05,-0.45,-3.06,0.33,0.3,0.16,-1.69,0.13,-2.19,0.13,-2.93
-180,VM,Ventral medial nucleus of the thalamus,TH,Thalamus,19,790,118,True,0.05,0.02,-0.45,-2.48,0.11,0.03,-0.64,-3.09,0.23,0.27,0.19,-1.85,0.05,-2.44,0.06,-3.14
-179,VPL,Ventral posterolateral nucleus of the thalamus,TH,Thalamus,24,2799,436,True,0.02,0.0,-0.7,-2.58,0.15,0.05,-0.55,-3.1,0.19,0.16,-0.19,-2.02,0.13,-2.28,0.13,-2.83
-178,VPLpc,Ventral posterolateral nucleus of the thalamus parvicellular part,TH,Thalamus,12,527,80,True,0.0,0.0,-0.81,-2.98,0.06,0.03,-0.81,-3.4,0.14,0.31,0.11,-1.7,0.06,-2.53,0.03,-3.9
-177,VPM,Ventral posteromedial nucleus of the thalamus,TH,Thalamus,41,7984,1310,True,0.03,0.0,-1.13,-2.83,0.07,0.04,-0.8,-3.24,0.25,0.14,-0.28,-2.06,0.1,-2.5,0.1,-3.09
-176,VPMpc,Ventral posteromedial nucleus of the thalamus parvicellular part,TH,Thalamus,10,456,67,True,0.04,0.0,-0.92,-2.9,0.03,0.02,-0.77,-3.24,0.19,0.09,-0.38,-1.98,0.01,-2.87,0.01,-3.63
-175,PoT,Posterior triangular thalamic nucleus,TH,Thalamus,21,1591,228,True,0.01,0.0,-0.83,-2.79,0.07,0.01,-0.96,-3.31,0.27,0.18,0.26,-1.91,0.07,-2.65,0.05,-3.03
-174,SPF,Subparafascicular nucleus,TH,Thalamus,21,758,70,True,0.01,0.0,-0.46,-2.62,0.16,0.15,-0.42,-2.92,0.19,0.28,0.19,-1.85,0.1,-2.45,0.06,-3.0
-173,SPA,Subparafascicular area,TH,Thalamus,7,347,25,False,,,,,,,,,,,,,,-3.21,,-4.6
-172,PP,Peripeduncular nucleus,TH,Thalamus,4,105,13,False,,,,,,,,,,,,,,-2.23,,-3.56
-171,MG,Medial geniculate complex,TH,Thalamus,16,1557,332,True,0.04,0.0,-0.93,-2.73,0.06,0.01,-1.07,-3.15,0.29,0.19,0.33,-1.92,0.08,-2.77,0.02,-3.86
-170,LGd,Dorsal part of the lateral geniculate complex,TH,Thalamus,29,2925,557,True,0.03,0.03,-0.4,-2.73,0.05,0.01,-0.76,-3.51,0.1,0.06,-0.16,-2.42,0.03,-2.9,0.03,-3.8
-169,LP,Lateral posterior nucleus of the thalamus,TH,Thalamus,85,8064,1812,True,0.03,0.01,-0.74,-2.85,0.06,0.01,-0.9,-3.37,0.17,0.08,-0.25,-2.34,0.04,-3.03,0.06,-3.84
-168,PO,Posterior complex of the thalamus,TH,Thalamus,53,10659,2329,True,0.01,0.0,-1.27,-2.99,0.06,0.02,-1.06,-3.36,0.28,0.13,-0.45,-2.08,0.07,-2.68,0.08,-3.67
-167,POL,Posterior limiting nucleus of the thalamus,TH,Thalamus,21,1378,166,True,0.01,0.01,-0.64,-2.88,0.08,0.07,-0.85,-3.15,0.31,0.22,0.3,-1.89,0.05,-2.59,0.04,-3.58
-166,SGN,Suprageniculate nucleus,TH,Thalamus,11,571,131,True,-0.0,0.0,-0.61,-2.87,0.03,0.0,-0.83,-3.38,0.26,0.21,0.41,-2.06,0.02,-3.03,0.05,-3.56
-165,Eth,Ethmoid nucleus of the thalamus,TH,Thalamus,21,1673,366,True,0.01,0.0,-0.96,-2.7,0.13,0.04,-0.76,-3.08,0.28,0.23,-0.44,-2.09,0.07,-2.78,0.13,-3.06
-164,AV,Anteroventral nucleus of thalamus,TH,Thalamus,11,1418,203,True,0.03,0.0,-0.8,-2.82,0.05,0.05,-0.89,-3.3,0.14,0.1,-0.02,-2.31,0.07,-2.78,0.04,-3.77
-163,AM,Anteromedial nucleus,TH,Thalamus,10,902,128,True,0.0,0.0,-0.98,-2.54,0.01,0.0,-1.02,-3.39,0.14,0.02,-0.17,-2.54,0.04,-2.98,0.0,-5.0
-162,AD,Anterodorsal nucleus,TH,Thalamus,3,229,15,True,,,,,,,,,,,,,0.03,-3.05,0.01,-5.0
-161,IAM,Interanteromedial nucleus of the thalamus,TH,Thalamus,2,22,7,False,,,,,,,,,,,,,,-5.0,,-5.0
-160,IAD,Interanterodorsal nucleus of the thalamus,TH,Thalamus,4,125,23,True,0.01,0.0,-0.81,-3.12,0.06,0.0,-0.54,-3.72,0.11,0.04,0.13,-2.68,0.01,-3.4,0.03,-4.39
-159,LD,Lateral dorsal nucleus of thalamus,TH,Thalamus,25,3062,581,True,0.01,0.0,-0.77,-2.91,0.06,0.02,-0.84,-3.29,0.17,0.09,-0.17,-2.24,0.08,-2.65,0.07,-4.06
-158,IMD,Intermediodorsal nucleus of the thalamus,TH,Thalamus,2,6,1,False,,,,,,,,,,,,,,,,
-157,MD,Mediodorsal nucleus of thalamus,TH,Thalamus,23,2917,604,True,0.02,0.0,-0.91,-2.65,0.11,0.02,-0.82,-3.3,0.22,0.18,-0.23,-2.19,0.08,-2.73,0.08,-3.34
-156,SMT,Submedial nucleus of the thalamus,TH,Thalamus,6,829,140,True,0.02,0.0,-0.58,-2.58,0.12,0.06,-0.06,-2.94,0.28,0.17,-0.46,-2.38,0.09,-2.74,0.16,-3.07
-155,PR,Perireunensis nucleus,TH,Thalamus,5,196,28,True,-0.01,0.0,-0.56,-2.89,0.01,0.0,-0.64,-3.45,0.15,0.12,0.18,-2.32,0.05,-3.34,0.01,-5.0
-154,PVT,Paraventricular nucleus of the thalamus,TH,Thalamus,12,515,84,True,-0.01,0.0,-0.98,-3.4,0.03,0.0,-1.08,-3.69,0.04,0.12,-0.53,-2.79,0.05,-3.55,0.01,-5.0
-153,PT,Parataenial nucleus,TH,Thalamus,2,19,4,False,,,,,,,,,,,,,,,,
-152,RE,Nucleus of reuniens,TH,Thalamus,3,148,8,False,,,,,,,,,,,,,,-3.32,,-5.0
-151,Xi,Xiphoid thalamic nucleus,TH,Thalamus,1,7,0,False,,,,,,,,,,,,,,,,
-150,RH,Rhomboid nucleus,TH,Thalamus,3,66,6,False,,,,,,,,,,,,,,,,
-149,CM,Central medial nucleus of the thalamus,TH,Thalamus,7,270,65,True,-0.01,0.0,-0.65,-2.8,0.11,0.08,-0.59,-3.39,0.16,0.25,0.12,-2.12,0.02,-2.9,0.05,-3.02
-148,PCN,Paracentral nucleus,TH,Thalamus,12,389,84,True,0.01,0.0,-0.97,-2.81,0.0,0.02,-0.86,-3.47,0.22,0.21,-0.1,-1.78,0.05,-2.64,0.02,-3.24
-147,CL,Central lateral nucleus of the thalamus,TH,Thalamus,12,433,38,True,0.17,0.04,0.02,-2.35,0.25,0.3,-0.03,-3.07,0.25,0.43,-0.07,-2.01,0.18,-2.47,0.21,-2.99
-146,PF,Parafascicular nucleus,TH,Thalamus,10,1055,150,True,0.02,0.08,-0.0,-2.03,0.08,0.04,-0.17,-2.79,0.31,0.27,0.22,-1.97,0.17,-2.86,0.12,-2.99
-145,PIL,Posterior intralaminar thalamic nucleus,TH,Thalamus,6,180,11,False,,,,,,,,,,,,,,-5.0,,-3.16
-144,RT,Reticular nucleus of the thalamus,TH,Thalamus,25,3177,421,True,0.02,0.0,-0.73,-2.42,0.1,0.07,-0.4,-2.97,0.36,0.28,0.28,-1.74,0.1,-2.13,0.1,-2.8
-143,IGL,Intergeniculate leaflet of the lateral geniculate complex,TH,Thalamus,4,179,16,True,,,,,,,,,,,,,0.04,-3.57,0.03,-5.0
-142,IntG,Intermediate geniculate nucleus,TH,Thalamus,2,35,6,False,,,,,,,,,,,,,,-1.62,,-3.11
-141,LGv,Ventral part of the lateral geniculate complex,TH,Thalamus,10,1060,143,True,0.06,0.03,-0.72,-2.99,0.11,0.03,-0.84,-3.52,0.19,0.09,-0.29,-2.32,0.05,-3.35,0.05,-4.33
-140,SubG,Subgeniculate nucleus,TH,Thalamus,1,48,7,False,,,,,,,,,,,,,,-5.0,,-3.61
-139,MH,Medial habenula,TH,Thalamus,14,308,38,True,-0.01,0.0,-0.82,-2.6,0.03,0.0,-0.83,-3.42,0.13,0.17,0.11,-2.41,0.04,-3.11,0.01,-3.27
-138,LH,Lateral habenula,TH,Thalamus,16,787,76,True,0.02,0.02,-0.76,-2.73,0.06,0.02,-0.52,-3.11,0.17,0.31,0.23,-2.12,0.02,-2.7,0.01,-3.39
-137,PVH,Paraventricular hypothalamic nucleus,HY,Hypothalamus,2,67,5,False,,,,,,,,,,,,,,,,
-136,ADP,Anterodorsal preoptic nucleus,HY,Hypothalamus,1,80,5,False,,,,,,,,,,,,,,-2.92,,-3.55
-135,AVP,Anteroventral preoptic nucleus,HY,Hypothalamus,3,161,15,False,,,,,,,,,,,,,,-2.92,,-3.85
-134,DMH,Dorsomedial nucleus of the hypothalamus,HY,Hypothalamus,4,140,16,False,,,,,,,,,,,,,,-2.9,,-3.97
-133,MEPO,Median preoptic nucleus,HY,Hypothalamus,1,32,5,False,,,,,,,,,,,,,,-4.11,,-4.24
-132,MPO,Medial preoptic area,HY,Hypothalamus,4,315,40,True,0.01,0.0,-0.63,-3.32,0.06,0.03,-0.69,-3.7,0.1,0.17,-0.21,-2.37,0.06,-3.05,0.0,-3.7
-131,PS,Parastrial nucleus,HY,Hypothalamus,2,192,35,True,-0.0,0.0,-0.59,-3.03,0.04,0.0,-0.65,-3.21,0.22,0.11,-0.12,-2.09,0.12,-2.83,0.03,-5.0
-130,PVp,Periventricular hypothalamic nucleus posterior part,HY,Hypothalamus,1,3,0,False,,,,,,,,,,,,,,,,
-129,SFO,Subfornical organ,HY,Hypothalamus,1,1,0,False,,,,,,,,,,,,,,,,
-128,VLPO,Ventrolateral preoptic nucleus,HY,Hypothalamus,1,16,0,False,,,,,,,,,,,,,,,,
-127,AHN,Anterior hypothalamic nucleus,HY,Hypothalamus,4,180,10,False,,,,,,,,,,,,,,-3.13,,-4.05
-126,LM,Lateral mammillary nucleus,HY,Hypothalamus,2,34,8,False,,,,,,,,,,,,,,-2.49,,-4.4
-125,MM,Medial mammillary nucleus,HY,Hypothalamus,4,276,5,False,,,,,,,,,,,,,,-5.0,,-3.02
-124,SUM,Supramammillary nucleus,HY,Hypothalamus,5,242,10,False,,,,,,,,,,,,,,-2.45,,-5.0
-123,MPN,Medial preoptic nucleus,HY,Hypothalamus,1,24,2,False,,,,,,,,,,,,,,,,
-122,PMd,Dorsal premammillary nucleus,HY,Hypothalamus,1,54,2,False,,,,,,,,,,,,,,,,
-121,PMv,Ventral premammillary nucleus,HY,Hypothalamus,1,64,0,False,,,,,,,,,,,,,,,,
-120,PVHd,Paraventricular hypothalamic nucleus descending division,HY,Hypothalamus,5,109,6,False,,,,,,,,,,,,,,,,
-119,VMH,Ventromedial hypothalamic nucleus,HY,Hypothalamus,4,117,2,False,,,,,,,,,,,,,,,,
-118,PH,Posterior hypothalamic nucleus,HY,Hypothalamus,9,717,24,True,,,,,,,,,,,,,0.01,-3.64,0.0,-5.0
-117,LHA,Lateral hypothalamic area,HY,Hypothalamus,16,1147,166,True,0.01,0.0,-0.81,-2.85,0.04,0.03,-0.73,-3.4,0.18,0.21,-0.05,-1.9,0.09,-2.51,0.06,-3.08
-116,LPO,Lateral preoptic area,HY,Hypothalamus,4,291,89,True,0.01,0.0,-0.73,-2.47,0.22,0.02,-0.58,-2.97,0.4,0.34,0.15,-1.65,0.3,-2.14,0.31,-2.49
-115,PSTN,Parasubthalamic nucleus,HY,Hypothalamus,3,98,8,False,,,,,,,,,,,,,,-2.6,,-5.0
-114,PeF,Perifornical nucleus,HY,Hypothalamus,5,196,28,True,0.06,0.0,-0.28,-2.69,0.14,0.0,-0.52,-3.42,0.21,0.15,0.14,-1.97,0.05,-2.36,0.12,-2.84
-113,STN,Subthalamic nucleus,HY,Hypothalamus,4,93,6,False,,,,,,,,,,,,,,,,
-112,TU,Tuberal nucleus,HY,Hypothalamus,1,69,8,False,,,,,,,,,,,,,,-2.47,,-3.33
-111,ZI,Zona incerta,HY,Hypothalamus,50,3180,352,True,0.03,0.02,-0.45,-2.4,0.13,0.11,-0.28,-2.93,0.23,0.22,0.03,-1.7,0.11,-2.13,0.09,-2.56
-110,SCs,Superior colliculus sensory related,MB,Midbrain,31,2259,185,True,0.02,0.02,-0.6,-2.62,0.09,0.06,-0.71,-3.04,0.21,0.19,0.07,-1.69,0.07,-2.54,0.08,-3.01
-109,IC,Inferior colliculus,MB,Midbrain,26,5812,458,True,0.01,0.0,-0.64,-2.54,0.07,0.0,-1.08,-3.08,0.44,0.3,0.33,-1.72,0.11,-2.34,0.05,-3.33
-108,NB,Nucleus of the brachium of the inferior colliculus,MB,Midbrain,4,280,23,True,0.06,0.0,-0.01,-2.6,0.1,0.0,-0.26,-3.09,0.39,0.38,1.16,-1.61,0.08,-2.57,-0.01,-5.0
-107,SAG,Nucleus sagulum,MB,Midbrain,4,253,51,True,0.08,0.04,-0.34,-2.69,0.12,0.0,-0.87,-3.41,0.22,0.17,0.22,-2.26,0.04,-2.71,0.04,-3.74
-106,PBG,Parabigeminal nucleus,MB,Midbrain,3,146,14,True,,,,,,,,,,,,,0.13,-1.76,0.1,-2.8
-105,SNr,Substantia nigra reticular part,MB,Midbrain,21,1369,149,True,0.06,0.0,0.01,-2.06,0.23,0.12,-0.03,-2.68,0.3,0.24,0.21,-1.67,0.12,-1.89,0.1,-2.47
-104,VTA,Ventral tegmental area,MB,Midbrain,8,310,17,False,,,,,,,,,,,,,,,,
-103,RR,Midbrain reticular nucleus retrorubral area,MB,Midbrain,7,430,60,True,0.03,0.0,-0.66,-2.43,0.05,0.05,-0.66,-2.79,0.13,0.12,-0.13,-1.87,0.15,-5.0,0.04,-5.0
-102,MRN,Midbrain reticular nucleus,MB,Midbrain,137,23026,2678,True,0.06,0.01,-0.2,-2.31,0.21,0.11,-0.26,-2.83,0.35,0.29,-0.12,-1.65,0.14,-2.18,0.18,-2.69
-101,SCm,Superior colliculus motor related,MB,Midbrain,78,14140,1666,True,0.06,0.01,-0.33,-2.35,0.19,0.1,-0.26,-2.83,0.34,0.31,0.0,-1.57,0.15,-2.18,0.19,-2.63
-100,PAG,Periaqueductal gray,MB,Midbrain,55,6968,733,True,0.02,0.01,-0.63,-2.55,0.12,0.05,-0.79,-3.01,0.28,0.26,-0.11,-1.79,0.12,-2.32,0.1,-3.03
-99,APN,Anterior pretectal nucleus,MB,Midbrain,63,14098,1543,True,0.06,0.01,-0.54,-2.53,0.19,0.07,-0.2,-3.02,0.31,0.19,0.1,-1.89,0.15,-2.34,0.21,-2.92
-98,MPT,Medial pretectal area,MB,Midbrain,2,22,0,False,,,,,,,,,,,,,,,,
-97,NOT,Nucleus of the optic tract,MB,Midbrain,25,835,92,True,0.09,0.07,-0.04,-2.61,0.12,0.08,-0.43,-3.21,0.13,0.08,-0.18,-2.28,0.05,-2.78,0.05,-3.12
-96,NPC,Nucleus of the posterior commissure,MB,Midbrain,12,804,71,True,0.06,0.0,-0.24,-2.29,0.18,0.19,-0.01,-2.77,0.37,0.47,0.17,-1.69,0.13,-2.28,0.25,-2.6
-95,OP,Olivary pretectal nucleus,MB,Midbrain,5,146,39,True,0.1,0.08,-0.03,-2.52,0.12,0.03,-0.6,-3.45,0.13,0.26,0.18,-2.28,0.01,-3.15,0.02,-5.0
-94,PPT,Posterior pretectal nucleus,MB,Midbrain,13,411,70,True,0.02,0.0,-0.11,-2.5,0.09,0.0,-0.26,-3.06,0.07,0.11,-0.16,-2.38,0.02,-2.68,0.07,-2.81
-93,RPF,Retroparafascicular nucleus,MB,Midbrain,4,377,42,True,0.02,0.02,-0.3,-2.55,0.22,0.26,-0.01,-2.65,0.34,0.31,0.23,-1.99,0.15,-2.18,0.22,-2.13
-92,CUN,Cuneiform nucleus,MB,Midbrain,11,1013,100,True,0.02,0.0,-0.51,-2.59,0.05,0.04,-0.34,-3.2,0.37,0.36,0.39,-1.7,0.09,-2.32,0.04,-3.03
-91,RN,Red nucleus,MB,Midbrain,24,3768,429,True,0.06,0.0,-0.21,-2.28,0.15,0.08,-0.13,-2.73,0.29,0.23,0.12,-1.65,0.12,-2.2,0.18,-2.65
-90,III,Oculomotor nucleus,MB,Midbrain,3,47,7,False,,,,,,,,,,,,,,,,
-89,MA3,Medial accesory oculomotor nucleus,MB,Midbrain,1,6,0,False,,,,,,,,,,,,,,,,
-88,EW,Edinger-Westphal nucleus,MB,Midbrain,2,3,0,False,,,,,,,,,,,,,,,,
-87,Pa4,Paratrochlear nucleus,MB,Midbrain,1,67,3,False,,,,,,,,,,,,,,,,
-86,VTN,Ventral tegmental nucleus,MB,Midbrain,2,130,11,False,,,,,,,,,,,,,,-2.16,,-3.13
-85,AT,Anterior tegmental nucleus,MB,Midbrain,4,218,23,False,,,,,,,,,,,,,,-2.32,,-2.95
-84,DT,Dorsal terminal nucleus of the accessory optic tract,MB,Midbrain,3,54,9,False,,,,,,,,,,,,,,-2.78,,-3.38
-83,MT,Medial terminal nucleus of the accessory optic tract,MB,Midbrain,2,25,0,False,,,,,,,,,,,,,,,,
-82,SNc,Substantia nigra compact part,MB,Midbrain,9,163,36,True,0.05,0.04,-0.15,-2.63,0.15,0.0,-0.35,-3.06,0.34,0.15,0.49,-1.89,0.05,-2.94,0.11,-5.0
-81,PPN,Pedunculopontine nucleus,MB,Midbrain,19,2977,369,True,0.04,0.0,-0.8,-2.44,0.13,0.03,-0.91,-3.0,0.28,0.17,0.1,-1.88,0.09,-2.45,0.1,-3.18
-80,IF,Interfascicular nucleus raphe,MB,Midbrain,1,127,18,False,,,,,,,,,,,,,,-1.82,,-1.54
-79,IPN,Interpeduncular nucleus,MB,Midbrain,3,561,10,False,,,,,,,,,,,,,,-2.06,,-2.8
-78,RL,Rostral linear nucleus raphe,MB,Midbrain,1,40,12,False,,,,,,,,,,,,,,-1.42,,-2.81
-77,CLI,Central linear nucleus raphe,MB,Midbrain,6,361,89,True,0.01,0.0,-0.74,-2.67,0.08,0.09,-0.26,-2.86,0.23,0.25,0.12,-1.6,0.19,-1.89,0.1,-2.64
-76,DR,Dorsal nucleus raphe,MB,Midbrain,2,370,42,True,0.02,0.0,-0.56,-3.27,0.04,0.0,-0.55,-3.35,0.23,0.14,-0.24,-2.37,0.08,-2.73,0.05,-3.61
-75,NLL,Nucleus of the lateral lemniscus,HB,Hindbrain,8,1868,184,True,0.01,0.0,-0.76,-2.78,0.07,0.03,-0.72,-3.2,0.29,0.16,0.2,-1.84,0.06,-2.52,0.0,-3.35
-74,PSV,Principal sensory nucleus of the trigeminal,HB,Hindbrain,8,1443,115,True,0.01,0.0,-0.62,-2.44,0.09,0.02,-0.59,-3.16,0.23,0.27,0.19,-1.82,0.07,-2.13,0.07,-3.19
-73,PB,Parabrachial nucleus,HB,Hindbrain,28,3464,306,True,0.02,0.0,-0.72,-2.65,0.06,0.04,-0.96,-2.99,0.18,0.23,-0.24,-1.85,0.06,-2.32,0.08,-3.16
-72,SOC,Superior olivary complex,HB,Hindbrain,9,1139,35,True,0.01,0.0,0.24,-1.93,0.06,0.16,-0.01,-2.65,0.27,0.32,0.54,-1.31,0.04,-2.19,0.01,-2.65
-71,DTN,Dorsal tegmental nucleus,HB,Hindbrain,3,164,21,False,,,,,,,,,,,,,,-3.37,,-2.75
-70,PDTg,Posterodorsal tegmental nucleus,HB,Hindbrain,2,194,12,False,,,,,,,,,,,,,,-2.83,,-3.11
-69,PCG,Pontine central gray,HB,Hindbrain,9,1048,82,True,0.01,0.0,-0.59,-2.53,0.03,0.06,-0.34,-3.05,0.23,0.28,-0.06,-1.76,0.05,-3.2,0.08,-2.96
-68,PG,Pontine gray,HB,Hindbrain,4,140,9,False,,,,,,,,,,,,,,-2.94,,-5.0
-67,PRNc,Pontine reticular nucleus caudal part,HB,Hindbrain,11,1985,280,True,0.11,0.01,-0.0,-2.11,0.12,0.1,-0.33,-2.69,0.17,0.26,-0.03,-1.61,0.13,-2.03,0.15,-2.41
-66,SUT,Supratrigeminal nucleus,HB,Hindbrain,14,1430,103,True,0.0,0.0,-0.26,-2.42,0.04,0.05,-0.22,-2.87,0.15,0.2,0.22,-1.53,-0.01,-2.29,0.03,-2.74
-65,TRN,Tegmental reticular nucleus,HB,Hindbrain,10,1463,193,True,0.09,0.01,-0.08,-2.3,0.2,0.11,-0.11,-2.86,0.25,0.27,0.35,-1.6,0.11,-2.28,0.17,-2.65
-64,V,Motor nucleus of trigeminal,HB,Hindbrain,10,1678,166,True,0.01,0.0,-0.08,-1.97,0.05,0.04,-0.56,-2.49,0.4,0.26,0.25,-1.37,0.04,-2.23,0.07,-2.7
-63,P5,Peritrigeminal zone,HB,Hindbrain,6,485,46,True,-0.01,0.0,-0.61,-2.47,0.02,0.0,-0.67,-2.93,0.08,0.09,0.09,-1.71,-0.02,-2.59,0.02,-3.6
-62,PC5,Parvicellular motor 5 nucleus,HB,Hindbrain,5,306,35,True,0.02,0.0,-0.6,-2.62,0.06,0.03,-0.56,-2.98,0.21,0.21,-0.16,-2.3,-0.04,-3.0,0.07,-3.79
-61,I5,Intertrigeminal nucleus,HB,Hindbrain,4,366,42,True,-0.04,0.0,-0.56,-2.37,0.06,0.0,-0.41,-2.76,0.37,0.33,0.41,-1.56,0.14,-2.17,0.16,-2.93
-60,CS,Superior central nucleus raphe,HB,Hindbrain,11,2359,391,True,0.04,0.01,-0.6,-2.59,0.16,0.04,-0.79,-2.97,0.28,0.11,-0.28,-2.02,0.12,-2.88,0.14,-5.0
-59,LC,Locus ceruleus,HB,Hindbrain,1,2,0,False,,,,,,,,,,,,,,,,
-58,LDT,Laterodorsal tegmental nucleus,HB,Hindbrain,2,567,51,True,0.04,0.0,-0.52,-2.82,0.15,0.02,-0.62,-3.16,0.32,0.2,0.24,-1.92,0.1,-2.49,0.15,-3.02
-57,NI,Nucleus incertus,HB,Hindbrain,6,373,24,False,,,,,,,,,,,,,,-2.71,,-2.77
-56,PRNr,Pontine reticular nucleus,HB,Hindbrain,28,7039,770,True,0.07,0.01,-0.35,-2.36,0.24,0.1,-0.32,-2.88,0.26,0.17,0.42,-1.82,0.15,-2.35,0.29,-2.68
-55,AP,Area postrema,HB,Hindbrain,1,183,3,False,,,,,,,,,,,,,,,,
-54,DCO,Dorsal cochlear nucleus,HB,Hindbrain,16,1791,312,True,0.03,0.0,-0.71,-2.5,0.09,0.03,-0.45,-3.17,0.38,0.31,-0.1,-1.74,0.1,-2.26,0.08,-2.94
-53,VCO,Ventral cochlear nucleus,HB,Hindbrain,6,850,141,True,0.01,0.0,-0.4,-2.61,0.1,0.02,-0.66,-3.06,0.46,0.3,0.25,-1.89,0.16,-2.23,0.12,-2.8
-52,CU,Cuneate nucleus,HB,Hindbrain,4,500,24,True,0.0,0.0,-0.56,-2.81,0.06,0.09,-0.57,-3.31,0.11,0.04,0.02,-1.57,-0.0,-5.0,0.02,-5.0
-51,GR,Gracile nucleus,HB,Hindbrain,1,32,9,False,,,,,,,,,,,,,,-1.91,,-4.05
-50,ECU,External cuneate nucleus,HB,Hindbrain,5,492,21,True,,,,,,,,,,,,,0.08,-2.26,0.06,-2.65
-49,NTS,Nucleus of the solitary tract,HB,Hindbrain,21,1419,124,True,-0.01,0.0,-0.81,-2.86,0.1,0.08,-0.61,-3.02,0.23,0.17,0.21,-1.66,0.08,-2.29,0.06,-2.75
-48,SPVC,Spinal nucleus of the trigeminal caudal part,HB,Hindbrain,5,590,42,True,0.03,0.0,-0.5,-2.59,0.04,0.0,-0.47,-3.34,0.27,0.19,-0.04,-1.82,0.05,-2.27,0.01,-3.35
-47,SPVI,Spinal nucleus of the trigeminal interpolar part,HB,Hindbrain,16,4127,321,True,0.01,0.0,-0.76,-2.52,0.1,0.02,-0.74,-3.01,0.26,0.22,-0.19,-1.89,0.11,-2.35,0.1,-3.11
-46,SPVO,Spinal nucleus of the trigeminal oral part,HB,Hindbrain,8,1539,129,True,0.01,0.0,-0.63,-2.74,0.07,0.01,-0.61,-3.07,0.19,0.16,0.07,-1.98,0.07,-2.25,0.09,-2.35
-45,Pa5,Paratrigeminal nucleus,HB,Hindbrain,2,75,4,False,,,,,,,,,,,,,,,,
-44,VII,Facial motor nucleus,HB,Hindbrain,6,861,63,True,0.0,0.0,-0.31,-2.38,0.24,0.16,-0.19,-2.76,0.18,0.24,0.3,-1.39,0.1,-1.69,0.11,-2.33
-43,AMB,Nucleus ambiguus,HB,Hindbrain,2,73,8,False,,,,,,,,,,,,,,-5.0,,-5.0
-42,DMX,Dorsal motor nucleus of the vagus nerve,HB,Hindbrain,3,62,2,False,,,,,,,,,,,,,,,,
-41,GRN,Gigantocellular reticular nucleus,HB,Hindbrain,17,3921,560,True,0.08,0.01,-0.0,-2.18,0.28,0.21,0.09,-2.56,0.42,0.39,0.16,-1.6,0.27,-1.75,0.44,-2.15
-40,ICB,Infracerebellar nucleus,HB,Hindbrain,8,249,65,True,-0.02,0.0,-0.39,-2.55,-0.01,0.02,-0.55,-2.86,0.2,0.16,0.04,-1.66,0.09,-2.01,0.05,-3.35
-39,IO,Inferior olivary complex,HB,Hindbrain,4,100,2,False,,,,,,,,,,,,,,,,
-38,IRN,Intermediate reticular nucleus,HB,Hindbrain,34,6481,744,True,0.01,0.0,-0.28,-2.37,0.17,0.13,-0.23,-2.87,0.42,0.32,0.31,-1.6,0.15,-2.1,0.19,-2.48
-37,ISN,Inferior salivatory nucleus,HB,Hindbrain,1,14,4,False,,,,,,,,,,,,,,,,
-36,LIN,Linear nucleus of the medulla,HB,Hindbrain,2,61,11,False,,,,,,,,,,,,,,-2.04,,-3.11
-35,LRN,Lateral reticular nucleus,HB,Hindbrain,5,372,31,True,-0.0,0.0,-0.21,-2.84,0.07,0.0,-0.36,-2.98,0.25,0.29,0.13,-2.33,0.14,-2.04,0.13,-2.71
-34,MARN,Magnocellular reticular nucleus,HB,Hindbrain,5,449,83,True,0.06,0.0,-0.53,-2.18,0.21,0.09,-0.67,-2.88,0.44,0.29,0.31,-1.83,0.28,-1.82,0.42,-2.6
-33,MDRN,Medullary reticular nucleus,HB,Hindbrain,9,2310,180,True,0.02,0.0,-0.66,-2.11,0.09,0.05,-0.23,-2.62,0.36,0.1,0.05,-1.35,0.16,-2.12,0.08,-2.94
-32,PARN,Parvicellular reticular nucleus,HB,Hindbrain,21,2560,423,True,0.01,0.0,-0.87,-2.5,0.11,0.05,-0.43,-2.82,0.41,0.26,0.14,-1.7,0.1,-2.3,0.18,-2.72
-31,PAS,Parasolitary nucleus,HB,Hindbrain,2,6,1,False,,,,,,,,,,,,,,,,
-30,PGRN,Paragigantocellular reticular nucleus,HB,Hindbrain,13,1166,120,True,0.07,0.0,-0.23,-2.33,0.17,0.07,-0.29,-2.73,0.24,0.26,0.09,-2.05,0.13,-2.04,0.25,-2.36
-29,PRP,Nucleus prepositus,HB,Hindbrain,9,957,70,True,0.03,0.01,-0.26,-2.55,0.06,0.0,-0.49,-3.2,0.19,0.1,0.06,-2.14,0.1,-2.27,0.07,-2.81
-28,LAV,Lateral vestibular nucleus,HB,Hindbrain,12,840,169,True,0.0,0.0,-0.54,-2.66,0.11,0.05,-0.65,-2.97,0.25,0.28,0.0,-1.81,0.12,-2.02,0.12,-2.81
-27,MV,Medial vestibular nucleus,HB,Hindbrain,24,5268,672,True,0.03,0.0,-0.8,-2.52,0.16,0.09,-0.27,-2.8,0.34,0.29,0.2,-1.6,0.16,-2.26,0.2,-2.74
-26,SPIV,Spinal vestibular nucleus,HB,Hindbrain,19,2162,327,True,-0.0,0.0,-0.55,-2.51,0.14,0.1,-0.52,-2.93,0.25,0.15,-0.15,-1.87,0.04,-2.02,0.17,-2.54
-25,SUV,Superior vestibular nucleus,HB,Hindbrain,13,1502,277,True,0.01,0.0,-0.26,-2.64,0.06,0.06,-0.34,-2.88,0.26,0.22,-0.01,-1.72,0.15,-2.09,0.13,-2.68
-24,x,Nucleus x,HB,Hindbrain,4,344,45,True,0.03,0.0,-0.51,-2.44,0.01,0.0,-0.53,-3.1,0.13,0.02,0.13,-1.74,0.05,-2.24,0.04,-3.27
-23,XII,Hypoglossal nucleus,HB,Hindbrain,2,347,12,False,,,,,,,,,,,,,,-2.42,,-3.0
-22,y,Nucleus y,HB,Hindbrain,1,18,6,False,,,,,,,,,,,,,,-2.02,,-2.99
-21,RM,Nucleus raphe magnus,HB,Hindbrain,1,12,0,False,,,,,,,,,,,,,,,,
-20,RO,Nucleus raphe obscurus,HB,Hindbrain,1,81,1,False,,,,,,,,,,,,,,,,
-19,LING,Lingula (I),CB,Cerebellum,8,216,45,True,0.05,0.0,-0.47,-2.69,0.11,0.08,-0.27,-3.06,0.21,0.38,-0.1,-1.89,0.07,-2.62,0.11,-2.95
-18,CENT2,Lobule II,CB,Cerebellum,17,4105,613,True,0.02,0.0,-0.95,-2.51,0.21,0.06,-0.7,-2.83,0.27,0.25,0.05,-1.73,0.16,-2.55,0.27,-2.88
-17,CENT3,Lobule III,CB,Cerebellum,29,4549,663,True,0.02,0.0,-0.59,-2.43,0.08,0.06,-0.26,-3.03,0.19,0.15,0.07,-1.65,0.12,-2.16,0.17,-2.64
-16,CUL4 5,Lobules IV-V,CB,Cerebellum,36,9036,1207,True,0.03,0.0,-0.86,-2.6,0.11,0.05,-0.45,-3.0,0.3,0.21,0.08,-1.79,0.16,-2.17,0.22,-2.86
-15,DEC,Declive (VI),CB,Cerebellum,8,1780,190,True,-0.01,0.0,-0.86,-2.65,0.03,0.09,-0.55,-3.05,0.33,0.19,0.04,-1.9,0.07,-2.55,0.06,-2.71
-14,FOTU,Folium-tuber vermis (VII),CB,Cerebellum,7,594,100,True,0.01,0.0,-0.58,-2.66,0.18,0.11,-0.2,-2.82,0.24,0.12,0.03,-1.82,0.15,-2.17,0.29,-2.66
-13,PYR,Pyramus (VIII),CB,Cerebellum,7,1043,207,True,0.02,0.0,-0.87,-2.35,0.17,0.06,-0.35,-2.97,0.13,0.08,-0.18,-1.58,0.12,-2.15,0.12,-3.2
-12,UVU,Uvula (IX),CB,Cerebellum,11,2273,245,True,0.03,0.0,-0.62,-2.1,0.04,0.01,-0.46,-2.65,0.16,0.08,0.07,-1.21,0.1,-2.57,0.06,-4.08
-11,NOD,Nodulus (X),CB,Cerebellum,10,1282,165,True,-0.04,0.0,-0.27,-2.57,0.04,0.08,-0.3,-2.99,0.21,0.22,-0.03,-1.84,0.02,-2.09,0.04,-2.87
-10,SIM,Simple lobule,CB,Cerebellum,23,6301,893,True,0.02,0.0,-0.54,-2.5,0.17,0.1,-0.44,-2.84,0.39,0.24,0.18,-1.75,0.15,-2.19,0.2,-2.71
-9,ANcr1,Crus 1,CB,Cerebellum,12,3321,421,True,0.01,0.01,-0.32,-2.21,0.11,0.04,-0.3,-2.55,0.27,0.19,-0.25,-1.88,0.08,-2.48,0.07,-5.0
-8,ANcr2,Crus 2,CB,Cerebellum,19,4383,519,True,-0.01,0.0,-0.71,-2.22,0.07,0.01,-0.54,-2.7,0.41,0.24,0.15,-1.65,0.11,-2.37,0.16,-5.0
-7,PRM,Paramedian lobule,CB,Cerebellum,19,3959,382,True,0.02,0.0,-0.19,-2.32,0.09,0.06,-0.45,-2.98,0.36,0.31,0.14,-1.73,0.15,-2.06,0.2,-2.88
-6,COPY,Copula pyramidis,CB,Cerebellum,17,3287,284,True,0.02,0.0,-0.69,-2.44,0.06,0.07,-0.48,-2.99,0.25,0.14,-0.06,-1.9,0.11,-2.04,0.12,-2.77
-5,PFL,Paraflocculus,CB,Cerebellum,8,1409,133,True,0.02,0.0,-0.56,-2.6,0.08,0.04,-0.33,-3.32,0.3,0.14,0.08,-2.14,0.14,-2.58,0.07,-3.4
-4,FL,Flocculus,CB,Cerebellum,5,469,39,True,0.03,0.0,-0.45,-2.58,0.02,0.0,-0.36,-3.27,0.14,0.17,0.01,-2.16,0.04,-2.26,0.05,-3.14
-3,FN,Fastigial nucleus,CB,Cerebellum,5,242,46,False,,,,,,,,,,,,,,-2.25,,-2.31
-2,IP,Interposed nucleus,CB,Cerebellum,31,2767,619,True,0.02,0.01,-0.32,-2.53,0.12,0.05,-0.39,-2.97,0.35,0.31,0.05,-1.75,0.17,-2.17,0.17,-2.59
-1,DN,Dentate nucleus,CB,Cerebellum,10,731,197,True,0.03,0.0,-0.22,-2.45,0.15,0.09,-0.45,-3.04,0.41,0.33,0.48,-1.64,0.14,-2.19,0.27,-2.57
-0,VeCB,Vestibulocerebellar nucleus,CB,Cerebellum,6,427,70,True,0.02,0.0,-0.03,-2.3,0.1,0.03,-0.51,-3.07,0.25,0.24,0.14,-1.76,0.18,-2.08,0.16,-2.47
+0,FRP,Frontal pole cerebral cortex,Isocortex,Isocortex,11,812,88,True,-0.0,0.0,-0.22,-2.39,0.14,0.05,-0.1,-3.14,0.19,0.16,-0.32,-2.45,0.13,-2.52,0.06,-3.01
+1,MOp,Primary motor area,Isocortex,Isocortex,37,8796,1458,True,0.01,0.0,-0.98,-2.73,0.14,0.05,-0.67,-3.15,0.34,0.24,-0.11,-2.09,0.14,-2.46,0.23,-2.79
+2,MOs,Secondary motor area,Isocortex,Isocortex,60,10023,1293,True,0.04,0.0,-0.59,-2.6,0.17,0.07,-0.36,-3.23,0.25,0.16,-0.26,-2.22,0.08,-2.29,0.09,-2.87
+3,SSp-n,Primary somatosensory area nose,Isocortex,Isocortex,9,1214,72,True,-0.01,0.0,-0.86,-2.96,0.18,0.02,-0.57,-3.36,0.11,0.09,0.4,-1.99,0.02,-2.81,0.07,-4.74
+4,SSp-bfd,Primary somatosensory area barrel field,Isocortex,Isocortex,32,5226,488,True,0.01,0.01,-1.04,-3.03,0.1,0.04,-0.82,-3.32,0.17,0.1,-0.48,-2.59,0.06,-2.6,0.05,-3.15
+5,SSp-ll,Primary somatosensory area lower limb,Isocortex,Isocortex,13,1434,130,True,0.01,0.0,-0.88,-2.73,0.08,0.06,-0.82,-3.21,0.14,0.08,-0.21,-2.19,0.08,-2.23,0.14,-2.81
+6,SSp-m,Primary somatosensory area mouth,Isocortex,Isocortex,13,3567,354,True,-0.01,0.0,-1.03,-2.92,0.08,0.01,-0.94,-3.4,0.32,0.19,-0.09,-2.08,0.07,-2.77,0.08,-3.4
+7,SSp-ul,Primary somatosensory area upper limb,Isocortex,Isocortex,16,1761,196,True,0.05,0.01,-0.44,-2.58,0.19,0.08,-0.38,-2.91,0.18,0.18,-0.06,-2.31,0.12,-2.46,0.22,-2.71
+8,SSp-tr,Primary somatosensory area trunk,Isocortex,Isocortex,15,1930,303,True,0.01,0.0,-1.02,-2.88,0.07,0.04,-0.91,-3.22,0.12,0.04,-0.27,-2.31,0.1,-2.8,0.06,-3.39
+9,SSp-un,Primary somatosensory area unassigned,Isocortex,Isocortex,8,600,67,True,-0.01,0.0,-0.88,-2.63,0.13,0.22,-0.36,-2.93,0.12,0.0,0.16,-2.17,0.16,-2.09,0.07,-3.62
+10,SSs,Supplemental somatosensory area,Isocortex,Isocortex,15,3168,439,True,0.01,0.0,-1.04,-3.01,0.08,0.01,-0.75,-3.22,0.26,0.16,-0.23,-2.4,0.12,-2.33,0.09,-2.71
+11,GU,Gustatory areas,Isocortex,Isocortex,5,445,69,True,-0.0,0.0,-0.78,-2.84,0.02,0.0,-0.76,-3.44,0.36,0.28,0.17,-1.78,0.04,-2.94,0.05,-4.16
+12,VISC,Visceral area,Isocortex,Isocortex,6,375,61,True,0.01,0.0,-0.9,-3.41,0.06,0.02,-1.02,-3.58,0.23,0.13,-0.31,-2.64,0.18,-2.63,0.19,-3.03
+13,AUDd,Dorsal auditory area,Isocortex,Isocortex,9,991,133,True,0.04,0.0,-0.57,-2.9,0.14,0.05,-0.72,-3.36,0.19,0.39,0.42,-1.97,0.14,-2.09,0.12,-3.01
+14,AUDp,Primary auditory area,Isocortex,Isocortex,7,1450,167,True,-0.01,0.0,-0.96,-2.83,0.08,0.01,-0.78,-3.27,0.44,0.28,0.54,-1.77,0.06,-2.59,0.04,-5.0
+15,AUDpo,Posterior auditory area,Isocortex,Isocortex,6,439,46,True,0.06,0.02,-0.8,-3.58,0.07,0.02,-0.58,-3.37,0.24,0.11,0.3,-2.0,0.07,-2.89,0.02,-5.0
+16,AUDv,Ventral auditory area,Isocortex,Isocortex,10,1061,253,True,0.01,0.01,-0.83,-3.13,0.08,0.0,-0.99,-3.43,0.39,0.22,-0.09,-2.44,0.11,-2.62,0.04,-3.61
+17,VISal,Anterolateral visual area,Isocortex,Isocortex,5,697,95,True,0.01,0.01,-0.41,-2.85,0.14,0.05,-0.61,-3.38,0.12,0.03,-0.16,-2.37,0.15,-2.57,0.12,-4.36
+18,VISam,Anteromedial visual area,Isocortex,Isocortex,26,2581,374,True,0.05,0.02,-0.51,-2.69,0.09,0.02,-0.77,-3.31,0.12,0.04,-0.14,-2.66,0.1,-2.76,0.03,-3.78
+19,VISl,Lateral visual area,Isocortex,Isocortex,14,1559,151,True,0.04,0.04,-0.45,-2.91,0.07,0.02,-0.63,-3.58,0.06,0.01,-0.32,-2.91,0.02,-3.0,0.02,-3.16
+20,VISp,Primary visual area,Isocortex,Isocortex,65,8559,880,True,0.02,0.03,-0.44,-2.73,0.06,0.02,-0.97,-3.39,0.11,0.05,-0.28,-2.66,0.06,-2.9,0.03,-4.1
+21,VISpl,Posterolateral visual area,Isocortex,Isocortex,14,523,95,True,0.07,0.01,-1.03,-3.09,0.11,0.0,-1.03,-3.46,0.18,0.05,-0.21,-2.86,0.06,-3.61,0.03,-5.0
+22,VISpm,posteromedial visual area,Isocortex,Isocortex,22,1995,241,True,0.01,0.02,-0.41,-2.76,0.07,0.0,-0.55,-3.47,0.1,0.03,-0.46,-2.72,0.05,-2.92,0.03,-4.54
+23,VISli,Laterointermediate area,Isocortex,Isocortex,9,656,83,True,0.04,0.02,-0.59,-2.84,0.08,0.04,-0.62,-3.49,0.13,0.06,-0.34,-2.64,0.08,-2.88,0.05,-3.5
+24,VISpor,Postrhinal area,Isocortex,Isocortex,8,889,99,True,0.01,0.01,-0.9,-3.03,0.07,0.01,-1.0,-3.49,0.06,0.03,-0.74,-2.71,0.05,-4.32,0.04,-4.32
+25,ACAd,Anterior cingulate area dorsal part,Isocortex,Isocortex,24,1960,369,True,0.04,0.0,-0.66,-2.65,0.11,0.07,-0.53,-3.3,0.15,0.12,-0.41,-2.54,0.08,-2.55,0.05,-3.33
+26,ACAv,Anterior cingulate area ventral part,Isocortex,Isocortex,18,1388,195,True,0.01,0.0,-1.18,-3.21,0.07,0.01,-1.19,-3.42,0.09,0.04,-0.25,-2.95,0.06,-2.84,0.01,-5.0
+27,PL,Prelimbic area,Isocortex,Isocortex,21,2165,420,True,0.03,0.0,-0.66,-2.61,0.09,0.05,-0.49,-3.13,0.18,0.17,-0.28,-2.31,0.05,-2.42,0.04,-2.82
+28,ILA,Infralimbic area,Isocortex,Isocortex,12,2008,314,True,0.01,0.0,-1.25,-3.14,0.06,0.02,-0.94,-3.61,0.13,0.08,-0.37,-2.51,0.05,-2.81,0.01,-3.42
+29,ORBl,Orbital area lateral part,Isocortex,Isocortex,8,2164,199,True,0.02,0.0,-0.83,-2.78,0.07,0.01,-0.75,-3.34,0.18,0.11,-0.12,-2.25,-0.0,-2.63,0.09,-3.52
+30,ORBm,Orbital area medial part,Isocortex,Isocortex,10,1856,313,True,0.01,0.0,-0.83,-3.08,0.04,0.02,-0.71,-3.36,0.11,0.09,-0.32,-2.48,0.09,-2.52,0.06,-3.99
+31,ORBvl,Orbital area ventrolateral part,Isocortex,Isocortex,10,3060,669,True,0.01,0.0,-0.5,-2.71,0.13,0.04,-0.43,-3.48,0.38,0.11,-0.64,-2.34,0.18,-2.51,0.11,-3.15
+32,AId,Agranular insular area dorsal part,Isocortex,Isocortex,10,1100,188,True,0.01,0.0,-0.85,-2.67,0.05,0.03,-0.79,-3.47,0.36,0.26,0.01,-2.04,0.09,-2.54,0.1,-3.26
+33,AIp,Agranular insular area posterior part,Isocortex,Isocortex,8,533,93,True,0.01,0.0,-0.92,-3.17,0.08,0.03,-0.7,-3.64,0.23,0.19,-0.35,-2.17,0.08,-3.0,0.09,-3.59
+34,AIv,Agranular insular area ventral part,Isocortex,Isocortex,8,725,149,True,0.01,0.0,-0.95,-3.17,0.03,0.03,-0.58,-3.72,0.09,0.07,-0.58,-2.93,0.01,-3.54,0.0,-5.0
+35,RSPagl,Retrosplenial area lateral agranular part,Isocortex,Isocortex,36,2281,310,True,-0.01,0.0,-0.92,-2.89,0.05,0.02,-0.9,-3.33,0.08,0.08,-0.24,-2.57,0.03,-2.75,0.02,-3.45
+36,RSPd,Retrosplenial area dorsal part,Isocortex,Isocortex,38,3088,318,True,-0.0,0.0,-1.09,-3.01,0.02,0.01,-0.85,-3.38,0.06,0.03,-0.21,-2.78,0.04,-2.87,0.02,-3.81
+37,RSPv,Retrosplenial area ventral part,Isocortex,Isocortex,38,4617,528,True,0.01,0.01,-0.74,-2.84,0.05,0.02,-1.02,-3.33,0.1,0.06,-0.4,-2.6,0.13,-2.72,0.02,-3.7
+38,VISa,Anterior area,Isocortex,Isocortex,56,6222,940,True,0.03,0.01,-0.85,-2.95,0.1,0.03,-0.8,-3.24,0.13,0.05,-0.06,-2.58,0.07,-2.68,0.05,-3.49
+39,VISrl,Rostrolateral visual area,Isocortex,Isocortex,10,1191,75,True,0.0,0.0,-0.99,-2.76,0.08,0.04,-0.87,-3.25,0.13,0.06,-0.25,-2.45,0.17,-2.47,0.05,-3.41
+40,TEa,Temporal association areas,Isocortex,Isocortex,11,1040,166,True,0.02,0.0,-1.03,-3.33,0.05,0.01,-1.04,-3.74,0.22,0.13,-0.35,-2.69,0.01,-3.25,0.01,-4.12
+41,PERI,Perirhinal area,Isocortex,Isocortex,7,163,36,False,,,,,,,,,,,,,,,,
+42,ECT,Ectorhinal area,Isocortex,Isocortex,9,729,85,True,-0.01,0.0,-0.96,-3.45,0.05,0.0,-0.87,-3.58,0.02,0.03,-0.68,-2.85,0.01,-4.21,0.0,-5.0
+43,MOB,Main olfactory bulb,OLF,Olfactory areas,3,1227,140,True,-0.02,0.0,-1.09,-3.33,0.02,0.0,-0.8,-3.51,0.0,0.0,-0.43,-2.77,-0.0,-3.83,-0.0,-5.0
+44,AOB,Accessory olfactory bulb,OLF,Olfactory areas,2,90,0,False,,,,,,,,,,,,,,,,
+45,AON,Anterior olfactory nucleus,OLF,Olfactory areas,15,3534,428,True,-0.01,0.0,-1.09,-3.12,0.06,0.01,-0.99,-3.62,0.11,0.03,-0.54,-2.6,0.03,-2.88,0.01,-3.76
+46,TTd,Taenia tecta dorsal part,OLF,Olfactory areas,14,1771,270,True,-0.0,0.0,-1.17,-3.4,0.04,0.0,-1.06,-3.58,0.15,0.05,-0.18,-2.49,0.03,-2.9,0.01,-3.53
+47,TTv,Taenia tecta ventral part,OLF,Olfactory areas,1,7,0,False,,,,,,,,,,,,,,,,
+48,DP,Dorsal peduncular area,OLF,Olfactory areas,19,1637,318,True,0.02,0.0,-1.17,-3.44,0.04,0.01,-1.17,-3.72,0.11,0.1,0.01,-2.49,0.01,-2.91,0.02,-3.62
+49,PIR,Piriform area,OLF,Olfactory areas,33,3735,614,True,0.01,0.0,-1.37,-3.51,0.02,0.0,-1.52,-3.71,0.06,0.04,-0.65,-2.79,0.02,-3.92,0.0,-5.0
+50,COAa,Cortical amygdalar area anterior part,OLF,Olfactory areas,4,113,17,False,,,,,,,,,,,,,,,,
+51,COAp,Cortical amygdalar area posterior part,OLF,Olfactory areas,20,1899,121,True,-0.01,0.0,-1.04,-3.05,0.0,0.01,-1.04,-3.43,0.07,0.08,-0.21,-2.17,0.01,-2.67,0.0,-5.0
+52,PAA,Piriform-amygdalar area,OLF,Olfactory areas,5,490,82,True,0.0,0.0,-1.1,-3.54,0.01,0.0,-1.05,-3.93,0.23,0.12,-0.51,-2.65,0.0,-3.41,0.01,-4.54
+53,TR,Postpiriform transition area,OLF,Olfactory areas,9,508,37,True,-0.01,0.0,-0.93,-3.26,0.02,0.0,-0.72,-3.44,0.03,0.0,-0.38,-2.32,0.01,-3.48,0.0,-5.0
+54,CA1,Field CA1,HPF,Hippocampal formation,168,23169,1807,True,0.01,0.0,-1.14,-3.03,0.03,0.01,-1.1,-3.35,0.1,0.06,-0.04,-2.44,0.07,-2.7,0.02,-3.86
+55,CA2,Field CA2,HPF,Hippocampal formation,33,656,39,True,,,,,,,,,,,,,,,,
+56,CA3,Field CA3,HPF,Hippocampal formation,88,12085,950,True,0.01,0.0,-0.76,-2.81,0.04,0.02,-0.79,-3.35,0.1,0.04,-0.3,-2.47,0.06,-2.67,0.02,-3.43
+57,DG,Dentate gyrus,HPF,Hippocampal formation,171,18156,1137,True,-0.0,0.0,-1.32,-3.0,0.04,0.01,-1.12,-3.34,0.11,0.11,-0.14,-2.32,0.06,-2.76,0.01,-3.65
+58,FC,Fasciola cinerea,HPF,Hippocampal formation,6,221,23,True,,,,,,,,,,,,,,,,
+59,IG,Induseum griseum,HPF,Hippocampal formation,5,134,9,False,,,,,,,,,,,,,,,,
+60,ENTl,Entorhinal area lateral part,HPF,Hippocampal formation,22,4321,585,True,0.0,0.0,-1.17,-3.02,0.04,0.0,-1.37,-3.6,0.11,0.03,-0.36,-2.76,0.03,-3.3,0.01,-4.85
+61,ENTm,Entorhinal area medial part dorsal zone,HPF,Hippocampal formation,20,4151,639,True,0.01,0.0,-1.02,-2.77,0.06,0.0,-1.12,-3.41,0.17,0.07,-0.11,-2.49,0.04,-3.4,0.02,-4.15
+62,PAR,Parasubiculum,HPF,Hippocampal formation,10,2119,117,True,0.03,0.0,-0.39,-2.83,0.09,0.02,-0.75,-3.12,0.27,0.28,0.17,-2.52,0.1,-2.7,0.04,-3.12
+63,POST,Postsubiculum,HPF,Hippocampal formation,26,3243,233,True,0.01,0.0,-0.7,-2.47,0.04,0.03,-0.41,-3.04,0.09,0.15,0.11,-1.55,0.11,-2.13,0.04,-2.76
+64,PRE,Presubiculum,HPF,Hippocampal formation,11,1693,115,True,0.03,0.0,-0.51,-2.98,0.09,0.01,-0.8,-3.22,0.11,0.04,0.21,-2.93,0.12,-2.75,0.03,-5.0
+65,SUB,Subiculum,HPF,Hippocampal formation,42,7346,914,True,0.0,0.0,-1.11,-3.0,0.02,0.01,-0.87,-3.38,0.11,0.04,-0.12,-2.61,0.06,-2.41,0.02,-3.24
+66,ProS,Prosubiculum,HPF,Hippocampal formation,29,3095,378,True,-0.01,0.01,-0.69,-2.78,0.03,0.01,-0.76,-3.45,0.14,0.07,-0.21,-2.29,0.03,-3.02,0.02,-3.74
+67,HATA,Hippocampo-amygdalar transition area,HPF,Hippocampal formation,8,578,59,True,0.01,0.0,-0.54,-2.56,0.02,0.0,-0.46,-3.62,0.04,0.0,-0.52,-2.03,0.01,-5.0,0.0,-5.0
+68,APr,Area prostriata,HPF,Hippocampal formation,9,328,16,True,,,,,,,,,,,,,,,,
+69,CLA,Claustrum,CTXsp,Cortical subplate,6,355,49,True,0.0,0.0,-0.69,-2.71,0.14,0.06,-0.39,-3.5,0.23,0.15,-0.04,-2.2,0.12,-2.64,0.11,-2.96
+70,EPd,Endopiriform nucleus dorsal part,CTXsp,Cortical subplate,15,1254,199,True,-0.01,0.0,-1.14,-2.97,0.03,0.01,-1.15,-3.76,0.06,0.04,-0.4,-2.51,0.01,-3.45,0.0,-5.0
+71,EPv,Endopiriform nucleus ventral part,CTXsp,Cortical subplate,12,822,124,True,0.0,0.0,-1.01,-2.85,0.03,0.0,-1.03,-3.52,0.11,0.04,-0.56,-2.5,0.03,-3.18,0.01,-5.0
+72,LA,Lateral amygdalar nucleus,CTXsp,Cortical subplate,8,583,63,True,0.02,0.0,-0.86,-3.2,0.03,0.02,-0.98,-3.63,0.15,0.12,-0.03,-2.36,0.01,-2.85,0.01,-5.0
+73,BLA,Basolateral amygdalar nucleus,CTXsp,Cortical subplate,15,1565,150,True,0.02,0.0,-0.92,-2.89,0.02,0.01,-0.92,-3.32,0.08,0.12,-0.08,-2.15,0.0,-2.95,0.01,-5.0
+74,BMA,Basomedial amygdalar nucleus,CTXsp,Cortical subplate,16,1645,175,True,-0.0,0.0,-1.07,-3.33,0.02,0.0,-1.05,-3.61,0.08,0.14,-0.28,-2.25,0.01,-3.06,0.01,-4.85
+75,PA,Posterior amygdalar nucleus,CTXsp,Cortical subplate,17,925,113,True,0.0,0.0,-0.95,-3.73,-0.02,0.0,-0.99,-3.74,-0.01,0.0,-0.76,-3.22,0.0,-3.57,0.0,-5.0
+76,CP,Caudoputamen,CNU,Cerebral nuclei,83,25339,2892,True,0.03,0.0,-0.7,-2.48,0.17,0.05,-0.58,-3.14,0.34,0.21,-0.18,-2.0,0.11,-2.33,0.19,-2.87
+77,ACB,Nucleus accumbens,CNU,Cerebral nuclei,24,2655,340,True,-0.0,0.0,-0.91,-2.88,0.04,0.02,-0.8,-3.39,0.21,0.15,-0.34,-2.19,0.07,-2.61,0.03,-3.41
+78,FS,Fundus of striatum,CNU,Cerebral nuclei,5,166,32,True,0.01,0.0,-0.61,-2.69,0.12,0.06,-0.53,-3.39,0.38,0.32,0.35,-1.79,0.02,-2.4,0.04,-3.33
+79,OT,Olfactory tubercle,CNU,Cerebral nuclei,20,872,79,True,-0.0,0.0,-0.77,-2.78,0.07,0.0,-0.7,-3.4,0.09,0.04,-0.16,-2.33,0.04,-2.73,0.04,-3.92
+80,LSc,Lateral septal nucleus caudal (caudodorsal) part,CNU,Cerebral nuclei,12,749,111,True,0.0,0.0,-1.11,-3.32,0.03,0.01,-1.05,-3.4,0.1,0.04,-0.34,-2.87,0.04,-2.46,0.0,-4.0
+81,LSr,Lateral septal nucleus rostral (rostroventral) part,CNU,Cerebral nuclei,32,5686,1156,True,0.0,0.0,-1.02,-3.26,0.04,0.0,-0.92,-3.55,0.11,0.06,-0.36,-2.79,0.08,-2.75,0.02,-3.93
+82,LSv,Lateral septal nucleus ventral part,CNU,Cerebral nuclei,17,1303,164,True,-0.01,0.0,-0.53,-3.39,0.03,0.01,-0.8,-3.62,0.05,0.06,0.24,-2.77,0.04,-3.0,0.01,-4.01
+83,SF,Septofimbrial nucleus,CNU,Cerebral nuclei,12,751,115,True,-0.01,0.0,-1.11,-3.11,0.07,0.02,-0.74,-3.37,0.08,0.06,-0.17,-2.75,0.05,-2.34,0.03,-4.74
+84,SH,Septohippocampal nucleus,CNU,Cerebral nuclei,2,61,4,False,,,,,,,,,,,,,,,,
+85,AAA,Anterior amygdalar area,CNU,Cerebral nuclei,3,265,25,True,0.03,0.0,-0.5,-3.34,0.07,0.0,-0.57,-3.63,0.35,0.32,0.2,-1.97,0.13,-2.56,0.04,-4.21
+86,CEA,Central amygdalar nucleus,CNU,Cerebral nuclei,15,1101,159,True,0.02,0.0,-0.62,-2.72,0.04,0.01,-0.43,-3.51,0.08,0.13,-0.05,-2.1,0.01,-2.98,0.03,-3.78
+87,IA,Intercalated amygdalar nucleus,CNU,Cerebral nuclei,2,82,18,True,,,,,,,,,,,,,,,,
+88,MEA,Medial amygdalar nucleus,CNU,Cerebral nuclei,13,1435,184,True,0.0,0.0,-0.96,-3.7,0.03,0.0,-0.92,-3.79,0.11,0.07,-0.13,-3.08,0.01,-3.64,0.01,-5.0
+89,GPe,Globus pallidus external segment,CNU,Cerebral nuclei,13,1807,322,True,0.02,0.01,-0.41,-2.5,0.18,0.08,-0.36,-3.13,0.29,0.3,0.1,-1.89,0.12,-2.3,0.21,-2.71
+90,GPi,Globus pallidus internal segment,CNU,Cerebral nuclei,6,415,45,True,0.02,0.02,-0.37,-2.39,0.17,0.05,-0.14,-2.96,0.37,0.52,0.49,-2.08,0.07,-2.26,0.19,-2.56
+91,SI,Substantia innominata,CNU,Cerebral nuclei,27,1592,256,True,0.01,0.0,-0.73,-3.03,0.05,0.02,-0.7,-3.32,0.22,0.21,-0.2,-2.09,0.05,-2.55,0.01,-3.5
+92,MA,Magnocellular nucleus,CNU,Cerebral nuclei,7,363,48,True,0.0,0.0,-0.64,-2.98,0.11,0.03,-0.61,-3.41,0.17,0.21,0.02,-2.47,0.03,-2.71,0.05,-3.54
+93,MS,Medial septal nucleus,CNU,Cerebral nuclei,6,724,106,True,0.01,0.0,-0.49,-3.16,0.06,0.01,-0.6,-3.26,0.22,0.18,0.02,-2.37,0.17,-2.33,0.02,-3.06
+94,NDB,Diagonal band nucleus,CNU,Cerebral nuclei,5,347,50,True,0.02,0.0,-0.44,-2.82,0.15,0.07,-0.14,-2.98,0.26,0.16,0.01,-1.96,0.17,-2.31,0.13,-3.16
+95,TRS,Triangular nucleus of septum,CNU,Cerebral nuclei,8,578,73,True,-0.01,0.0,-0.98,-3.14,-0.0,0.0,-0.88,-3.5,0.06,0.03,0.02,-2.87,0.07,-2.3,0.0,-3.54
+96,BST,Bed nuclei of the stria terminalis,CNU,Cerebral nuclei,17,1797,207,True,-0.0,0.0,-1.07,-2.96,0.03,0.0,-1.01,-3.44,0.16,0.09,-0.4,-2.57,0.05,-2.99,0.02,-3.69
+97,VAL,Ventral anterior-lateral complex of the thalamus,TH,Thalamus,11,1544,295,True,0.03,0.0,-0.65,-2.69,0.12,0.05,-0.45,-3.15,0.33,0.3,0.16,-1.79,0.13,-2.19,0.13,-2.93
+98,VM,Ventral medial nucleus of the thalamus,TH,Thalamus,19,790,118,True,0.05,0.02,-0.45,-2.69,0.11,0.03,-0.64,-3.3,0.23,0.27,0.19,-1.94,0.05,-2.36,0.06,-3.09
+99,VPL,Ventral posterolateral nucleus of the thalamus,TH,Thalamus,24,2799,436,True,0.02,0.0,-0.7,-2.77,0.15,0.05,-0.55,-3.16,0.19,0.16,-0.19,-2.23,0.13,-2.27,0.13,-2.82
+100,VPLpc,Ventral posterolateral nucleus of the thalamus parvicellular part,TH,Thalamus,12,527,80,True,0.0,0.0,-0.81,-3.1,0.06,0.03,-0.81,-3.46,0.14,0.31,0.11,-1.99,0.06,-2.45,0.03,-3.62
+101,VPM,Ventral posteromedial nucleus of the thalamus,TH,Thalamus,41,7984,1310,True,0.03,0.0,-1.13,-2.95,0.07,0.04,-0.8,-3.3,0.25,0.14,-0.28,-2.18,0.1,-2.5,0.1,-3.09
+102,VPMpc,Ventral posteromedial nucleus of the thalamus parvicellular part,TH,Thalamus,10,456,67,True,0.04,0.0,-0.92,-2.94,0.03,0.02,-0.77,-3.43,0.19,0.09,-0.38,-2.11,0.01,-2.98,0.01,-3.77
+103,PoT,Posterior triangular thalamic nucleus,TH,Thalamus,21,1591,228,True,0.01,0.0,-0.83,-2.93,0.07,0.01,-0.96,-3.32,0.27,0.18,0.26,-2.0,0.07,-2.63,0.05,-3.03
+104,SPF,Subparafascicular nucleus,TH,Thalamus,21,758,70,True,0.01,0.0,-0.46,-2.88,0.16,0.15,-0.42,-3.23,0.19,0.28,0.19,-2.12,0.1,-2.57,0.06,-2.93
+105,SPA,Subparafascicular area,TH,Thalamus,7,347,25,False,,,,,,,,,,,,,,,,
+106,PP,Peripeduncular nucleus,TH,Thalamus,4,105,13,False,,,,,,,,,,,,,,,,
+107,MG,Medial geniculate complex,TH,Thalamus,16,1557,332,True,0.04,0.0,-0.93,-2.83,0.06,0.01,-1.07,-3.26,0.29,0.19,0.33,-1.98,0.08,-2.8,0.02,-3.83
+108,LGd,Dorsal part of the lateral geniculate complex,TH,Thalamus,29,2925,557,True,0.03,0.03,-0.4,-2.79,0.05,0.01,-0.76,-3.49,0.1,0.06,-0.16,-2.48,0.03,-2.9,0.03,-3.79
+109,LP,Lateral posterior nucleus of the thalamus,TH,Thalamus,85,8064,1812,True,0.03,0.01,-0.74,-2.91,0.06,0.01,-0.9,-3.41,0.17,0.08,-0.25,-2.42,0.04,-3.04,0.06,-3.84
+110,PO,Posterior complex of the thalamus,TH,Thalamus,53,10659,2329,True,0.01,0.0,-1.27,-3.09,0.06,0.02,-1.06,-3.38,0.28,0.13,-0.45,-2.18,0.07,-2.69,0.08,-3.67
+111,POL,Posterior limiting nucleus of the thalamus,TH,Thalamus,21,1378,166,True,0.01,0.01,-0.64,-2.91,0.08,0.07,-0.85,-3.15,0.31,0.22,0.3,-1.92,0.05,-2.62,0.04,-3.7
+112,SGN,Suprageniculate nucleus,TH,Thalamus,11,571,131,True,-0.0,0.0,-0.61,-2.99,0.03,0.0,-0.83,-3.41,0.26,0.21,0.41,-2.1,0.02,-3.14,0.05,-3.61
+113,Eth,Ethmoid nucleus of the thalamus,TH,Thalamus,21,1673,366,True,0.01,0.0,-0.96,-2.78,0.13,0.04,-0.76,-3.2,0.28,0.23,-0.44,-2.22,0.07,-2.85,0.13,-3.15
+114,AV,Anteroventral nucleus of thalamus,TH,Thalamus,11,1418,203,True,0.03,0.0,-0.8,-2.95,0.05,0.05,-0.89,-3.32,0.14,0.1,-0.02,-2.37,0.07,-2.77,0.04,-3.68
+115,AM,Anteromedial nucleus,TH,Thalamus,10,902,128,True,0.0,0.0,-0.98,-2.88,0.01,0.0,-1.02,-3.5,0.14,0.02,-0.17,-2.67,0.04,-2.99,0.0,-5.0
+116,AD,Anterodorsal nucleus,TH,Thalamus,3,229,15,True,,,,,,,,,,,,,,,,
+117,IAM,Interanteromedial nucleus of the thalamus,TH,Thalamus,2,22,7,False,,,,,,,,,,,,,,,,
+118,IAD,Interanterodorsal nucleus of the thalamus,TH,Thalamus,4,125,23,True,0.01,0.0,-0.81,-3.19,0.06,0.0,-0.54,-3.78,0.11,0.04,0.13,-2.52,0.01,-3.4,0.03,-4.39
+119,LD,Lateral dorsal nucleus of thalamus,TH,Thalamus,25,3062,581,True,0.01,0.0,-0.77,-3.02,0.06,0.02,-0.84,-3.33,0.17,0.09,-0.17,-2.37,0.08,-2.67,0.07,-4.0
+120,IMD,Intermediodorsal nucleus of the thalamus,TH,Thalamus,2,6,1,False,,,,,,,,,,,,,,,,
+121,MD,Mediodorsal nucleus of thalamus,TH,Thalamus,23,2917,604,True,0.02,0.0,-0.91,-2.73,0.11,0.02,-0.82,-3.3,0.22,0.18,-0.23,-2.27,0.08,-2.73,0.08,-3.34
+122,SMT,Submedial nucleus of the thalamus,TH,Thalamus,6,829,140,True,0.02,0.0,-0.58,-2.63,0.12,0.06,-0.06,-2.98,0.28,0.17,-0.46,-2.4,0.09,-2.74,0.16,-3.06
+123,PR,Perireunensis nucleus,TH,Thalamus,5,196,28,True,-0.01,0.0,-0.56,-3.07,0.01,0.0,-0.64,-3.48,0.15,0.12,0.18,-2.4,0.05,-3.23,0.01,-5.0
+124,PVT,Paraventricular nucleus of the thalamus,TH,Thalamus,12,515,84,True,-0.01,0.0,-0.98,-3.79,0.03,0.0,-1.08,-3.88,0.04,0.12,-0.53,-3.03,0.05,-3.44,0.01,-5.0
+125,PT,Parataenial nucleus,TH,Thalamus,2,19,4,False,,,,,,,,,,,,,,,,
+126,RE,Nucleus of reuniens,TH,Thalamus,3,148,8,False,,,,,,,,,,,,,,,,
+127,Xi,Xiphoid thalamic nucleus,TH,Thalamus,1,7,0,False,,,,,,,,,,,,,,,,
+128,RH,Rhomboid nucleus,TH,Thalamus,3,66,6,False,,,,,,,,,,,,,,,,
+129,CM,Central medial nucleus of the thalamus,TH,Thalamus,7,270,65,True,-0.01,0.0,-0.65,-2.7,0.11,0.08,-0.59,-3.41,0.16,0.25,0.12,-2.1,0.02,-2.9,0.05,-3.02
+130,PCN,Paracentral nucleus,TH,Thalamus,12,389,84,True,0.01,0.0,-0.97,-2.98,0.0,0.02,-0.86,-3.45,0.22,0.21,-0.1,-1.87,0.05,-2.62,0.02,-3.22
+131,CL,Central lateral nucleus of the thalamus,TH,Thalamus,12,433,38,True,0.17,0.04,0.02,-2.4,0.25,0.3,-0.03,-2.98,0.25,0.43,-0.07,-2.07,0.18,-2.27,0.21,-2.87
+132,PF,Parafascicular nucleus,TH,Thalamus,10,1055,150,True,0.02,0.08,-0.0,-2.07,0.08,0.04,-0.17,-2.94,0.31,0.27,0.22,-1.96,0.17,-2.88,0.12,-2.99
+133,PIL,Posterior intralaminar thalamic nucleus,TH,Thalamus,6,180,11,False,,,,,,,,,,,,,,,,
+134,RT,Reticular nucleus of the thalamus,TH,Thalamus,25,3177,421,True,0.02,0.0,-0.73,-2.59,0.1,0.07,-0.4,-2.98,0.36,0.28,0.28,-1.94,0.1,-2.13,0.1,-2.8
+135,IGL,Intergeniculate leaflet of the lateral geniculate complex,TH,Thalamus,4,179,16,True,,,,,,,,,,,,,,,,
+136,IntG,Intermediate geniculate nucleus,TH,Thalamus,2,35,6,False,,,,,,,,,,,,,,,,
+137,LGv,Ventral part of the lateral geniculate complex,TH,Thalamus,10,1060,143,True,0.06,0.03,-0.72,-3.14,0.11,0.03,-0.84,-3.57,0.19,0.09,-0.29,-2.54,0.05,-3.38,0.05,-5.0
+138,SubG,Subgeniculate nucleus,TH,Thalamus,1,48,7,False,,,,,,,,,,,,,,,,
+139,MH,Medial habenula,TH,Thalamus,14,308,38,True,-0.01,0.0,-0.82,-2.43,0.03,0.0,-0.83,-3.67,0.13,0.17,0.11,-2.39,0.04,-3.26,0.01,-3.13
+140,LH,Lateral habenula,TH,Thalamus,16,787,76,True,0.02,0.02,-0.76,-2.8,0.06,0.02,-0.52,-3.14,0.17,0.31,0.23,-2.07,0.02,-2.67,0.01,-3.38
+141,PVH,Paraventricular hypothalamic nucleus,HY,Hypothalamus,2,67,5,False,,,,,,,,,,,,,,,,
+142,ADP,Anterodorsal preoptic nucleus,HY,Hypothalamus,1,80,5,False,,,,,,,,,,,,,,,,
+143,AVP,Anteroventral preoptic nucleus,HY,Hypothalamus,3,161,15,False,,,,,,,,,,,,,,,,
+144,DMH,Dorsomedial nucleus of the hypothalamus,HY,Hypothalamus,4,140,16,False,,,,,,,,,,,,,,,,
+145,MEPO,Median preoptic nucleus,HY,Hypothalamus,1,32,5,False,,,,,,,,,,,,,,,,
+146,MPO,Medial preoptic area,HY,Hypothalamus,4,315,40,True,0.01,0.0,-0.63,-3.51,0.06,0.03,-0.69,-3.7,0.1,0.17,-0.21,-2.57,0.06,-3.09,0.0,-3.73
+147,PS,Parastrial nucleus,HY,Hypothalamus,2,192,35,True,-0.0,0.0,-0.59,-3.19,0.04,0.0,-0.65,-3.36,0.22,0.11,-0.12,-2.21,0.12,-2.83,0.03,-5.0
+148,PVp,Periventricular hypothalamic nucleus posterior part,HY,Hypothalamus,1,3,0,False,,,,,,,,,,,,,,,,
+149,SFO,Subfornical organ,HY,Hypothalamus,1,1,0,False,,,,,,,,,,,,,,,,
+150,VLPO,Ventrolateral preoptic nucleus,HY,Hypothalamus,1,16,0,False,,,,,,,,,,,,,,,,
+151,AHN,Anterior hypothalamic nucleus,HY,Hypothalamus,4,180,10,False,,,,,,,,,,,,,,,,
+152,LM,Lateral mammillary nucleus,HY,Hypothalamus,2,34,8,False,,,,,,,,,,,,,,,,
+153,MM,Medial mammillary nucleus,HY,Hypothalamus,4,276,5,False,,,,,,,,,,,,,,,,
+154,SUM,Supramammillary nucleus,HY,Hypothalamus,5,242,10,False,,,,,,,,,,,,,,,,
+155,MPN,Medial preoptic nucleus,HY,Hypothalamus,1,24,2,False,,,,,,,,,,,,,,,,
+156,PMd,Dorsal premammillary nucleus,HY,Hypothalamus,1,54,2,False,,,,,,,,,,,,,,,,
+157,PMv,Ventral premammillary nucleus,HY,Hypothalamus,1,64,0,False,,,,,,,,,,,,,,,,
+158,PVHd,Paraventricular hypothalamic nucleus descending division,HY,Hypothalamus,5,109,6,False,,,,,,,,,,,,,,,,
+159,VMH,Ventromedial hypothalamic nucleus,HY,Hypothalamus,4,117,2,False,,,,,,,,,,,,,,,,
+160,PH,Posterior hypothalamic nucleus,HY,Hypothalamus,9,717,24,True,,,,,,,,,,,,,,,,
+161,LHA,Lateral hypothalamic area,HY,Hypothalamus,16,1147,166,True,0.01,0.0,-0.81,-3.02,0.04,0.03,-0.73,-3.43,0.18,0.21,-0.05,-1.97,0.09,-2.5,0.06,-3.06
+162,LPO,Lateral preoptic area,HY,Hypothalamus,4,291,89,True,0.01,0.0,-0.73,-2.64,0.22,0.02,-0.58,-3.09,0.4,0.34,0.15,-1.73,0.3,-2.14,0.31,-2.49
+163,PSTN,Parasubthalamic nucleus,HY,Hypothalamus,3,98,8,False,,,,,,,,,,,,,,,,
+164,PeF,Perifornical nucleus,HY,Hypothalamus,5,196,28,True,0.06,0.0,-0.28,-2.69,0.14,0.0,-0.52,-3.47,0.21,0.15,0.14,-2.03,0.05,-2.33,0.12,-2.81
+165,STN,Subthalamic nucleus,HY,Hypothalamus,4,93,6,False,,,,,,,,,,,,,,,,
+166,TU,Tuberal nucleus,HY,Hypothalamus,1,69,8,False,,,,,,,,,,,,,,,,
+167,ZI,Zona incerta,HY,Hypothalamus,50,3180,352,True,0.03,0.02,-0.45,-2.52,0.13,0.11,-0.28,-2.93,0.23,0.22,0.03,-1.79,0.11,-2.12,0.09,-2.54
+168,SCs,Superior colliculus sensory related,MB,Midbrain,31,2259,185,True,0.02,0.02,-0.6,-2.64,0.09,0.06,-0.71,-3.1,0.21,0.19,0.07,-1.66,0.07,-2.51,0.08,-3.01
+169,IC,Inferior colliculus,MB,Midbrain,26,5812,458,True,0.01,0.0,-0.64,-2.7,0.07,0.0,-1.08,-3.16,0.44,0.3,0.33,-1.76,0.11,-2.34,0.05,-3.32
+170,NB,Nucleus of the brachium of the inferior colliculus,MB,Midbrain,4,280,23,True,0.06,0.0,-0.01,-2.6,0.1,0.0,-0.26,-3.12,0.39,0.38,1.16,-1.77,0.08,-2.57,-0.01,-5.0
+171,SAG,Nucleus sagulum,MB,Midbrain,4,253,51,True,0.08,0.04,-0.34,-2.75,0.12,0.0,-0.87,-3.46,0.22,0.17,0.22,-2.32,0.04,-2.79,0.04,-3.84
+172,PBG,Parabigeminal nucleus,MB,Midbrain,3,146,14,True,,,,,,,,,,,,,,,,
+173,SNr,Substantia nigra reticular part,MB,Midbrain,21,1369,149,True,0.06,0.0,0.01,-2.04,0.23,0.12,-0.03,-2.76,0.3,0.24,0.21,-1.71,0.12,-1.9,0.1,-2.47
+174,VTA,Ventral tegmental area,MB,Midbrain,8,310,17,False,,,,,,,,,,,,,,,,
+175,RR,Midbrain reticular nucleus retrorubral area,MB,Midbrain,7,430,60,True,0.03,0.0,-0.66,-2.35,0.05,0.05,-0.66,-3.04,0.13,0.12,-0.13,-1.88,0.15,-5.0,0.04,-5.0
+176,MRN,Midbrain reticular nucleus,MB,Midbrain,137,23026,2678,True,0.06,0.01,-0.2,-2.38,0.21,0.11,-0.26,-2.89,0.35,0.29,-0.12,-1.74,0.14,-2.19,0.18,-2.69
+177,SCm,Superior colliculus motor related,MB,Midbrain,78,14140,1666,True,0.06,0.01,-0.33,-2.39,0.19,0.1,-0.26,-2.92,0.34,0.31,0.0,-1.61,0.15,-2.19,0.19,-2.66
+178,PAG,Periaqueductal gray,MB,Midbrain,55,6968,733,True,0.02,0.01,-0.63,-2.65,0.12,0.05,-0.79,-3.01,0.28,0.26,-0.11,-1.87,0.12,-2.31,0.1,-3.02
+179,APN,Anterior pretectal nucleus,MB,Midbrain,63,14098,1543,True,0.06,0.01,-0.54,-2.6,0.19,0.07,-0.2,-3.07,0.31,0.19,0.1,-2.0,0.15,-2.35,0.21,-2.93
+180,MPT,Medial pretectal area,MB,Midbrain,2,22,0,False,,,,,,,,,,,,,,,,
+181,NOT,Nucleus of the optic tract,MB,Midbrain,25,835,92,True,0.09,0.07,-0.04,-2.73,0.12,0.08,-0.43,-3.28,0.13,0.08,-0.18,-2.39,0.05,-2.68,0.05,-3.09
+182,NPC,Nucleus of the posterior commissure,MB,Midbrain,12,804,71,True,0.06,0.0,-0.24,-2.27,0.18,0.19,-0.01,-2.84,0.37,0.47,0.17,-1.71,0.13,-2.31,0.25,-2.57
+183,OP,Olivary pretectal nucleus,MB,Midbrain,5,146,39,True,0.1,0.08,-0.03,-2.55,0.12,0.03,-0.6,-3.5,0.13,0.26,0.18,-2.37,0.01,-3.15,0.02,-5.0
+184,PPT,Posterior pretectal nucleus,MB,Midbrain,13,411,70,True,0.02,0.0,-0.11,-2.61,0.09,0.0,-0.26,-3.14,0.07,0.11,-0.16,-2.51,0.02,-2.69,0.07,-2.73
+185,RPF,Retroparafascicular nucleus,MB,Midbrain,4,377,42,True,0.02,0.02,-0.3,-2.59,0.22,0.26,-0.01,-2.59,0.34,0.31,0.23,-2.1,0.15,-2.18,0.22,-2.13
+186,CUN,Cuneiform nucleus,MB,Midbrain,11,1013,100,True,0.02,0.0,-0.51,-2.57,0.05,0.04,-0.34,-3.22,0.37,0.36,0.39,-1.8,0.09,-2.35,0.04,-3.02
+187,RN,Red nucleus,MB,Midbrain,24,3768,429,True,0.06,0.0,-0.21,-2.47,0.15,0.08,-0.13,-2.85,0.29,0.23,0.12,-1.78,0.12,-2.19,0.18,-2.65
+188,III,Oculomotor nucleus,MB,Midbrain,3,47,7,False,,,,,,,,,,,,,,,,
+189,MA3,Medial accesory oculomotor nucleus,MB,Midbrain,1,6,0,False,,,,,,,,,,,,,,,,
+190,EW,Edinger-Westphal nucleus,MB,Midbrain,2,3,0,False,,,,,,,,,,,,,,,,
+191,Pa4,Paratrochlear nucleus,MB,Midbrain,1,67,3,False,,,,,,,,,,,,,,,,
+192,VTN,Ventral tegmental nucleus,MB,Midbrain,2,130,11,False,,,,,,,,,,,,,,,,
+193,AT,Anterior tegmental nucleus,MB,Midbrain,4,218,23,False,,,,,,,,,,,,,,,,
+194,DT,Dorsal terminal nucleus of the accessory optic tract,MB,Midbrain,3,54,9,False,,,,,,,,,,,,,,,,
+195,MT,Medial terminal nucleus of the accessory optic tract,MB,Midbrain,2,25,0,False,,,,,,,,,,,,,,,,
+196,SNc,Substantia nigra compact part,MB,Midbrain,9,163,36,True,0.05,0.04,-0.15,-2.68,0.15,0.0,-0.35,-3.06,0.34,0.15,0.49,-1.88,0.05,-2.78,0.11,-4.01
+197,PPN,Pedunculopontine nucleus,MB,Midbrain,19,2977,369,True,0.04,0.0,-0.8,-2.5,0.13,0.03,-0.91,-3.16,0.28,0.17,0.1,-2.02,0.09,-2.48,0.1,-3.25
+198,IF,Interfascicular nucleus raphe,MB,Midbrain,1,127,18,False,,,,,,,,,,,,,,,,
+199,IPN,Interpeduncular nucleus,MB,Midbrain,3,561,10,False,,,,,,,,,,,,,,,,
+200,RL,Rostral linear nucleus raphe,MB,Midbrain,1,40,12,False,,,,,,,,,,,,,,,,
+201,CLI,Central linear nucleus raphe,MB,Midbrain,6,361,89,True,0.01,0.0,-0.74,-2.57,0.08,0.09,-0.26,-2.93,0.23,0.25,0.12,-1.77,0.19,-1.89,0.1,-2.64
+202,DR,Dorsal nucleus raphe,MB,Midbrain,2,370,42,True,0.02,0.0,-0.56,-3.35,0.04,0.0,-0.55,-3.22,0.23,0.14,-0.24,-2.33,0.08,-2.73,0.05,-3.61
+203,NLL,Nucleus of the lateral lemniscus,HB,Hindbrain,8,1868,184,True,0.01,0.0,-0.76,-2.94,0.07,0.03,-0.72,-3.2,0.29,0.16,0.2,-1.89,0.06,-2.55,0.0,-3.34
+204,PSV,Principal sensory nucleus of the trigeminal,HB,Hindbrain,8,1443,115,True,0.01,0.0,-0.62,-2.56,0.09,0.02,-0.59,-3.35,0.23,0.27,0.19,-1.99,0.07,-2.17,0.07,-3.16
+205,PB,Parabrachial nucleus,HB,Hindbrain,28,3464,306,True,0.02,0.0,-0.72,-2.77,0.06,0.04,-0.96,-3.03,0.18,0.23,-0.24,-2.03,0.06,-2.32,0.08,-3.17
+206,SOC,Superior olivary complex,HB,Hindbrain,9,1139,35,True,0.01,0.0,0.24,-2.57,0.06,0.16,-0.01,-2.93,0.27,0.32,0.54,-1.65,0.04,-2.56,0.01,-2.78
+207,DTN,Dorsal tegmental nucleus,HB,Hindbrain,3,164,21,False,,,,,,,,,,,,,,,,
+208,PDTg,Posterodorsal tegmental nucleus,HB,Hindbrain,2,194,12,False,,,,,,,,,,,,,,,,
+209,PCG,Pontine central gray,HB,Hindbrain,9,1048,82,True,0.01,0.0,-0.59,-2.8,0.03,0.06,-0.34,-3.17,0.23,0.28,-0.06,-1.83,0.05,-3.2,0.08,-2.95
+210,PG,Pontine gray,HB,Hindbrain,4,140,9,False,,,,,,,,,,,,,,,,
+211,PRNc,Pontine reticular nucleus caudal part,HB,Hindbrain,11,1985,280,True,0.11,0.01,-0.0,-2.21,0.12,0.1,-0.33,-2.82,0.17,0.26,-0.03,-1.7,0.13,-2.04,0.15,-2.4
+212,SUT,Supratrigeminal nucleus,HB,Hindbrain,14,1430,103,True,0.0,0.0,-0.26,-2.5,0.04,0.05,-0.22,-2.87,0.15,0.2,0.22,-1.57,-0.01,-2.28,0.03,-2.79
+213,TRN,Tegmental reticular nucleus,HB,Hindbrain,10,1463,193,True,0.09,0.01,-0.08,-2.34,0.2,0.11,-0.11,-2.84,0.25,0.27,0.35,-1.65,0.11,-2.28,0.17,-2.65
+214,V,Motor nucleus of trigeminal,HB,Hindbrain,10,1678,166,True,0.01,0.0,-0.08,-2.35,0.05,0.04,-0.56,-2.61,0.4,0.26,0.25,-1.53,0.04,-2.23,0.07,-2.7
+215,P5,Peritrigeminal zone,HB,Hindbrain,6,485,46,True,-0.01,0.0,-0.61,-3.02,0.02,0.0,-0.67,-3.23,0.08,0.09,0.09,-2.29,-0.02,-2.59,0.02,-3.52
+216,PC5,Parvicellular motor 5 nucleus,HB,Hindbrain,5,306,35,True,0.02,0.0,-0.6,-2.56,0.06,0.03,-0.56,-2.9,0.21,0.21,-0.16,-2.37,-0.04,-2.97,0.07,-3.94
+217,I5,Intertrigeminal nucleus,HB,Hindbrain,4,366,42,True,-0.04,0.0,-0.56,-2.6,0.06,0.0,-0.41,-2.83,0.37,0.33,0.41,-1.66,0.14,-2.29,0.16,-3.07
+218,CS,Superior central nucleus raphe,HB,Hindbrain,11,2359,391,True,0.04,0.01,-0.6,-2.71,0.16,0.04,-0.79,-3.02,0.28,0.11,-0.28,-2.1,0.12,-2.88,0.14,-5.0
+219,LC,Locus ceruleus,HB,Hindbrain,1,2,0,False,,,,,,,,,,,,,,,,
+220,LDT,Laterodorsal tegmental nucleus,HB,Hindbrain,2,567,51,True,0.04,0.0,-0.52,-3.24,0.15,0.02,-0.62,-3.21,0.32,0.2,0.24,-2.28,0.1,-2.49,0.15,-3.02
+221,NI,Nucleus incertus,HB,Hindbrain,6,373,24,False,,,,,,,,,,,,,,,,
+222,PRNr,Pontine reticular nucleus,HB,Hindbrain,28,7039,770,True,0.07,0.01,-0.35,-2.42,0.24,0.1,-0.32,-2.95,0.26,0.17,0.42,-1.87,0.15,-2.35,0.29,-2.68
+223,AP,Area postrema,HB,Hindbrain,1,183,3,False,,,,,,,,,,,,,,,,
+224,DCO,Dorsal cochlear nucleus,HB,Hindbrain,16,1791,312,True,0.03,0.0,-0.71,-2.6,0.09,0.03,-0.45,-3.14,0.38,0.31,-0.1,-1.89,0.1,-2.26,0.08,-2.94
+225,VCO,Ventral cochlear nucleus,HB,Hindbrain,6,850,141,True,0.01,0.0,-0.4,-2.66,0.1,0.02,-0.66,-3.09,0.46,0.3,0.25,-1.93,0.16,-2.22,0.12,-2.81
+226,CU,Cuneate nucleus,HB,Hindbrain,4,500,24,True,0.0,0.0,-0.56,-2.86,0.06,0.09,-0.57,-3.26,0.11,0.04,0.02,-1.64,-0.0,-5.0,0.02,-5.0
+227,GR,Gracile nucleus,HB,Hindbrain,1,32,9,False,,,,,,,,,,,,,,,,
+228,ECU,External cuneate nucleus,HB,Hindbrain,5,492,21,True,,,,,,,,,,,,,,,,
+229,NTS,Nucleus of the solitary tract,HB,Hindbrain,21,1419,124,True,-0.01,0.0,-0.81,-2.89,0.1,0.08,-0.61,-3.13,0.23,0.17,0.21,-1.91,0.08,-2.25,0.06,-2.66
+230,SPVC,Spinal nucleus of the trigeminal caudal part,HB,Hindbrain,5,590,42,True,0.03,0.0,-0.5,-2.89,0.04,0.0,-0.47,-3.38,0.27,0.19,-0.04,-1.96,0.05,-2.32,0.01,-3.43
+231,SPVI,Spinal nucleus of the trigeminal interpolar part,HB,Hindbrain,16,4127,321,True,0.01,0.0,-0.76,-2.62,0.1,0.02,-0.74,-3.04,0.26,0.22,-0.19,-2.05,0.11,-2.35,0.1,-3.12
+232,SPVO,Spinal nucleus of the trigeminal oral part,HB,Hindbrain,8,1539,129,True,0.01,0.0,-0.63,-2.69,0.07,0.01,-0.61,-3.18,0.19,0.16,0.07,-1.97,0.07,-2.25,0.09,-2.35
+233,Pa5,Paratrigeminal nucleus,HB,Hindbrain,2,75,4,False,,,,,,,,,,,,,,,,
+234,VII,Facial motor nucleus,HB,Hindbrain,6,861,63,True,0.0,0.0,-0.31,-2.45,0.24,0.16,-0.19,-2.77,0.18,0.24,0.3,-1.56,0.1,-1.69,0.11,-2.33
+235,AMB,Nucleus ambiguus,HB,Hindbrain,2,73,8,False,,,,,,,,,,,,,,,,
+236,DMX,Dorsal motor nucleus of the vagus nerve,HB,Hindbrain,3,62,2,False,,,,,,,,,,,,,,,,
+237,GRN,Gigantocellular reticular nucleus,HB,Hindbrain,17,3921,560,True,0.08,0.01,-0.0,-2.32,0.28,0.21,0.09,-2.71,0.42,0.39,0.16,-1.69,0.27,-1.75,0.44,-2.16
+238,ICB,Infracerebellar nucleus,HB,Hindbrain,8,249,65,True,-0.02,0.0,-0.39,-2.91,-0.01,0.02,-0.55,-2.95,0.2,0.16,0.04,-1.67,0.09,-1.96,0.05,-3.42
+239,IO,Inferior olivary complex,HB,Hindbrain,4,100,2,False,,,,,,,,,,,,,,,,
+240,IRN,Intermediate reticular nucleus,HB,Hindbrain,34,6481,744,True,0.01,0.0,-0.28,-2.47,0.17,0.13,-0.23,-2.97,0.42,0.32,0.31,-1.75,0.15,-2.1,0.19,-2.47
+241,ISN,Inferior salivatory nucleus,HB,Hindbrain,1,14,4,False,,,,,,,,,,,,,,,,
+242,LIN,Linear nucleus of the medulla,HB,Hindbrain,2,61,11,False,,,,,,,,,,,,,,,,
+243,LRN,Lateral reticular nucleus,HB,Hindbrain,5,372,31,True,-0.0,0.0,-0.21,-2.9,0.07,0.0,-0.36,-2.82,0.25,0.29,0.13,-2.24,0.14,-2.17,0.13,-2.5
+244,MARN,Magnocellular reticular nucleus,HB,Hindbrain,5,449,83,True,0.06,0.0,-0.53,-2.47,0.21,0.09,-0.67,-3.03,0.44,0.29,0.31,-1.89,0.28,-1.82,0.42,-2.63
+245,MDRN,Medullary reticular nucleus,HB,Hindbrain,9,2310,180,True,0.02,0.0,-0.66,-2.23,0.09,0.05,-0.23,-2.67,0.36,0.1,0.05,-1.48,0.16,-2.13,0.08,-3.1
+246,PARN,Parvicellular reticular nucleus,HB,Hindbrain,21,2560,423,True,0.01,0.0,-0.87,-2.64,0.11,0.05,-0.43,-2.84,0.41,0.26,0.14,-1.91,0.1,-2.33,0.18,-2.72
+247,PAS,Parasolitary nucleus,HB,Hindbrain,2,6,1,False,,,,,,,,,,,,,,,,
+248,PGRN,Paragigantocellular reticular nucleus,HB,Hindbrain,13,1166,120,True,0.07,0.0,-0.23,-2.5,0.17,0.07,-0.29,-2.75,0.24,0.26,0.09,-2.13,0.13,-2.04,0.25,-2.37
+249,PRP,Nucleus prepositus,HB,Hindbrain,9,957,70,True,0.03,0.01,-0.26,-2.69,0.06,0.0,-0.49,-3.35,0.19,0.1,0.06,-2.22,0.1,-2.3,0.07,-2.83
+250,LAV,Lateral vestibular nucleus,HB,Hindbrain,12,840,169,True,0.0,0.0,-0.54,-2.71,0.11,0.05,-0.65,-3.02,0.25,0.28,0.0,-1.9,0.12,-2.03,0.12,-2.8
+251,MV,Medial vestibular nucleus,HB,Hindbrain,24,5268,672,True,0.03,0.0,-0.8,-2.68,0.16,0.09,-0.27,-2.94,0.34,0.29,0.2,-1.81,0.16,-2.26,0.2,-2.74
+252,SPIV,Spinal vestibular nucleus,HB,Hindbrain,19,2162,327,True,-0.0,0.0,-0.55,-2.6,0.14,0.1,-0.52,-3.04,0.25,0.15,-0.15,-1.95,0.04,-2.01,0.17,-2.54
+253,SUV,Superior vestibular nucleus,HB,Hindbrain,13,1502,277,True,0.01,0.0,-0.26,-2.72,0.06,0.06,-0.34,-2.97,0.26,0.22,-0.01,-1.88,0.15,-2.09,0.13,-2.68
+254,x,Nucleus x,HB,Hindbrain,4,344,45,True,0.03,0.0,-0.51,-2.5,0.01,0.0,-0.53,-2.78,0.13,0.02,0.13,-1.68,0.05,-2.24,0.04,-3.27
+255,XII,Hypoglossal nucleus,HB,Hindbrain,2,347,12,False,,,,,,,,,,,,,,,,
+256,y,Nucleus y,HB,Hindbrain,1,18,6,False,,,,,,,,,,,,,,,,
+257,RM,Nucleus raphe magnus,HB,Hindbrain,1,12,0,False,,,,,,,,,,,,,,,,
+258,RO,Nucleus raphe obscurus,HB,Hindbrain,1,81,1,False,,,,,,,,,,,,,,,,
+259,LING,Lingula (I),CB,Cerebellum,8,216,45,True,0.05,0.0,-0.47,-3.21,0.11,0.08,-0.27,-2.99,0.21,0.38,-0.1,-2.55,0.07,-2.62,0.11,-3.02
+260,CENT2,Lobule II,CB,Cerebellum,17,4105,613,True,0.02,0.0,-0.95,-2.7,0.21,0.06,-0.7,-2.83,0.27,0.25,0.05,-2.05,0.16,-2.55,0.27,-2.87
+261,CENT3,Lobule III,CB,Cerebellum,29,4549,663,True,0.02,0.0,-0.59,-2.53,0.08,0.06,-0.26,-2.98,0.19,0.15,0.07,-1.78,0.12,-2.17,0.17,-2.63
+262,CUL4 5,Lobules IV-V,CB,Cerebellum,36,9036,1207,True,0.03,0.0,-0.86,-2.78,0.11,0.05,-0.45,-3.12,0.3,0.21,0.08,-1.95,0.16,-2.17,0.22,-2.86
+263,DEC,Declive (VI),CB,Cerebellum,8,1780,190,True,-0.01,0.0,-0.86,-2.78,0.03,0.09,-0.55,-3.07,0.33,0.19,0.04,-1.97,0.07,-2.55,0.06,-2.71
+264,FOTU,Folium-tuber vermis (VII),CB,Cerebellum,7,594,100,True,0.01,0.0,-0.58,-2.66,0.18,0.11,-0.2,-2.91,0.24,0.12,0.03,-1.97,0.15,-2.16,0.29,-2.64
+265,PYR,Pyramus (VIII),CB,Cerebellum,7,1043,207,True,0.02,0.0,-0.87,-2.49,0.17,0.06,-0.35,-2.95,0.13,0.08,-0.18,-1.79,0.12,-2.15,0.12,-3.2
+266,UVU,Uvula (IX),CB,Cerebellum,11,2273,245,True,0.03,0.0,-0.62,-2.21,0.04,0.01,-0.46,-2.7,0.16,0.08,0.07,-1.36,0.1,-2.57,0.06,-4.11
+267,NOD,Nodulus (X),CB,Cerebellum,10,1282,165,True,-0.04,0.0,-0.27,-2.71,0.04,0.08,-0.3,-2.92,0.21,0.22,-0.03,-1.9,0.02,-2.14,0.04,-2.92
+268,SIM,Simple lobule,CB,Cerebellum,23,6301,893,True,0.02,0.0,-0.54,-2.78,0.17,0.1,-0.44,-2.9,0.39,0.24,0.18,-1.94,0.15,-2.19,0.2,-2.71
+269,ANcr1,Crus 1,CB,Cerebellum,12,3321,421,True,0.01,0.01,-0.32,-2.47,0.11,0.04,-0.3,-2.86,0.27,0.19,-0.25,-1.85,0.08,-2.48,0.07,-5.0
+270,ANcr2,Crus 2,CB,Cerebellum,19,4383,519,True,-0.01,0.0,-0.71,-2.47,0.07,0.01,-0.54,-3.09,0.41,0.24,0.15,-1.72,0.11,-2.37,0.16,-5.0
+271,PRM,Paramedian lobule,CB,Cerebellum,19,3959,382,True,0.02,0.0,-0.19,-2.56,0.09,0.06,-0.45,-3.0,0.36,0.31,0.14,-1.97,0.15,-2.06,0.2,-2.88
+272,COPY,Copula pyramidis,CB,Cerebellum,17,3287,284,True,0.02,0.0,-0.69,-2.69,0.06,0.07,-0.48,-3.05,0.25,0.14,-0.06,-2.12,0.11,-2.05,0.12,-2.78
+273,PFL,Paraflocculus,CB,Cerebellum,8,1409,133,True,0.02,0.0,-0.56,-2.62,0.08,0.04,-0.33,-3.16,0.3,0.14,0.08,-2.32,0.14,-2.6,0.07,-3.4
+274,FL,Flocculus,CB,Cerebellum,5,469,39,True,0.03,0.0,-0.45,-2.97,0.02,0.0,-0.36,-3.25,0.14,0.17,0.01,-2.16,0.04,-2.21,0.05,-3.07
+275,FN,Fastigial nucleus,CB,Cerebellum,5,242,46,False,,,,,,,,,,,,,,,,
+276,IP,Interposed nucleus,CB,Cerebellum,31,2767,619,True,0.02,0.01,-0.32,-2.64,0.12,0.05,-0.39,-2.98,0.35,0.31,0.05,-1.85,0.17,-2.17,0.17,-2.58
+277,DN,Dentate nucleus,CB,Cerebellum,10,731,197,True,0.03,0.0,-0.22,-2.57,0.15,0.09,-0.45,-3.1,0.41,0.33,0.48,-1.71,0.14,-2.19,0.27,-2.56
+278,VeCB,Vestibulocerebellar nucleus,CB,Cerebellum,6,427,70,True,0.02,0.0,-0.03,-2.58,0.1,0.03,-0.51,-3.09,0.25,0.24,0.14,-1.9,0.18,-2.08,0.16,-2.45
