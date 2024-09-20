@@ -1403,7 +1403,8 @@ def plot_bar_neuron_count(table_only=False, ssvers='_rerun'):
             r.append(a)          
                       
         df  = pd.DataFrame(data=r,columns=columns)
-        df  = df.reindex(index=df.index[::-1])       
+        df  = df.reindex(index=df.index[::-1])
+        df.reset_index(drop=True, inplace=True)       
         df.to_csv(meta_pth / 'region_info.csv')
                  
         print('saving table only')
@@ -3333,10 +3334,12 @@ def main_wheel(save_pans=False):
 
 
 
-def ghostscript_compress_pdf(variable):
+def ghostscript_compress_pdf(variable, level='/printer'):
 
     '''
-    Compress main figs (inkscape pdfs) or whole manuscript    
+    Compress main figs (inkscape pdfs) or whole manuscript  
+    
+    levels in [/screen, /ebook,  /printer]
     '''
 
 
@@ -3371,7 +3374,8 @@ def ghostscript_compress_pdf(variable):
     # Ghostscript command to compress PDF
     command = [
         'gs', '-sDEVICE=pdfwrite', '-dCompatibilityLevel=1.4',
-        '-dPDFSETTINGS=/ebook', '-dNOPAUSE', '-dQUIET', '-dBATCH',
+        '-dAutoRotatePages=/None',
+        f'-dPDFSETTINGS={level}', '-dNOPAUSE', '-dQUIET', '-dBATCH',
         f'-sOutputFile={output_path}', input_path
     ]
 
