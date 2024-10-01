@@ -466,6 +466,9 @@ def plot_swansons(variable, fig=None, axs=None):
                         f'{ana}_significant'] == True][
                         f'{ana}_{dt}'].values
 
+            vmax = np.max(scores)
+            vmin = np.min(scores)
+
             if lat:            
                 mask = res[np.bitwise_or(
                             res[f'{ana}_significant'] == False,
@@ -482,8 +485,14 @@ def plot_swansons(variable, fig=None, axs=None):
         else:
             acronyms = res['region'].values
             scores = res[f'{ana}_effect'].values
-            mask = [] 
+            mask = []
 
+            if variable == 'stim':
+                vmax = np.percentile(scores, 95)
+                vmin = np.percentile(scores, 5)
+            else:
+                vmax = np.max(scores)
+                vmin = np.min(scores)
         
         plot_swanson_vector(acronyms,
                             scores,
@@ -499,10 +508,12 @@ def plot_swansons(variable, fig=None, axs=None):
                             annotate= True,
                             annotate_n=5,
                             annotate_order='bottom' if lat else 'top',
-                            fontsize=f_size_s)
+                            fontsize=f_size_s,
+                            vmin=vmin,
+                            vmax=vmax)
 
-        clevels = (min(scores), max(scores))    
-        norm = mpl.colors.Normalize(vmin=clevels[0], vmax=clevels[1])
+            
+        norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
         cbar = fig.colorbar(
                    mpl.cm.ScalarMappable(norm=norm,cmap=cmap.reversed() 
                    if lat else cmap),
@@ -2290,8 +2301,8 @@ def get_example_results():
             lambda c: c == -1,
             0.2,
             0.05,
-            "fmoveL", #fmoveL
-            "fmoveR", #fmoveR
+            "fmoveL", #choice left
+            "fmoveR", #choice right
         ),
         "feedback_times": (
             "feedbackType",
@@ -2309,7 +2320,7 @@ def get_example_results():
         "stim": (
             'e0928e11-2b86-4387-a203-80c77fab5d52',  # EID 
             '799d899d-c398-4e81-abaf-1ef4b02d5475',  # PID 
-            235,  # clu_id, was 235
+            235,  # clu_id, was 235 -- online 218 looks good
             "VISp",  # region
             0.04540706,  # drsq (from 02_fit_sessions.py)
             "stimOn_times",  # Alignset key
@@ -3350,13 +3361,13 @@ def ghostscript_compress_pdf(variable, level='/printer'):
         output_path = Path(imgs_pth, variable, 
                          f'n5_main_figure_{variverb[variable]}_revised.pdf')
                          
-    if variable == 'wheel':
+    elif variable == 'wheel':
         input_path = Path(imgs_pth, 'speed', 
                          f'n5_main_figure_wheel_revised_raw.pdf')
         output_path = Path(imgs_pth, 'speed', 
                          f'n5_main_figure_wheel_revised.pdf')
                          
-    if variable == 'manuscript':
+    elif variable == 'manuscript':
         input_path = Path('/home/mic/Brainwide_Map_Paper.pdf')
         output_path = Path('/home/mic/Brainwide_Map_Paper2.pdf')    
 
@@ -3385,6 +3396,7 @@ def ghostscript_compress_pdf(variable, level='/printer'):
         print(f"PDF successfully compressed and saved to {output_path}")
     except subprocess.CalledProcessError as e:
         print(f"An error occurred: {e}")
+
 
 
 
