@@ -4,7 +4,7 @@ from pathlib import Path
 import math, string
 from collections import Counter, OrderedDict
 from functools import reduce
-import os
+import os, sys
 import itertools
 from scipy import stats
 from statsmodels.stats.multitest import multipletests
@@ -47,7 +47,7 @@ import warnings
 '''
 This script is used to plot the main result figures of the BWM paper.
 The raw results from each analysis can be found in bwm_figs_res.
-There are 4 analyses: manifold, decoding, glm, single-cell
+There are 4 analyses: population trajectory, decoding, glm, single-cell
 See first function in code block of this script for each analysis type
 for data format conversion.
 '''
@@ -76,8 +76,8 @@ for variable in variables:
 dec_pth = Path(one.cache_dir, 'bwm_res', 'bwm_figs_data','decoding')
 dec_pth.mkdir(parents=True, exist_ok=True)  
 
-# manifold results
-man_pth = Path(one.cache_dir, 'bwm_res', 'bwm_figs_data','manifold')
+# population trajectory results
+man_pth = Path(one.cache_dir, 'bwm_res', 'bwm_figs_data','trajectory')
 man_pth.mkdir(parents=True, exist_ok=True)
 
 # encoding results
@@ -114,7 +114,7 @@ def pool_results_across_analyses(return_raw=False):
     4 different analysis types ['glm','euc', 'mw', 'dec']
     variables ['stim', ' choice', 'fback']
 
-    some files need conversion to csv (manifold, glm); 
+    some files need conversion to csv (trajectory, glm); 
     see first functions for in the subsequent sections
 
     '''
@@ -166,9 +166,25 @@ def pool_results_across_analyses(return_raw=False):
     
     d = {}
     
+
     for vari in variables:
-        d[vari] = pd.read_csv(Path(man_pth / f'{vari}_restr.csv'))[[
-                    'region','amp_euc_can', 'lat_euc_can','p_euc_can']]
+        r = []
+        variable = vari + '_restr'
+        columns = ['region','nclus', 
+                'p_euc_can', 'amp_euc_can',
+                'lat_euc_can']
+
+        dd = np.load(Path(man_pth, f'{variable}.npy'),
+                    allow_pickle=True).flat[0] 
+        
+        for reg in dd:
+
+            r.append([reg, dd[reg]['nclus'],
+                      dd[reg]['p_euc_can'],
+                      dd[reg]['amp_euc_can'],
+                      dd[reg]['lat_euc_can']])
+
+        d[vari]  = pd.DataFrame(data=r,columns=columns)
     
         d[vari]['euclidean_significant'] = d[vari].p_euc_can.apply(
                                                lambda x: x<sigl)
@@ -184,7 +200,7 @@ def pool_results_across_analyses(return_raw=False):
                            'euclidean_significant']]
 
     D['euclidean'] = d
-    print('intergated manifold results')    
+    print('intergated trajectory results')    
     
     '''
     # Mann Whitney (single_cell)
@@ -255,7 +271,7 @@ def pool_results_across_analyses(return_raw=False):
         df_.glm_effect = np.log10(
                 df_.glm_effect.clip(lower=1e-5))
                 
-        # ## Apply logarithm to manifold results              
+        # ## Apply logarithm to trajectory results              
         df_.euclidean_effect = np.log10(df_.euclidean_effect)                
                 
         
@@ -416,7 +432,7 @@ def plot_swansons(variable, fig=None, axs=None):
 
     '''
     for a single variable, plot 5 results swansons,
-    4 effects for the 4 analyses and latencies for manifold
+    4 effects for the 4 analyses and latencies for trajectory
     '''
 
 
@@ -430,9 +446,9 @@ def plot_swansons(variable, fig=None, axs=None):
                  'mannwhitney_effect': ['Frac. sig. cells',[],
                     ['Single cell statistics', 'C.C Mann-Whitney test']],
                  'euclidean_effect': ['Nrml. Eucl. dist. (log)',[],
-                    ['Manifold', 'Distance between trajectories']],
+                    ['Population trajectory', 'Distance between trajectories']],
                  'euclidean_latency': ['Latency of dist. (sec)',[],
-                    ['Manifold', 'Time near peak']],      
+                    ['Population trajectory', 'Time near peak']],      
                  'glm_effect': ['Abs. diff. $\\Delta R^2$ (log)',[],
                     ['Encoding', 'General linear model']]}
 
@@ -574,7 +590,7 @@ def plot_slices(variable):
 
     '''
     For a single variable, plot effects for the 4 analyses and
-    latencies of manifolds onto brain slices
+    latencies of population trajectories onto brain slices
     '''
 
     res = pd.read_pickle(meta_pth / f"{variable}.pkl")
@@ -586,9 +602,9 @@ def plot_slices(variable):
                  'mannwhitney_effect': ['Frac. sig. cells',[],
                     ['Single cell statistics \n', 'C.C Mann-Whitney test \n']],
                  'euclidean_effect': ['Nrml. Eucl. dist. (log)',[],
-                    ['Manifold \n', 'Distance between trajectories \n']],
+                    ['Population trajectory \n', 'Distance between trajectories \n']],
                  'euclidean_latency': ['Latency of dist. (sec)',[],
-                    ['Manifold \n', 'Time near peak \n']],      
+                    ['Population trajectory \n', 'Time near peak \n']],      
                  'glm_effect': ['Abs. diff. $\\Delta R^2$ (log)',[],
                     ['Encoding \n', 'General linear model \n']]}
     
@@ -756,7 +772,7 @@ def plot_all_swansons():
                  'mannwhitney_effect': ['Frac. sig. cells',[],
                     ['Single cell statistics', 'C.C Mann-Whitney test']],
                  'euclidean_effect': ['Nrml. Eucl. dist. (log)',[],
-                    ['Manifold', 'Distance between trajectories']],
+                    ['Population trajectory', 'Distance between trajectories']],
                  'glm_effect': ['Abs. diff. $\\Delta R^2$ (log)',[],
                     ['Encoding', 'General linear model']]}
      
@@ -1050,7 +1066,7 @@ def plot_table(variable):
         column_labels = {
         'region': 'region',
         'glm_effect': 'encoding',
-        'euclidean_effect': 'manifold',
+        'euclidean_effect': 'trajectory',
         'mannwhitney_effect': 'single-cell',
         'decoding_effect': 'decoding'}        
         
@@ -1176,7 +1192,7 @@ def scatter_analysis_effects(variable, analysis_pair,sig_only=False,
 
     ana_labs = {
         'glm': 'encoding',
-        'euclidean': 'manifold',
+        'euclidean': 'trajectory',
         'mannwhitney': 'single-cell',
         'decoding': 'decoding'}
 
@@ -2328,7 +2344,7 @@ def get_example_results():
         "choice": (
             "671c7ea7-6726-4fbe-adeb-f89c2c8e489b",
             "04c9890f-2276-4c20-854f-305ff5c9b6cf",
-            143,
+            130, # was 143
             "GRN",
             0.000992895,  # drsq
             "firstMovement_times",
@@ -2502,7 +2518,7 @@ def encoding_wheel_boxen(ax=None, fig=None):
 
 '''
 ##########
-manifold
+Population trajectory
 ##########
 '''
 
@@ -2523,35 +2539,6 @@ def get_name(brainregion):
     regid = br.id[np.argwhere(br.acronym == brainregion)][0, 0]
     return br.name[np.argwhere(br.id == regid)[0, 0]]
     
-def manifold_to_csv():
-
-    '''
-    reformat results for table
-    '''
-    
-    mapping = 'Beryl'
-
-    columns = ['region','name','nclus', 
-               'p_euc_can', 'amp_euc_can',
-               'lat_euc_can']
-
-    for variable in variables:        
-        r = []
-        variable = variable + '_restr'
-        d = np.load(Path(man_pth, f'{variable}.npy'),
-                    allow_pickle=True).flat[0] 
-        
-        for reg in d:
-
-            r.append([reg, get_name(reg), d[reg]['nclus'],
-                      d[reg]['p_euc_can'],
-                      d[reg]['amp_euc_can'],
-                      d[reg]['lat_euc_can']])
-                      
-        df  = pd.DataFrame(data=r,columns=columns)        
-        df.to_csv(Path(man_pth,f'{variable}.csv'))        
-
-     
          
 def pre_post(variable, can=False):
     '''
@@ -3081,10 +3068,10 @@ def main_fig(variable, clu_id0=None, save_pans=False):
          
 
     '''
-    manifold
+    Population trajectory
     '''
 
-    # manifold panels, line plot with more regions and scatter
+    # trajectory panels, line plot with more regions and scatter
     if not save_pans:
         plot_curves_scatter(variable+'_restr',fig=fig, 
                  axs=[ax_str(x) for x in 
@@ -3354,7 +3341,6 @@ def ghostscript_compress_pdf(variable, level='/printer'):
     '''
 
 
-
     if variable in variables:
         input_path = Path(imgs_pth, variable, 
                          f'n5_main_figure_{variverb[variable]}_revised_raw.pdf')
@@ -3374,7 +3360,10 @@ def ghostscript_compress_pdf(variable, level='/printer'):
 
     else:
        input_path = input("Please enter pdf input_path: ")
+       print(f"Received input path: {input_path}")
+
        output_path = input("Please enter pdf output_path: ")
+       print(f"Received output path: {output_path}")
        
        input_path = Path(input_path.strip("'\""))
        output_path = Path(output_path.strip("'\""))
