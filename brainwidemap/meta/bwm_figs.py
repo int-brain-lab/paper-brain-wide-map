@@ -36,7 +36,6 @@ from brainwidemap.encoding.design import generate_design
 from brainwidemap.encoding.glm_predict import GLMPredictor, predict
 from brainwidemap.encoding.utils import load_regressors, single_cluster_raster, find_trial_ids
 from brainbox.plot import peri_event_time_histogram
-from brainbox.behavior.training import compute_performance 
 from reproducible_ephys_functions import labs
 
 import neurencoding.linear as lm
@@ -1639,43 +1638,65 @@ def perf_scatter(rerun=False):
     (# bias training sessions, % trials correct during ephys)
     '''
 
-    pth_ = Path(one.cache_dir, 'bwm_res', 'bwm_figs_data',
-                'training_perf.pqt')
-                
-    if (not pth_.is_file() or rerun):
+    # Define path to the parquet file
+    pth_ = Path(one.cache_dir, 'bwm_res', 'bwm_figs_data', 'training_perf.pqt')
 
-        # get all subjects
+    # Only reprocess data if file does not exist or rerun is set to True
+    if not pth_.is_file() or rerun:
+
+        # Retrieve unique subject IDs
         eids = bwm_units(one)['eid'].unique()
         pths = one.eid2path(eids)
         subs = np.unique([str(x).split('/')[-3] for x in pths])
 
-        # get lab colors and shorter names (repro paper standards)
+        # Get lab metadata
         rr = labs()
-        sub_labs = dict(zip([str(x).split('/')[-3] for x in pths],
-                [rr[1][str(x).split('/')[-5]] for x in pths]))
+        sub_labs = {str(x).split('/')[-3]: rr[1][str(x).split('/')[-5]] for x in pths}
+        sub_cols = {sub: rr[-1][lab] for sub, lab in sub_labs.items()}
 
-        sub_cols = {sub: rr[-1][sub_labs[sub]] for sub in subs}
-
-        # fill dataframe
+        # Initialize results list and column names
         r = []
-        columns = ['subj', '#sess biasedChoiceWorld', '#sess trainingChoiceWorld',
-                'perf ephysChoiceWorld', 'lab', 'lab_color'] 
+        columns = ['subj', '#sess biasedChoiceWorld', '#sess trainingChoiceWorld', 
+                'perf ephysChoiceWorld', 'lab', 'lab_color']
 
+        # Process each subject's data
         for sub in subs:
+            # Load trials and training data
             trials = one.load_aggregate('subjects', sub, 
-                        '_ibl_subjectTrials.table')
-            nbiased = trials[trials['task_protocol'
-                        ] == 'biasedChoiceWorld']['session'].nunique()            
-            nunbiased = trials[trials['task_protocol'
-                        ] == 'trainingChoiceWorld']['session'].nunique()
-            perf_ephys = np.mean(compute_performance(
-                trials[trials['task_protocol'] == 'ephysChoiceWorld'])[0])
-            r.append([sub, nbiased, nunbiased, 
-                    perf_ephys, sub_labs[sub], sub_cols[sub]])
+                                        '_ibl_subjectTrials.table')
+            training = one.load_aggregate('subjects', sub, 
+                                        '_ibl_subjectTraining.table')
 
-        df = pd.DataFrame(r, columns=columns)   
+            # Join and sort by session start time
+            trials = trials.set_index('session').join(
+                        training.set_index('session')).sort_values(
+                            'session_start_time', kind='stable')
+
+            # Separate behavior sessions based on task protocol
+            session_types = {
+                'training': ['_iblrig_tasks_trainingChoiceWorld', 'trainingChoiceWorld'],
+                'biased': ['_iblrig_tasks_biasedChoiceWorld', 'biasedChoiceWorld'],
+                'ephys': ['_iblrig_tasks_ephys', 'ephysChoiceWorld']
+            }
+
+            # Create filtered sessions based on task_protocol
+            filtered_sessions = {k: trials[trials[
+                'task_protocol'].str.startswith(tuple(v))] 
+                for k, v in session_types.items()}
+
+            # Calculate metrics
+            nbiased = filtered_sessions['biased'].index.nunique()
+            nunbiased = filtered_sessions['training'].index.nunique()
+            perf_ephys = np.nanmean((filtered_sessions['ephys'].feedbackType + 1) / 2)
+
+            # Append results for the current subject
+            r.append([sub, nbiased, nunbiased, perf_ephys, sub_labs[sub], sub_cols[sub]])
+
+        # Create DataFrame and save to parquet
+        df = pd.DataFrame(r, columns=columns)
         df.to_parquet(pth_)
 
+    # Read the parquet file into DataFrame
     df = pd.read_parquet(pth_)
 
     # convert to hex for seaborn
@@ -1684,30 +1705,53 @@ def perf_scatter(rerun=False):
     # Create a dictionary to map lab to its color
     lab_palette = dict(zip(df['lab'], df['lab_color']))
 
-    fig, axs = plt.subplots(1, 2, figsize=(10, 5))
+    fig, axs = plt.subplots(1, 2, figsize=([7.99, 3.19]))
 
     # Left scatter plot: (#sess biasedChoiceWorld, #sess trainingChoiceWorld)
     sns.scatterplot(ax=axs[0], data=df, x='#sess biasedChoiceWorld', 
                     y='#sess trainingChoiceWorld', hue='lab', 
-                    palette=lab_palette, legend=True)
+                    palette=lab_palette, legend=True, s=20)
 
-    axs[0].set_xlabel('# biasedChoiceWorld sessions')
-    axs[0].set_ylabel('# trainingChoiceWorld sessions')
-    axs[0].set_title('Sessions: biased vs unbiased')
+    legend = axs[0].legend_
+    legend.get_frame().set_linewidth(0)  # Remove legend box outline
+    axs[0].legend(loc='upper left', bbox_to_anchor=(1, 1), frameon=False)
+
+    # Drop NaNs for Pearson correlation calculation
+    valid_left = df[['#sess biasedChoiceWorld', 
+                     '#sess trainingChoiceWorld']].dropna()
+    r_left, p_left = stats.pearsonr(valid_left['#sess biasedChoiceWorld'], 
+                                    valid_left['#sess trainingChoiceWorld'])
+
+    # Annotate plot with r and p-value
+    axs[0].text(0.05, 0.95, f'r = {r_left:.3f}\np = {p_left:.3f}', 
+                transform=axs[0].transAxes, verticalalignment='top', 
+                fontsize=f_size)
+
+    axs[0].set_xlabel('# biased training sessions', fontsize=f_size)
+    axs[0].set_ylabel('# non-biased training sessions', fontsize=f_size)
 
     # Right scatter plot: (#sess biasedChoiceWorld, perf ephysChoiceWorld)
     sns.scatterplot(ax=axs[1], data=df, x='#sess biasedChoiceWorld', 
                     y='perf ephysChoiceWorld', hue='lab', 
-                    palette=lab_palette, legend=False)
+                    palette=lab_palette, legend=False, s=20)
 
-    axs[1].set_xlabel('# biasedChoiceWorld sessions')
-    axs[1].set_ylabel('% Trials Correct (ephys)')
-    axs[1].set_title('Bias Sessions vs Performance')
+    valid_right = df[['#sess biasedChoiceWorld', 
+                    'perf ephysChoiceWorld']].dropna()
+    r_right, p_right = stats.pearsonr(valid_right['#sess biasedChoiceWorld'], 
+                                    valid_right['perf ephysChoiceWorld'])
+
+    # Annotate plot with r and p-value
+    axs[1].text(0.05, 0.95, f'r = {r_right:.3f}\np = {p_right:.3f}', 
+                transform=axs[1].transAxes, verticalalignment='top', 
+                fontsize=f_size)
+
+    axs[1].set_xlabel('# biased training sessions', fontsize=f_size)
+    axs[1].set_ylabel('% trials correct \n (recording sessions only)', 
+                        fontsize=f_size)
 
     # Adjust layout and display plot
-    plt.tight_layout()
-    plt.show()
-
+    plt.tight_layout()   
+    fig.savefig(Path(imgs_pth, 'si', f'session_numbers_SI_.pdf'), dpi=150) 
 
 '''
 #####
