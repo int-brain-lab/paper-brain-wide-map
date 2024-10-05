@@ -1751,7 +1751,7 @@ def perf_scatter(rerun=False):
 
     # Adjust layout and display plot
     plt.tight_layout()   
-    fig.savefig(Path(imgs_pth, 'si', f'session_numbers_SI_.pdf'), dpi=150) 
+    fig.savefig(Path(imgs_pth, 'si', f'n6_supp_figure_learning_stats.pdf'), dpi=150) 
 
 '''
 #####
