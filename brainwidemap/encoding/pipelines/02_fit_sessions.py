@@ -1,18 +1,17 @@
 # Standard library
-import os
-import pickle
 import argparse
+import pickle
 from datetime import date
 from pathlib import Path
+
+# IBL libraries
+import neurencoding.linear as lm
+import neurencoding.utils as mut
 
 # Third party libraries
 import numpy as np
 import sklearn.linear_model as skl
 from sklearn.model_selection import GridSearchCV
-
-# IBL libraries
-import neurencoding.linear as lm
-import neurencoding.utils as mut
 
 # Brainwide repo imports
 from brainwidemap.encoding.params import GLM_CACHE, GLM_FIT_PATH
@@ -27,12 +26,12 @@ parser = argparse.ArgumentParser(
     " parameters for the actual GLM fitting are defined within the script itself."
     " The arguments passed to the script via this parser are only for cluster control."
     " If you would like to change parameters of the actual fit please adjust the contents"
-    " of the \"parameters\" section in the file."
+    ' of the "parameters" section in the file.'
 )
 parser.add_argument(
     "--basefilepath",
     type=Path,
-    default=Path("~/").expanduser().joinpath("bwm_stepwise_glm_leaveoneout"),
+    default=Path("~/").expanduser().joinpath("jobscripts/bwm_stepwise_glm_leaveoneout"),
     help="Base filename for batch scripts",
 )
 parser.add_argument(
@@ -85,20 +84,16 @@ parser.add_argument(
     "--job_cores", type=int, default=32, help="Number of cores to request per job."
 )
 parser.add_argument("--mem", type=str, default="12GB", help="Memory to request per job.")
-parser.add_argument(
-    "--submit_batch",
-    action="store_true",
-    default=False,
-    help="Submit batch jobs to SLURM cluster using the script.",
-)
 
 args = parser.parse_args()
 
+
 # Model parameters
 # The GLM constructor class requires a function that converts time to bin index, here we define it
-# using the binwidth parameter created shortly. 
-def tmp_binf(t): 
+# using the binwidth parameter created shortly.
+def tmp_binf(t):
     return np.ceil(t / params["binwidth"]).astype(int)
+
 
 ######### PARAMETERS #########
 params = {
@@ -108,7 +103,7 @@ params = {
     "wheel_offset": -0.3,
     "contnorm": 5.0,
     "reduce_wheel_dim": False,
-    "dataset_fn": "2024-01-06_dataset_metadata.pkl",
+    "dataset_fn": "2024-08-12_dataset_metadata.pkl",
     "model": lm.LinearGLM,
     "alpha_grid": {"alpha": np.logspace(-3, 2, 50)},
     "contiguous": False,
@@ -118,6 +113,8 @@ params = {
     "seqsel_kwargs": {"direction": "backward", "n_features_to_select": 8},
     "seqselfit_kwargs": {"full_scores": True},
     "seed": 0,
+    "rt_thresh": "session_median",
+    "mintrials": 50,
 }
 
 params["bases"] = {
@@ -128,6 +125,14 @@ params["bases"] = {
 }
 # Estimator relies on alpha grid in case of GridSearchCV, needs to be defined after main params
 params["estimator"] = GridSearchCV(skl.Ridge(), params["alpha_grid"])
+if "rt_thresh" in params:
+    earlyrt_flag = "--earlyrt"
+    latert_flag = "--latert"
+    earlyrt_fn = "_early_rt"
+else:
+    earlyrt_flag = ""
+    latert_flag = ""
+    earlyrt_fn = ""
 
 # Output parameters file for workers
 currdate = str(date.today())
@@ -142,7 +147,7 @@ print("Dataset file used:", datapath)
 
 # Generate batch script
 make_batch_slurm_singularity(
-    str(args.basefilepath),
+    str(args.basefilepath) + earlyrt_fn,
     str(Path(__file__).parents[1].joinpath("cluster_worker.py")),
     job_name=args.jobname,
     partition=args.partition,
@@ -156,14 +161,29 @@ make_batch_slurm_singularity(
     cores_per_job=args.job_cores,
     memory=args.mem,
     array_size=f"1-{njobs}",
-    f_args=[str(datapath), str(parpath), r"${SLURM_ARRAY_TASK_ID}", currdate],
+    f_args=[earlyrt_flag, str(datapath), str(parpath), r"${SLURM_ARRAY_TASK_ID}", currdate],
 )
-
-# If SUBMIT_BATCH, then actually execute the batch job
-if args.submit_batch:
-    os.system(f"sbatch {str(args.basefilepath) + '_batch.sh'}")
-else:
-    print(
-        f"Batch file generated at {str(args.basefilepath) + '_batch.sh'};"
-        " user must submit it themselves. Good luck!"
+if len(earlyrt_fn) > 0:
+    make_batch_slurm_singularity(
+        str(args.basefilepath) + "_late_rt",
+        str(Path(__file__).parents[1].joinpath("cluster_worker.py")),
+        job_name=args.jobname,
+        partition=args.partition,
+        time=args.timelimit,
+        singularity_modules=args.singularity_modules,
+        container_image=args.singularity_image,
+        img_condapath=args.singularity_conda,
+        img_envname=args.singularity_env,
+        local_pathadd=Path(__file__).parents[3],
+        logpath=args.logpath,
+        cores_per_job=args.job_cores,
+        memory=args.mem,
+        array_size=f"1-{njobs}",
+        f_args=[latert_flag, str(datapath), str(parpath), r"${SLURM_ARRAY_TASK_ID}", currdate],
     )
+
+# If SUBMIT_BATCH, then actually execute the batch jo
+print(
+    f"Batch file generated at {str(args.basefilepath) + '_batch.sh'};"
+    " user must submit it themselves. Good luck!"
+)

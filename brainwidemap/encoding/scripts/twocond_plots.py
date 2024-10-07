@@ -142,8 +142,8 @@ targetreg = {  # Function to produce the target metric, the target regions, and 
     "block": (lambda df: df["pLeft"], ["PL", "MOp"], "stimOn_times"),
 }
 
-glm_params = pd.read_pickle(GLM_FIT_PATH + "/2023-03-07_glm_fit_pars.pkl")
-meanscores = pd.read_pickle(GLM_FIT_PATH + "/2023-03-02_glm_fit.pkl")[
+glm_params = pd.read_pickle(GLM_FIT_PATH + "/2024-07-16_glm_fit_pars.pkl")
+meanscores = pd.read_pickle(GLM_FIT_PATH + "/2024-07-16_glm_fit.pkl")[
     "mean_fit_results"
 ].set_index("region", append=True)
 

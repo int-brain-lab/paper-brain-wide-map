@@ -53,9 +53,10 @@ if __name__ == "__main__":
     # Brainwide repo imports
     from brainwidemap.encoding.params import GLM_CACHE, GLM_FIT_PATH
 
-    currdate = "2024-01-22"  # Date on which fit was run
+    currdate = "2024-09-15"  # Date on which fit was run
     n_cov = 9  # Modify if you change the model!
     parpath = Path(GLM_FIT_PATH).joinpath(f"{currdate}_glm_fit_pars.pkl")
+    early_split = False
     with open(parpath, "rb") as fo:
         params = pickle.load(fo)
     datapath = Path(GLM_CACHE).joinpath(params["dataset_fn"])
@@ -85,37 +86,36 @@ if __name__ == "__main__":
         folds = []
         for i in range(len(tmpfile["scores"])):
             tmpdf = tmpfile["deltas"][i]["test"]
+            tmpdf.index.name = "clu_id"
             tmpdf["full_model"] = tmpfile["scores"][i]["basescores"]["test"]
             tmpdf["eid"] = fitname.parts[-2]
             tmpdf["pid"] = fitname.parts[-1].split("_")[1]
-            tmpdf["acronym"] = tmpfile["clu_regions"][tmpdf.index]
-            tmpdf["qc_label"] = tmpfile["clu_df"]["label"][tmpdf.index]
+            tmpdf["acronym"] = tmpfile["clu_regions"]
+            tmpdf["qc_label"] = tmpfile["clu_df"]["label"]
             tmpdf["fold"] = i
+            tmpdf.index = tmpfile["clu_df"].iloc[tmpdf.index].cluster_id
             tmpdf.index.set_names(["clu_id"], inplace=True)
             folds.append(tmpdf.reset_index())
         sess_master = pd.concat(folds)
         sessdfs.append(sess_master)
     masterscores = pd.concat(sessdfs)
+    kernels = [
+        "stimonR",
+        "stimonL",
+        "correct",
+        "incorrect",
+        "fmoveR",
+        "fmoveL",
+        "pLeft",
+        "pLeft_tr",
+        "wheel",
+        "full_model",
+    ]
+
     meanmaster = (
         masterscores.set_index(["eid", "pid", "clu_id", "acronym", "qc_label", "fold"])
         .groupby(["eid", "pid", "clu_id", "acronym", "qc_label"])
-        .agg(
-            {
-                k: "mean"
-                for k in [
-                    "stimonR",
-                    "stimonL",
-                    "correct",
-                    "incorrect",
-                    "fmoveR",
-                    "fmoveL",
-                    "pLeft",
-                    "pLeft_tr",
-                    "wheel",
-                    "full_model",
-                ]
-            }
-        )
+        .agg({k: "mean" for k in kernels})
     )
 
     @cache

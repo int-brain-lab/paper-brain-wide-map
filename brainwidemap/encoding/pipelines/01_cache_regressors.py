@@ -76,11 +76,11 @@ params = {
     "binwidth": BINWIDTH,
     "abswheel": ABSWHEEL,
     "clu_criteria": CLU_CRITERIA,
-    "one_url": "https://openalyx.internationalbrainlab.org",
+    "one_url": "https://alyx.internationalbrainlab.org",
     "one_pw": "international",
 }
 
-one = ONE(base_url=params["one_url"], password=params["one_pw"], silent=True)
+one = ONE(base_url=params["one_url"], silent=True)
 dataset_futures = []
 
 freeze = "2023_12_bwm_release" if CLU_CRITERIA == "bwm" else None
