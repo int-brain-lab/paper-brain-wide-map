@@ -755,7 +755,7 @@ def plot_slices(variable):
                        
     fig.savefig(Path(imgs_pth, 'si', 
                      f'n6_supp_figure_{variverb[variable]}_raw.svg'),  
-                     bbox_inches='tight')
+                     bbox_inches='tight', dpi=200)
           
 
     
@@ -2235,6 +2235,12 @@ def swansons_SI_dec(vari):
     acronyms = np.array(list(res.keys()))
     scores =  np.array(list(res.values()))
     
+    # turn regions with zero sig sessions to grey
+    mask = acronyms[scores == 0]
+
+    acronyms = acronyms[scores != 0]
+    scores = scores[scores != 0] 
+
     # turn fraction into percentage
     scores = scores * 100
   
@@ -2250,6 +2256,7 @@ def swansons_SI_dec(vari):
                         empty_color="white",
                         linewidth=lw,
                         mask_color='silver',
+                        mask=mask,
                         annotate= True,
                         annotate_n=8,
                         annotate_order='top',
