@@ -32,7 +32,7 @@ import matplotlib.ticker as tck
 import matplotlib.colors as mcolors
 import matplotlib.patches as mpatches
 
-from brainwidemap import download_aggregate_tables, bwm_units
+from brainwidemap import download_aggregate_tables, bwm_units, bwm_query
 from brainwidemap.encoding.design import generate_design
 from brainwidemap.encoding.glm_predict import GLMPredictor, predict
 from brainwidemap.encoding.utils import (load_regressors, 
@@ -780,7 +780,7 @@ def plot_all_swansons():
                  'glm_effect': ['Abs. diff. $\\Delta R^2$ (log)',[],
                     ['Encoding', 'General linear model']]}
      
-    cmap = 'viridis'
+    cmap = 'viridis_r'
     
     num_columns = len(res_types)
 
@@ -2388,6 +2388,28 @@ def plot_female_male_repro():
     fig.savefig(Path(imgs_pth, 'si', 
                 f'n6_supp_dec_repro_male_female.pdf'), dpi=150)    
 
+
+def print_age_weight():
+
+    '''
+    for all BWM mice print age and weight and means
+    '''
+    subjects = bwm_query(one)['subject'].unique()
+    d = {}
+    for sub in subjects:
+        print(sub)
+        info = one.alyx.rest('subjects', 'read', id=sub)
+        d[sub] = [info['age_weeks'], info['reference_weight']]
+
+    print('mean age [weeks]',  np.round(np.mean([d[s][0] for s in d]),2))
+    print('median age [weeks]',  np.round(np.median([d[s][0] for s in d]),2))
+    print('max, min [weeks]', np.max([d[s][0] for s in d]), 
+                              np.min([d[s][0] for s in d]))
+
+    print('mean weight [gr]',  np.round(np.median([d[s][1] for s in d]),2))
+    print('median weight [gr]',  np.round(np.mean([d[s][1] for s in d]),2))                                     
+    print('max, min [gr]', np.max([d[s][1] for s in d]), 
+                              np.min([d[s][1] for s in d]))
 
 '''
 ##########
