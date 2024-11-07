@@ -4,7 +4,7 @@ from pathlib import Path
 import math, string
 from collections import Counter, OrderedDict
 from functools import reduce
-import os
+import os, sys
 import itertools
 from scipy import stats
 from statsmodels.stats.multitest import multipletests
@@ -29,12 +29,16 @@ from matplotlib.ticker import MaxNLocator
 from matplotlib.patches import Rectangle
 from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
 import matplotlib.ticker as tck
+import matplotlib.colors as mcolors
+import matplotlib.patches as mpatches
 
-from brainwidemap import download_aggregate_tables, bwm_units
+from brainwidemap import download_aggregate_tables, bwm_units, bwm_query
 from brainwidemap.encoding.design import generate_design
 from brainwidemap.encoding.glm_predict import GLMPredictor, predict
-from brainwidemap.encoding.utils import load_regressors, single_cluster_raster, find_trial_ids
+from brainwidemap.encoding.utils import (load_regressors, 
+    single_cluster_raster, find_trial_ids)
 from brainbox.plot import peri_event_time_histogram
+from reproducible_ephys_functions import labs
 
 import neurencoding.linear as lm
 from neurencoding.utils import remove_regressors
@@ -47,7 +51,7 @@ import warnings
 '''
 This script is used to plot the main result figures of the BWM paper.
 The raw results from each analysis can be found in bwm_figs_res.
-There are 4 analyses: manifold, decoding, glm, single-cell
+There are 4 analyses: population trajectory, decoding, glm, single-cell
 See first function in code block of this script for each analysis type
 for data format conversion.
 '''
@@ -76,8 +80,8 @@ for variable in variables:
 dec_pth = Path(one.cache_dir, 'bwm_res', 'bwm_figs_data','decoding')
 dec_pth.mkdir(parents=True, exist_ok=True)  
 
-# manifold results
-man_pth = Path(one.cache_dir, 'bwm_res', 'bwm_figs_data','manifold')
+# population trajectory results
+man_pth = Path(one.cache_dir, 'bwm_res', 'bwm_figs_data','trajectory')
 man_pth.mkdir(parents=True, exist_ok=True)
 
 # encoding results
@@ -114,7 +118,7 @@ def pool_results_across_analyses(return_raw=False):
     4 different analysis types ['glm','euc', 'mw', 'dec']
     variables ['stim', ' choice', 'fback']
 
-    some files need conversion to csv (manifold, glm); 
+    some files need conversion to csv (trajectory, glm); 
     see first functions for in the subsequent sections
 
     '''
@@ -166,9 +170,25 @@ def pool_results_across_analyses(return_raw=False):
     
     d = {}
     
+
     for vari in variables:
-        d[vari] = pd.read_csv(Path(man_pth / f'{vari}_restr.csv'))[[
-                    'region','amp_euc_can', 'lat_euc_can','p_euc_can']]
+        r = []
+        variable = vari + '_restr'
+        columns = ['region','nclus', 
+                'p_euc_can', 'amp_euc_can',
+                'lat_euc_can']
+
+        dd = np.load(Path(man_pth, f'{variable}.npy'),
+                    allow_pickle=True).flat[0] 
+        
+        for reg in dd:
+
+            r.append([reg, dd[reg]['nclus'],
+                      dd[reg]['p_euc_can'],
+                      dd[reg]['amp_euc_can'],
+                      dd[reg]['lat_euc_can']])
+
+        d[vari]  = pd.DataFrame(data=r,columns=columns)
     
         d[vari]['euclidean_significant'] = d[vari].p_euc_can.apply(
                                                lambda x: x<sigl)
@@ -184,7 +204,7 @@ def pool_results_across_analyses(return_raw=False):
                            'euclidean_significant']]
 
     D['euclidean'] = d
-    print('intergated manifold results')    
+    print('intergated trajectory results')    
     
     '''
     # Mann Whitney (single_cell)
@@ -255,7 +275,7 @@ def pool_results_across_analyses(return_raw=False):
         df_.glm_effect = np.log10(
                 df_.glm_effect.clip(lower=1e-5))
                 
-        # ## Apply logarithm to manifold results              
+        # ## Apply logarithm to trajectory results              
         df_.euclidean_effect = np.log10(df_.euclidean_effect)                
                 
         
@@ -416,7 +436,7 @@ def plot_swansons(variable, fig=None, axs=None):
 
     '''
     for a single variable, plot 5 results swansons,
-    4 effects for the 4 analyses and latencies for manifold
+    4 effects for the 4 analyses and latencies for trajectory
     '''
 
 
@@ -430,9 +450,9 @@ def plot_swansons(variable, fig=None, axs=None):
                  'mannwhitney_effect': ['Frac. sig. cells',[],
                     ['Single cell statistics', 'C.C Mann-Whitney test']],
                  'euclidean_effect': ['Nrml. Eucl. dist. (log)',[],
-                    ['Manifold', 'Distance between trajectories']],
+                    ['Population trajectory', 'Distance between trajectories']],
                  'euclidean_latency': ['Latency of dist. (sec)',[],
-                    ['Manifold', 'Time near peak']],      
+                    ['Population trajectory', 'Time near peak']],      
                  'glm_effect': ['Abs. diff. $\\Delta R^2$ (log)',[],
                     ['Encoding', 'General linear model']]}
 
@@ -466,6 +486,9 @@ def plot_swansons(variable, fig=None, axs=None):
                         f'{ana}_significant'] == True][
                         f'{ana}_{dt}'].values
 
+            vmax = np.max(scores)
+            vmin = np.min(scores)
+
             if lat:            
                 mask = res[np.bitwise_or(
                             res[f'{ana}_significant'] == False,
@@ -482,8 +505,14 @@ def plot_swansons(variable, fig=None, axs=None):
         else:
             acronyms = res['region'].values
             scores = res[f'{ana}_effect'].values
-            mask = [] 
+            mask = []
 
+            if variable == 'stim':
+                vmax = np.percentile(scores, 95)
+                vmin = np.percentile(scores, 5)
+            else:
+                vmax = np.max(scores)
+                vmin = np.min(scores)
         
         plot_swanson_vector(acronyms,
                             scores,
@@ -499,10 +528,12 @@ def plot_swansons(variable, fig=None, axs=None):
                             annotate= True,
                             annotate_n=5,
                             annotate_order='bottom' if lat else 'top',
-                            fontsize=f_size_s)
+                            fontsize=f_size_s,
+                            vmin=vmin,
+                            vmax=vmax)
 
-        clevels = (min(scores), max(scores))    
-        norm = mpl.colors.Normalize(vmin=clevels[0], vmax=clevels[1])
+            
+        norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
         cbar = fig.colorbar(
                    mpl.cm.ScalarMappable(norm=norm,cmap=cmap.reversed() 
                    if lat else cmap),
@@ -563,7 +594,7 @@ def plot_slices(variable):
 
     '''
     For a single variable, plot effects for the 4 analyses and
-    latencies of manifolds onto brain slices
+    latencies of population trajectories onto brain slices
     '''
 
     res = pd.read_pickle(meta_pth / f"{variable}.pkl")
@@ -575,9 +606,9 @@ def plot_slices(variable):
                  'mannwhitney_effect': ['Frac. sig. cells',[],
                     ['Single cell statistics \n', 'C.C Mann-Whitney test \n']],
                  'euclidean_effect': ['Nrml. Eucl. dist. (log)',[],
-                    ['Manifold \n', 'Distance between trajectories \n']],
+                    ['Population trajectory \n', 'Distance between trajectories \n']],
                  'euclidean_latency': ['Latency of dist. (sec)',[],
-                    ['Manifold \n', 'Time near peak \n']],      
+                    ['Population trajectory \n', 'Time near peak \n']],      
                  'glm_effect': ['Abs. diff. $\\Delta R^2$ (log)',[],
                     ['Encoding \n', 'General linear model \n']]}
     
@@ -724,7 +755,7 @@ def plot_slices(variable):
                        
     fig.savefig(Path(imgs_pth, 'si', 
                      f'n6_supp_figure_{variverb[variable]}_raw.svg'),  
-                     bbox_inches='tight')
+                     bbox_inches='tight', dpi=200)
           
 
     
@@ -745,11 +776,11 @@ def plot_all_swansons():
                  'mannwhitney_effect': ['Frac. sig. cells',[],
                     ['Single cell statistics', 'C.C Mann-Whitney test']],
                  'euclidean_effect': ['Nrml. Eucl. dist. (log)',[],
-                    ['Manifold', 'Distance between trajectories']],
+                    ['Population trajectory', 'Distance between trajectories']],
                  'glm_effect': ['Abs. diff. $\\Delta R^2$ (log)',[],
                     ['Encoding', 'General linear model']]}
      
-    cmap = 'viridis'
+    cmap = 'viridis_r'
     
     num_columns = len(res_types)
 
@@ -1039,7 +1070,7 @@ def plot_table(variable):
         column_labels = {
         'region': 'region',
         'glm_effect': 'encoding',
-        'euclidean_effect': 'manifold',
+        'euclidean_effect': 'trajectory',
         'mannwhitney_effect': 'single-cell',
         'decoding_effect': 'decoding'}        
         
@@ -1165,7 +1196,7 @@ def scatter_analysis_effects(variable, analysis_pair,sig_only=False,
 
     ana_labs = {
         'glm': 'encoding',
-        'euclidean': 'manifold',
+        'euclidean': 'trajectory',
         'mannwhitney': 'single-cell',
         'decoding': 'decoding'}
 
@@ -1595,9 +1626,143 @@ def swansons_SI(vari):
 
 '''
 #####
+Behavioral SI figure
+#####
+'''
+
+def perf_scatter(rerun=False):
+
+    '''
+    two scatter plots, a point a mouse from the BWM set,
+    left panel (x, y): 
+    (# bias training sessions, # pre-bias training sessions
+    right panel (x, y):
+    (# bias training sessions, % trials correct during ephys)
+    '''
+
+    # Define path to the parquet file
+    pth_ = Path(one.cache_dir, 'bwm_res', 'bwm_figs_data', 'training_perf.pqt')
+
+    # Only reprocess data if file does not exist or rerun is set to True
+    if not pth_.is_file() or rerun:
+
+        # Retrieve unique subject IDs
+        eids = bwm_units(one)['eid'].unique()
+        pths = one.eid2path(eids)
+        subs = np.unique([str(x).split('/')[-3] for x in pths])
+
+        # Get lab metadata
+        rr = labs()
+        sub_labs = {str(x).split('/')[-3]: rr[1][str(x).split('/')[-5]] for x in pths}
+        sub_cols = {sub: rr[-1][lab] for sub, lab in sub_labs.items()}
+
+        # Initialize results list and column names
+        r = []
+        columns = ['subj', '#sess biasedChoiceWorld', '#sess trainingChoiceWorld', 
+                'perf ephysChoiceWorld', 'lab', 'lab_color']
+
+        # Process each subject's data
+        for sub in subs:
+            # Load trials and training data
+            trials = one.load_aggregate('subjects', sub, 
+                                        '_ibl_subjectTrials.table')
+            training = one.load_aggregate('subjects', sub, 
+                                        '_ibl_subjectTraining.table')
+
+            # Join and sort by session start time
+            trials = trials.set_index('session').join(
+                        training.set_index('session')).sort_values(
+                            'session_start_time', kind='stable')
+
+            # Separate behavior sessions based on task protocol
+            session_types = {
+                'training': ['_iblrig_tasks_trainingChoiceWorld', 'trainingChoiceWorld'],
+                'biased': ['_iblrig_tasks_biasedChoiceWorld', 'biasedChoiceWorld'],
+                'ephys': ['_iblrig_tasks_ephys', 'ephysChoiceWorld']
+            }
+
+            # Create filtered sessions based on task_protocol
+            filtered_sessions = {k: trials[trials[
+                'task_protocol'].str.startswith(tuple(v))] 
+                for k, v in session_types.items()}
+
+            # Calculate metrics
+            nbiased = filtered_sessions['biased'].index.nunique()
+            nunbiased = filtered_sessions['training'].index.nunique()
+            perf_ephys = np.nanmean((filtered_sessions['ephys'].feedbackType + 1) / 2)
+
+            # Append results for the current subject
+            r.append([sub, nbiased, nunbiased, perf_ephys, sub_labs[sub], sub_cols[sub]])
+
+        # Create DataFrame and save to parquet
+        df = pd.DataFrame(r, columns=columns)
+        df.to_parquet(pth_)
+
+    # Read the parquet file into DataFrame
+    df = pd.read_parquet(pth_)
+
+    # convert to hex for seaborn
+    df['lab_color'] = df['lab_color'].apply(lambda x: mcolors.to_hex(x))
+
+    # Create a dictionary to map lab to its color
+    lab_palette = dict(zip(df['lab'], df['lab_color']))
+
+    fig, axs = plt.subplots(1, 2, figsize=([7.99, 3.19]))
+
+    # Left scatter plot: (#sess biasedChoiceWorld, #sess trainingChoiceWorld)
+    sns.scatterplot(ax=axs[0], data=df, x='#sess biasedChoiceWorld', 
+                    y='#sess trainingChoiceWorld', hue='lab', 
+                    palette=lab_palette, legend=True, s=20)
+
+    legend = axs[0].legend_
+    legend.get_frame().set_linewidth(0)  # Remove legend box outline
+    axs[0].legend(loc='upper left', bbox_to_anchor=(1, 1), frameon=False)
+
+    # Drop NaNs for Pearson correlation calculation
+    valid_left = df[['#sess biasedChoiceWorld', 
+                     '#sess trainingChoiceWorld']].dropna()
+    r_left, p_left = stats.pearsonr(valid_left['#sess biasedChoiceWorld'], 
+                                    valid_left['#sess trainingChoiceWorld'])
+
+    # Annotate plot with r and p-value
+    axs[0].text(0.05, 0.95, f'r = {r_left:.3f}\np = {p_left:.3f}', 
+                transform=axs[0].transAxes, verticalalignment='top', 
+                fontsize=f_size)
+
+    axs[0].set_xlabel('# biased training sessions', fontsize=f_size)
+    axs[0].set_ylabel('# non-biased training sessions', fontsize=f_size)
+
+    # Right scatter plot: (#sess biasedChoiceWorld, perf ephysChoiceWorld)
+    sns.scatterplot(ax=axs[1], data=df, x='#sess biasedChoiceWorld', 
+                    y='perf ephysChoiceWorld', hue='lab', 
+                    palette=lab_palette, legend=False, s=20)
+
+    valid_right = df[['#sess biasedChoiceWorld', 
+                    'perf ephysChoiceWorld']].dropna()
+    r_right, p_right = stats.pearsonr(valid_right['#sess biasedChoiceWorld'], 
+                                    valid_right['perf ephysChoiceWorld'])
+
+    # Annotate plot with r and p-value
+    axs[1].text(0.05, 0.95, f'r = {r_right:.3f}\np = {p_right:.3f}', 
+                transform=axs[1].transAxes, verticalalignment='top', 
+                fontsize=f_size)
+
+    axs[1].set_xlabel('# biased training sessions', fontsize=f_size)
+    axs[1].set_ylabel('% trials correct \n (recording sessions only)', 
+                        fontsize=f_size)
+
+    # Adjust layout and display plot
+    plt.tight_layout()   
+    fig.savefig(Path(imgs_pth, 'si', f'n6_supp_figure_learning_stats.pdf'), dpi=150) 
+
+'''
+#####
 decoding 
 #####
 '''
+
+dec_d = {'stim': 'stimside', 'choice': 'choice',
+            'fback': 'feedback'}
 
 def group_into_regions():
 
@@ -1650,9 +1815,6 @@ def group_into_regions():
             result['values_median_sig'] = np.median(scores[pvals < ALPHA_LEVEL])
             result['sig_combined'] = result['pval_combined'] < ALPHA_LEVEL
         return result
-
-    dec_d = {'stim': 'stimside', 'choice': 'choice',
-             'fback': 'feedback'} 
 
     # indicate in file name constraint
     exx = '' if MIN_TRIALS == 0 else ('_' + str(MIN_TRIALS))
@@ -1770,8 +1932,8 @@ def dec_scatter(variable,fig=None, ax=None):
     variable in [choice, fback]
     '''   
                
-    red = (255/255, 48/255, 23/255)
-    blue = (34/255,77/255,169/255)
+    red = red_right
+    blue = blue_left
     
     alone = False
     if not fig:
@@ -2058,8 +2220,7 @@ def swansons_SI_dec(vari):
 
     fig, ax = plt.subplots(figsize=(5.67, 3.18))  
 
-    dec_d = {'stim': 'stimside', 'choice': 'choice',
-             'fback': 'feedback'}
+
              
     pqt_file = os.path.join(dec_pth,f"{dec_d[vari]}_stage2.pqt")
     df1 = pd.read_parquet(pqt_file)
@@ -2074,6 +2235,12 @@ def swansons_SI_dec(vari):
     acronyms = np.array(list(res.keys()))
     scores =  np.array(list(res.values()))
     
+    # turn regions with zero sig sessions to grey
+    mask = acronyms[scores == 0]
+
+    acronyms = acronyms[scores != 0]
+    scores = scores[scores != 0] 
+
     # turn fraction into percentage
     scores = scores * 100
   
@@ -2089,6 +2256,7 @@ def swansons_SI_dec(vari):
                         empty_color="white",
                         linewidth=lw,
                         mask_color='silver',
+                        mask=mask,
                         annotate= True,
                         annotate_n=8,
                         annotate_order='top',
@@ -2123,6 +2291,125 @@ def swansons_SI_dec(vari):
 
 
 
+def plot_female_male_repro():
+
+    '''
+    For the 5 repro regions, and all variables (stimulus, choice, feedback),
+    plot results split by female and male mice with two strips of dots 
+    (blue for male, red for female) for each region.
+    '''
+    repro_regs = ["VISa/am", "CA1", "DG", "LP", "PO"]
+
+    
+    # subject = one.get_details(eid)['subject']
+    # info = one.alyx.rest('subjects', 'read', id=subject)
+    # sex = info['sex']  # 'M', 'F', or 'U'
+
+    # Load the male/female subject dictionary
+    ds = np.load(os.path.join(dec_pth, 'male_female.npy'), allow_pickle=True).flat[0]
+
+    # Set up the plot structure (3 rows for each variable, 1 column)
+    fig, axes = plt.subplots(nrows=3, ncols=1, figsize=(8.26, 4.37), 
+                             sharey=True, sharex=True)
+
+    for row_idx, vari in enumerate(variables):
+        pqt_file = os.path.join(dec_pth, f"{dec_d[vari]}_stage2.pqt")
+        df = pd.read_parquet(pqt_file)
+
+        # Combine 'VISa' and 'VISam' into 'VISa/am'
+        df['region'] = df['region'].replace({'VISa': 'VISa/am', 'VISam': 'VISa/am'})
+
+        # Restrict the DataFrame to the 5 repro regions
+        df = df[df['region'].isin(repro_regs)]
+
+        # Map the sex information to the DataFrame
+        df['sex'] = df['subject'].map(ds)
+
+        # Separate by sex
+        female_df = df[df['sex'] == 'F']
+        male_df = df[df['sex'] == 'M']
+
+        # Combine male and female data into a new DataFrame for better comparison in the plot
+        df_combined = pd.concat([female_df.assign(gender='Female'), male_df.assign(gender='Male')])
+
+        # Plot in the corresponding row
+        ax = axes[row_idx]
+        
+        # Strip plot for both male (blue) and female (red) side by side for each region
+        sns.stripplot(data=df_combined, x='region', y='score', hue='gender', 
+                      palette={'Male': 'blue', 'Female': 'red'}, 
+                      dodge=True, jitter=True, size=3, ax=ax)
+
+        # Add mean null score (white dot) for each gender and region
+        # Ensure the x-alignment is consistent (no dodge for null scores)
+        for region in repro_regs:
+            # Get the x position for this region (for both male and female)
+            x_female = repro_regs.index(region) - 0.2  # Slight left shift for female (consistent with dodge)
+            x_male = repro_regs.index(region) + 0.2    # Slight right shift for male (consistent with dodge)
+
+            # Plot null score for females (red)
+            female_null = female_df[female_df['region'] == region]['median-null'].mean()
+            ax.scatter(x_female, female_null, color='white', 
+                edgecolor='red', zorder=3, s=30)
+
+            # Plot null score for males (blue)
+            male_null = male_df[male_df['region'] == region]['median-null'].mean()
+            ax.scatter(x_male, male_null, color='white', 
+                edgecolor='blue', zorder=3, s=30)
+
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+
+        # Set labels and titles for each row
+        ax.set_xlabel("Brain Regions")
+        ax.set_ylabel(f"{variverb[vari]} \n decoding accuracy")
+        
+        # Remove legend from individual plots to keep the layout clean
+        ax.get_legend().remove()
+        for i in range(1, len(repro_regs)):
+            ax.axvline(x=i-0.5, color='grey', linestyle='--', linewidth=1)
+
+    legend_handles = [
+        plt.Line2D([0], [0], marker='o', color='white', label='Male',
+                   markerfacecolor='blue', markeredgecolor='blue', markersize=5),
+        plt.Line2D([0], [0], marker='o', color='white', label='Female',
+                   markerfacecolor='red', markeredgecolor='red', markersize=5),
+        plt.Line2D([0], [0], marker='o', color='white', label='Null (Male)',
+                   markerfacecolor='white', markeredgecolor='blue', markersize=5),
+        plt.Line2D([0], [0], marker='o', color='white', label='Null (Female)',
+                   markerfacecolor='white', markeredgecolor='red', markersize=5)
+    ]
+
+    fig.legend(handles=legend_handles, loc='upper center', 
+            frameon=False, ncols=2).set_draggable(True)
+
+    # Adjust layout
+    plt.tight_layout()
+    fig.savefig(Path(imgs_pth, 'si', 
+                f'n6_supp_dec_repro_male_female.pdf'), dpi=150)    
+
+
+def print_age_weight():
+
+    '''
+    for all BWM mice print age and weight and means
+    '''
+    subjects = bwm_query(one)['subject'].unique()
+    d = {}
+    for sub in subjects:
+        print(sub)
+        info = one.alyx.rest('subjects', 'read', id=sub)
+        d[sub] = [info['age_weeks'], info['reference_weight']]
+
+    print('mean age [weeks]',  np.round(np.mean([d[s][0] for s in d]),2))
+    print('median age [weeks]',  np.round(np.median([d[s][0] for s in d]),2))
+    print('max, min [weeks]', np.max([d[s][0] for s in d]), 
+                              np.min([d[s][0] for s in d]))
+
+    print('mean weight [gr]',  np.round(np.median([d[s][1] for s in d]),2))
+    print('median weight [gr]',  np.round(np.mean([d[s][1] for s in d]),2))                                     
+    print('max, min [gr]', np.max([d[s][1] for s in d]), 
+                              np.min([d[s][1] for s in d]))
 
 '''
 ##########
@@ -2218,8 +2505,8 @@ def plot_twocond(
             error_bars="sem",
             ax=ax[i],
             smoothing=0.01,
-            pethline_kwargs={"color": "blue", "linewidth": 2},
-            errbar_kwargs={"color": "blue", "alpha": 0.5},
+            pethline_kwargs={"color": blue_left, "linewidth": 2},
+            errbar_kwargs={"color": blue_left, "alpha": 0.5},
         )
         oldticks.extend(ax[i].get_yticks())
         peri_event_time_histogram(
@@ -2233,15 +2520,15 @@ def plot_twocond(
             error_bars="sem",
             ax=ax[i],
             smoothing=0.01,
-            pethline_kwargs={"color": "red", "linewidth": 2},
-            errbar_kwargs={"color": "red", "alpha": 0.5},
+            pethline_kwargs={"color": red_right, "linewidth": 2},
+            errbar_kwargs={"color": red_right, "alpha": 0.5},
         )
         oldticks.extend(ax[i].get_yticks())
         pred1 = cond1pred if not rem_regressor else nrcond1pred
         pred2 = cond2pred if not rem_regressor else nrcond2pred
-        ax[i].step(x, pred1, color="darkblue", linewidth=2)
+        ax[i].step(x, pred1, color="skyblue", linewidth=2)
         oldticks.extend(ax[i].get_yticks())
-        ax[i].step(x, pred2, color="darkred", linewidth=2)
+        ax[i].step(x, pred2, color="#F08080", linewidth=2)
         oldticks.extend(ax[i].get_yticks())
         ax[i].set_ylim([0, np.max(oldticks) * 1.1])
     return fig, ax, sspkt, sspkclu, stdf
@@ -2290,8 +2577,8 @@ def get_example_results():
             lambda c: c == -1,
             0.2,
             0.05,
-            "fmoveL", #fmoveL
-            "fmoveR", #fmoveR
+            "fmoveL", #choice left
+            "fmoveR", #choice right
         ),
         "feedback_times": (
             "feedbackType",
@@ -2309,15 +2596,15 @@ def get_example_results():
         "stim": (
             'e0928e11-2b86-4387-a203-80c77fab5d52',  # EID 
             '799d899d-c398-4e81-abaf-1ef4b02d5475',  # PID 
-            235,  # clu_id, was 235
+            235,  # clu_id, was 235 -- online 218 looks good
             "VISp",  # region
             0.04540706,  # drsq (from 02_fit_sessions.py)
             "stimOn_times",  # Alignset key
         ),
         "choice": (
-            "671c7ea7-6726-4fbe-adeb-f89c2c8e489b",
-            "04c9890f-2276-4c20-854f-305ff5c9b6cf",
-            143,
+            "a7763417-e0d6-4f2a-aa55-e382fd9b5fb8",#"671c7ea7-6726-4fbe-adeb-f89c2c8e489b"
+            "57c5856a-c7bd-4d0f-87c6-37005b1484aa",#"04c9890f-2276-4c20-854f-305ff5c9b6cf"
+            74, # was 143
             "GRN",
             0.000992895,  # drsq
             "firstMovement_times",
@@ -2340,7 +2627,7 @@ def get_example_results():
     return targetunits, alignsets, sortlookup
     
     
-def ecoding_raster_lines(variable, clu_id0=None, axs=None,
+def encoding_raster_lines(variable, clu_id0=None, axs=None,
                          frac_tr=3):    
 
     '''
@@ -2407,7 +2694,7 @@ def ecoding_raster_lines(variable, clu_id0=None, axs=None,
 
     # custom legend
     all_lines = axs[1].get_lines()
-    legend_labels = [reg2, reg1, 'model', 'model']
+    legend_labels = [reg1, reg2, 'model', 'model']
     axs[1].legend(all_lines, legend_labels, loc='upper right',
                  bbox_to_anchor=(1.2, 1.3), fontsize=f_size_s,
                  frameon=False)
@@ -2421,7 +2708,7 @@ def ecoding_raster_lines(variable, clu_id0=None, axs=None,
         stdf[aligntime],
         trial_idx,
         dividers,
-        ["b", "r"],
+        [blue_left, red_right],
         [reg1, reg2],
         pre_time=t_before,
         post_time=t_after,
@@ -2486,12 +2773,54 @@ def encoding_wheel_boxen(ax=None, fig=None):
     if alone:
         fig.tight_layout()  
         fig.savefig(Path(imgs_pth, 'speed', 
-                         'glm_boxen.svg')) 
-                             
+                         'glm_boxen.svg'))
+
+
+def encoding_wheel_2d_density(ax=None, fig=None):
+    # Load data and configurations
+    d = {}
+    fs = {'speed': 'GLMs_wheel_speed.pkl',
+          'velocity': 'GLMs_wheel_velocity.pkl'} 
+
+    for v in fs:
+        d[v] = pd.read_pickle(
+            Path(enc_pth, fs[v]))['mean_fit_results']["wheel"].to_frame()
+
+    # Join data
+    joinwheel = d['speed'].join(d['velocity'], how="inner", 
+                                rsuffix="_velocity", lsuffix="_speed")
+    
+    # Extract the columns to plot
+    x = joinwheel.iloc[:, 0]  # wheel_speed values
+    y = joinwheel.iloc[:, 1]  # wheel_velocity values
+    
+    # Check if we are plotting alone or on provided axis
+    alone = False
+    if not ax:
+        alone = True
+        fig, ax = plt.subplots(constrained_layout=True, figsize=[5, 5])  
+    
+    # Plot 2D density using seaborn's kdeplot
+    sns.kdeplot(x=x, y=y, ax=ax, cmap="Blues", fill=True)
+
+    # Label axes
+    ax.set_xlabel('Wheel Speed')
+    ax.set_ylabel('Wheel Velocity')
+    
+    # Adjust axis visibility
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.set_aspect('equal')
+    # Save plot if alone
+    if alone:
+        fig.tight_layout()
+        fig.savefig(Path(imgs_pth, 'speed', 'glm_2d_density.svg'))
+
+
 
 '''
 ##########
-manifold
+Population trajectory
 ##########
 '''
 
@@ -2512,35 +2841,6 @@ def get_name(brainregion):
     regid = br.id[np.argwhere(br.acronym == brainregion)][0, 0]
     return br.name[np.argwhere(br.id == regid)[0, 0]]
     
-def manifold_to_csv():
-
-    '''
-    reformat results for table
-    '''
-    
-    mapping = 'Beryl'
-
-    columns = ['region','name','nclus', 
-               'p_euc_can', 'amp_euc_can',
-               'lat_euc_can']
-
-    for variable in variables:        
-        r = []
-        variable = variable + '_restr'
-        d = np.load(Path(man_pth, f'{variable}.npy'),
-                    allow_pickle=True).flat[0] 
-        
-        for reg in d:
-
-            r.append([reg, get_name(reg), d[reg]['nclus'],
-                      d[reg]['p_euc_can'],
-                      d[reg]['amp_euc_can'],
-                      d[reg]['lat_euc_can']])
-                      
-        df  = pd.DataFrame(data=r,columns=columns)        
-        df.to_csv(Path(man_pth,f'{variable}.csv'))        
-
-     
          
 def pre_post(variable, can=False):
     '''
@@ -3070,10 +3370,10 @@ def main_fig(variable, clu_id0=None, save_pans=False):
          
 
     '''
-    manifold
+    Population trajectory
     '''
 
-    # manifold panels, line plot with more regions and scatter
+    # trajectory panels, line plot with more regions and scatter
     if not save_pans:
         plot_curves_scatter(variable+'_restr',fig=fig, 
                  axs=[ax_str(x) for x in 
@@ -3107,12 +3407,12 @@ def main_fig(variable, clu_id0=None, save_pans=False):
 
     # encoding panels
     if not save_pans:   
-        ecoding_raster_lines(variable,clu_id0= clu_id0, 
+        encoding_raster_lines(variable,clu_id0= clu_id0, 
                              axs=[ax_str(x) for x in 
                              ['ras', 'enc0', 'enc1']])
                          
     else:
-        ecoding_raster_lines(variable, clu_id0=clu_id0)
+        encoding_raster_lines(variable, clu_id0=clu_id0)
     
     
     '''
@@ -3343,27 +3643,29 @@ def ghostscript_compress_pdf(variable, level='/printer'):
     '''
 
 
-
     if variable in variables:
         input_path = Path(imgs_pth, variable, 
                          f'n5_main_figure_{variverb[variable]}_revised_raw.pdf')
         output_path = Path(imgs_pth, variable, 
                          f'n5_main_figure_{variverb[variable]}_revised.pdf')
                          
-    if variable == 'wheel':
+    elif variable == 'wheel':
         input_path = Path(imgs_pth, 'speed', 
                          f'n5_main_figure_wheel_revised_raw.pdf')
         output_path = Path(imgs_pth, 'speed', 
                          f'n5_main_figure_wheel_revised.pdf')
                          
-    if variable == 'manuscript':
+    elif variable == 'manuscript':
         input_path = Path('/home/mic/Brainwide_Map_Paper.pdf')
         output_path = Path('/home/mic/Brainwide_Map_Paper2.pdf')    
 
 
     else:
        input_path = input("Please enter pdf input_path: ")
+       print(f"Received input path: {input_path}")
+
        output_path = input("Please enter pdf output_path: ")
+       print(f"Received output path: {output_path}")
        
        input_path = Path(input_path.strip("'\""))
        output_path = Path(output_path.strip("'\""))
@@ -3385,6 +3687,7 @@ def ghostscript_compress_pdf(variable, level='/printer'):
         print(f"PDF successfully compressed and saved to {output_path}")
     except subprocess.CalledProcessError as e:
         print(f"An error occurred: {e}")
+
 
 
 
