@@ -9,26 +9,29 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-
+import matplotlib.colors as colors_
 # IBL libraries
+from one.api import ONE
 from iblutil.util import Bunch
 import brainbox.io.one as bbone
 from brainbox.io.one import SessionLoader
 
 # Brainwidemap repo imports
-from brainwidemap.bwm_loading import load_trials_and_mask, bwm_units
+from brainwidemap.bwm_loading import load_good_units, load_trials_and_mask, bwm_units
 from brainwidemap.encoding.timeseries import TimeSeries, sync
 
 
 def load_regressors(
     session_id,
     pid,
-    one,
+    one=None,
     t_before=0.0,
     t_after=0.2,
     binwidth=0.02,
     abswheel=False,
     clu_criteria="bwm",
+    one_url="https://openalyx.internationalbrainlab.org",
+    one_pw="international"
 ):
     """
     Load in regressors for given session and probe. Returns a dictionary with the following keys:
@@ -61,6 +64,9 @@ def load_regressors(
     trialsdf, spk_times, spk_clu, clu_regions, clu_qc, clu_df, clu_qc (optional)
         Output regressors for GLM
     """
+    if one is None:
+        one = ONE(base_url=one_url, password=one_pw, silent=True)
+
     _, mask = load_trials_and_mask(one=one, eid=session_id)
     mask = mask.index[np.nonzero(mask.values)]
     trialsdf = load_trials_df(
@@ -75,34 +81,12 @@ def load_regressors(
         trials_mask=mask,
     )
 
-    clusters = {}
-    ssl = bbone.SpikeSortingLoader(one=one, pid=pid, eid=session_id)
-    origspikes, tmpclu, channels = ssl.load_spike_sorting()
-    if "metrics" not in tmpclu:
-        tmpclu["metrics"] = np.ones(tmpclu["channels"].size)
-    clusters[pid] = ssl.merge_clusters(origspikes, tmpclu, channels)
-    clu_df = pd.DataFrame(clusters[pid]).set_index(["cluster_id"])
-    clu_df["pid"] = pid
-
     if clu_criteria == "bwm":
-        allunits = (
-            bwm_units(one=one)
-            .rename(columns={"cluster_id": "clu_id"})
-            .set_index(["eid", "pid", "clu_id"])
-        )
-        keepclu = clu_df.index.intersection(allunits.loc[session_id, pid, :].index)
-    elif clu_criteria == "all":
-        keepclu = clu_df.index
-    else:
-        raise ValueError("clu_criteria must be 'bwm' or 'all'")
-
-    clu_df = clu_df.loc[keepclu]
-    keepmask = np.isin(origspikes.clusters, keepclu)
-    spikes = Bunch({k: v[keepmask] for k, v in origspikes.items()})
-    sortinds = np.argsort(spikes.times)
-    spk_times = spikes.times[sortinds]
-    spk_clu = spikes.clusters[sortinds]
-    clu_regions = clusters[pid].acronym
+        spikes, clu_df = load_good_units(one=one, pid=pid)
+    spk_times = spikes["times"]
+    spk_clu = spikes["clusters"]
+    clu_df["pid"] = pid
+    clu_regions = clu_df.acronym
     return trialsdf, spk_times, spk_clu, clu_regions, clu_df
 
 
@@ -188,7 +172,8 @@ def make_batch_slurm_singularity(
     fw.write(f"#SBATCH --cpus-per-task={cores_per_job}\n")
     fw.write(f"#SBATCH --mem={memory}\n")
     fw.write("\n")
-    fw.write(f"module load {' '.join(singularity_modules)}\n")
+    if not len(singularity_modules) == 0:
+        fw.write(f"module load {' '.join(singularity_modules)}\n")
     bindstr = "" if len(mount_paths) == 0 else "-B "
     mountpairs = ",".join([f"{k}:{v}" for k, v in mount_paths.items()])
     fw.write(f"singularity run {bindstr} {mountpairs} {container_image} /bin/bash {workerscript}")
@@ -205,7 +190,6 @@ def make_batch_slurm_singularity(
 
 def load_trials_df(
     eid,
-    one,
     t_before=0.0,
     t_after=0.2,
     ret_wheel=False,
@@ -213,6 +197,7 @@ def load_trials_df(
     wheel_binsize=0.02,
     addtl_types=[],
     trials_mask=None,
+    one=None,
 ):
     """
     Generate a pandas dataframe of per-trial timing information about a given session.
@@ -257,6 +242,8 @@ def load_trials_df(
         have a monotonic index. Has special columns trial_start and trial_end which define start
         and end times via t_before and t_after
     """
+    if one is None:
+        raise ValueError("one must be defined.")
     if ret_wheel and ret_abswheel:
         raise ValueError("ret_wheel and ret_abswheel cannot both be true.")
 
@@ -341,10 +328,13 @@ def single_cluster_raster(
     pre_time=0.4,
     post_time=1.0,
     raster_bin=0.01,
+    raster_cbar=False,
+    raster_interp="none",
     show_psth=False,
     psth_bin=0.05,
     weights=None,
     fr=True,
+    frac_tr=1,
     norm=False,
     axs=None,
 ):
@@ -371,6 +361,10 @@ def single_cluster_raster(
         Time after event to plot, by default 1.
     raster_bin : float, optional
         Time bin size for the raster, by default 0.01
+    raster_cbar : bool, optional
+        Whether to include a color bar for the raster, which uses binned spike counts.
+    raster_interp : str, optional
+        Passed to matplotlib.pyplot.imshow, by default "none"
     psth : bool, optional
         Whether to plot the PSTH, by default False
     psth_bin : float, optional
@@ -381,6 +375,8 @@ def single_cluster_raster(
         Whether to plot as a firing rate or spike count, by default True
     norm : bool, optional
         Whether to normalize PSTH, by default False
+    frac_tr: int
+        WWhich fraction of trials to show    
     axs : matplotlib.pyplot.axes, optional
         Either a single axis if no PSTH or an array of 2 axes, by default None
 
@@ -392,7 +388,7 @@ def single_cluster_raster(
     """
     raster, t_raster = bin_spikes(
         spike_times,
-        events,
+        events.values,
         pre_time=pre_time,
         post_time=post_time,
         bin_size=raster_bin,
@@ -400,7 +396,7 @@ def single_cluster_raster(
     )
     psth, t_psth = bin_spikes(
         spike_times,
-        events,
+        events.values,
         pre_time=pre_time,
         post_time=post_time,
         bin_size=psth_bin,
@@ -461,13 +457,20 @@ def single_cluster_raster(
         lab_max = idx[np.argmax(t_ints)]
         label_pos.append((dividers[lab_max + 1] - dividers[lab_max]) / 2 + dividers[lab_max])
 
+    cmap = colors_.LinearSegmentedColormap.from_list(
+        "custom_binary", ["white", "black"])
+    norm_ = colors_.Normalize(vmin=0, vmax=0.5)
+
     raster_ax.imshow(
-        raster[trial_idx],
-        cmap="binary",
+        raster[trial_idx][::frac_tr],
+        cmap=cmap,
+        norm=norm_,
         origin="lower",
-        extent=[np.min(t_raster), np.max(t_raster), 0, len(trial_idx)],
+        extent=[np.min(t_raster), np.max(t_raster), 0, len(raster)],
+        interpolation=raster_interp,
         aspect="auto",
     )
+
 
     width = raster_bin * 4
     for iD in range(len(dividers) - 1):
@@ -479,6 +482,12 @@ def single_cluster_raster(
         )
 
     raster_ax.set_xlim([-1 * pre_time, post_time + raster_bin / 2 + width])
+    
+    raster_ax.set_yticks(dividers)
+    raster_ax.set_yticklabels([0,'',len(trial_idx[::frac_tr])])
+    
+    if raster_cbar:
+        plt.colorbar(raster_ax.get_images()[0], ax=raster_ax, label="Spike count")
     secax = raster_ax.secondary_yaxis("right")
 
     secax.set_yticks(label_pos)

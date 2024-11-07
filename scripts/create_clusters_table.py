@@ -11,7 +11,7 @@ from datetime import date
 import tqdm
 
 from one.api import ONE
-from ibllib.atlas import AllenAtlas
+from iblatlas.atlas import AllenAtlas
 from iblutil.util import setup_logger
 
 from brainwidemap import bwm_query

@@ -14,6 +14,7 @@ from pathlib import Path
 
 # Third party libraries
 import numpy as np
+from pandas import read_pickle
 
 # Brainwidemap repo imports
 from brainwidemap.encoding.design import generate_design
@@ -23,7 +24,7 @@ from brainwidemap.encoding.params import GLM_FIT_PATH
 
 def get_cached_regressors(fpath):
     with open(fpath, "rb") as fo:
-        d = pickle.load(fo)
+        d = read_pickle(fo)
     return d["trialsdf"], d["spk_times"], d["spk_clu"], d["clu_regions"], d["clu_df"]
 
 
@@ -37,9 +38,9 @@ def _create_sub_sess_path(parent, subject, session):
     return sesspath
 
 
-def save_stepwise(subject, session_id, fitout, params, probes, input_fn, clu_reg, clu_df, fitdate):
+def save_stepwise(subject, session_id, fitout, params, probes, input_fn, clu_reg, clu_df, fitdate, splitstr=""):
     sesspath = _create_sub_sess_path(GLM_FIT_PATH, subject, session_id)
-    fn = sesspath.joinpath(f"{fitdate}_{probes}_stepwise_regression.pkl")
+    fn = sesspath.joinpath(f"{fitdate}_{probes}{splitstr}_stepwise_regression.pkl")
     outdict = {
         "params": params,
         "probes": probes,
@@ -81,14 +82,41 @@ def fit_save_inputs(
     t_before,
     fitdate,
     null=None,
+    earlyrts=False,
+    laterts=False,
 ):
     stdf, sspkt, sspkclu, sclureg, scluqc = get_cached_regressors(eidfn)
     sessprior = stdf["probabilityLeft"]
-    sessdesign = generate_design(stdf, sessprior, t_before, **params)
+    match (earlyrts, laterts):
+        case (False, False):
+            splitstr = ""
+        case (True, False):
+            splitstr = "_earlyrt"
+        case (False, True):
+            splitstr = "_latert"
+    if not earlyrts and not laterts:
+        sessdesign = generate_design(stdf, sessprior, t_before, **params)
+    else:
+        # Handle early and late RT flags, compute median for session if necessary
+        if "rt_thresh" not in params:
+            raise ValueError("Must specify rt_thresh if fitting early or late RTs")
+        if laterts and earlyrts:
+            raise ValueError(
+                "Cannot fit both early and late RTs. Disable both flags to fit all trials."
+            )
+        if params["rt_thresh"] == "session_median":
+            params["rt_thresh"] = np.median(stdf["firstMovement_times"] - stdf["trial_start"])
+
+        if earlyrts:
+            mask = (stdf["firstMovement_times"] - stdf["trial_start"]) < params["rt_thresh"]
+        elif laterts:
+            mask = (stdf["firstMovement_times"] - stdf["trial_start"]) >= params["rt_thresh"]
+        stdf = stdf[mask]
+        sessdesign = generate_design(stdf, sessprior, t_before, **params)
     if null is None:
         sessfit = fit_stepwise(sessdesign, sspkt, sspkclu, **params)
         outputfn = save_stepwise(
-            subject, eid, sessfit, params, probes, eidfn, sclureg, scluqc, fitdate
+            subject, eid, sessfit, params, probes, eidfn, sclureg, scluqc, fitdate, splitstr
         )
     elif null == "pseudosession_pleft_iti":
         sessfit, nullfits = fit_stepwise_with_pseudoblocks(
@@ -114,11 +142,13 @@ def fit_save_inputs(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Cluster GLM fitter. This script is called by"
-                                                 "the batch script generated in "
-                                                 "pipelines/02_fit_sessions.py and should in most "
-                                                 "cases beyond debugging not be used in a "
-                                                 "standalone fashion.")
+    parser = argparse.ArgumentParser(
+        description="Cluster GLM fitter. This script is called by"
+        "the batch script generated in "
+        "pipelines/02_fit_sessions.py and should in most "
+        "cases beyond debugging not be used in a "
+        "standalone fashion."
+    )
     parser.add_argument(
         "datafile",
         type=Path,
@@ -131,6 +161,16 @@ if __name__ == "__main__":
     )
     parser.add_argument("fitdate", help="Date of fit for output file")
     parser.add_argument("--impostor_path", type=Path, help="Path to main impostor df file")
+    parser.add_argument(
+        "--earlyrt",
+        action="store_true",
+        help="Whether to fit separate movement kernels to early trials",
+    )
+    parser.add_argument(
+        "--latert",
+        action="store_true",
+        help="Whether to fit separate movement kernels to late trials",
+    )
     args = parser.parse_args()
 
     with open(args.datafile, "rb") as fo:
@@ -154,6 +194,8 @@ if __name__ == "__main__":
         t_before,
         args.fitdate,
         null=params["null"],
+        earlyrts=args.earlyrt,
+        laterts=args.latert,
     )
     print("Fitting completed successfully!")
     print(outputfn)

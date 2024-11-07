@@ -6,8 +6,8 @@ import_heading_stdlib = "Standard library"
 import_heading_thirdparty = "Third party libraries"
 import_heading_firstparty = "IBL libraries"
 import_heading_localfolder = "Brainwidemap repo imports"
-line_length = 130
-wrap_length = 130
+line_length = 99
+wrap_length = 99
 
 [tool.black]
 line-length = 99

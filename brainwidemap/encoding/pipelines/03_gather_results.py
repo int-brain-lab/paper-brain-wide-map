@@ -1,13 +1,46 @@
 # Standard library
 from functools import cache
-from argparse import ArgumentParser
 
 # Third party libraries
 import numpy as np
 import pandas as pd
 
 # IBL libraries
-from ibllib.atlas import BrainRegions
+from iblatlas.atlas import BrainRegions
+from iblutil.numerical import ismember
+
+
+def colrename(cname, suffix):
+    return str(cname + 1) + "cov" + suffix
+
+
+def remap(ids, source="Allen", dest="Beryl", output="acronym", br=BrainRegions()):
+    _, inds = ismember(ids, br.id[br.mappings[source]])
+    ids = br.id[br.mappings[dest][inds]]
+    if output == "id":
+        return br.id[br.mappings[dest][inds]]
+    elif output == "acronym":
+        return br.get(br.id[br.mappings[dest][inds]])["acronym"]
+
+
+def get_id(acronym, brainregions=BrainRegions()):
+    return brainregions.id[np.argwhere(brainregions.acronym == acronym)[0, 0]]
+
+
+def get_name(acronym, brainregions=BrainRegions()):
+    if acronym == "void":
+        return acronym
+    reg_idxs = np.argwhere(brainregions.acronym == acronym).flat
+    return brainregions.name[reg_idxs[0]]
+
+
+def label_cerebellum(acronym, brainregions=BrainRegions()):
+    regid = brainregions.id[np.argwhere(brainregions.acronym == acronym).flat][0]
+    ancestors = brainregions.ancestors(regid)
+    if "Cerebellum" in ancestors.name or "Medulla" in ancestors.name:
+        return True
+    else:
+        return False
 
 
 if __name__ == "__main__":
@@ -20,33 +53,21 @@ if __name__ == "__main__":
     # Brainwide repo imports
     from brainwidemap.encoding.params import GLM_CACHE, GLM_FIT_PATH
 
-    parser = ArgumentParser(
-        description="Gather results from GLM fitting on a given date with given N covariates."
-    )
-    parser.add_argument(
-        "--fitdate",
-        type=str,
-        default="2023-04-09",
-        help="Date on which fit was run",
-    )
-    parser.add_argument(
-        "--n_cov",
-        type=int,
-        default=9,
-        help="Number of covariates in model",
-    )
-    args = parser.parse_args()
-    fitdate = args.fitdate
-    n_cov = args.n_cov
-    parpath = Path(GLM_FIT_PATH).joinpath(f"{fitdate}_glm_fit_pars.pkl")
+    currdate = "2024-09-15"  # Date on which fit was run
+    n_cov = 9  # Modify if you change the model!
+    parpath = Path(GLM_FIT_PATH).joinpath(f"{currdate}_glm_fit_pars.pkl")
+    early_split = False
     with open(parpath, "rb") as fo:
         params = pickle.load(fo)
     datapath = Path(GLM_CACHE).joinpath(params["dataset_fn"])
     with open(datapath, "rb") as fo:
         dataset = pickle.load(fo)
+    subject_names = dataset["dataset_filenames"]["subject"].unique()
 
     filenames = []
     for subj in os.listdir(Path(GLM_FIT_PATH)):
+        if subj not in subject_names:
+            continue
         subjdir = Path(GLM_FIT_PATH).joinpath(subj)
         if not os.path.isdir(subjdir):
             continue
@@ -54,7 +75,7 @@ if __name__ == "__main__":
             sessdir = subjdir.joinpath(sess)
             for file in os.listdir(sessdir):
                 filepath = sessdir.joinpath(file)
-                if os.path.isfile(filepath) and filepath.match(f"*{fitdate}*"):
+                if os.path.isfile(filepath) and filepath.match(f"*{currdate}*"):
                     filenames.append(filepath)
 
     # Process files after fitting
@@ -65,51 +86,44 @@ if __name__ == "__main__":
         folds = []
         for i in range(len(tmpfile["scores"])):
             tmpdf = tmpfile["deltas"][i]["test"]
+            tmpdf.index.name = "clu_id"
             tmpdf["full_model"] = tmpfile["scores"][i]["basescores"]["test"]
             tmpdf["eid"] = fitname.parts[-2]
             tmpdf["pid"] = fitname.parts[-1].split("_")[1]
-            tmpdf["acronym"] = tmpfile["clu_regions"][tmpdf.index]
-            tmpdf["qc_label"] = tmpfile["clu_df"]["label"][tmpdf.index]
+            tmpdf["acronym"] = tmpfile["clu_regions"]
+            tmpdf["qc_label"] = tmpfile["clu_df"]["label"]
             tmpdf["fold"] = i
+            tmpdf.index = tmpfile["clu_df"].iloc[tmpdf.index].cluster_id
             tmpdf.index.set_names(["clu_id"], inplace=True)
             folds.append(tmpdf.reset_index())
         sess_master = pd.concat(folds)
         sessdfs.append(sess_master)
     masterscores = pd.concat(sessdfs)
-    # Take the average score across the different folds of cross-validation for each unit for
-    # each of the model regressors
+    kernels = [
+        "stimonR",
+        "stimonL",
+        "correct",
+        "incorrect",
+        "fmoveR",
+        "fmoveL",
+        "pLeft",
+        "pLeft_tr",
+        "wheel",
+        "full_model",
+    ]
+
     meanmaster = (
         masterscores.set_index(["eid", "pid", "clu_id", "acronym", "qc_label", "fold"])
         .groupby(["eid", "pid", "clu_id", "acronym", "qc_label"])
-        .agg(
-            {
-                k: "mean"
-                for k in [
-                    "stimonR",
-                    "stimonL",
-                    "correct",
-                    "incorrect",
-                    "fmoveR",
-                    "fmoveL",
-                    "pLeft",
-                    "pLeft_tr",
-                    "wheel",
-                    "full_model",
-                ]
-            }
-        )
+        .agg({k: "mean" for k in kernels})
     )
-
-    br = BrainRegions()
 
     @cache
     def regmap(acr):
-        return br.acronym2acronym(acr, mapping="Beryl")
+        ids = get_id(acr)
+        return remap(ids, br=br)
 
     br = BrainRegions()
-    # Remap the existing acronyms, which use the Allen ontology, into the Beryl ontology
-    # Note that the groupby operation is to save time on computation so we don't need to 
-    # recompute the region mapping for each unit, but rather each Allen acronym.
     grpby = masterscores.groupby("acronym")
     meanmaster.reset_index(["acronym", "qc_label"], inplace=True)
     masterscores["region"] = [regmap(ac)[0] for ac in masterscores["acronym"]]
@@ -122,5 +136,5 @@ if __name__ == "__main__":
         "mean_fit_results": meanmaster,
         "fit_files": filenames,
     }
-    with open(Path(GLM_FIT_PATH).joinpath(f"{fitdate}_glm_fit.pkl"), "wb") as fw:
+    with open(Path(GLM_FIT_PATH).joinpath(f"{currdate}_glm_fit.pkl"), "wb") as fw:
         pickle.dump(outdict, fw)
