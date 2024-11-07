@@ -460,15 +460,17 @@ def single_cluster_raster(
     cmap = colors_.LinearSegmentedColormap.from_list(
         "custom_binary", ["white", "black"])
     norm_ = colors_.Normalize(vmin=0, vmax=0.5)
+
     raster_ax.imshow(
         raster[trial_idx][::frac_tr],
         cmap=cmap,
         norm=norm_,
         origin="lower",
-        extent=[np.min(t_raster), np.max(t_raster), 0, len(trial_idx)],
+        extent=[np.min(t_raster), np.max(t_raster), 0, len(raster)],
         interpolation=raster_interp,
         aspect="auto",
     )
+
 
     width = raster_bin * 4
     for iD in range(len(dividers) - 1):
@@ -482,10 +484,7 @@ def single_cluster_raster(
     raster_ax.set_xlim([-1 * pre_time, post_time + raster_bin / 2 + width])
     
     raster_ax.set_yticks(dividers)
-    
-    num_rows = len(trial_idx)//frac_tr  
-    raster_ax.set_yticklabels([str(x) for x in [0, num_rows // 2, num_rows - 1]])
-    
+    raster_ax.set_yticklabels([0,'',len(trial_idx[::frac_tr])])
     
     if raster_cbar:
         plt.colorbar(raster_ax.get_images()[0], ax=raster_ax, label="Spike count")
