@@ -118,7 +118,9 @@ def load_good_units(one, pid, compute_metrics=False, qc=1., **kwargs):
     one: one.api.ONE
         Instance to be used to connect to local or remote database
     pid: str
-        A probe insertion UUID
+        A probe insertion UUID.
+        If one is in local mode, it is ignored; in this case, `pname` and `eid` optional arguments should
+        be provided instead.
     compute_metrics: bool
         If True, force SpikeSortingLoader.merge_clusters to recompute the cluster metrics. Default is False
     qc: float
@@ -136,7 +138,12 @@ def load_good_units(one, pid, compute_metrics=False, qc=1., **kwargs):
     """
     eid = kwargs.pop('eid', '')
     pname = kwargs.pop('pname', '')
-    spike_loader = SpikeSortingLoader(pid=pid, one=one, eid=eid, pname=pname)
+    if one.mode == 'local':
+        if (eid is '') or (pname is ''):
+            raise ValueError('"eid" and "pname" optional arguments must be provided for ONE in local mode.')
+        spike_loader = SpikeSortingLoader(one=one, eid=eid, pname=pname)
+    else:
+        spike_loader = SpikeSortingLoader(pid=pid, one=one)
     download_good_units_only = qc >= 1.0
     spikes, clusters, channels = spike_loader.load_spike_sorting(revision="2024-05-06", good_units=download_good_units_only)
     clusters_labeled = SpikeSortingLoader.merge_clusters(
