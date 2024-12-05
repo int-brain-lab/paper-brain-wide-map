@@ -139,7 +139,7 @@ def load_good_units(one, pid, compute_metrics=False, qc=1., **kwargs):
     eid = kwargs.pop('eid', '')
     pname = kwargs.pop('pname', '')
     if one.mode == 'local':
-        if (eid is '') or (pname is ''):
+        if (eid == '') or (pname == ''):
             raise ValueError('"eid" and "pname" optional arguments must be provided for ONE in local mode.')
         spike_loader = SpikeSortingLoader(one=one, eid=eid, pname=pname)
     else:
