@@ -1,4 +1,5 @@
 import numpy as np
+import os
 import pandas as pd
 import unittest
 
@@ -10,7 +11,7 @@ from brainwidemap import bwm_loading
 class TestAggregateTables(unittest.TestCase):
 
     def setUp(self):
-        self.one = ONE(base_url='https://openalyx.internationalbrainlab.org')
+        self.one = ONE(base_url='https://alyx.internationalbrainlab.org')
         self.trials_table = bwm_loading.download_aggregate_tables(self.one, type='trials')
         self.df_trials = pd.read_parquet(self.trials_table)
 

@@ -14,6 +14,10 @@ from one.remote import aws
 import brainwidemap
 
 
+MODIFIED_BEFORE = '2024-07-10'
+"""Load data last modified before this date."""
+
+
 def bwm_query(one=None, alignment_resolved=True, return_details=False, freeze='2023_12_bwm_release'):
     """
     Function to query for brainwide map sessions that pass the most important quality controls. Returns a dataframe
@@ -278,7 +282,7 @@ def load_trials_and_mask(
         ]
 
     if sess_loader is None:
-        sess_loader = SessionLoader(one=one, eid=eid, revision=revision)
+        sess_loader = SessionLoader(one=one, eid=eid, revision=MODIFIED_BEFORE)
 
     if sess_loader.trials.empty:
         sess_loader.load_trials()
