@@ -6,13 +6,12 @@ Changes to the model specification, beyond basis function choices, should be mad
 # Standard library
 import logging
 
+# IBL libraries
+import neurencoding.design_matrix as dm
+
 # Third party libraries
 import numpy as np
 import pandas as pd
-from scipy.stats import norm
-
-# IBL libraries
-import neurencoding.design_matrix as dm
 
 _logger = logging.getLogger("brainwide")
 
