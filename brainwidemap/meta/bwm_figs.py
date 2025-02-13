@@ -38,7 +38,7 @@ from brainwidemap.encoding.glm_predict import GLMPredictor, predict
 from brainwidemap.encoding.utils import (load_regressors, 
     single_cluster_raster, find_trial_ids)
 from brainbox.plot import peri_event_time_histogram
-from reproducible_ephys_functions import labs
+from reproducible_ephys_functions import LAB_MAP as labs
 
 import neurencoding.linear as lm
 from neurencoding.utils import remove_regressors
