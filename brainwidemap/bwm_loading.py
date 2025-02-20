@@ -147,7 +147,8 @@ def load_good_units(one, pid, compute_metrics=False, qc=1., **kwargs):
             raise ValueError('"eid" and "pname" optional arguments must be provided for ONE in local mode.')
         spike_loader = SpikeSortingLoader(one=one, eid=eid, pname=pname)
     else:
-        spike_loader = SpikeSortingLoader(pid=pid, one=one)
+        spike_loader = SpikeSortingLoader(pid=pid, one=one, pname=pname, eid=eid)
+
     download_good_units_only = qc >= 1.0
     spikes, clusters, channels = spike_loader.load_spike_sorting(revision="2024-05-06", good_units=download_good_units_only)
     clusters_labeled = SpikeSortingLoader.merge_clusters(

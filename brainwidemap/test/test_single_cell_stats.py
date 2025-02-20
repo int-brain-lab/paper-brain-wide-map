@@ -15,7 +15,7 @@ class TestSingleCell(unittest.TestCase):
     data = {}
 
     def setUp(self) -> None:
-        self.one = ONE(base_url='https://alyx.internationalbrainlab.org')
+        self.one = ONE(base_url='https://openalyx.internationalbrainlab.org')
         np.random.seed(0)
         fixture = Path(__file__).with_name('single_cell_data.pkl')
         if fixture.exists():
