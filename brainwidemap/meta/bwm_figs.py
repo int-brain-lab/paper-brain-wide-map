@@ -448,10 +448,10 @@ def plot_swansons(variable, fig=None, axs=None):
     res_types = {'decoding_effect': ['Decoding. $R^2$ over null',[], 
                     ['Decoding', 'Regularized logistic regression']],
                  'mannwhitney_effect': ['Frac. sig. cells',[],
-                    ['Single cell statistics', 'C.C Mann-Whitney test']],
+                    ['Single-cell statistics', 'C.C Mann-Whitney test']],
                  'euclidean_effect': ['Nrml. Eucl. dist. (log)',[],
                     ['Population trajectory', 'Distance between trajectories']],
-                 'euclidean_latency': ['Latency of dist. (sec)',[],
+                 'euclidean_latency': ['Latency of dist. (s)',[],
                     ['Population trajectory', 'Time near peak']],      
                  'glm_effect': ['Abs. diff. $\\Delta R^2$ (log)',[],
                     ['Encoding', 'General linear model']]}
@@ -607,7 +607,7 @@ def plot_slices(variable):
                     ['Single cell statistics \n', 'C.C Mann-Whitney test \n']],
                  'euclidean_effect': ['Nrml. Eucl. dist. (log)',[],
                     ['Population trajectory \n', 'Distance between trajectories \n']],
-                 'euclidean_latency': ['Latency of dist. (sec)',[],
+                 'euclidean_latency': ['Latency of dist. (s)',[],
                     ['Population trajectory \n', 'Time near peak \n']],      
                  'glm_effect': ['Abs. diff. $\\Delta R^2$ (log)',[],
                     ['Encoding \n', 'General linear model \n']]}
@@ -774,7 +774,7 @@ def plot_all_swansons():
     res_types = {'decoding_effect': ['Decoding. $R^2$ over null',[], 
                     ['Decoding', 'Regularized logistic regression']],
                  'mannwhitney_effect': ['Frac. sig. cells',[],
-                    ['Single cell statistics', 'C.C Mann-Whitney test']],
+                    ['Single-cell statistics', 'C.C Mann-Whitney test']],
                  'euclidean_effect': ['Nrml. Eucl. dist. (log)',[],
                     ['Population trajectory', 'Distance between trajectories']],
                  'glm_effect': ['Abs. diff. $\\Delta R^2$ (log)',[],
@@ -784,7 +784,7 @@ def plot_all_swansons():
     
     num_columns = len(res_types)
 
-    fig = plt.figure(figsize=(8, 9))  
+    fig = plt.figure(figsize=(7.09, 7.98))  
     gs = gridspec.GridSpec(len(variables) + 1, len(res_types),
                            height_ratios=[2]*len(variables) + [0.1],
                            figure=fig, hspace=.75)
@@ -816,7 +816,7 @@ def plot_all_swansons():
             axs.append(fig.add_subplot(gs[row, col]))
             
             if col == 0:
-                axs[-1].text(-0.1, 0.5, variverb[variable], fontsize=f_size,
+                axs[-1].text(-0.1, 0.5, variverb[variable].capitalize(), fontsize=f_size,
                  rotation='vertical', va='center', ha='right', 
                  transform=axs[-1].transAxes)
                   
@@ -924,8 +924,10 @@ def plot_all_swansons():
         rotation='vertical',  va='center')
 
     fig.suptitle('Analysis', fontsize=f_size, ha='center')        
-    fig.savefig(Path(imgs_pth, 'si', 'n6_supp_all_variables_revised.svg'))
-    fig.savefig(Path(imgs_pth, 'si', 'n6_supp_all_variables_revised.pdf'))    
+    # fig.savefig(Path(imgs_pth, 'si', 'n6_supp_all_variables_revised.svg'))
+    # fig.savefig(Path(imgs_pth, 'si', 'n6_supp_all_variables_revised.pdf'))    
+    fig.savefig(Path(imgs_pth, 'si', 'n6_ed_fig2_all_variables_revised.eps'),
+        dpi=150)
 
 
 def plot_wheel_swansons(fig=None, axs=None):
@@ -1248,8 +1250,8 @@ def scatter_analysis_effects(variable, analysis_pair,sig_only=False,
                         fontsize=f_size, color=cols[i])
     
     # Set labels
-    ax.set_xlabel(ana_labs[f'{analysis_pair[0].split("_")[0]}'])
-    ax.set_ylabel(ana_labs[f'{analysis_pair[1].split("_")[0]}'])
+    ax.set_xlabel(ana_labs[f'{analysis_pair[0].split("_")[0]}'].capitalize())
+    ax.set_ylabel(ana_labs[f'{analysis_pair[1].split("_")[0]}'].capitalize())
         
 #    # Calculate and display correlation coefficients
 #    cors, ps = spearmanr(val1, val2)
@@ -1279,7 +1281,7 @@ def scatter_analysis_effects_grid(sig_only=True):
 
     fig, axs = plt.subplots(nrows =len(list(itertools.combinations(ylabs,2))),
                            ncols=len(variables), 
-                           figsize=(8.73,9.7))
+                           figsize=(7.09,7.86))
     
     axs = axs.flatten('F')
     
@@ -1291,7 +1293,7 @@ def scatter_analysis_effects_grid(sig_only=True):
             axs[k].spines['top'].set_visible(False)
             axs[k].spines['right'].set_visible(False)
             if k%len(list(itertools.combinations(ylabs,2))) == 0:
-                axs[k].set_title(f'{variverb[variable]}')
+                axs[k].set_title(f'{variverb[variable]}'.capitalize())
             else:
                 axs[k].set_title(None)    
             k +=1 
@@ -1299,7 +1301,7 @@ def scatter_analysis_effects_grid(sig_only=True):
     fig.tight_layout()
 
     fig.savefig(Path(imgs_pth, 'si',
-        f'n6_supp_analyses_amp_pairs_grid.pdf'), dpi=150)
+        f'n6_ed_fig3_analyses_amp_pairs_grid.eps'), dpi=150)
         
 
 def plot_bar_neuron_count(table_only=False, ssvers='_rerun'):
@@ -3690,5 +3692,70 @@ def ghostscript_compress_pdf(variable, level='/printer'):
 
 
 
+def excel_to_latex(file_path):
+    """
+    Converts an Excel sheet into a LaTeX table with compact formatting, no frame, and tiny font.
+    - Replaces 'Low', 'Medium', 'High' with LaTeX symbols.
+    - Escapes '&' symbols in column names for LaTeX compatibility.
+    - Uses ultra-compact columns.
+    
+    Parameters:
+    - file_path: str, path to the Excel file.
+
+    Returns:
+    - LaTeX table as a string.
+    """
+    columns = ['Firstname', 'Middle name', 'Surname', 'Conceptualization', 'Data Curation',
+               'Formal Analysis', 'Funding Acquisition', 'Experimental investigation',
+               'Methodology', 'Project Administration', 'Resources',
+               'Software (pipeline development)', 'Supervision', 'Validation',
+               'Visualization', 'Writing - Original Draft Preparation',
+               'Writing - Review & Editing']
+
+    # Load Excel file
+    df = pd.read_excel(file_path, sheet_name='Participation levels')
+
+    # Select specific columns
+    df = df[columns]
+
+    # Replace NaN values with empty strings
+    df = df.fillna("")
+
+    # Escape '&' in column names for LaTeX
+    df.columns = [col.replace("&", r"\&") for col in df.columns]
+
+    # Define LaTeX-compatible mapping for Low, Medium, High
+    symbol_map = {
+    "Low": "+",  # ●
+    "Medium": "++",  # ●● (closely spaced)
+    "High": "+++"}  # ●●● (closely spaced)
+        # Full circle ●}  # Uses LaTeX symbols
+    df = df.replace(symbol_map)
+
+    # Define column widths: "Firstname" & "Surname" wider, all others ultra-narrow
+    col_format = "p{1cm} p{0.35cm} p{1cm} " + " ".join(["p{0.1cm}"] * (len(df.columns) - 3))
+
+    # LaTeX table header
+    latex_table = "\\begin{table}[h]\n\\centering\n"
+    latex_table += "\\tiny\n"  # Tiny font size for the whole table
+    latex_table += "\\begin{tabular}{" + col_format + "}\n"
+
+    # Column headers with rotation (except Name/Surname)
+    header_row = " & ".join(
+        [df.columns[0], df.columns[1], df.columns[2]] + 
+        [f"\\rotatebox{{90}}{{{col}}}" for col in df.columns[3:]]
+    ) + " \\\\\n\\hline\n"
+    latex_table += header_row
+
+    # Data rows
+    for _, row in df.iterrows():
+        row_values = " & ".join(str(val) for val in row)
+        latex_table += row_values + " \\\\\n"
+
+    # Footer
+    latex_table += "\\end{tabular}\n"
+    latex_table += "\\caption{Low (+), medium (++) and high (+++) author contributions.}\n\\label{tab:author}\n\\end{table}"
+
+    return latex_table
 
 
