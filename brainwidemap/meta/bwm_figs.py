@@ -2438,7 +2438,7 @@ def plot_twocond(
 
     # Load in data and fit model to particular cluster
     (stdf, sspkt, sspkclu, 
-        design, spkmask, nglm) = load_unit_fit_model(eid, pid, clu_id)
+        design, spkmask, nglm, clu_idx) = load_unit_fit_model(eid, pid, clu_id)
     # Construct GLM prediction object that does our model predictions
 
     pred = GLMPredictor(stdf, nglm, sspkt, sspkclu)
@@ -2462,28 +2462,28 @@ def plot_twocond(
         t_after,
         trials=stdf[aligncond1(stdf[aligncol])].index,
     )
-    cond1pred = pred.full_psths[keyset1][clu_id][0]
+    cond1pred = pred.full_psths[keyset1][clu_idx][0]
     keyset2 = pred.compute_model_psth(
         align_time,
         t_before,
         t_after,
         trials=stdf[aligncond2(stdf[aligncol])].index,
     )
-    cond2pred = pred.full_psths[keyset2][clu_id][0]
+    cond2pred = pred.full_psths[keyset2][clu_idx][0]
     nrkeyset1 = nrpred.compute_model_psth(
         align_time,
         t_before,
         t_after,
         trials=stdf[aligncond1(stdf[aligncol])].index,
     )
-    nrcond1pred = nrpred.full_psths[nrkeyset1][clu_id][0]
+    nrcond1pred = nrpred.full_psths[nrkeyset1][clu_idx][0]
     nrkeyset2 = nrpred.compute_model_psth(
         align_time,
         t_before,
         t_after,
         trials=stdf[aligncond2(stdf[aligncol])].index,
     )
-    nrcond2pred = nrpred.full_psths[nrkeyset2][clu_id][0]
+    nrcond2pred = nrpred.full_psths[nrkeyset2][clu_idx][0]
 
     # Plot PSTH of original units and model predictions in both cases
     if not ax:
@@ -2492,6 +2492,7 @@ def plot_twocond(
     else:
         fig = plt.gcf()    
         
+    lw = 1
     x = np.arange(-t_before, t_after, nglm.binwidth)
     for rem_regressor in [False, True]:
         i = int(rem_regressor)
@@ -2500,14 +2501,14 @@ def plot_twocond(
             sspkt,
             sspkclu,
             stdf[aligncond1(stdf[aligncol])][align_time],
-            clu_id,
+            clu_idx,
             t_before,
             t_after,
             bin_size=nglm.binwidth,
             error_bars="sem",
             ax=ax[i],
             smoothing=0.01,
-            pethline_kwargs={"color": blue_left, "linewidth": 2},
+            pethline_kwargs={"color": blue_left, "linewidth": lw},
             errbar_kwargs={"color": blue_left, "alpha": 0.5},
         )
         oldticks.extend(ax[i].get_yticks())
@@ -2515,29 +2516,29 @@ def plot_twocond(
             sspkt,
             sspkclu,
             stdf[aligncond2(stdf[aligncol])][align_time],
-            clu_id,
+            clu_idx,
             t_before,
             t_after,
             bin_size=nglm.binwidth,
             error_bars="sem",
             ax=ax[i],
             smoothing=0.01,
-            pethline_kwargs={"color": red_right, "linewidth": 2},
+            pethline_kwargs={"color": red_right, "linewidth": lw},
             errbar_kwargs={"color": red_right, "alpha": 0.5},
         )
         oldticks.extend(ax[i].get_yticks())
         pred1 = cond1pred if not rem_regressor else nrcond1pred
         pred2 = cond2pred if not rem_regressor else nrcond2pred
-        ax[i].step(x, pred1, color="skyblue", linewidth=2)
+        ax[i].step(x, pred1, color="skyblue", linewidth=lw)
         oldticks.extend(ax[i].get_yticks())
-        ax[i].step(x, pred2, color="#F08080", linewidth=2)
+        ax[i].step(x, pred2, color="#F08080", linewidth=lw)
         oldticks.extend(ax[i].get_yticks())
         ax[i].set_ylim([0, np.max(oldticks) * 1.1])
-    return fig, ax, sspkt, sspkclu, stdf
+    return fig, ax, sspkt, sspkclu, stdf, clu_idx
 
 
 def load_unit_fit_model(eid, pid, clu_id):
-    stdf, sspkt, sspkclu, _, __ = load_regressors(
+    stdf, sspkt, sspkclu, reg, clu_df = load_regressors(
         eid,
         pid,
         one,
@@ -2549,15 +2550,15 @@ def load_unit_fit_model(eid, pid, clu_id):
     design = generate_design(stdf, 
                              stdf["probabilityLeft"], 
                              t_before=0.6, **glm_params)
-                             
-    spkmask = sspkclu == clu_id
+    clu_idx = np.where(clu_df['cluster_id'] == clu_id)[0][0]
+    spkmask = sspkclu == clu_idx
     nglm = lm.LinearGLM(design, 
                         sspkt[spkmask], 
                         sspkclu[spkmask],   
                         estimator=glm_params["estimator"], 
                         mintrials=0)
     nglm.fit()
-    return stdf, sspkt, sspkclu, design, spkmask, nglm
+    return stdf, sspkt, sspkclu, design, spkmask, nglm, clu_idx
 
 
 def get_example_results():
@@ -2598,7 +2599,7 @@ def get_example_results():
         "stim": (
             'e0928e11-2b86-4387-a203-80c77fab5d52',  # EID 
             '799d899d-c398-4e81-abaf-1ef4b02d5475',  # PID 
-            235,  # clu_id, was 235 -- online 218 looks good
+             598, #235,  # clu_id, was 235 -- online 218 looks good
             "VISp",  # region
             0.04540706,  # drsq (from 02_fit_sessions.py)
             "stimOn_times",  # Alignset key
@@ -2606,7 +2607,7 @@ def get_example_results():
         "choice": (
             "a7763417-e0d6-4f2a-aa55-e382fd9b5fb8",#"671c7ea7-6726-4fbe-adeb-f89c2c8e489b"
             "57c5856a-c7bd-4d0f-87c6-37005b1484aa",#"04c9890f-2276-4c20-854f-305ff5c9b6cf"
-            74, # was 143
+            80, # 74 was 143
             "GRN",
             0.000992895,  # drsq
             "firstMovement_times",
@@ -2614,7 +2615,7 @@ def get_example_results():
         "fback": (
             "a7763417-e0d6-4f2a-aa55-e382fd9b5fb8",
             "57c5856a-c7bd-4d0f-87c6-37005b1484aa",
-            83,
+            359, #83 clu-id was 83 before
             "IRN",
             0.3077195113,  # drsq
             "feedback_times",
@@ -2662,7 +2663,7 @@ def encoding_raster_lines(variable, clu_id0=None, axs=None,
     (aligncol, aligncond1, aligncond2, 
         t_before, t_after, reg1, reg2) = alignsets[aligntime]
         
-    _, _, sspkt, sspkclu, stdf = plot_twocond(
+    _, _, sspkt, sspkclu, stdf, clu_idx = plot_twocond(
         eid,
         pid,
         clu_id,
@@ -2695,9 +2696,9 @@ def encoding_raster_lines(variable, clu_id0=None, axs=None,
         subax.set_title(title, fontsize=f_size)
 
     # custom legend
-    all_lines = axs[1].get_lines()
+    all_lines = axs[2].get_lines()
     legend_labels = [reg1, reg2, 'model', 'model']
-    axs[1].legend(all_lines, legend_labels, loc='upper right',
+    axs[2].legend(all_lines, legend_labels, loc='upper right',
                  bbox_to_anchor=(1.2, 1.3), fontsize=f_size_s,
                  frameon=False)
 
@@ -2706,7 +2707,7 @@ def encoding_raster_lines(variable, clu_id0=None, axs=None,
     trial_idx, dividers = find_trial_ids(stdf, sort=sortlookup[variable])
 
     _, _ = single_cluster_raster(
-        sspkt[sspkclu == clu_id],
+        sspkt[sspkclu == clu_idx],
         stdf[aligntime],
         trial_idx,
         dividers,
