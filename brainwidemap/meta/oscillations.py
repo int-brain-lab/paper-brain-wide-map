@@ -149,7 +149,7 @@ def get_single_cells_cut(eid, probe):
 
     # Load in spikesorting
     sl = SpikeSortingLoader(eid=eid, pname=probe, one=one_online, atlas=ba)
-    spikes, clusters, channels = sl.load_spike_sorting()
+    spikes, clusters, channels = sl.load_spike_sorting(revision="2024-05-06")
     clusters = sl.merge_clusters(spikes, clusters, channels)
                           
     data['cluster_ids'] = clusters['cluster_id']#[
@@ -201,7 +201,7 @@ def get_psths_singlecell_lick_aligned(eid, probe):
        
     # Load in spikesorting
     sl = SpikeSortingLoader(eid=eid, pname=probe, one=one, atlas=ba)
-    spikes, clusters, channels = sl.load_spike_sorting()
+    spikes, clusters, channels = sl.load_spike_sorting(revision='2024-05-06')
     clusters = sl.merge_clusters(spikes, clusters, channels)
 
     # Find spikes that are from the clusterIDs
@@ -244,7 +244,7 @@ def get_acronyms_per_eid(eid):
     
     for probe in probes:
         sl = SpikeSortingLoader(eid=eid, pname=probe, one=one, atlas=ba)
-        spikes, clusters, channels = sl.load_spike_sorting()
+        spikes, clusters, channels = sl.load_spike_sorting(revision='2024-05-06')
         clusters = sl.merge_clusters(spikes, clusters, channels)    
         As[probe] = clusters['acronym']
 
@@ -735,7 +735,7 @@ def lineplots_per_region(reg_):
 #    plt.close()
     
     
-def single_cell_psd(clus,eid,probe, plot_=True):
+def single_cell_psd(clus,eid,probe, plot_=True, axs=None, save=True):
 
     '''
     used in BWM SI figure on lick correlates
@@ -779,8 +779,12 @@ def single_cell_psd(clus,eid,probe, plot_=True):
     yf = np.mean(np.abs(yf)**2,axis=0)    
 
     if plot_:
-        
-        fig,axs = plt.subplots(nrows=3, ncols=1,figsize=(3,8))
+        if axs is None:
+            tight = True
+            fig,axs = plt.subplots(nrows=3, ncols=1,figsize=(3,8))
+        else:
+            tight = False
+            fig = axs[0].get_figure()
         #,gridspec_kw={'width_ratios': [1,1,2]})
                                
         axs = axs.flatten()
@@ -791,15 +795,13 @@ def single_cell_psd(clus,eid,probe, plot_=True):
         axs[k].imshow(d,cmap='Greys',aspect="auto",
             interpolation='none',vmin=0,vmax=0.0001)       
 
-
-        axs[k].axvline(x=0.5/T_BIN,linestyle='--',color='g', 
-                       label='fback')
+        axs[k].axvline(x=0.5/T_BIN,linestyle='--',color='g', label='fback')
       
         axs[k].set_xticks(np.linspace(0,ntime,5))
         axs[k].set_xticklabels(np.linspace(0,ntime,5)*T_BIN - 0.5)
         axs[k].set_title(f'Activity of example neuron')
         axs[k].set_xlabel('Time (s)')
-        axs[k].set_ylabel('Trials, ordered by time')
+        axs[k].set_ylabel('Trials - ordered by time')
         axs[k].legend(frameon=False, loc='lower center').set_draggable(True)
 
 
@@ -817,31 +819,32 @@ def single_cell_psd(clus,eid,probe, plot_=True):
 
 #        k+=1
 
-        axs[k].plot(xf,np.log(yf))
+        axs[k].plot(xf,np.log(yf), c='k')
         axs[k].set_xlabel('Frequency (Hz)')
         #axs[k].set_ylabel('log(<abs(fft(trial))^2>_trials)')
-        axs[k].set_ylabel('psd')
+        axs[k].set_ylabel('PSD (dB)')
         axs[k].set_title(f'Trial-averaged spectrum')    
         mouse_date = ' '.join(str(one.eid2path(eid)).split('/')[6:8])
-        axs[k].set_xlim(0.5,40)
-        axs[k].set_ylim(3.6,6)    
+        # axs[k].set_xlim(0.5,40)
+        # axs[k].set_ylim(3.6,6)
         #plt.suptitle(f'{eid}, {mouse_date}, cluster {clus_ids[clus]}')      
         
         k+=1        
         compare_waveforms(pid, clus_ids[clus],ax=axs[k])
-        axs[k].set_ylabel('time [ms]')
-        axs[k].set_title('waveforms') 
-    
-    plt.tight_layout()
+        axs[k].set_ylabel('Time (ms)')
+        axs[k].set_title('Waveforms')
+
+    if tight:
+        plt.tight_layout()
     st,en = list(xf).index(3),list(xf).index(18)
     yf = np.log(yf)
     p10 = abs(np.mean(yf[st:en])) > 1.01*abs(np.mean(yf[en:]))
     #print(st,en,abs(np.mean(yf[st:en])), 1.01*abs(np.mean(yf[en:]))) 
     
-    
-    imgs_pth = Path(one.cache_dir, 'bwm_res', 'bwm_figs_imgs','si') 
-    fig = plt.gcf()
-    fig.savefig(imgs_pth / 'lick_SI_part.svg')
+    if save:
+        imgs_pth = Path(one.cache_dir, 'bwm_res', 'bwm_figs_imgs','si')
+        fig = plt.gcf()
+        fig.savefig(imgs_pth / 'lick_SI_part.svg')
     
     return p10, clus_ids[clus]
       
@@ -941,7 +944,7 @@ def compare_waveforms(pid, ic,ax=None):
    
     eid, probe = one.pid2eid(pid)
     sl = SpikeSortingLoader(pid=pid, one=one)
-    waveforms = sl.load_spike_sorting_object('waveforms')
+    waveforms = sl.load_spike_sorting_object('waveforms', revision='2024-05-06')
     #templates = waveforms['templates']
     
     templates = one.load_object(eid, 'templates',
@@ -952,13 +955,17 @@ def compare_waveforms(pid, ic,ax=None):
     trind = np.argsort(tr)
     
     if ax is None:
+        tight = True
         fig, ax = plt.subplots(figsize=(3.5,3))
+    else:
+        tight = False
     
     Traces(wav[:, trind], ax=ax, fs=30000)
     #plt.imshow(wav[:, trind],aspect='auto')
-    
-    plt.title(f'{eid} \n {probe}, clus {ic}', fontsize=9)
-    plt.tight_layout()
+
+    if tight:
+        plt.title(f'{eid} \n {probe}, clus {ic}', fontsize=9)
+        plt.tight_layout()
 #    plt.savefig(f'traces/traces_{eid}_{probe}_{ic}.png')
 #    plt.close()
 
@@ -990,7 +997,7 @@ def get_waveforms_metrics():
                             
         sl = SpikeSortingLoader(pid=pid, one=one, atlas=ba)   
         templates = one.load_object(eid, 'templates',
-                                    collection=sl.collections[-1])
+                                    collection=sl.collections[-1], revision='2024-05-06')
                                     
         peth, clus, acs = get_psths_singlecell_lick_aligned(eid, probe)
         
@@ -1050,7 +1057,7 @@ def lick_lock_sRMS(eid):
 
         sl = SpikeSortingLoader(eid=eid, pname=probe, one=one, atlas=ba)
         templates = one.load_object(eid, 'templates',
-                                    collection=sl.collections[-1])
+                                    collection=sl.collections[-1], revision='2024-05-06')
                                     
         peth, clus, acs = get_psths_singlecell_lick_aligned(eid, probe)
 

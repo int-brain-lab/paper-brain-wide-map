@@ -47,6 +47,7 @@ from brainwidemap.encoding.glm_predict import GLMPredictor, predict
 from brainwidemap.encoding.utils import (load_regressors, single_cluster_raster, find_trial_ids)
 
 from brainwidemap.manifold.state_space_bwm import plot_strip_sampling
+from brainwidemap.meta.oscillations import single_cell_psd, T_BIN
 
 from brainbox.plot import peri_event_time_histogram
 from reproducible_ephys_functions import LAB_MAP as labs
@@ -3563,13 +3564,24 @@ def plot_trajectories_with_psd(variable='fback', curve='euc', axs=None):
 
         ax.plot(time, values, color=REGION_COLS[reg], label=f"{reg}")
 
-        title = f" {reg} \n  {data[reg]['nclus']}"
+        f, psd = signal.welch(values, fs=int(len(time) / (time[-1] - time[0])))
+
+        ins = ax.inset_axes([1.1, 0, 0.4, 1], transform=ax.transAxes)
+        ins.plot(f, psd, color='k')
+        ins.set_xlim(3, 40)
+
+        ins.set_yticklabels([])
+
+        title = f" {reg} {data[reg]['nclus']}"
         if col == 0:
             ax.set_ylabel('Distance (Hz)')
+            ins.set_ylabel('PSD (dB)', fontsize=f_size_s, labelpad=-2)
         if i >= 6:
             ax.set_xlabel(EVENT_LABELS[variable])
+            ins.set_xlabel('Freq (Hz)', fontsize=f_size)
         else:
             ax.set_xticklabels([])
+            ins.set_xticklabels([])
 
         ax.set_xlim(-0.1, ax.get_xlim()[1])
 
@@ -3580,33 +3592,10 @@ def plot_trajectories_with_psd(variable='fback', curve='euc', axs=None):
 
         ax.axvline(x=0, linestyle='--', c='k')
 
-        if i == 5:
-            ax.text(0, ax.get_ylim()[1] - 0.1, f"  {EVENT_LINES[variable]}", color='k', fontsize=f_size_s)
+        if i == 7:
+            ax.text(0, ax.get_ylim()[1] - 0.6, f"  {EVENT_LINES[variable]}", color='k', fontsize=f_size_s)
 
-        ax.text(time[-1], values[-1], title, color=REGION_COLS[reg], fontsize=f_size_s, va='top')
-
-        f, psd = signal.welch(values, fs=int(len(time) / (time[-1] - time[0])))
-        if i < 3:
-            anchor = (0.2, 0.25, 1, 1)
-        elif i >= 3 and i < 6:
-            anchor = (0.2, -0.35, 1, 1)
-        else:
-            anchor = (0.2, 0.2, 1, 1)
-
-        axsi.append(inset_axes(ax, width=0.35, height=0.3, borderpad=1,
-                               bbox_to_anchor=anchor, bbox_transform=ax.transAxes))
-
-        axsi[-1].plot(f, psd)
-        axsi[-1].set_xlim(3, 40)
-        axsi[-1].tick_params(axis="x", pad=2)
-        axsi[-1].set_xlabel('Freq (Hz)', fontsize=f_size_s, labelpad=2)
-
-        axsi[-1].set_ylabel('PSD (dB)', fontsize=f_size_s)
-        axsi[-1].set_yticks([])
-        axsi[-1].set_yticklabels([])
-        # if i > 0:
-        #     axsi[-1].sharex(axsi[-2])
-        # axsi[-1].patch.set_alpha(0.0)
+        ax.text(0.5, 1, title, color=REGION_COLS[reg], fontsize=f_size_s, ha='center', va='bottom', transform=ax.transAxes)
 
 
 def plot_trajectories_with_licks(variable='fback_restr', curve='euc', axs=None):
@@ -3652,9 +3641,6 @@ def plot_trajectories_with_licks(variable='fback_restr', curve='euc', axs=None):
         ax.axvline(x=0, linestyle='--', c='k')
         ax.spines['right'].set_visible(True)
 
-        if col == 2:
-            ax.text(0, ax.get_ylim()[1] - 0.1, f"  {EVENT_LINES[variable]}", color='k', fontsize=f_size_s)
-
         ax.set_title(title, color=REGION_COLS[reg], fontsize=f_size_s, va='top')
 
         if regions[reg] in licks:
@@ -3684,8 +3670,8 @@ def plot_lick_raster_psth(axs=None):
 
     axs[0].set_xlim(axs[1].get_xlim())
     axs[0].set_xticklabels([])
-    axs[0].set_ylabel('Trial-averaged \n licks (Hz)')
-    axs[1].set_ylabel('Trials')
+    axs[0].set_ylabel('Licks (Count)')
+    axs[1].set_ylabel('Trials', labelpad=-2)
     axs[1].set_xlabel(EVENT_LABELS[variable])
 
 
@@ -4204,33 +4190,49 @@ def plot_eds_figures():
     fig.savefig(Path(ed_save_path, f'{save_name}.eps'), dpi=150)
 
     # Fig 12: n6_ed_fig12_licking
-    fig = plt.figure(figsize=(180 * MM_TO_INCH, 150 * MM_TO_INCH))
+    fig = plt.figure(figsize=(183 * MM_TO_INCH, 170 * MM_TO_INCH))
     width, height = fig.get_size_inches() / MM_TO_INCH
 
-    xspans1 = get_coords(width, ratios=[1, 3, 1], space=20, pad=18, span=(0, 1))
-    xspans2 = get_coords(width, ratios=[1], space=15, pad=18, span=(0, 1))
-    yspans = get_coords(height, ratios=[3, 1], space=[20], pad=0, span=(0, 1))
-    yspans1 = get_coords(height, ratios=[1, 3], space=[3], pad=0, span=yspans[0])
+    xspans1 = get_coords(width, ratios=[1, 5], space=[18], pad=10, span=(0, 1))
+    xspans2 = get_coords(width, ratios=[1], space=15, pad=20, span=(0, 1))
+    xspans3 = get_coords(width, ratios=[1], space=15, pad=15, span=(0, 1))
+    yspans = get_coords(height, ratios=[3, 1, 1], space=[20, 15], pad=5, span=(0, 1))
+    yspans1 = get_coords(height, ratios=[1, 3], space=[2], pad=0, span=yspans[0])
+
 
     axs = {'a_1': fg.place_axes_on_grid(fig, xspan=xspans1[0], yspan=yspans1[0]),
            'a_2': fg.place_axes_on_grid(fig, xspan=xspans1[0], yspan=yspans1[1]),
-           'b': fg.place_axes_on_grid(fig, xspan=xspans1[1], yspan=yspans[0], dim=(3, 3), wspace=0.6, hspace=0.2),
-           'c': fg.place_axes_on_grid(fig, xspan=xspans1[2], yspan=yspans[0], dim=(3, 1)),
-           'd': fg.place_axes_on_grid(fig, xspan=xspans2[0], yspan=yspans[1], dim=(1, 5), wspace=0.6)}
+           'b': fg.place_axes_on_grid(fig, xspan=xspans1[1], yspan=yspans[0], dim=(3, 3), wspace=0.8, hspace=0.25),
+           'c': fg.place_axes_on_grid(fig, xspan=xspans2[0], yspan=yspans[1], dim=(1, 3), wspace=0.6),
+           'd': fg.place_axes_on_grid(fig, xspan=xspans3[0], yspan=yspans[2], dim=(1, 5), wspace=0.7)}
 
     labels = []
     padx = 15
-    pady = 5
-    labels.append(add_label('a', fig, xspans1[0], yspans[0], padx, padx, fontsize=8))
-    labels.append(add_label('b', fig, xspans1[1], yspans[0], padx, pady, fontsize=8))
-    labels.append(add_label('c', fig, xspans1[2], yspans[0], padx, pady, fontsize=8))
-    labels.append(add_label('d', fig, xspans2[0], yspans[1], padx, pady, fontsize=8))
+    pady = 10
+    labels.append(add_label('a', fig, xspans1[0], yspans[0], padx, 20, fontsize=8))
+    labels.append(add_label('b', fig, xspans1[1], yspans[0], 10, 20, fontsize=8))
+    labels.append(add_label('c', fig, xspans1[0], yspans[1], padx, 5, fontsize=8))
+    labels.append(add_label('d', fig, xspans1[0], yspans[2], padx, 5, fontsize=8))
     fg.add_labels(fig, labels)
 
     plot_lick_raster_psth(axs=np.array([axs['a_1'], axs['a_2']]))
+    ylabel = axs['a_2'].get_ylabel()
+    axs['a_2'].set_ylabel(ylabel, fontsize=f_size, labelpad=-2)
+    #ylabel.set_position((ylabel.get_position()[0] + 0.5, ylabel.get_position()[1]))
     plot_trajectories_with_psd(axs=np.array(axs['b']))
     plot_trajectories_with_licks(axs=np.array(axs['d']))
-    adjust_subplots(fig, adjust=[5, 10, 2, 15], extra=0)
+    single_cell_psd(93, 'c4432264-e1ae-446f-8a07-6280abade813', 'probe01', plot_=True, axs=np.array(axs['c']),
+                    save=False)
+    for coll in axs['c'][0].get_children():
+        if isinstance(coll, plt.Line2D):
+            coll.remove()
+    leg = axs['c'][0].legend_
+    leg.remove()
+
+    axs['c'][0].axvline(x=0.5 / T_BIN, linestyle='--', c='k', zorder=100)
+    axs['c'][0].text(0.5/ T_BIN, axs['c'][0].get_ylim()[0] - 400, f"  {EVENT_LINES['fback']}", color='k', fontsize=f_size_s)
+
+    adjust_subplots(fig, adjust=[3, 10, 2, 15], extra=0)
     save_name = 'n6_ed_fig12_licking'
     fig.savefig(Path(ed_save_path, f'{save_name}.pdf'))
     fig.savefig(Path(ed_save_path, f'{save_name}.eps'), dpi=150)
