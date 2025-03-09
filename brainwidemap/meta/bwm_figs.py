@@ -1,4 +1,6 @@
 import matplotlib as mpl
+from matplotlib.lines import Line2D
+
 mpl.use("Qt5Agg")
 import matplotlib.pyplot as plt
 
@@ -198,12 +200,17 @@ text_size = 6
 f_size_l = title_size
 f_size = label_size
 f_size_s = text_size
+f_size_xs = 5
 
 mpl.rcParams['xtick.minor.visible'] = False
 mpl.rcParams['ytick.minor.visible'] = False
 
+mpl.rcParams['pdf.fonttype']=42
 # mpl.rcParams['xtick.major.size'] = 4
 # mpl.rcParams['ytick.major.size'] = 4
+
+handle_length = 1
+handle_pad = 0.5
 #
 # # Set the default MaxNLocator for ticks
 # mpl.rcParams['axes.xmargin'] = 0  # Prevent extra margins
@@ -300,7 +307,7 @@ def add_sig_legends(ax, mask_label='Not significant'):
     ]
 
     legend = ax.legend(handles=legend_elements, frameon=False,
-                       fontsize=f_size_s, handlelength=0.7, handletextpad=1)
+                       fontsize=f_size_s, handlelength=0.7, handletextpad=0.5)
     return legend
 
 
@@ -371,8 +378,10 @@ def adjust_vertical_swansons(positions, ax):
                 x = positions[text]['x']
                 y = y0 + positions[text]['y']
                 object.set_position((x, y))
-                ax.annotate('', xy=(x0, y0), xytext=(x, y),
-                            arrowprops=dict(arrowstyle='-', color='k', lw=0.5), annotation_clip=False)
+                line = Line2D((x, x0), (y, y0), color='k', lw=0.7)
+                ax.add_line(line)
+                # ax.annotate('', xy=(x0, y0), xytext=(x, y),
+                #             arrowprops=dict(arrowstyle='-', color='k', lw=0.7), annotation_clip=False)
                 object.set_horizontalalignment('left') if x < x_thres else object.set_horizontalalignment('right')
             else:
                 object.remove()
@@ -395,8 +404,10 @@ def adjust_horizontal_swansons(positions, ax):
                 x = x0 + positions[text]['x']
                 y = positions[text]['y']
                 object.set_position((x, y))
-                ax.annotate('', xy=(x0, y0), xytext=(x, y),
-                            arrowprops=dict(arrowstyle='-', color='k', lw=0.5), annotation_clip=False)
+                line = Line2D((x, x0), (y, y0), color='k', lw=0.7)
+                ax.add_line(line)
+                # ax.annotate('', xy=(x0, y0), xytext=(x, y),
+                #             arrowprops=dict(arrowstyle='-', color='k', lw=0.7), annotation_clip=False)
                 object.set_horizontalalignment('left') if x > x_thres else object.set_horizontalalignment('right')
                 object.set_verticalalignment('top') if y > 3000 else object.set_verticalalignment('bottom')
             else:
@@ -442,25 +453,25 @@ _, REGION_COLS = get_allen_info()
 ADJUST_SWANSONS = {
     'stim': {
         'decoding_effect': {
-            'CL': {'x': 2500, 'y': -300}, 'NOT': {'x': 1300, 'y': 800}, 'TRN': {'x': 3200, 'y': 300},
-            'PRNc': {'x': 3200, 'y': 500}
+            'CL': {'x': -50, 'y': -500}, 'NOT': {'x': -200, 'y': 300}, 'TRN': {'x': 3300, 'y': 500},
+            'PRNc': {'x': 3300, 'y': 700}
         },
         'mannwhitney_effect': {
-            'VISl': {'x': -50, 'y': -500}, 'NOT': {'x': 2300, 'y': -300}, 'PF': {'x': 1450, 'y': 1050}
+            'VISl': {'x': -50, 'y': -500}, 'NOT': {'x': -200, 'y': 300}, 'PF': {'x': -200, 'y': -100}
         },
         'euclidean_effect': {
             'MOp': {'x': 400, 'y': 300}, 'MOs': {'x': 600, 'y': 300}, 'VISal': {'x': -50, 'y': 0},
-            'VISp': {'x': -50, 'y': 100}, 'VISam': {'x': 50, 'y': -400}, 'VISa': {'x': -100, 'y': -600},
-            'CL': {'x': 2500, 'y': -100}, 'PF': {'x': 1450, 'y': 1050}, 'SNr': {'x': 3300, 'y': 1300},
+            'VISp': {'x': -75, 'y': 50}, 'VISam': {'x': 50, 'y': -300}, 'VISa': {'x': -100, 'y': -600},
+            'CL': {'x': -200, 'y':0}, 'PF': {'x': -200, 'y': 100}, 'SNr': {'x': 3300, 'y': 1300},
             'PRNc': {'x': 3300, 'y': 400}, 'GRN': {'x': 3300, 'y': 200}
         },
         'euclidean_latency': {
-            'LSv': {'x': 3300, 'y': 0}, 'LGd': {'x': 3300, 'y': 2000}, 'NOT': {'x': 1300, 'y': 800},
+            'LSv': {'x': 3300, 'y': 0}, 'LGd': {'x': 3300, 'y': 2000}, 'NOT': {'x': -200, 'y': 300},
             'RSPv': {'x': 0, 'y': -100}
         },
         'glm_effect': {
             'SNr': {'x': 3300, 'y': 600}, 'V': {'x': 3300, 'y': 0}, 'PRNc': {'x': 3300, 'y': 400},
-            'PF': {'x': 1450, 'y': 1000}, 'UVU': {'x': 700, 'y': 500}
+            'PF': {'x': -200, 'y': -100}, 'UVU': {'x': 500, 'y': 500}
         },
     },
     'fback': {
@@ -469,16 +480,16 @@ ADJUST_SWANSONS = {
             'VCO': {'x': 150, 'y': -1000}
         },
         'mannwhitney_effect': {
-            'AUDd': {'x': 100, 'y': -400}, 'GPi': {'x': 3300, 'y': -1200}, 'CL': {'x': 2500, 'y': -300},
-            'NPC': {'x': 1400, 'y': 600}, 'GRN': {'x': 3300, 'y': -500}
+            'AUDd': {'x': 100, 'y': -400}, 'GPi': {'x': 3300, 'y': -1200}, 'CL': {'x': -200, 'y': -100},
+            'NPC': {'x': -200, 'y': 100}, 'GRN': {'x': 3300, 'y': -500}
         },
         'euclidean_effect': {
-            'AUDp': {'x': 100, 'y': -400}, 'GPi': {'x': 3300, 'y': -1200}, 'SNc': {'x': 3300, 'y': 1500},
-            'NB': {'x': 1450, 'y': 450}, 'DN': {'x': 200, 'y': -200}
+            'AUDp': {'x': 100, 'y': -400}, 'GPi': {'x': 3300, 'y': -1400}, 'SNc': {'x': 3300, 'y': 1700},
+            'NB': {'x': -200, 'y': -100}, 'DN': {'x': 200, 'y': -200}
         },
         'euclidean_latency': {
             'AUDv': {'x': 100, 'y': -400}, 'PRNr': {'x': 3300, 'y': 500}, 'NLL': {'x': 200, 'y': -100},
-            'MOB': {'x': 3300, 'y': -100}, 'CUN': {'x': -100, 'y': -1000}
+            'MOB': {'x': 3300, 'y': -100}, 'CUN': {'x': -200, 'y': -1000}
         },
         'glm_effect': {
             'SUT': {'x': 3300, 'y': 0}, 'V': {'x': 3300, 'y': 0}, 'VII': {'x': 3300, 'y': 0},
@@ -487,15 +498,15 @@ ADJUST_SWANSONS = {
     },
     'choice': {
         'decoding_effect': {
-            'CL': {'x': 2500, 'y': -300}, 'SNr': {'x': 1450, 'y': 300}, 'GRN': {'x': 3300, 'y': 300},
-            'VII': {'x': 3300, 'y': 100}, 'PRNr': {'x': 3300, 'y': 400}
+            'CL': {'x': -200, 'y': -300}, 'SNr': {'x': -200, 'y': 100}, 'GRN': {'x': 3300, 'y': 400},
+            'VII': {'x': 3300, 'y': 200}, 'PRNr': {'x': 3300, 'y': 600}
         },
         'mannwhitney_effect': {
-            'CL': {'x': 2500, 'y': -300}, 'NPC': {'x': 1450, 'y': 800}, 'GRN': {'x': 3300, 'y': -400},
+            'CL': {'x': -200, 'y': -300}, 'NPC': {'x': -200, 'y': 400}, 'GRN': {'x': 3300, 'y': -400},
             'VII': {'x': 3300, 'y': -500},
         },
         'euclidean_effect': {
-            'CL': {'x': 2500, 'y': -300}, 'NPC': {'x': 1450, 'y': 800}, 'GRN': {'x': 3300, 'y': 200},
+            'CL': {'x': -200, 'y': -300}, 'NPC': {'x': -200, 'y': 400}, 'GRN': {'x': 3300, 'y': 200},
             'SNr': {'x': 3300, 'y': 1400},
         },
         'euclidean_latency': {
@@ -505,6 +516,25 @@ ADJUST_SWANSONS = {
         'glm_effect': {
             'ANcr1': {'x': 0, 'y': 300}, 'V': {'x': 3300, 'y': 0}, 'GRN': {'x': 3300, 'y': 0},
             'UVU': {'x': 700, 'y': 500}
+        },
+    },
+    'speed': {
+        'decoding_effect': {
+            'LPO': {'x': 3300, 'y': -1400}, 'CLI': {'x': -100, 'y': 200}, 'MARN': {'x': 3300, 'y': 100},
+            'GRN': {'x': 3300, 'y': 200}
+        },
+        'glm_effect': {
+            'CLI': {'x': -100, 'y': 100}, 'PRNr': {'x': 3300, 'y': 50}, 'PRNc': {'x': 3300, 'y': 0},
+            'VII': {'x': 3300, 'y': 0}, 'MARN': {'x': 3300, 'y': 100}, 'GRN': {'x': 3300, 'y': 200}
+        },
+    },
+    'velocity': {
+        'decoding_effect': {
+            'LPO': {'x': 3300, 'y': -1400}, 'FOTU': {'x': 200, 'y': 300}, 'MARN': {'x': 3300, 'y': 100},
+            'GRN': {'x': 3300, 'y': 200}
+        },
+        'glm_effect': {
+            'SPVO': {'x': 200, 'y': 300}, 'VII': {'x': 3300, 'y': 0}, 'GRN': {'x': 3300, 'y': 100},
         },
     }
 }
@@ -890,10 +920,10 @@ def plot_swansons_for_variable(variable, axs=None, annotate_list=None, adjust=Fa
         ana_type = ANALYSIS_TYPES[ana]['analysis']
         ana_info = ANALYSIS_TYPES[ana]['info']
 
-        plot_vertical_swanson(acronyms, scores, mask, ax=ax, cmap=cmap.reversed() if is_lat else cmap,
-                              vmin=vmin, vmax=vmax, fontsize=5, cbar_shrink=0.5,
-                              annotate_kwargs=annotate_kwargs, cbar=True, cbar_label=ana_label,
-                              legend=True if col == 0 else False, mask_label='Not significant')
+        ax, cax = plot_vertical_swanson(acronyms, scores, mask, ax=ax, cmap=cmap.reversed() if is_lat else cmap,
+                                        vmin=vmin, vmax=vmax, fontsize=f_size_xs, cbar_shrink=0.4,
+                                        annotate_kwargs=annotate_kwargs, cbar=True, cbar_label=ana_label,
+                                        legend=True if col == 0 else False, mask_label='Not significant')
 
         ax.text(-0.25, 0.5, ana_type, fontsize=f_size_l, ha='center',va = 'center',
                 rotation='vertical', transform=ax.transAxes)
@@ -902,6 +932,15 @@ def plot_swansons_for_variable(variable, axs=None, annotate_list=None, adjust=Fa
         ax.text(0.9, 0.95, f' {len(scores)}/{len(scores) + len(mask)}',
                 fontsize=f_size_s, ha='center', transform=ax.transAxes)
 
+        ax.set_xlim(-100, 3250)
+        ax.invert_xaxis()
+
+        if '\n' in ana_label:
+            ana_label = ' '.join(ana_label.split(' \n '))
+        if ana in ['decoding_effect', 'glm_effect']:
+            cax.set_label(ana_label, fontsize=f_size_s, labelpad=0)
+        else:
+             cax.set_label(ana_label, fontsize=f_size_s, labelpad=1)
         # Print regions with largest (smallest) amplitude (latency) scores
         # print(f'{ana}:')
         # print(acronyms[np.argsort(scores)][:7] if is_lat else acronyms[np.argsort(scores)][-7:])
@@ -1046,12 +1085,12 @@ def plot_swansons_across_analysis(axs=None, save=True):
 
             _, cax = plot_vertical_swanson(
                 acronyms, scores, mask=mask, ax=ax, cmap=cmap, vmin=vmin, vmax=vmax, cbar=True,
-                cbar_label=ana_label, cbar_shrink=0.4, legend=legend , mask_label='Not significant')
+                cbar_label=ana_label, cbar_shrink=0.5, legend=legend , mask_label='Not significant')
 
             if row != len(VARIABLES) - 1:
                 cax.ax.set_visible(False)
 
-            ax.text(1.4, 0.9, f'{len(scores)}/{len(scores) + len(mask)}',
+            ax.text(1.25, 0.9, f'{len(scores)}/{len(scores) + len(mask)}',
                     fontsize=f_size_s, ha='right', transform=ax.transAxes)
 
             if col == 0:
@@ -1064,7 +1103,7 @@ def plot_swansons_across_analysis(axs=None, save=True):
 
             if legend:
                 leg = ax.legend_
-                leg.set_bbox_to_anchor((0.75, 0.12))
+                leg.set_bbox_to_anchor((0.7, 0.14))
 
     if tight:
         fig.subplots_adjust(top=0.95, bottom=0.025, left=0, right=1)
@@ -1074,7 +1113,40 @@ def plot_swansons_across_analysis(axs=None, save=True):
         fig.savefig(Path(imgs_pth, 'si', 'n6_ed_fig2_all_variables.eps'), dpi=150)
 
 
-def plot_swansons_for_wheel(axs=None, annotate_list=None, save=True):
+def plot_glm_swansons(axs=None, annotate_list=None, save=True):
+
+    for i, ax in enumerate(axs):
+        if i < 3:
+            variable = 'stim'
+            label = '$\\Delta R^2$ right stimulus onset'
+            cticks = [10, 80]
+            cticklabels = [0, 0.005]
+        else:
+            variable = 'choice'
+            label = '$\\Delta R^2$ right movement onset'
+            cticks = [20, 90]
+            cticklabels = [0, 0.002]
+
+        variable = 'stim' if i < 3 else 'choice'
+
+        cmap = get_cmap_for_variable(variable)
+
+        data = load_data_for_variable(variable)
+        scores, acronyms, mask, vmin, vmax, _ = get_data_for_analysis('glm_effect', data)
+
+        _, cax = plot_vertical_swanson(
+            acronyms, scores, mask=mask, ax=ax, cmap=cmap, vmin=0, vmax=100, cbar=True,
+            cbar_label=label, cbar_shrink=1, legend=False, mask_label='Not significant')
+
+        if i not in [1, 4]:
+            cax.ax.set_visible(False)
+        else:
+            cax.set_ticks(cticks)
+            cax.set_ticklabels(cticklabels)
+
+
+
+def plot_swansons_for_wheel(axs=None, annotate_list=None, adjust=False, save=True):
 
     """
     For decoding and encoding, plot Swansons for speed and velocity
@@ -1106,6 +1178,9 @@ def plot_swansons_for_wheel(axs=None, annotate_list=None, save=True):
             ax = axs[col]
             scores, acronyms, mask, vmin, vmax, is_lat = get_data_for_analysis(ana, data)
 
+            if adjust:
+                annotate_list = list(ADJUST_SWANSONS[variable][ana].keys())
+
             annotate_kwargs = {
                 'annotate': True,
                 'annotate_n': 5,
@@ -1117,8 +1192,8 @@ def plot_swansons_for_wheel(axs=None, annotate_list=None, save=True):
             ana_type = ANALYSIS_TYPES[ana]['analysis']
             ana_info = ANALYSIS_TYPES[ana]['info']
 
-            plot_vertical_swanson(acronyms, scores, mask, ax=ax, cmap=cmap.reversed() if is_lat else cmap,
-                                  vmin=vmin, vmax=vmax, fontsize=5, cbar_shrink=0.5,
+            ax, cax = plot_vertical_swanson(acronyms, scores, mask, ax=ax, cmap=cmap.reversed() if is_lat else cmap,
+                                  vmin=vmin, vmax=vmax, fontsize=f_size_xs, cbar_shrink=0.5,
                                   annotate_kwargs=annotate_kwargs, cbar=True, cbar_label=ana_label,
                                   legend=True if col == 0 else False, mask_label='Not significant')
 
@@ -1130,11 +1205,24 @@ def plot_swansons_for_wheel(axs=None, annotate_list=None, save=True):
             ax.text(0.85, 0.95, f' {len(scores)}/{len(scores) + len(mask)}', fontsize=f_size_s,
                     ha='center', transform=ax.transAxes)
 
+            ax.set_xlim(-100, 3250)
+            ax.invert_xaxis()
+
+            if '\n' in ana_label:
+                ana_label = ' '.join(ana_label.split(' \n '))
+            if ana in ['decoding_effect', 'glm_effect']:
+                cax.set_label(ana_label, fontsize=f_size_s, labelpad=0)
+            else:
+                cax.set_label(ana_label, fontsize=f_size_s, labelpad=1)
+
             if col == 0:
                 leg = ax.legend_
                 leg.set_bbox_to_anchor((0.75, 0.11))
 
             col += 1
+
+            if adjust:
+                adjust_vertical_swansons(ADJUST_SWANSONS[variable][ana], ax)
 
     if tight:
         fig.subplots_adjust(left=0.05, right=0.95, bottom=0.05, top=0.95)
@@ -1246,7 +1334,7 @@ def plot_table(variable, axs=None, save=True, export=False, save_path=None):
             for i, tick_label in enumerate(ax.get_xticklabels()):
                 col = REGION_COLS[tick_label.get_text()]
                 tick_label.set_color(col)
-                tick_label.set_fontsize(f_size_s )
+                tick_label.set_fontsize(f_size_xs)
 
         if tight:
             fig.subplots_adjust(left=0.1, right=0.95, bottom=0.2, top=0.9)
@@ -1417,9 +1505,12 @@ def plot_scatter_analysis_pairs(sig_only=True, axs=None, save=True):
             scatter_for_analysis_pair(variable, combination, sig_only=sig_only, ax=ax)
 
             if row == 0:
-                ax.set_title(f'{variverb[variable]}', fontsize=f_size_l)
+                ax.set_title(f'{variverb[variable]}', fontsize=f_size_l, va='bottom')
             else:
                 ax.set_title(None)
+
+            ax.xaxis.set_major_locator(MaxNLocator(nbins=4))
+            ax.yaxis.set_major_locator(MaxNLocator(nbins=3))
 
     if tight:
         fig.tight_layout()
@@ -1596,7 +1687,7 @@ def plot_bar_neuron_count(table_only=False, ssvers='_rerun'):
         ax[k].barh(range(len(regs1)), nclus_nins[:,2],color=cols, 
                    height=barwidth)
         ax[k].set_xscale("log")
-        ax[k].tick_params(axis='y', pad=19,left = False) 
+        ax[k].tick_params(axis='y', pad=19, left=False)
         ax[k].set_yticks(range(len(regs1)))
         ax[k].set_yticklabels([reg for reg in regs1],
                               fontsize=fs, ha = 'left')
@@ -1819,8 +1910,8 @@ def perf_scatter(rerun=False, axs=None, save=True):
     axs[0].text(0.8, 1, f'r = {r_left:.3f}\np = {p_left:.3f}', transform=axs[0].transAxes, verticalalignment='top',
                 fontsize=f_size_s)
 
-    axs[0].set_xlabel('# of biased training sessions', fontsize=f_size)
-    axs[0].set_ylabel('# of non-biased training sessions', fontsize=f_size)
+    axs[0].set_xlabel('Number of biased training sessions', fontsize=f_size)
+    axs[0].set_ylabel('Number of non-biased training sessions', fontsize=f_size)
 
     # Right scatter plot: (#sess biasedChoiceWorld, perf ephysChoiceWorld)
     sns.scatterplot(ax=axs[1], data=df, x='#sess biasedChoiceWorld', y='perf ephysChoiceWorld', hue='lab',
@@ -1833,8 +1924,8 @@ def perf_scatter(rerun=False, axs=None, save=True):
     axs[1].text(0.8, 1, f'r = {r_right:.3f}\np = {p_right:.3f}', transform=axs[1].transAxes, verticalalignment='top',
                 fontsize=f_size_s)
 
-    axs[1].set_xlabel('# of biased training sessions', fontsize=f_size)
-    axs[1].set_ylabel('% of trials correct \n (recording sessions only)', fontsize=f_size)
+    axs[1].set_xlabel('Number of biased training sessions', fontsize=f_size)
+    axs[1].set_ylabel('Percentage of trials correct \n (recording sessions only)', fontsize=f_size)
 
     axs[1].legend(loc='upper left', bbox_to_anchor=(1.05, 0.75), frameon=False, fontsize=f_size_s)
 
@@ -1860,11 +1951,11 @@ ADJUST_DECODING_SWANSONS = {
     },
     'fback': {
         'BST': {'y': 3300, 'x': -100}, 'PVH': {'y': 3300, 'x': -100}, 'CS': {'y': 3300, 'x': 100},
-        'V': {'y': 3300, 'x': 100}, 'LDT': {'y': 1350, 'x': -300}, 'NI': {'y': 1550, 'x': -500}
+        'V': {'y': 3300, 'x': 100}, 'LDT': {'y': 1350, 'x': -300}, 'NI': {'y': 1500, 'x': -500}
     },
     'choice': {
         'VISal': {'y': 200, 'x': -200}, 'SAG': {'y': 1450, 'x': 100}, 'LDT': {'y': 3300, 'x': 300},
-        'IF': {'y': 3300, 'x': 100}, 'RL': {'y': 3300, 'x': 400}, 'GR': {'y': 1750, 'x': 400},
+        'IF': {'y': 3300, 'x': 100}, 'RL': {'y': 3300, 'x': 400}, 'GR': {'y': 1750, 'x': 200},
         'LIN': {'y': 3300, 'x': 50}, 'ISN': {'y': 3300, 'x': 400}
     },
 }
@@ -2085,13 +2176,14 @@ def plot_decoding_scatter(variable, ax=None, save=True, save_path=None):
 
     if variable == 'fback':
         leg = ['Incorrect', 'Correct']
-        ylabel = f'Predicted {leg[1].lower()}'
+        ylabel = f'Predicted\n {leg[1].lower()}'
     elif variable == 'choice':
         leg = ['Right choice', 'Left choice']
         ylabel = f'Predicted\n {leg[0].lower()}'
 
-    loc = (1.45, 0.8) if variable == 'fback' else (1.55, 0.8)
-    leg = ax.legend(leg, frameon=False, fontsize=f_size_s, bbox_to_anchor=loc, loc='upper right', handletextpad=0.3)
+    loc = (1.4, 0.8) if variable == 'fback' else (1.5, 1.1)
+    ax.legend(leg, frameon=False, fontsize=f_size_s, bbox_to_anchor=loc, loc='upper right',
+              handletextpad=0.1)
     ax.set_yticks([0, 0.5, 1])
     ax.set_xlim(100, 400)
     ax.set_xlabel('Trials', fontsize=f_size)
@@ -2254,7 +2346,7 @@ def plot_decoding_speed_velocity(axs=None, save=True):
         ):
             if np.isnan(x) or np.isnan(y):
                 continue
-            ax.text(x, y, s, fontsize=5, color=pal[s])
+            ax.text(x, y, s, fontsize=f_size_xs, color=pal[s])
 
         ax.set_xlabel(f'Wheel-velocity ({metrics_to_plot[metric]})', fontsize=f_size)
         ax.set_ylabel(f'Wheel-speed ({metrics_to_plot[metric]})', fontsize=f_size)
@@ -2270,7 +2362,7 @@ def plot_decoding_speed_velocity(axs=None, save=True):
     axs[-1].fill_between(ts, np.percentile(dfs['wheel-velocity'], 5, axis=0),
                          np.percentile(dfs['wheel-velocity'], 95, axis=0), alpha=0.2, color='C1')
     axs[-1].legend(['Wheel-speed', 'Wheel-velocity'], fontsize=f_size_s, frameon=False, bbox_to_anchor=(1, 0.2),
-                   handlelength=0.8, handletextpad=0.4)
+                   handlelength=handle_length, handletextpad=handle_pad)
     axs[-1].axvline(x=0, linestyle='--', c='k')
     axs[-1].text(0, 4.9, "  Movement onset", color='k', fontsize=f_size_s, horizontalalignment='left')
     axs[-1].set_xlabel('Time from move (s)', fontsize=f_size)
@@ -2329,9 +2421,13 @@ def plot_swansons_decoding(variable, ax=None, adjust=False, save=True, annotate_
 
     annotate_kwargs = {'annotate_list': annotate_list, 'annotate': True}
     _, cax = plot_horizontal_swanson(acronyms, scores, mask=mask, ax=ax, cmap=cmap, vmin=vmin, vmax=vmax,
-                                     annotate_kwargs=annotate_kwargs, cbar=True, legend=True,
+                                     annotate_kwargs=annotate_kwargs, cbar=True, legend=True, fontsize=f_size_xs,
                                      cbar_label='Fraction of significant sessions (%)', cbar_shrink=0.3,
                                      mask_label='Zero significant sessions (%)')
+
+    # Adjust the swansons so that we can annotate with regions
+    ax.set_ylim(0, 3250)
+    ax.invert_yaxis()
 
     # Add title
     ax.set_title('Decoding',fontsize=f_size_l)
@@ -2482,8 +2578,8 @@ def print_age_weight():
 # Loading utils
 # -------------------------------------------------------------------------------------------------
 regressor2full = {
-    'stimonL': 'Left stimulus',
-    'stimonR': 'Right stimulus',
+    'stimonL': 'Left stim',
+    'stimonR': 'Right stim',
     'incorrect': 'Incorrect',
     'correct': 'Correct',
     'fmoveL': 'Left choice',
@@ -2697,13 +2793,13 @@ def plot_encoding_for_variable(variable, cluster_id=None, axs=None, save=True, s
 
     names = ['Model with regressors', 'Model without regressors']
     for ax, title in zip([axs[1],axs[2]], names):
-        ax.set_title(title, fontsize=f_size_l, va='top')
+        ax.set_title(title, fontsize=f_size, va='top')
 
     # custom legend
     all_lines = axs[2].get_lines()
-    legend_labels = ['Model', 'Model', regressor2full[reg1], regressor2full[reg2]]
+    legend_labels = [regressor2full[reg1], regressor2full[reg2], 'Model', 'Model']
     axs[2].legend(all_lines, legend_labels, loc='upper right',  bbox_to_anchor=(1.45, 0.85), fontsize=f_size_s,
-                  frameon=False, handlelength=1.2)
+                  frameon=False, handlelength=handle_length, handletextpad=handle_pad)
 
     stdf["response_times"] = stdf["stimOn_times"]
     trial_idx, dividers = find_trial_ids(stdf, sort=sortlookup[variable])
@@ -2718,8 +2814,7 @@ def plot_encoding_for_variable(variable, cluster_id=None, axs=None, save=True, s
 
     axs[0].set_title("{} unit {} $\log \Delta R^2$ = {:.2f}".format(region, clu_id, np.log10(drsq)),
                      fontsize=f_size_l)
-    
-    axs[0].sharex(axs[1])
+    axs[0].sharex(axs[2])
     axs[1].set_xlabel(None)
     axs[2].set_xlabel(EVENT_LABELS[variable], fontsize=f_size)
                   
@@ -2822,42 +2917,42 @@ red_right = RED
 ntravis = 30  # #trajectories for vis, first 2 real, rest pseudo
 
 ADJUST_TRAJECTORIES = {
-    'stim': {'LGd': {'x_l': 0, 'y_l': -0.3, 'x_s': -0.5, 'y_s': 1.5},
+    'stim': {'LGd': {'x_l': 0, 'y_l': -0.4, 'x_s': -0.5, 'y_s': 1.5},
              'VISp': {'x_l': -10, 'y_l': 2.2, 'x_s': -0.5, 'y_s': 3},
              'PRNc': {'x_l': 0, 'y_l': 0, 'x_s': -1, 'y_s': 2},
-             'VISam': {'x_l': 0, 'y_l': 0.5, 'x_s': 0.8, 'y_s': 0.3},
+             'VISam': {'x_l': 0, 'y_l': 0.8, 'x_s': 0.8, 'y_s': 0.3},
              'IRN': {'x_l': 0, 'y_l': 0, 'x_s': 2, 'y_s': -1},
-             'VISl': {'x_l': 0, 'y_l': -1, 'x_s': -1, 'y_s': -3.5},
-             'VISpm': {'x_l': 0, 'y_l': -1, 'x_s': 1, 'y_s': 2.3},
-             'VM': {'x_l': -3.5, 'y_l': 1, 'x_s': 0, 'y_s': 2.2, 'ha_s': 'center'},
+             'VISl': {'x_l': 0, 'y_l': -1.5, 'x_s': -0.75, 'y_s': -3.5},
+             'VISpm': {'x_l': 0, 'y_l': -1.2, 'x_s': 1, 'y_s': 4.5},
+             'VM': {'x_l': -3.5, 'y_l': 1, 'x_s': 1, 'y_s': 6, 'ha_s': 'center'},
              'MS': {'x_l': -9, 'y_l': -2.5, 'x_s': -0.5, 'y_s': 0},
-             'VISli': {'x_l': -3.8, 'y_l': -2, 'x_s': 1, 'y_s': -2.5}
+             'VISli': {'x_l': -3.8, 'y_l': -2.1, 'x_s': 0.5, 'y_s': -2.5}
 
              },
 
-    'choice': {'PRNc': {'x_l': 0, 'y_l': 0, 'x_s': -3, 'y_s': 1.5},
-               'VISal': {'x_l': -4.2, 'y_l': 3, 'x_s': 0, 'y_s': 1},
+    'choice': {'PRNc': {'x_l': 0, 'y_l': 0, 'x_s': 2.7, 'y_s': 1.5},
+               'VISal': {'x_l': -4.2, 'y_l': 3, 'x_s': 0, 'y_s': 3},
                'PRNr': {'x_l': 0, 'y_l': -2, 'x_s': -5, 'y_s': 1},
-               'LSr': {'x_l': 0, 'y_l': 1.2, 'x_s': -1.5, 'y_s': -1.5},
+               'LSr': {'x_l': 0, 'y_l': 1.8, 'x_s': -1.5, 'y_s': -1.5},
                'SIM': {'x_l': 0, 'y_l': -0.5, 'x_s': 3.2, 'y_s': -2},
-               'APN': {'x_l': 0, 'y_l': -1, 'x_s': -3, 'y_s': 2},
+               'APN': {'x_l': 0, 'y_l': -1, 'x_s': -3, 'y_s': 3},
                'MRN': {'x_l': 0, 'y_l': -0.5, 'x_s': -3, 'y_s': 3},
-               'RT': {'x_l': 0, 'y_l': 0, 'x_s': 3, 'y_s': 0},
-               'LGd': {'x_l': 0, 'y_l': -1.5, 'x_s': 1, 'y_s': -2},
+               'RT': {'x_l': 0, 'y_l': 0.3, 'x_s': 3, 'y_s': 0},
+               'LGd': {'x_l': 0, 'y_l': -2, 'x_s': 1, 'y_s': -2},
                'GRN': {'x_l': 0, 'y_l': 0, 'x_s': -2, 'y_s': 0},
-               'MV': {'x_l': 0, 'y_l': -0.8, 'x_s': -2, 'y_s': 2},
-               'ORBm': {'x_l': 0, 'y_l': -0.5, 'x_s': -2.5, 'y_s': 3, 'ha_s': 'center'},
+               'MV': {'x_l': 0, 'y_l': -0.8, 'x_s': -2, 'y_s': 2.5},
+               'ORBm': {'x_l': 0, 'y_l': -0.5, 'x_s': -2.5, 'y_s': 3.5, 'ha_s': 'center'},
                },
 
     'fback': {'IRN': {'x_l': 0, 'y_l': 0, 'x_s': 1, 'y_s': -0.5},
-              'SSp-n': {'x_l': 0, 'y_l': 0, 'x_s': 1.5, 'y_s': 0},
-              'PRNr': {'x_l': 0, 'y_l': -1.5, 'x_s': 1.5, 'y_s': 2},
-              'IC': {'x_l': -2.5, 'y_l': 21, 'x_s': 1.5, 'y_s': 0.5},
-              'MV': {'x_l': 0, 'y_l': 0.5, 'x_s': 0.5, 'y_s': -2},
+              'SSp-n': {'x_l': 0, 'y_l': 0, 'x_s': 1.5, 'y_s': 3.5},
+              'PRNr': {'x_l': 0, 'y_l': -2.5, 'x_s': 1, 'y_s': 4},
+              'IC': {'x_l': -2.5, 'y_l': 21, 'x_s': 1, 'y_s': 1},
+              'MV': {'x_l': 0, 'y_l': 0.5, 'x_s': 0.4, 'y_s': -2},
               'AUDp': {'x_l': -6.8, 'y_l': 30, 'x_s': 0.25, 'y_s': 0},
-              'CENT3': {'x_l': 0, 'y_l': -1, 'x_s': 1.2, 'y_s': 0},
-              'SSp-ul': {'x_l': 0, 'y_l': -1.5, 'x_s': 1, 'y_s': 0.5},
-              'GPe': {'x_l': 0, 'y_l': 0.5, 'x_s': 0.2, 'y_s': -11},
+              'CENT3': {'x_l': 0, 'y_l': -1.3, 'x_s': 0.9, 'y_s': 2},
+              'SSp-ul': {'x_l': 0, 'y_l': -1.8, 'x_s': 0.9, 'y_s': -0.2},
+              'GPe': {'x_l': 0, 'y_l': 1, 'x_s': 0.5, 'y_s': -11},
               }
 }
 
@@ -2928,41 +3023,41 @@ def load_trajectory_for_variable(variable, averages=False):
 ADJUST_3D_TRAJECTORIES = {
     'stim': {
         'view': {'elev': 30, 'azim': -153, 'roll': 1},
-        'zoom': 0.65,
+        'zoom': 0.6, #0.65,
         'trans': {'shift_x': -2, 'shift_y': 0, 'shift_z': 0},
-        'origin': {'x':0.4, 'y': 0.2, 'l': 0.15},
+        'origin': {'x':0.3, 'y': 0.1, 'l': 0.1},
         'annotations': [
             {'text': 't = 0', 'x': 0.9, 'y': 1, 'c': 'k', 'r': 0},
-            {'text': 't = 50 ms', 'x': 0.85, 'y': 0.15, 'c': 'k', 'r': 0},
-            {'text': 'Left stimulus', 'x': 0.5, 'y': 0.85, 'c': BLUE, 'r': 0},
-            {'text': 'Right stimulus', 'x': 0.25, 'y': 0.65, 'c': RED, 'r': 0},
-            {'text': 'Control', 'x': 0.8, 'y': 0.4, 'c': 'grey', 'r': 0}
+            {'text': 't = 50 ms', 'x': 0.8, 'y': -0.1, 'c': 'k', 'r': 0},
+            {'text': 'Left stimulus', 'x': 0.45, 'y': 0.85, 'c': BLUE, 'r': 0},
+            {'text': 'Right stimulus', 'x': 0.35, 'y': 0.55, 'c': RED, 'r': 0},
+            {'text': 'Control', 'x': 0.8, 'y': 0.2, 'c': 'grey', 'r': 0}
         ]
     },
     'fback': {
         'view': {'elev': 10, 'azim': -96, 'roll': 8},
         #'view': {'elev': 26, 'azim': -84, 'roll': 4},
-        'zoom': 0.8,
-        'trans': {'shift_x': -2, 'shift_y': 0, 'shift_z': 0},
-        'origin': {'x':0.25, 'y': 0.15, 'l': 0.15},
+        'zoom': 0.7, #0.8,
+        'trans': {'shift_x': -1.5, 'shift_y': 0, 'shift_z': 0},
+        'origin': {'x':0.175, 'y': 0.1, 'l': 0.1},
         'annotations': [
             {'text': 't = 0', 'x': 0.6, 'y': 1, 'c': 'k', 'r': 0},
-            {'text': 't = 700 ms', 'x': 0.22, 'y': 0.55, 'c': 'k', 'r': 0},
-            {'text': 'Incorrect', 'x': 0.3, 'y': 0.95, 'c': RED, 'r': 0},
-            {'text': 'Correct', 'x': 0.8, 'y': 0.3, 'c': BLUE, 'r': 0},
-            {'text': 'Control', 'x': 0.4, 'y': 0.7, 'c': 'grey', 'r': 0}]
+            {'text': 't = 700 ms', 'x': 0.35, 'y': 0.4, 'c': 'k', 'r': 0},
+            {'text': 'Incorrect', 'x': 0.4, 'y': 0.9, 'c': RED, 'r': 0},
+            {'text': 'Correct', 'x': 0.85, 'y': -0.1, 'c': BLUE, 'r': 0},
+            {'text': 'Control', 'x': 0.5, 'y': 0.5, 'c': 'grey', 'r': 0}]
     },
     'choice': {
         'view': {'elev': 13, 'azim': -98, 'roll': -5},
-        'zoom': 0.8,
+        'zoom': 0.65, #0.8
         'trans': {'shift_x': -2, 'shift_y': -1, 'shift_z': 0},
-        'origin': {'x': 0.3, 'y': 0.15, 'l': 0.15},
+        'origin': {'x': 0.25, 'y': 0.15, 'l': 0.1},
         'annotations': [
-            {'text': 't = 0', 'x': 0.95, 'y': 0.6, 'c': 'k', 'r': 0},
-            {'text': 't = -150 ms', 'x': 0.1, 'y': 0.65, 'c': 'k', 'r': 0},
-            {'text': 'Right choice', 'x': 0.4, 'y': 0.8, 'c': RED, 'r': 10},
-            {'text': 'Left choice', 'x': 0.35, 'y': 0.6, 'c': BLUE, 'r': -40},
-            {'text': 'Control', 'x': 0.7, 'y': 0.6, 'c': 'grey', 'r': 0}]
+            {'text': 't = 0', 'x': 1, 'y': 0.6, 'c': 'k', 'r': 0},
+            {'text': 't = -150 ms', 'x': 0.23, 'y': 0.6, 'c': 'k', 'r': 0},
+            {'text': 'Right choice', 'x': 0.5, 'y': 0.8, 'c': RED, 'r': 10},
+            {'text': 'Left choice', 'x': 0.45, 'y': 0.5, 'c': BLUE, 'r': -40},
+            {'text': 'Control', 'x': 0.7, 'y': 0.5, 'c': 'grey', 'r': 0}]
     },
 }
 
@@ -2985,8 +3080,8 @@ ADJUST_AVERAGE_3D_TRAJECTORIES = {
         'origin': {'x':0.25, 'y': 0.1, 'l': 0.15},
         'annotations': [
             {'text': 't = 0', 'x': 1, 'y': 0.1, 'c': 'k', 'r': 0},
-            {'text': 'Incorrect', 'x': 1, 'y': 0.5, 'c': RED, 'r': 0},
-            {'text': 'Correct', 'x': 0.25, 'y': 0.95, 'c': BLUE, 'r': 0},
+            {'text': 'Incorrect', 'x': 0.75, 'y': 0.93, 'c': RED, 'r': 0},
+            {'text': 'Correct', 'x': 0.25, 'y': 0.93, 'c': BLUE, 'r': 0},
             {'text': 'Control', 'x': 0.55, 'y': 0.68, 'c': 'grey', 'r': 0}]
     },
     'choice': {
@@ -3185,6 +3280,7 @@ def plot_trajectory_lines(variable, curve='euc', ax=None, adjust=False, save=Tru
     ax.text(0, EVENT_LINE_LOC[variable], f"  {EVENT_LINES[variable]}", color='k', fontsize=f_size_s)
     ax.set_ylabel('Distance (Hz)', fontsize=f_size)
     ax.set_xlabel(f'{EVENT_LABELS[variable]}', fontsize=f_size)
+    ax.xaxis.set_major_locator(MaxNLocator(nbins=4))
 
     if adjust:
         adjust_trajectory_lines(variable, ax)
@@ -3238,6 +3334,7 @@ def plot_trajectory_scatter(variable, curve='euc', ax=None, adjust=False, show_s
     ax.set_ylabel('Max distance (Hz)', fontsize=f_size)
     ax.set_xlabel(f'Latency {EVENT_LABELS[variable][5:]}', fontsize=f_size)
     ax.axvline(x=0, linestyle='--', c='k')
+    ax.xaxis.set_major_locator(MaxNLocator(nbins=4))
 
     if show_sig:
         n_sig = sig_regions.sum()
@@ -3608,6 +3705,13 @@ def put_panel_label(ax, label):
                 fontsize=f_size, va='top',
                 ha='right', weight='bold')    
 
+def shift_plot(ax, x, y):
+    pos = ax.get_position()
+    pos.x0 = pos.x0 + x
+    pos.x1 = pos.x1 + x
+    pos.y0 = pos.y0 + y
+    pos.y1 = pos.y1 + y
+    ax.set_position(pos)
 
 
 def main_fig_for_variable(variable, individual_pans=False, save=True, save_path=None):
@@ -3621,16 +3725,15 @@ def main_fig_for_variable(variable, individual_pans=False, save=True, save_path=
 
     if not individual_pans:
 
-        fig = plt.figure(figsize=(180 * MM_TO_INCH, 210 * MM_TO_INCH))
+        fig = plt.figure(figsize=(183 * MM_TO_INCH, 170 * MM_TO_INCH))
         width, height = fig.get_size_inches() / MM_TO_INCH
         xspans1 = get_coords(width, ratios=[1, 1, 1, 1, 1], space=0, pad=0, span=(0, 1))
-        xspans2 = get_coords(width, ratios=[1], space=15, pad=10, span=(0, 1))
+        xspans2 = get_coords(width, ratios=[1], space=15, pad=15, span=(0, 1))
         xspans3 = get_coords(width, ratios=[1, 1, 1], space=[25, 25], pad=10, span=(0, 1))
 
-        yspans = get_coords(height, ratios=[6, 3, 4, 4], space=[7, 12, 8], pad=0, span=(0, 1))
-        yspans_sub1 = get_coords(height, ratios=[1, 1], space=8, pad=2, span=yspans[1])
-        yspans_sub2 = get_coords(height, ratios=[1, 1], space=10, pad=0, span=yspans[2])
-        yspans_sub3 = get_coords(height, ratios=[1, 1], space=8, pad=0, span=yspans[3])
+        yspans = get_coords(height, ratios=[8, 4, 4, 4], space=[4, 12, 8], pad=2, span=(0, 1))
+        yspans_sub1 = get_coords(height, ratios=[1, 1], space=6, pad=0, span=yspans[1])
+        yspans_sub2 = get_coords(height, ratios=[1, 1], space=2, pad=0, span=yspans[2])
 
         axs = {'a': fg.place_axes_on_grid(fig, xspan=xspans1[0], yspan=yspans[0]),
                'b': fg.place_axes_on_grid(fig, xspan=xspans1[1], yspan=yspans[0]),
@@ -3640,11 +3743,10 @@ def main_fig_for_variable(variable, individual_pans=False, save=True, save_path=
                'f_1': fg.place_axes_on_grid(fig, xspan=xspans2[0], yspan=yspans_sub1[0]),
                'f_2': fg.place_axes_on_grid(fig, xspan=xspans2[0], yspan=yspans_sub1[1]),
                'g': fg.place_axes_on_grid(fig, xspan=xspans3[0], yspan=yspans[2]),
-               'h_1': fg.place_axes_on_grid(fig, xspan=xspans3[0], yspan=yspans_sub3[0]),
-               'h_2': fg.place_axes_on_grid(fig, xspan=xspans3[0], yspan=yspans_sub3[1]),
+               'h': fg.place_axes_on_grid(fig, xspan=xspans3[0], yspan=yspans[3], dim=(2, 1), hspace=0.3),
                'i': fg.place_axes_on_grid(fig, xspan=xspans3[1], yspan=yspans_sub2[0]),
                'j': fg.place_axes_on_grid(fig, xspan=[xspans3[2][0] - 0.08, xspans3[2][1]], yspan=yspans[2]),
-               'k': fg.place_axes_on_grid(fig, xspan=xspans3[1], yspan=yspans_sub2[1]),
+               'k': fg.place_axes_on_grid(fig, xspan=xspans3[1], yspan=yspans_sub2[1] + 0.03),
                'l': fg.place_axes_on_grid(fig, xspan=xspans3[1], yspan=yspans[3]),
                'm': fg.place_axes_on_grid(fig, xspan=xspans3[2], yspan=yspans[3]),
                }
@@ -3655,53 +3757,79 @@ def main_fig_for_variable(variable, individual_pans=False, save=True, save_path=
         labels = []
         padx = 10
         pady = 3
-        labels.append(add_label('a', fig, xspans1[0], yspans[0], 0, 10, fontsize=8))
-        labels.append(add_label('b', fig, xspans1[1], yspans[0], 0, 10, fontsize=8))
-        labels.append(add_label('c', fig, xspans1[2], yspans[0], 0, 10, fontsize=8))
-        labels.append(add_label('d', fig, xspans1[3], yspans[0], 0, 10, fontsize=8))
-        labels.append(add_label('e', fig, xspans1[4], yspans[0], 0, 10, fontsize=8))
-        labels.append(add_label('f', fig, xspans2[0], yspans[1], padx, 1, fontsize=8))
-        labels.append(add_label('g', fig, xspans3[0], yspans[2], padx, pady, fontsize=8))
+        labels.append(add_label('a', fig, xspans1[0], yspans[0], 0, 8, fontsize=8))
+        labels.append(add_label('b', fig, xspans1[1], yspans[0], 0, 5, fontsize=8))
+        labels.append(add_label('c', fig, xspans1[2], yspans[0], 0, 5, fontsize=8))
+        labels.append(add_label('d', fig, xspans1[3], yspans[0], 0, 5, fontsize=8))
+        labels.append(add_label('e', fig, xspans1[4], yspans[0], 0, 5, fontsize=8))
+        labels.append(add_label('f', fig, xspans2[0], yspans[1], 15, 1, fontsize=8))
+        labels.append(add_label('g', fig, xspans3[0], yspans[2], padx, 5, fontsize=8))
         labels.append(add_label('h', fig, xspans3[0], yspans[3], padx, pady, fontsize=8))
-        labels.append(add_label('i', fig, xspans3[1], yspans_sub2[0], padx, pady, fontsize=8))
-        labels.append(add_label('j', fig, xspans3[2], yspans[2], padx, pady, fontsize=8))
-        labels.append(add_label('k', fig, xspans3[1], yspans_sub2[1], padx, pady, fontsize=8))
-        labels.append(add_label('l', fig, xspans3[1], yspans[3], padx, pady, fontsize=8))
-        labels.append(add_label('m', fig, xspans3[2], yspans[3], padx, pady, fontsize=8))
+        labels.append(add_label('i', fig, xspans3[1], yspans_sub2[0], padx, 5, fontsize=8))
+        labels.append(add_label('j', fig, xspans3[2], yspans[2], padx, 5, fontsize=8))
+        labels.append(add_label('k', fig, xspans3[1], yspans_sub2[1], padx, -2, fontsize=8))
+        labels.append(add_label('l', fig, xspans3[1], yspans[3], padx, 0, fontsize=8))
+        labels.append(add_label('m', fig, xspans3[2], yspans[3], padx, 0, fontsize=8))
 
         fg.add_labels(fig, labels)
-        adjust = 5
-        fig.subplots_adjust(top=1 - adjust / height, bottom=(adjust) / height,
-                            left=adjust / width, right=1 - adjust / width)
+        fig.subplots_adjust(top=0.99, bottom=0, left=0.02, right=0.98)
 
-        plot_swansons_for_variable(variable, axs=[axs['a'], axs['b'], axs['c'], axs['d'], axs['e']], adjust=True, save=False)
+        plot_swansons_for_variable(variable, axs=[axs['a'], axs['b'], axs['c'], axs['d'], axs['e']], adjust=True,
+                                   save=False)
+        leg = axs['a'].legend_
+        leg.set_bbox_to_anchor((0.7, 0.13))
         plot_table(variable, axs=[axs['f_1'], axs['f_2']], save=False)
         plot_trajectory_control(variable + '_restr', ax=axs['k'], save=False)
         axs['k'].set_xlabel('')
         plot_trajectory_lines(variable + '_restr', ax=axs['l'], adjust=True, save=False)
-        plot_trajectory_scatter(variable+ '_restr', ax=axs['m'], adjust=True, show_sig=False, save=False)
+        plot_trajectory_scatter(variable + '_restr', ax=axs['m'], adjust=True, show_sig=False, save=False)
+        axs['l'].sharex(axs['k'])
+
         if variable == 'fback':
             axs['l'].set_ylim(0, 4.2)
             axs['m'].set_ylim(0, 4.2)
+
+        for text in axs['l'].texts + axs['m'].texts + axs['k'].texts:
+            if 'onset' not in text.get_text():
+                text.set_fontsize(f_size_xs)
+
         plot_traj3d(variable + '_restr', ax_3d=ax_3d, ax_2d=axs['j'], save=False)
+        if variable == 'fback':
+            shift_plot(ax_3d, 0.03, -0.06)
+        elif variable == 'choice':
+            shift_plot(ax_3d, 0.02, -0.04)
+        else:
+            shift_plot(ax_3d, 0, -0.04)
+
+        axs['f_2'].set_zorder(50)
         if variable == 'stim':
             plot_decoding_line(ax=axs['i'], save=False)
+            axs['i'].set_xlabel('Stimulus contrast', fontsize=f_size, va='bottom')
         else:
             plot_decoding_scatter(variable, ax=axs['i'], save=False)
             axs['i'].set_zorder(50)
-        plot_encoding_for_variable(variable, axs=[axs['g'], axs['h_1'], axs['h_2']], save=False)
+
+
+        plot_encoding_for_variable(variable, axs=[axs['g'], axs['h'][0], axs['h'][1]], save=False)
+        axs['h'][0].set_xticklabels([])
+        axs['h'][0].set_ylabel('')
+        ylabel = axs['h'][1].yaxis.get_label()
+        ylabel.set_position((ylabel.get_position()[0], ylabel.get_position()[1] + 0.8))
+
         for coll in axs['g'].collections:
             coll.set_linewidth(5)
-        if variable != 'fback':
-            leg = axs['h_2'].legend_
-            leg.set_bbox_to_anchor((1.55, 0.85))
+        leg = axs['h'][1].legend_
+        if variable == 'choice':
+            leg.set_bbox_to_anchor((1.45, 1.85))
+        else:
+            leg.set_bbox_to_anchor((1.4, 1.85))
 
         if save:
             save_path = save_path or imgs_pth
-            save_path = Path(f'//Users/admin/bwm/main')
+            save_path = Path(f'/Users/admin/bwm/main')
             save_path.mkdir(exist_ok=True, parents=True)
-            fig.savefig(save_path.joinpath(f'n6_main_figure_{variverb[variable]}.pdf'))
-            fig.savefig(save_path.joinpath(f'n6_main_figure_{variverb[variable]}.eps'), dpi=200)
+            fig.savefig(save_path.joinpath(f'n6_main_figure_{variverb[variable].lower()}.pdf'))
+            fig.savefig(save_path.joinpath(f'n6_main_figure_{variverb[variable].lower()}.eps'), dpi=150)
 
     else:
         save_path = Path(f'/Users/admin/int-brain-lab/test_panels/{variable}')
@@ -3718,19 +3846,19 @@ def main_fig_for_variable(variable, individual_pans=False, save=True, save_path=
             plot_decoding_scatter(variable, save=save, save_path=save_path)
         plot_encoding_for_variable(variable, save=save, save_path=save_path)
 
-def main_fig_wheel(individual_pans=False, save=True, save_path=None):
-
+def main_fig_for_wheel(individual_pans=False, save=True, save_path=None):
 
     if not individual_pans:
-        fig = plt.figure(figsize=(180 * MM_TO_INCH, 210 * MM_TO_INCH))
+
+        fig = plt.figure(figsize=(183 * MM_TO_INCH, 170 * MM_TO_INCH))
         width, height = fig.get_size_inches() / MM_TO_INCH
         xspans1 = get_coords(width, ratios=[1, 1, 1, 1], space=0, pad=0, span=(0, 1))
-        xspans2 = get_coords(width, ratios=[1], space=15, pad=15, span=(0, 1))
-        xspans3 = get_coords(width, ratios=[1, 1], space=[25], pad=0, span=(0, 1))
+        xspans2 = get_coords(width, ratios=[1], space=15, pad=16, span=(0, 1))
+        xspans3 = get_coords(width, ratios=[1, 1], space=[25], pad=5, span=(0, 1))
         xspans_sub1 = get_coords(width, ratios=[1, 1], space=10, pad=10, span=xspans3[0])
 
-        yspans = get_coords(height, ratios=[6, 3, 4], space=[6, 13], pad=2, span=(0, 1))
-        yspans_sub1 = get_coords(height, ratios=[1, 1, 1, 1], space=[2, 10, 2], pad=2, span=yspans[1])
+        yspans = get_coords(height, ratios=[5, 3, 4], space=[5, 13], pad=2, span=(0, 1))
+        yspans_sub1 = get_coords(height, ratios=[1, 1, 1, 1], space=[1, 6, 1], pad=0, span=yspans[1])
         yspans_sub2 = get_coords(height, ratios=[1, 1], space=8, pad=0, span=yspans[2])
 
         axs = {'a': fg.place_axes_on_grid(fig, xspan=xspans1[0], yspan=yspans[0]),
@@ -3758,17 +3886,20 @@ def main_fig_wheel(individual_pans=False, save=True, save_path=None):
         labels.append(add_label('e', fig, xspans1[0], yspans[1], 0, 1, fontsize=8))
         labels.append(add_label('f', fig, xspans3[0], yspans[2], padx, pady, fontsize=8))
         labels.append(add_label('g', fig, xspans3[0], yspans_sub2[1], padx, pady, fontsize=8))
-        labels.append(add_label('h', fig, xspans3[1], yspans[2], 10, pady, fontsize=8))
+        labels.append(add_label('h', fig, xspans3[1], yspans[2], 15, pady, fontsize=8))
         fg.add_labels(fig, labels)
-        plot_swansons_for_wheel(axs=[axs['a'], axs['b'], axs['c'], axs['d']], save=False)
-        axs['a'].text(1.2, -0.25, 'Wheel-speed', fontsize=f_size_l, transform=axs['a'].transAxes, ha='center', va='center')
-        axs['c'].text(1.2, -0.25, 'Wheel-velocity', fontsize=f_size_l, transform=axs['c'].transAxes, ha='center',
+        plot_swansons_for_wheel(axs=[axs['a'], axs['b'], axs['c'], axs['d']], adjust=True, save=False)
+        axs['a'].text(1.4, -0.25, 'Wheel-speed', fontsize=f_size_l, transform=axs['a'].transAxes, ha='center',
+                      va='center')
+        leg = axs['a'].legend_
+        leg.set_bbox_to_anchor((0.7, 0.13))
+        axs['c'].text(1.4, -0.25, 'Wheel-velocity', fontsize=f_size_l, transform=axs['c'].transAxes, ha='center',
                       va='center')
         plot_table('speed', axs=[axs['e_1'], axs['e_3']], save=False)
         axs['e_1'].set_xticklabels([])
         axs['e_3'].set_xticklabels([])
         plot_table('velocity', axs=[axs['e_2'], axs['e_4']], save=False)
-        x = -0.09
+        x = -0.08
         axs['e_1'].text(x, 0.6, 'Speed', fontsize=f_size_s, transform=axs['e_1'].transAxes, rotation=90, ha='center',
                         va='center')
         axs['e_2'].text(x, 0.4, 'Velocity', fontsize=f_size_s, transform=axs['e_2'].transAxes, rotation=90, ha='center',
@@ -3790,11 +3921,7 @@ def main_fig_wheel(individual_pans=False, save=True, save_path=None):
         for text in axs['g_2'].texts:
             text.remove()
         encoding_wheel_boxen(ax=axs['h'], save=False)
-        adjust = 5
-        # Depending on the location of axis labels leave a bit more space
-        extra = 5
-        fig.subplots_adjust(top=1 - 5 / height, bottom=(adjust + extra) / height,
-                            left=adjust / width, right=1 - adjust / width)
+        fig.subplots_adjust(top=0.99, bottom=0.01, left=0.02, right=0.98)
 
         if save:
             save_path = save_path or imgs_pth
@@ -3812,7 +3939,7 @@ def plot_supp_figures(save_path=None):
     supp_save_path.mkdir(exist_ok=True, parents=True)
 
     # Figure 3: n6_supp_fig3_sampling_manifold
-    fig = plt.figure(figsize=(180 * MM_TO_INCH, 150 * MM_TO_INCH))
+    fig = plt.figure(figsize=(183 * MM_TO_INCH, 100 * MM_TO_INCH))
     width, height = fig.get_size_inches() / MM_TO_INCH
     xspans = get_coords(width, ratios=[1], space=15, pad=15, span=(0, 1))
     yspans = get_coords(height, ratios=[1, 1], space=10, pad=10, span=(0, 1))
@@ -3832,15 +3959,21 @@ def plot_supp_figures(save_path=None):
         leg.set_bbox_to_anchor((1.50, 0.25))
 
     for ax in axs['b']:
+        ax.xaxis.set_major_locator(MaxNLocator(nbins=4))
         ax.set_title('')
 
-    adjust_subplots(fig, adjust=[0, 10, 4, 20], extra=0)
+    for ax in axs['a']:
+        ax.xaxis.set_major_locator(MaxNLocator(nbins=4))
+        title = ax.get_title()
+        ax.set_title(title, fontsize=f_size_l, va='bottom')
+
+    adjust_subplots(fig, adjust=[0, 10, 2, 20], extra=0)
     save_name = 'n6_supp_fig3_sampling_manifold'
     fig.savefig(Path(supp_save_path, f'{save_name}.pdf'))
     fig.savefig(Path(supp_save_path, f'{save_name}.eps'), dpi=150)
 
     # Figure 4: n6_supp_fig4_dec_repro_male_female
-    fig, axs = plt.subplots(3, 1, figsize=([180 * MM_TO_INCH, 110 * MM_TO_INCH]))
+    fig, axs = plt.subplots(3, 1, figsize=([183 * MM_TO_INCH, 90 * MM_TO_INCH]))
     plot_female_male_repro(axs=axs, save=False)
     adjust_subplots(fig, adjust=[3, 10, 17, 5], extra=0)
     save_name = 'n6_supp_fig4_dec_repro_male_female'
@@ -3848,35 +3981,34 @@ def plot_supp_figures(save_path=None):
     fig.savefig(Path(supp_save_path, f'{save_name}.eps'), dpi=150)
 
     # Figure 6: n6_supp_fig6_feedback_baseline
-    fig = plt.figure(figsize=(180 * MM_TO_INCH, 60 * MM_TO_INCH))
+    fig = plt.figure(figsize=(183 * MM_TO_INCH, 60 * MM_TO_INCH))
     width, height = fig.get_size_inches() / MM_TO_INCH
     xspans = get_coords(width, ratios=[1, 1], space=5, pad=0, span=(0, 1))
-    yspans = get_coords(height, ratios=[1], space=0, pad=0, span=(0, 1))
+    yspans = get_coords(height, ratios=[1], space=0, pad=5, span=(0, 1))
     axs = {'a': fg.place_axes_on_grid(fig, xspan=xspans[0], yspan=yspans[0]),
            'b': fg.place_axes_on_grid(fig, xspan=xspans[1], yspan=yspans[0]), }
     _, cax1 = plot_swanson_for_single_cell_variable('correct_vs_baseline', ax=axs['a'])
     axs['a'].set_title('')
-    axs['a'].text(0.1, 1.1, 'Feedback (correct) vs baseline', transform=axs['a'].transAxes)
+    axs['a'].text(0.1, 1.05, 'Feedback (correct) vs baseline', transform=axs['a'].transAxes)
     _, cax2 = plot_swanson_for_single_cell_variable('incorrect_vs_baseline', ax=axs['b'],
                                                     cbar=True, legend=False)
     axs['b'].set_title('')
-    axs['b'].text(0.1, 1.1, 'Feedback (incorrect) vs baseline', transform=axs['b'].transAxes)
+    axs['b'].text(0.1, 1.05, 'Feedback (incorrect) vs baseline', transform=axs['b'].transAxes)
     cax2.ax.set_visible(False)
     orig_bbox = cax1.ax.get_position()
 
-    axs['b'].text(0.5, -0.15, 'Single-cell statistics', transform=axs['b'].transAxes, ha='center', fontsize=7)
-    axs['b'].text(0.5, -0.25, 'Condition combined Mann-Whitney test', transform=axs['b'].transAxes, ha='center',
-                  fontsize=6)
+    axs['b'].text(0.5, -0.15, 'Single-cell statistics', transform=axs['b'].transAxes, ha='center', fontsize=f_size_l)
+    axs['b'].text(0.5, -0.25, 'Condition combined Mann-Whitney test', transform=axs['b'].transAxes, ha='center', fontsize=f_size_s)
     labels = []
     padx = 0
-    pady = 0
-    labels.append(add_label('a', fig, xspans[0], yspans[0], 0, pady, fontsize=8))
+    pady = 10
+    labels.append(add_label('a', fig, xspans[0], yspans[0], padx, pady, fontsize=8))
     labels.append(add_label('b', fig, xspans[1], yspans[0], padx, pady, fontsize=8))
     fg.add_labels(fig, labels)
 
-    adjust_subplots(fig, adjust=[5, 6, 3, 3], extra=0)
+    adjust_subplots(fig, adjust=[3, 7, 3, 3], extra=0)
 
-    cax1.ax.set_position([orig_bbox.x0 + 0.34, orig_bbox.y0 - 0.03, orig_bbox.width, orig_bbox.height])
+    cax1.ax.set_position([orig_bbox.x0 + 0.33, orig_bbox.y0 + 0.01 , orig_bbox.width, orig_bbox.height])
 
     leg = axs['a'].legend_
     leg.set_bbox_to_anchor((0.7, -0.05))
@@ -3886,7 +4018,7 @@ def plot_supp_figures(save_path=None):
     fig.savefig(Path(supp_save_path, f'{save_name}.eps'), dpi=150)
 
     # Figure 7: n6_supp_fig7_decoding_wheelspeedvsvel
-    fig = plt.figure(figsize=(180 * MM_TO_INCH, 60 * MM_TO_INCH))
+    fig = plt.figure(figsize=(183 * MM_TO_INCH, 60 * MM_TO_INCH))
     width, height = fig.get_size_inches() / MM_TO_INCH
     xspans = get_coords(width, ratios=[1, 1, 1, 1], space=20, pad=15, span=(0, 1))
     yspans = get_coords(height, ratios=[1], space=10, pad=5, span=(0, 1))
@@ -3906,7 +4038,7 @@ def plot_supp_figures(save_path=None):
     fg.add_labels(fig, labels)
 
     plot_decoding_speed_velocity(axs=[axs['a'], axs['b'], axs['c'], axs['d']], save=False)
-    adjust_subplots(fig, adjust=[0, 11, 2, 8], extra=0)
+    adjust_subplots(fig, adjust=[0, 11, 0, 8], extra=0)
     leg = axs['d'].legend_
     leg.set_bbox_to_anchor((0.5, 0.2))
     save_name = 'n6_supp_fig7_decoding_wheelspeedvsvel'
@@ -3914,7 +4046,7 @@ def plot_supp_figures(save_path=None):
     fig.savefig(Path(supp_save_path, f'{save_name}.eps'), dpi=150)
 
     # Figure 8: n6_supp_fig8_learning_stats
-    fig, axs = plt.subplots(1, 2, figsize=([180 * MM_TO_INCH, 80 * MM_TO_INCH]))
+    fig, axs = plt.subplots(1, 2, figsize=([183 * MM_TO_INCH, 80 * MM_TO_INCH]))
     perf_scatter(axs=axs, save=False)
     adjust_subplots(fig, adjust=[3, 10, 12, 25], extra=0)
     save_name = 'n6_supp_fig8_learning_stats'
@@ -3928,19 +4060,19 @@ def plot_eds_figures():
     ed_save_path.mkdir(exist_ok=True, parents=True)
 
     # Figure 2: n6_ed_fig2_all_variables
-    fig, axs = plt.subplots(3, 4, figsize=([180 * MM_TO_INCH, 200 * MM_TO_INCH]),
+    fig, axs = plt.subplots(3, 4, figsize=([130 * MM_TO_INCH, 170 * MM_TO_INCH]),
                             gridspec_kw={'hspace': 0, 'wspace': 0})
     plot_swansons_across_analysis(axs, save=False)
-    fig.subplots_adjust(top=0.95, bottom=0.025, left=0, right=1)
+    adjust_subplots(fig, adjust=[8, 5, 1, 1], extra=0)
     save_name = 'n6_ed_fig2_all_variables'
     fig.savefig(Path(ed_save_path, f'{save_name}.pdf'))
     fig.savefig(Path(ed_save_path, f'{save_name}.eps'), dpi=150)
 
     # Figure 3: n6_ed_fig3_analyses_amp_pairs_grid
-    fig, axs = plt.subplots(6, 3, figsize=(180 * MM_TO_INCH, 200 * MM_TO_INCH),
-                            gridspec_kw={'hspace': 0.5, 'wspace': 0.3})
+    fig, axs = plt.subplots(6, 3, figsize=(130 * MM_TO_INCH, 170 * MM_TO_INCH),
+                            gridspec_kw={'hspace': 0.9, 'wspace': 0.5})
     plot_scatter_analysis_pairs(axs=axs, save=False)
-    adjust_subplots(fig, adjust=[8, 10, 15, 5], extra=0)
+    adjust_subplots(fig, adjust=[6, 10, 13, 2], extra=0)
     save_name = 'n6_ed_fig3_analyses_amp_pairs_grid'
     fig.savefig(Path(ed_save_path, f'{save_name}.pdf'))
     fig.savefig(Path(ed_save_path, f'{save_name}.eps'), dpi=150)
@@ -3951,21 +4083,21 @@ def plot_eds_figures():
         'fback': ['BST', 'PVH', 'CS', 'V', 'LDT', 'NI'],
         'stim': ['NB', 'TRN', 'PRNc']
     }
-    names = ['n6_ed_fig11_choice', 'n6_ed_fig6_stimulus', 'n6_ed_fig14_feedback']
+    names = ['n6_ed_fig11_choice', 'n6_ed_fig14_feedback', 'n6_ed_fig6_stimulus']
     for variable, save_name in zip(annotate_list.keys(), names):
-        fig = plt.figure(figsize=(180 * MM_TO_INCH, 200 * MM_TO_INCH))
+        fig = plt.figure(figsize=(183 * MM_TO_INCH, 170 * MM_TO_INCH))
         width, height = fig.get_size_inches() / MM_TO_INCH
 
         xspans1 = get_coords(width, ratios=[5, 1], space=15, pad=5, span=(0, 1))
         xspans2 = get_coords(width, ratios=[1], space=15, pad=5, span=(0, 1))
-        yspans = get_coords(height, ratios=[5, 6, 3], space=[5, 0], pad=0, span=(0, 1))
+        yspans = get_coords(height, ratios=[6, 6, 4], space=[5, 0], pad=5, span=(0, 1))
 
         axs = {'a': fg.place_axes_on_grid(fig, xspan=xspans1[0], yspan=yspans[0]),
                'b': fg.place_axes_on_grid(fig, xspan=xspans2[0], yspan=yspans[1], dim=(3, 5), hspace=0) +
                     [fg.place_axes_on_grid(fig, xspan=xspans2[0], yspan=yspans[2], dim=(1, 5))]}
 
         labels = []
-        padx = 5
+        padx = 1
         labels.append(add_label('a', fig, xspans2[0], yspans[0], padx, 5, fontsize=8))
         labels.append(add_label('b', fig, xspans2[0], yspans[1], padx, 10, fontsize=8))
         fg.add_labels(fig, labels)
@@ -3975,16 +4107,29 @@ def plot_eds_figures():
         cax.ax.set_position((orig_bbox.x0 + 0.5, orig_bbox.y0 + 0.14, orig_bbox.width, orig_bbox.height))
         orig_bbox = cax.ax.get_position()
         leg = axs['a'].legend_
-        leg.set_bbox_to_anchor((1.05, 0.4))
-        adjust_subplots(fig, adjust=[5, 10, 5, 7], extra=0)
-        cax.ax.set_position([orig_bbox.x0 + 0.08, orig_bbox.y0 + 0.1, orig_bbox.width, orig_bbox.height])
+        leg.set_bbox_to_anchor((1.16, 0.35))
+        adjust_subplots(fig, adjust=[3, 8, 0, 5], extra=0)
+        cax.ax.set_position([orig_bbox.x0 + 0.05, orig_bbox.y0 + 0.1, orig_bbox.width, orig_bbox.height])
         axs['a'].set_title('')
-        axs['a'].text(0.055, 0.9, 'Decoding', transform=axs['a'].transAxes, fontsize=f_size_l)
+        axs['a'].text(-0.07, 1, 'Decoding', transform=axs['a'].transAxes, fontsize=f_size_l)
         fig.savefig(Path(ed_save_path, f'{save_name}.pdf'))
         fig.savefig(Path(ed_save_path, f'{save_name}.eps'), dpi=150)
 
+    # Fig 9:n6_ed_fig9_glm_rt_split
+    # N.B This is fake data, need to add in the actual data using inkscape
+    fig, axs = plt.subplots(2, 3, figsize=(130 * MM_TO_INCH, 170 * MM_TO_INCH),
+                            gridspec_kw={'wspace': 0, 'hspace': 0.1})
+    plot_glm_swansons(axs.ravel())
+    fig.subplots_adjust(left=0, right=1, top=0.95, bottom=0.02)
+    axs[0, 0].text(0.5, 1.1, 'Early responses', transform=axs[0, 0].transAxes, fontsize=f_size_l, ha='center')
+    axs[0, 1].text(0.5, 1.1, 'Late responses', transform=axs[0, 1].transAxes, fontsize=f_size_l, ha='center')
+    axs[0, 2].text(0.5, 1.1, 'All responses', transform=axs[0, 2].transAxes, fontsize=f_size_l, ha='center')
+    save_name = 'n6_ed_fig9_glm_rt_split'
+    fig.savefig(Path(ed_save_path, f'{save_name}.pdf'))
+    fig.savefig(Path(ed_save_path, f'{save_name}.eps'), dpi=150)
+
     # Fig 10 n6_ed_fig10_manifold_full
-    fig = plt.figure(figsize=(180 * MM_TO_INCH, 150 * MM_TO_INCH))
+    fig = plt.figure(figsize=(183 * MM_TO_INCH, 150 * MM_TO_INCH))
     width, height = fig.get_size_inches() / MM_TO_INCH
     xspans = get_coords(width, ratios=[2, 2, 2], space=[10, 30], pad=0, span=(0, 1))
     yspans = get_coords(height, ratios=[1, 1, 1], space=20, pad=5, span=(0, 1))
@@ -4043,9 +4188,9 @@ def plot_eds_figures():
         pos.y1 = pos.y1 + y
         ax.set_position(pos)
 
-    axs['a'].text(0.2 + 0.14, 1.1, 'Stimulus', ha='center', fontsize=f_size)
-    axs['b'].text(0.2 + 0.08, 1.1, 'Choice', ha='center', fontsize=f_size)
-    axs['c'].text(0.2 + 0.02, 1.1, 'Feedback', ha='center', fontsize=f_size)
+    axs['a'].text(0.2 + 0.16, 1.05, 'Stimulus', ha='center', fontsize=f_size)
+    axs['b'].text(0.2 + 0.1, 1.1, 'Choice', ha='center', fontsize=f_size)
+    axs['c'].text(0.2 + 0.04, 1.1, 'Feedback', ha='center', fontsize=f_size)
 
     shift_plot(axs['a_3d'], -0.05, -0.01)
     shift_plot(axs['a'], -0.05, -0.01)
@@ -4091,7 +4236,7 @@ def plot_eds_figures():
     fig.savefig(Path(ed_save_path, f'{save_name}.eps'), dpi=150)
 
     # Fig 13: n6_ed_fig13_glm_task
-    fig = plt.figure(figsize=(180 * MM_TO_INCH, 140 * MM_TO_INCH))
+    fig = plt.figure(figsize=(183 * MM_TO_INCH, 140 * MM_TO_INCH))
     width, height = fig.get_size_inches() / MM_TO_INCH
     xspans = get_coords(width, ratios=[1, 1], space=0, pad=5, span=(0, 1))
     yspans = get_coords(height, ratios=[2, 1], space=0, pad=0, span=(0, 1))
@@ -4103,21 +4248,23 @@ def plot_eds_figures():
     pady = 0
     labels.append(add_label('a', fig, xspans[0], yspans[0], padx, pady, fontsize=8))
     labels.append(add_label('b', fig, xspans[1], yspans[0], padx, pady, fontsize=8))
-    labels.append(add_label('c', fig, xspans[0], yspans[1], padx, pady, fontsize=8))
-    labels.append(add_label('d', fig, xspans[1], yspans[1], padx, pady, fontsize=8))
+    labels.append(add_label('c', fig, xspans[0], yspans[1], padx, 2, fontsize=8))
+    labels.append(add_label('d', fig, xspans[1], yspans[1], padx, 2, fontsize=8))
     _, cax = plot_swanson_for_single_cell_variable('task', ax=axs['d'], cbar=True, legend=True)
     axs['d'].set_title('')
     fg.add_labels(fig, labels)
     orig_bbox = cax.ax.get_position()
-    adjust_subplots(fig, adjust=[5, 10, 5, 7], extra=0)
-    cax.ax.set_position([orig_bbox.x0 + 0.11, orig_bbox.y0 -0.05, orig_bbox.width, orig_bbox.height])
+    adjust_subplots(fig, adjust=[3, 10, 5, 5], extra=0)
+    cax.ax.set_position([orig_bbox.x0 + 0.11, orig_bbox.y0 -0.04, orig_bbox.width, orig_bbox.height])
+    leg = axs['d'].legend_
+    leg.set_bbox_to_anchor((0.95, -0.05))
     cax.ax.xaxis.set_ticks([60, 80, 100])
     save_name = 'n6_ed_fig13_glm_task'
     fig.savefig(Path(ed_save_path, f'{save_name}.pdf'))
     fig.savefig(Path(ed_save_path, f'{save_name}.eps'), dpi=150)
 
-
-    fig = plt.figure(figsize=(180 * MM_TO_INCH, 150 * MM_TO_INCH))
+    # Fig 15: n6_ed_fig15_movement
+    fig = plt.figure(figsize=(183 * MM_TO_INCH, 150 * MM_TO_INCH))
     width, height = fig.get_size_inches() / MM_TO_INCH
     xspans = get_coords(width, ratios=[1, 1], space=10, pad=0, span=(0, 1))
     yspans = get_coords(height, ratios=[1, 1, 1], space=10, pad=0, span=(0, 1))
@@ -4131,10 +4278,10 @@ def plot_eds_figures():
 
     labels = []
     padx = 5
-    pady = 0
+    pady = 10
     labels.append(add_label('a', fig, xspans[0], yspans[0], padx, pady, fontsize=8))
     labels.append(add_label('b', fig, xspans[1], yspans[0], padx, pady, fontsize=8))
-    labels.append(add_label('c', fig, xspans[0], yspans[1], padx, pady, fontsize=8))
+    labels.append(add_label('c', fig, xspans[0], yspans[1], padx, 3, fontsize=8))
     fg.add_labels(fig, labels)
 
     _, cax = plot_swanson_for_single_cell_variable('overall', ax=axs['b'], cbar=True, legend=True)
@@ -4146,162 +4293,15 @@ def plot_eds_figures():
 
     fg.add_labels(fig, labels)
     orig_bbox = cax.ax.get_position()
-    adjust_subplots(fig, adjust=[5, 0, 5, 5], extra=0)
-    cax.ax.set_position([orig_bbox.x0 + 0.11, orig_bbox.y0 + 0.02, orig_bbox.width, orig_bbox.height])
+    adjust_subplots(fig, adjust=[3, 0, 5, 5], extra=0)
+    cax.ax.set_position([orig_bbox.x0 + 0.11, orig_bbox.y0 + 0.04, orig_bbox.width, orig_bbox.height])
+    leg = axs['b'].legend_
+    leg.set_bbox_to_anchor((0.95, -0.05))
 
     save_name = 'n6_ed_fig15_movement'
     fig.savefig(Path(ed_save_path, f'{save_name}.pdf'))
     fig.savefig(Path(ed_save_path, f'{save_name}.eps'), dpi=150)
         
-def main_wheel(save_pans=False):
-
-
-    '''
-    combine panels into wheel figure;
-    using grid of 8 rows and 12 columns
-    
-    save_pans: save individual panels as svg
-    '''
-
-
-    # for each panel type, get 
-    # [row_start, row_end, col_start, col_end]
-    gsd = {'dec_speed': [0, 5, 0, 4,'a'],
-           'glm_speed': [0, 5, 4, 8,'b'],
-           'dec_velocity': [0, 5, 8, 12,'c'],
-           'glm_velocity': [0, 5, 12, 16,'d'],
-           'tab_speed0': [5, 7, 0, 16,'e'],
-           'tab_speed1': [7, 9, 0, 16,''],
-           'tab_velocity0': [9, 11, 0, 16,'f'],
-           'tab_velocity1': [11, 13, 0, 16,''],
-           'dec_ex_speed0': [13, 16, 0, 4,'g'],
-           'dec_ex_speed1': [13, 16, 4, 8,''],
-           'dec_ex_velocity0': [16, 18, 0, 4,'h'],
-           'dec_ex_velocity1': [16, 18, 4, 8,''],
-           'glm_boxen': [12, 18, 8, 16,'i']}
-    
-    if not save_pans:
-    
-        plt.ion()
- 
-        nrows = 19
-        ncols = 16
-        
-        fig = plt.figure(figsize=(9, 9.77), facecolor='w', 
-                         clear=True)
-                                             
-        gs = GridSpec(nrows=nrows, ncols=ncols, figure=fig)
-
-        def ax_str(x):
-            if x == 'dummy':
-                fig0 ,ax0 = plt.subplots()
-                plt.close(fig0)
-                return ax0
-                                                      
-            else:
-                return fig.add_subplot(gs[gsd[x][0]: gsd[x][1],
-                                          gsd[x][2]: gsd[x][3]], label=x)    
-            
-    
-    else:
-        plt.ioff()     
-    # use  plot_wheel_swansons to have 4 swansons on top
-    
-    plot_wheel_swansons
-    '''
-    meta 
-    '''
-    
-    # 4 Swansons
-    if not save_pans:
-        s = ['dec_speed', 'glm_speed', 'dec_velocity', 'glm_velocity']
-        plot_wheel_swansons(fig=fig, axs=[ax_str(x) for x in s])
-                  
-    else:
-        plot_wheel_swansons()
-        
-        
-    for variable in ['speed', 'velocity']:    
-        # plot table, reading from png
-        plot_table(variable)
-          
-        if not save_pans:
-            plot_table(variable)
-            for tt in [0,1]:
-                pf = Path(imgs_pth, variable, f'table_{tt}.png')   
-                im = Image.open(pf)                  
-                
-                ax_tab = ax_str(f'tab_{variable}{tt}')
-                                            
-                ax_tab.imshow(im.rotate(90, expand=True),
-                    aspect='equal')                  
-                ax_tab.axis('off')
-                                                      
-    
-    # decoding example trials 
-    for vari in ['speed', 'velocity']: 
-        if not save_pans: 
-            axsw = [ax_str(s) for s in 
-                    [f'dec_ex_{vari}0', f'dec_ex_{vari}1']]  
-            wheel_decoding_ex(vari, fig=fig, 
-                axs=axsw)    
-                
-        else:
-            wheel_decoding_ex(vari)
-
-    # glm boxen plot
-    if not save_pans: 
-        encoding_wheel_boxen(ax=ax_str('glm_boxen'), fig=fig)               
-    else:       
-        encoding_wheel_boxen()
-                    
-    if not save_pans:        
-    
-        # Manually set the layout parameters for a tight layout
-        left, right, top, bottom = 0.08, 0.98, 0.95, 0.05  
-        wspace, hspace = 0.9, 0.9  
-        fig.subplots_adjust(left=left, right=right, 
-                            top=top, bottom=bottom, 
-                            wspace=wspace, hspace=hspace)
-                            
-        # manually reduce size as tight_layout fails
-        axs = fig.get_axes()
-        shrink = 0.7  # size reduction factor 
-        pans = ['dec_ex_speed0', 'dec_ex_speed1', 'dec_ex_velocity0',
-                'dec_ex_velocity1', 'glm_boxen']   
-        #['dec_speed', 'glm_speed', 'dec_velocity', 'glm_velocity']
-        s = ['glm_eff', 'euc_lat', 'euc_eff', 'man_eff', 'dec_eff']       
-
-        
-        for ax in axs:
-            if ax.get_label() in pans:
-                bbox = ax.get_position()
-                left, bottom, width, height = (bbox.x0, bbox.y0, 
-                                               bbox.width, bbox.height)
-                ax.set_position([left + (width - width*shrink) / 2 + 0.02, 
-                                 bottom + (height - height*shrink) / 2, 
-                                 width*shrink, height*shrink])
-                
-                
-                title_text = ax.get_title()
-                ax.set_title(title_text, fontsize=f_size)
-                                 
-            if ax.get_label() in s:
-                title_text = ax.get_title()
-                ax.set_title(title_text, fontsize=f_size)                 
-
-            if (ax.get_label() in gsd) and (gsd[ax.get_label()][-1] != ''):
-                put_panel_label(ax, gsd[ax.get_label()][-1])
-                       
-#        fig.savefig(Path(imgs_pth, 'speed', 
-#                         f'n5_main_figure_wheel_revised_raw.svg'),  
-#                         bbox_inches='tight')
-#        fig.savefig(Path(imgs_pth, 'speed', 
-#                         f'n5_main_figure_wheel_revised_raw.pdf'),
-#                         dpi=300,
-#                         bbox_inches='tight')          
-
-
 
 def ghostscript_compress_pdf(variable, level='/printer'):
 

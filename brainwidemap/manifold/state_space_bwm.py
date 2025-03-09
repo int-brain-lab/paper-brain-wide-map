@@ -1655,9 +1655,12 @@ def plot_custom_lines(regs=None, curve='euc', split='choice',
                     axsi[-1].patch.set_alpha(0.0)   
                         
             if lickogram:
-                licks = np.load('/home/mic/bwm/manifold_analysis/'
-                    'fback_eids_only_lickograms.npy', 
-                    allow_pickle=True).flat[0]
+                # licks = np.load('/home/mic/bwm/manifold_analysis/'
+                #     'fback_eids_only_lickograms.npy',
+                #     allow_pickle=True).flat[0]
+                licks = np.load(Path(one.cache_dir,
+                                     'bwm_res', 'bwm_figs_data', 'trajectory',
+                                     'fback_eids_only_lickograms.npy'),allow_pickle=True).flat[0]
             
             
                 if ds[reg] in licks:
@@ -2291,15 +2294,15 @@ def plot_strip_sampling(sampletype='neurons', norm='double',
         axs[k].spines['top'].set_visible(False)
         axs[k].spines['right'].set_visible(False)
 
-        axs[k].set_title(dd[split.split('_')[0]])
+        axs[k].set_title(dd[split.split('_')[0]].capitalize())
 
-        axs[k].set_xlabel('max curve dist. [Hz]' 
+        axs[k].set_xlabel('Max curve dist. (Hz)'
                           if sampletype == 'eids' else '')
-        axs[k].set_ylabel('example regions' if k == 0 else '')            
+        axs[k].set_ylabel('Example regions' if k == 0 else '')
 
-        if k == 0:
+        if k == 2:
             legend = axs[k].legend(handles=leg, loc='lower right', 
-                        frameon=True)   
+                        frameon=True, handletextpad=0.1)
             legend.set_title(f"Sampling {sampletype}")
             legend.set_draggable(True) 
 
