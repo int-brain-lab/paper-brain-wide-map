@@ -204,23 +204,7 @@ class GLMPredictor:
             ax=ax[0],
             smoothing=0.01,
         )
-        keytuple = (align_time, t_before, t_after, tuple(trials))
-        if keytuple not in self.full_psths:
-            self.full_psths[keytuple] = pred_psth(
-                self.nglm, align_time, t_before, t_after, trials=trials
-            )
-            self.cov_psths[keytuple] = {}
-            tmp = self.cov_psths[keytuple]
-            for cov in self.covar:
-                tmp[cov] = pred_psth(
-                    self.nglm,
-                    align_time,
-                    t_before,
-                    t_after,
-                    targ_regressors=[cov],
-                    trials=trials,
-                    incl_bias=False,
-                )
+        keytuple = self.compute_model_psth(align_time, t_before, t_after, trials)
         for cov in self.covar:
             ax[2].plot(self.combweights[cov].loc[unit])
         ax[2].set_title("Individual kernels (not PSTH contrib)")
@@ -244,3 +228,45 @@ class GLMPredictor:
             plt.suptitle(f"Unit {unit}")
         plt.tight_layout()
         return ax
+
+    def compute_model_psth(self, align_time, t_before, t_after, trials):
+        """
+        Generate and store internally model PSTHs for a given alignment time and trials.
+
+        Parameters
+        ----------
+        align_time : str
+            Column in the design matrix to align PSTH to
+        t_before : float
+            Time before the align time to compute PSTH for
+        t_after : _type_
+            Time after the align time to compute PSTH for
+        trials : array-like of int
+            List of trials on which to compute the PSTH
+
+        Returns
+        -------
+        tuple
+            4-tuple with the alignment time, time before, time after, and trials used to compute,
+            can be used as a key in the internal self.full_psths and self.cov_psths dictionaries,
+            which contain the full PSTH and the PSTH for each regressor, respectively.
+        """
+        keytuple = (align_time, t_before, t_after, tuple(trials))
+        if keytuple not in self.full_psths:
+            self.full_psths[keytuple] = pred_psth(
+                self.nglm, align_time, t_before, t_after, trials=trials
+            )
+            self.cov_psths[keytuple] = {}
+            tmp = self.cov_psths[keytuple]
+            for cov in self.covar:
+                tmp[cov] = pred_psth(
+                    self.nglm,
+                    align_time,
+                    t_before,
+                    t_after,
+                    targ_regressors=[cov],
+                    trials=trials,
+                    incl_bias=False,
+                )
+                
+        return keytuple

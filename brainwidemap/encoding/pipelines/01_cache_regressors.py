@@ -7,14 +7,11 @@ from pathlib import Path
 
 # Third party libraries
 import dask
-import numpy as np
 import pandas as pd
 from dask.distributed import Client
 from dask_jobqueue import SLURMCluster
 
 # IBL libraries
-import brainbox.io.one as bbone
-from iblutil.numerical import ismember
 from one.api import ONE
 from brainwidemap.encoding.params import GLM_CACHE
 from brainwidemap.encoding.utils import load_regressors
@@ -68,7 +65,7 @@ DATE = str(dt.now().date())  # Date with which to save the dataset file
 T_BEF = 0.6  # Time before stimulus onset to include in the definition of the trial
 T_AFT = 0.6  # Time after feedback to include in the definition of a trial
 BINWIDTH = 0.02  # Size of binwidth for wheel velocity traces, in seconds
-ABSWHEEL = False  # Whether to return wheel velocity (False) or speed (True)
+ABSWHEEL = True  # Whether to return wheel velocity (False) or speed (True)
 CLU_CRITERIA = "bwm"  # Criteria on cluster inclusion in cache
 # End parameters
 
@@ -79,13 +76,15 @@ params = {
     "binwidth": BINWIDTH,
     "abswheel": ABSWHEEL,
     "clu_criteria": CLU_CRITERIA,
+    "one_url": "https://alyx.internationalbrainlab.org",
+    "one_pw": "international",
 }
 
-pw = 'international'
-one = ONE(base_url='https://openalyx.internationalbrainlab.org', password=pw, silent=True)
+one = ONE(base_url=params["one_url"], silent=True)
 dataset_futures = []
 
-sessdf = bwm_query().set_index("pid")
+freeze = "2023_12_bwm_release" if CLU_CRITERIA == "bwm" else None
+sessdf = bwm_query(freeze=freeze).set_index("pid")
 
 for pid, rec in sessdf.iterrows():
     subject = rec.subject
@@ -110,7 +109,7 @@ cluster = SLURMCluster(
         f"export OPENBLAS_NUM_THREADS={N_CORES}",
     ],
 )
-cluster.scale(40)
+cluster.scale(20)
 client = Client(cluster)
 
 tmp_futures = [client.compute(future[3]) for future in dataset_futures]

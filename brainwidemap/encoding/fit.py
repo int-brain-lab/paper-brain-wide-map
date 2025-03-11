@@ -13,12 +13,25 @@ from brainbox.task.closed_loop import generate_pseudo_blocks
 from brainwidemap.encoding.design import generate_design
 
 
-def fit(design, spk_t, spk_clu, binwidth, model, estimator, n_folds=5, contiguous=False, **kwargs):
+def fit(
+    design,
+    spk_t,
+    spk_clu,
+    binwidth,
+    model,
+    estimator,
+    n_folds=5,
+    contiguous=False,
+    mintrials=100,
+    **kwargs
+):
     """
     Function to fit a model using a cross-validated design matrix.
     """
     trials_idx = design.trialsdf.index
-    nglm = model(design, spk_t, spk_clu, binwidth=binwidth, estimator=estimator, mintrials=0)
+    nglm = model(
+        design, spk_t, spk_clu, binwidth=binwidth, estimator=estimator, mintrials=mintrials
+    )
     splitter = KFold(n_folds, shuffle=not contiguous)
     scores, weights, intercepts, alphas, splits = [], [], [], [], []
     for test, train in splitter.split(trials_idx):
@@ -52,6 +65,7 @@ def fit_stepwise(
     estimator,
     n_folds=5,
     contiguous=False,
+    mintrials=100,
     seqsel_kwargs={},
     seqselfit_kwargs={},
     **kwargs
@@ -107,7 +121,9 @@ def fit_stepwise(
             splits: list of dicts containing the test and train indices for each fold.
     """
     trials_idx = design.trialsdf.index
-    nglm = model(design, spk_t, spk_clu, binwidth=binwidth, estimator=estimator, mintrials=0)
+    nglm = model(
+        design, spk_t, spk_clu, binwidth=binwidth, estimator=estimator, mintrials=mintrials
+    )
     splitter = KFold(n_folds, shuffle=not contiguous)
     sequences, scores, deltas, splits = [], [], [], []
     for test, train in tqdm(splitter.split(trials_idx), desc="Fold", leave=False):

@@ -3,19 +3,19 @@ from pathlib import Path
 
 # Third party libraries
 import matplotlib.pyplot as plt
-from matplotlib import colors
 import numpy as np
 import pandas as pd
 import seaborn as sns
 
 # IBL libraries
-from ibllib.atlas import BrainRegions
-from ibllib.atlas.plots import plot_swanson
+from iblatlas.atlas import BrainRegions
+from iblatlas.plots import plot_swanson
+from matplotlib import colors
 
 # Brainwidemap repo imports
 from brainwidemap.encoding.params import GLM_FIT_PATH
 
-FITDATE = "2023-03-02"
+FITDATE = "2024-07-16"
 VARIABLES = [
     "stimonR",
     "stimonL",
@@ -23,6 +23,8 @@ VARIABLES = [
     "incorrect",
     "fmoveR",
     "fmoveL",
+    # "fmoveR_early",  # Comment/uncomment if early RT split is used.
+    # "fmoveL_early",
     "pLeft",
     "pLeft_tr",
     "wheel",
@@ -40,7 +42,7 @@ DIFFPLOTS = True  # Whether to plot differences in drsq for paired variables
 ABSDIFF = True  # Whether to plot absolute value of difference or signed difference
 ANNOTATE = False  # Whether to annotate brain regions
 IMGFMT = "png"  # Format of output image
-SAVEPATH = Path("/home/berk/Documents/Projects/results/plots/swanson_maps/")  # Path to save plots
+SAVEPATH = Path("/home/gercek/Projects/results/plots/swanson_maps/")  # Path to save plots
 
 if not SAVEPATH.exists():
     SAVEPATH.mkdir()
@@ -83,31 +85,27 @@ if not fitfile.exists():
 br = BrainRegions()
 
 
-def flatmap_variable(df,
-                     cmap,
-                     cmin=COLOR_RANGE[0],
-                     cmax=COLOR_RANGE[1],
-                     norm=None,
-                     plswan_kwargs={}):
+def flatmap_variable(
+    df, cmap, cmin=COLOR_RANGE[0], cmax=COLOR_RANGE[1], norm=None, plswan_kwargs={}
+):
     fig = plt.figure(figsize=(8, 4) if not ANNOTATE else (16, 8))
     ax = fig.add_subplot(111)
     if norm is not None:
         cmap_kwargs = {"norm": norm, **plswan_kwargs}
     elif GLOBAL_CMAP:
-        cmap_kwargs = {
-            "norm": colors.LogNorm(vmin=cmin, vmax=cmax, clip=True),
-            **plswan_kwargs
-        }
+        cmap_kwargs = {"norm": colors.LogNorm(vmin=cmin, vmax=cmax, clip=True), **plswan_kwargs}
     else:
         cmap_kwargs = {"vmin": cmin, "vmax": cmax, **plswan_kwargs}
-    ax = plot_swanson(df.index,
-                      df.values,
-                      hemisphere="left",
-                      cmap=cmap,
-                      br=br,
-                      ax=ax,
-                      annotate=ANNOTATE,
-                      **cmap_kwargs)
+    ax = plot_swanson(
+        df.index,
+        df.values,
+        hemisphere="left",
+        cmap=cmap,
+        br=br,
+        ax=ax,
+        annotate=ANNOTATE,
+        **cmap_kwargs,
+    )
     plt.colorbar(mappable=ax.images[0])
     ax.set_xticks([])
     ax.set_yticks([])
@@ -116,9 +114,9 @@ def flatmap_variable(df,
 
 
 def get_cmap(split):
-    '''
+    """
     for each split, get a colormap defined by Yanliang
-    '''
+    """
     varmaps = {
         "stimonR": "stim",
         "stimonL": "stim",
@@ -128,14 +126,14 @@ def get_cmap(split):
         "incorrect": "fback",
         "pLeft": "block",
         "pLeft_tr": "block",
-        "wheel": "wheel"
+        "wheel": "wheel",
     }
     dc = {
-        'stim': ["#ffffff", "#D5E1A0", "#A3C968", "#86AF40", "#517146"],
-        'choice': ["#ffffff", "#F8E4AA", "#F9D766", "#E8AC22", "#DA4727"],
-        'fback': ["#ffffff", "#F1D3D0", "#F5968A", "#E34335", "#A23535"],
-        'block': ["#ffffff", "#D0CDE4", "#998DC3", "#6159A6", "#42328E"],
-        'wheel': ["#ffffff", "#C2E1EA", "#95CBEE", "#5373B8", "#324BA0"]
+        "stim": ["#ffffff", "#D5E1A0", "#A3C968", "#86AF40", "#517146"],
+        "choice": ["#ffffff", "#F8E4AA", "#F9D766", "#E8AC22", "#DA4727"],
+        "fback": ["#ffffff", "#F1D3D0", "#F5968A", "#E34335", "#A23535"],
+        "block": ["#ffffff", "#D0CDE4", "#998DC3", "#6159A6", "#42328E"],
+        "wheel": ["#ffffff", "#C2E1EA", "#95CBEE", "#5373B8", "#324BA0"],
     }
     return colors.LinearSegmentedColormap.from_list("mycmap", dc[varmaps[split]])
 
@@ -144,9 +142,9 @@ fitdata = pd.read_pickle(fitfile)
 # Distribution of full model R^2 values, and std. dev between folds
 meanscores = fitdata["mean_fit_results"]
 full_model = meanscores["full_model"].copy()
-full_model_std = (fitdata["fit_results"].groupby(["eid", "pid", "clu_id"
-                                                  ]).agg({"full_model":
-                                                          "std"}))
+full_model_std = (
+    fitdata["fit_results"].groupby(["eid", "pid", "clu_id"]).agg({"full_model": "std"})
+)
 joindf = full_model_std.join(full_model, how="inner", lsuffix="_std")
 
 if DISTPLOTS:
@@ -168,8 +166,7 @@ if DISTPLOTS:
 unitcounts = meanscores.groupby("region").size().astype(int)
 keepreg = unitcounts[unitcounts >= MIN_UNITS].index
 if GLOBAL_CMAP:
-    allmeans = meanscores.set_index(
-        "region", append=True)[VARIABLES].groupby("region").mean()
+    allmeans = meanscores.set_index("region", append=True)[VARIABLES].groupby("region").mean()
     cmin = np.percentile(allmeans.values.flatten(), COLOR_RANGE[0])
     if cmin < 0:
         cmin = 1e-5
@@ -222,7 +219,8 @@ if DIFFPLOTS:
         fig.suptitle(f"{var1} $\Delta R^2$ - {var2} $\Delta R^2$")
         fig.savefig(
             DIFFPATH.joinpath(
-                f"{var1}_{var2}_{'abs' * ABSDIFF}diff{'_annotated' * ANNOTATE}.{IMGFMT}"),
+                f"{var1}_{var2}_{'abs' * ABSDIFF}diff{'_annotated' * ANNOTATE}.{IMGFMT}"
+            ),
             format=IMGFMT,
             dpi=450,
         )
