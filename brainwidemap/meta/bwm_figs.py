@@ -4231,6 +4231,7 @@ def plot_eds_figures():
 
     axs['c'][0].axvline(x=0.5 / T_BIN, linestyle='--', c='k', zorder=100)
     axs['c'][0].text(0.5/ T_BIN, axs['c'][0].get_ylim()[0] - 400, f"  {EVENT_LINES['fback']}", color='k', fontsize=f_size_s)
+    axs['c'][1].set_xlim(0, 30)
 
     adjust_subplots(fig, adjust=[3, 10, 2, 15], extra=0)
     save_name = 'n6_ed_fig12_licking'
