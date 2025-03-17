@@ -2792,7 +2792,7 @@ def plot_encoding_for_variable(variable, cluster_id=None, axs=None, save=True, s
     axs[1].yaxis.set_major_locator(plt.MaxNLocator(4))
     axs[2].yaxis.set_major_locator(plt.MaxNLocator(4))
 
-    names = ['Model with regressors', 'Model without regressors']
+    names = ['Full model', 'Model without selected regressors']
     for ax, title in zip([axs[1],axs[2]], names):
         ax.set_title(title, fontsize=f_size, va='top')
 
@@ -3223,17 +3223,17 @@ def plot_traj3d(variable, ga_pcs=False, curve='euc', ax_3d=None, ax_2d=None, sav
 
             ax_2d.annotate('', xy=(x_origin, y_origin + arrow_len + 0.05), xytext=(x_origin, y_origin),
                         arrowprops=dict(arrowstyle='->', color='k', lw=0.5))
-            ax_2d.text(x_origin, y_origin + arrow_len + 0.04, 'dim 1', ha='center', va='bottom',
+            ax_2d.text(x_origin, y_origin + arrow_len + 0.04, 'PCA 1', ha='center', va='bottom',
                     fontsize=f_size_s)
             # Left-leaning axis (dim 2)
             ax_2d.annotate('', xy=(x_origin - arrow_len, y_origin - 0.1), xytext=(x_origin, y_origin),
                         arrowprops=dict(arrowstyle='->', color='k', lw=0.5))
-            ax_2d.text(x_origin - arrow_len - 0.05, y_origin - 0.1, 'dim 2', ha='center', va='top',
+            ax_2d.text(x_origin - arrow_len - 0.05, y_origin - 0.1, 'PCA 2', ha='center', va='top',
                     fontsize=f_size_s)
             # Right-leaning axis (dim 3)
             ax_2d.annotate('', xy=(x_origin + arrow_len, y_origin - 0.1), xytext=(x_origin, y_origin),
                         arrowprops=dict(arrowstyle='->', color='k', lw=0.5))
-            ax_2d.text(x_origin + arrow_len + 0.05, y_origin - 0.1, 'dim 3', ha='center', va='top',
+            ax_2d.text(x_origin + arrow_len + 0.05, y_origin - 0.1, 'PCA 3', ha='center', va='top',
                       fontsize=f_size_s)
 
         for text in ADJUST[variable]['annotations']:
