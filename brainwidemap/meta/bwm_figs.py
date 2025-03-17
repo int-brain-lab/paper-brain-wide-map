@@ -2261,6 +2261,7 @@ def wheel_decoding_ex(variable, axs=None, save=True):
         ax.set_xticks([0, .20, 0.5, 1.0], ['-0.2', '0.0', '0.5', '1.0'])
         ax.set_xlabel(EVENT_LABELS[variable], fontsize=f_size)
         ax.set_title(f'Trial {trial_curr} - {region[0]}', fontsize=f_size_l)
+        ax.yaxis.set_major_formatter(tck.FormatStrFormatter('%.1f'))
 
         if i == 1:
             ax.text(0.22, 0.8, EVENT_LINES[variable], transform=ax.transAxes, fontsize=f_size_s)
@@ -2583,8 +2584,8 @@ regressor2full = {
     'stimonR': 'Right stim',
     'incorrect': 'Incorrect',
     'correct': 'Correct',
-    'fmoveL': 'Left choice',
-    'fmoveR': 'Right choice',
+    'fmoveL': 'Left\nchoice',
+    'fmoveR': 'Right\nchoice',
 }
 
 def load_glm_params():
@@ -2794,7 +2795,7 @@ def plot_encoding_for_variable(variable, cluster_id=None, axs=None, save=True, s
 
     names = ['Full model', 'Model without selected regressors']
     for ax, title in zip([axs[1],axs[2]], names):
-        ax.set_title(title, fontsize=f_size, va='top')
+        ax.set_title(title, fontsize=f_size) #, va='top')
 
     # custom legend
     all_lines = axs[2].get_lines()
@@ -3282,6 +3283,7 @@ def plot_trajectory_lines(variable, curve='euc', ax=None, adjust=False, save=Tru
     ax.set_ylabel('Distance (Hz)', fontsize=f_size)
     ax.set_xlabel(f'{EVENT_LABELS[variable]}', fontsize=f_size)
     ax.xaxis.set_major_locator(MaxNLocator(nbins=4))
+    ax.yaxis.set_major_formatter(tck.FormatStrFormatter('%.1f'))
 
     if adjust:
         adjust_trajectory_lines(variable, ax)
@@ -3336,6 +3338,7 @@ def plot_trajectory_scatter(variable, curve='euc', ax=None, adjust=False, show_s
     ax.set_xlabel(f'Latency {EVENT_LABELS[variable][5:]}', fontsize=f_size)
     ax.axvline(x=0, linestyle='--', c='k')
     ax.xaxis.set_major_locator(MaxNLocator(nbins=4))
+    ax.yaxis.set_major_formatter(tck.FormatStrFormatter('%.1f'))
 
     if show_sig:
         n_sig = sig_regions.sum()
@@ -3382,6 +3385,7 @@ def plot_trajectory_control(variable, region=None, curve='euc', ax=None, save=Tr
     ax.axvline(x=0, linestyle='--', c='k')
     ax.set_ylabel('Distance (Hz)', fontsize=f_size)
     ax.set_xlabel(f'{EVENT_LABELS[variable]}', fontsize=f_size)
+    ax.yaxis.set_major_formatter(tck.FormatStrFormatter('%.1f'))
 
     if tight:
         fig.tight_layout()
@@ -3711,6 +3715,12 @@ def main_fig_for_variable(variable, individual_pans=False, save=True, save_path=
 
     if not individual_pans:
 
+        fig_name = {
+            'choice': 'n5_main_fig5_choice',
+            'stim': 'n5_main_fig4_stimulus',
+            'fback': 'n5_main_fig6_feedback'
+        }
+
         fig = plt.figure(figsize=(183 * MM_TO_INCH, 170 * MM_TO_INCH))
         width, height = fig.get_size_inches() / MM_TO_INCH
         xspans1 = get_coords(width, ratios=[1, 1, 1, 1, 1], space=0, pad=0, span=(0, 1))
@@ -3720,6 +3730,7 @@ def main_fig_for_variable(variable, individual_pans=False, save=True, save_path=
         yspans = get_coords(height, ratios=[8, 4, 4, 4], space=[4, 12, 8], pad=2, span=(0, 1))
         yspans_sub1 = get_coords(height, ratios=[1, 1], space=6, pad=0, span=yspans[1])
         yspans_sub2 = get_coords(height, ratios=[1, 1], space=2, pad=0, span=yspans[2])
+        yspans_sub3 = get_coords(height, ratios=[2, 3], space=12, pad=0, span=[yspans[2][0], yspans[3][1]])
 
         axs = {'a': fg.place_axes_on_grid(fig, xspan=xspans1[0], yspan=yspans[0]),
                'b': fg.place_axes_on_grid(fig, xspan=xspans1[1], yspan=yspans[0]),
@@ -3728,8 +3739,8 @@ def main_fig_for_variable(variable, individual_pans=False, save=True, save_path=
                'e': fg.place_axes_on_grid(fig, xspan=xspans1[4], yspan=yspans[0]),
                'f_1': fg.place_axes_on_grid(fig, xspan=xspans2[0], yspan=yspans_sub1[0]),
                'f_2': fg.place_axes_on_grid(fig, xspan=xspans2[0], yspan=yspans_sub1[1]),
-               'g': fg.place_axes_on_grid(fig, xspan=xspans3[0], yspan=yspans[2]),
-               'h': fg.place_axes_on_grid(fig, xspan=xspans3[0], yspan=yspans[3], dim=(2, 1), hspace=0.3),
+               'g': fg.place_axes_on_grid(fig, xspan=xspans3[0], yspan=yspans_sub3[0]),
+               'h': fg.place_axes_on_grid(fig, xspan=xspans3[0], yspan=yspans_sub3[1], dim=(2, 1), hspace=0.75),
                'i': fg.place_axes_on_grid(fig, xspan=xspans3[1], yspan=yspans_sub2[0]),
                'j': fg.place_axes_on_grid(fig, xspan=[xspans3[2][0] - 0.08, xspans3[2][1]], yspan=yspans[2]),
                'k': fg.place_axes_on_grid(fig, xspan=xspans3[1], yspan=yspans_sub2[1] + 0.03),
@@ -3742,17 +3753,17 @@ def main_fig_for_variable(variable, individual_pans=False, save=True, save_path=
 
         labels = []
         padx = 10
-        pady = 3
+        pady = 5
         labels.append(add_label('a', fig, xspans1[0], yspans[0], 0, 8, fontsize=8))
-        labels.append(add_label('b', fig, xspans1[1], yspans[0], 0, 5, fontsize=8))
-        labels.append(add_label('c', fig, xspans1[2], yspans[0], 0, 5, fontsize=8))
-        labels.append(add_label('d', fig, xspans1[3], yspans[0], 0, 5, fontsize=8))
-        labels.append(add_label('e', fig, xspans1[4], yspans[0], 0, 5, fontsize=8))
+        labels.append(add_label('b', fig, xspans1[1], yspans[0], 0, pady, fontsize=8))
+        labels.append(add_label('c', fig, xspans1[2], yspans[0], 0, pady, fontsize=8))
+        labels.append(add_label('d', fig, xspans1[3], yspans[0], 0, pady, fontsize=8))
+        labels.append(add_label('e', fig, xspans1[4], yspans[0], 0, pady, fontsize=8))
         labels.append(add_label('f', fig, xspans2[0], yspans[1], 15, 1, fontsize=8))
-        labels.append(add_label('g', fig, xspans3[0], yspans[2], padx, 5, fontsize=8))
-        labels.append(add_label('h', fig, xspans3[0], yspans[3], padx, pady, fontsize=8))
-        labels.append(add_label('i', fig, xspans3[1], yspans_sub2[0], padx, 5, fontsize=8))
-        labels.append(add_label('j', fig, xspans3[2], yspans[2], padx, 5, fontsize=8))
+        labels.append(add_label('g', fig, xspans3[0], yspans[2], padx, pady, fontsize=8))
+        labels.append(add_label('h', fig, xspans3[0], yspans_sub3[1], padx, pady, fontsize=8))
+        labels.append(add_label('i', fig, xspans3[1], yspans_sub2[0], padx, pady, fontsize=8))
+        labels.append(add_label('j', fig, xspans3[2], yspans[2], padx, pady, fontsize=8))
         labels.append(add_label('k', fig, xspans3[1], yspans_sub2[1], padx, -2, fontsize=8))
         labels.append(add_label('l', fig, xspans3[1], yspans[3], padx, 0, fontsize=8))
         labels.append(add_label('m', fig, xspans3[2], yspans[3], padx, 0, fontsize=8))
@@ -3778,6 +3789,10 @@ def main_fig_for_variable(variable, individual_pans=False, save=True, save_path=
         for text in axs['l'].texts + axs['m'].texts + axs['k'].texts:
             if 'onset' not in text.get_text():
                 text.set_fontsize(f_size_xs)
+            else:
+                if variable == 'choice':
+                    pos = text.get_position()
+                    text.set_position((pos[0] - 0.078, pos[1]))
 
         plot_traj3d(variable + '_restr', ax_3d=ax_3d, ax_2d=axs['j'], save=False)
         if variable == 'fback':
@@ -3800,22 +3815,29 @@ def main_fig_for_variable(variable, individual_pans=False, save=True, save_path=
         axs['h'][0].set_xticklabels([])
         axs['h'][0].set_ylabel('')
         ylabel = axs['h'][1].yaxis.get_label()
-        ylabel.set_position((ylabel.get_position()[0], ylabel.get_position()[1] + 0.8))
+        if variable != 'fback':
+            axs['g'].set_ylabel('Trials', labelpad=-1)
+            ylabel.set_position((ylabel.get_position()[0], ylabel.get_position()[1] + 0.9))
+        else:
+            axs['h'][1].set_ylabel(ylabel.get_text(), labelpad=-0.25)
+            ylabel = axs['h'][1].yaxis.get_label()
+            ylabel.set_position((ylabel.get_position()[0], ylabel.get_position()[1] + 0.9))
 
         for coll in axs['g'].collections:
             coll.set_linewidth(5)
         leg = axs['h'][1].legend_
         if variable == 'choice':
-            leg.set_bbox_to_anchor((1.45, 1.85))
+            leg.set_bbox_to_anchor((1.36, 1.9))
         else:
-            leg.set_bbox_to_anchor((1.4, 1.85))
+            leg.set_bbox_to_anchor((1.42, 1.85))
 
         if save:
             save_path = save_path or imgs_pth
             save_path = Path(f'/Users/admin/bwm/main')
             save_path.mkdir(exist_ok=True, parents=True)
-            fig.savefig(save_path.joinpath(f'n6_main_figure_{variverb[variable].lower()}.pdf'))
-            fig.savefig(save_path.joinpath(f'n6_main_figure_{variverb[variable].lower()}.eps'), dpi=150)
+            save_name = fig_name[variable]
+            fig.savefig(save_path.joinpath(f'{save_name}.pdf'))
+            fig.savefig(save_path.joinpath(f'{save_name}.eps'), dpi=150)
 
     else:
         save_path = Path(f'/Users/admin/int-brain-lab/test_panels/{variable}')
@@ -3913,8 +3935,8 @@ def main_fig_for_wheel(individual_pans=False, save=True, save_path=None):
             save_path = save_path or imgs_pth
             save_path = Path(f'/Users/admin/bwm/main')
             save_path.mkdir(exist_ok=True, parents=True)
-            fig.savefig(save_path.joinpath(f'n6_main_figure_wheel.pdf'))
-            fig.savefig(save_path.joinpath(f'n6_main_figure_wheel.eps'), dpi=200)
+            fig.savefig(save_path.joinpath(f'n5_main_fig7_wheel.pdf'))
+            fig.savefig(save_path.joinpath(f'n5_main_fig7_wheel.eps'), dpi=200)
 
 
 def plot_supp_figures(save_path=None):
