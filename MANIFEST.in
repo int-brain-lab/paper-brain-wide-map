@@ -1,1 +1,1 @@
-recursive-include paper-brain-wide-map/brainwidemap/fixtures *
+recursive-include brainwidemap/fixtures *
