@@ -1532,7 +1532,7 @@ def plot_bar_neuron_count(table_only=False, ssvers='_rerun'):
     ssvers: spike sorting version in ['_rerun', '']
     '''
 
-    file_ = download_aggregate_tables(ONE())
+    file_ = download_aggregate_tables(one)
     df = pd.read_parquet(file_)
     dfa, palette = get_allen_info()
     df['Beryl'] = br.id2acronym(df['atlas_id'], mapping='Beryl')
@@ -1557,9 +1557,7 @@ def plot_bar_neuron_count(table_only=False, ssvers='_rerun'):
 
     # order by beryl
     regs0 = list(c0.keys()) 
-    #p = (Path(iblatlas.__file__).parent / 'beryl.npy')
-    p = Path('/Users/admin/int-brain-lab/iblatlas/iblatlas/beryl.npy')
-
+    p = (Path(iblatlas.__file__).parent / 'beryl.npy')
     regs = br.id2acronym(np.load(p), mapping='Beryl')
     regs1 = []
     for reg in regs:
@@ -1610,22 +1608,28 @@ def plot_bar_neuron_count(table_only=False, ssvers='_rerun'):
                     if (v in vs1) and (a not in ans1):
                         continue 
                 
-                    key = [x for x in res[v].keys()
-                           if ((a in x) and ('effect' in x))]
-                    if key == []:
-                        res3[('_').join([v,a])] = None
-                        continue
-                    else:   
-                        key = key[0]
-                                  
-                    if reg in res[v]['region'].values:
-                        score = np.round(res[v][
-                                    res[v]['region'] == reg][key].item(),2)      
-                        res3[('_').join([v,a])] = score
-                    else:
-                        res3[('_').join([v,a])] = None
-                       
-            res2[reg] = res3   
+                    # Find the effect key and its corresponding significance key
+                    effect_key = next((x for x in res[v].keys() if (a in x and 'effect' in x)), None)
+                    sig_key = next((x for x in res[v].keys() if (a in x and 'significant' in x)), None)
+
+                    # Default values if keys are missing
+                    effect_score = None
+                    sig_score = None
+
+                    if effect_key and reg in res[v]['region'].values:
+                        effect_score = np.round(res[v][res[v]['region'] == reg][effect_key].item(), 2)
+
+                    if sig_key and reg in res[v]['region'].values:
+                        sig_score = res[v][res[v]['region'] == reg][sig_key].item()
+
+                    # Store effect score
+                    res3[('_').join([v, a])] = effect_score
+
+                    # Store significance score if available
+                    if sig_key:
+                        res3[('_').join([v, a, 'sig'])] = sig_score
+                            
+                    res2[reg] = res3   
     
                     
         # get all regions in the canonical set
@@ -1636,26 +1640,34 @@ def plot_bar_neuron_count(table_only=False, ssvers='_rerun'):
         print(f"{len(np.unique(units_df['Beryl']))} regions")
         print(len(units_df['Beryl']), 'good neurons')
     
+        sig_effects = [e + '_sig' for e in effects if any(e + '_sig' in res2[reg] for reg in regs1)]
+
+        # Full column list
         columns = (['Beryl', 'Beryl', 'Cosmos', 'Cosmos', 
-                   '# recordings', '# neurons', 
-                   '# good neurons', 'canonical'] + effects)
-                                      
+                '# recordings', '# neurons', 
+                '# good neurons', 'canonical'] + effects + sig_effects)
+
         r = []                       
         for k in range(len(regs1)):
             cano = True if regs1[k] in gregs else False
 
-            a = ([regs1[k], get_name(regs1[k]),
-                 cosregs[regs1[k]],
-                 get_name(cosregs[regs1[k]]), nclus_nins[k,1],
-                 nclus_nins[k,0], nclus_nins[k,2], cano] + 
-                 list(res2[regs1[k]].values()))
-                      
-            r.append(a)          
-                      
-        df  = pd.DataFrame(data=r,columns=columns)
+            # Extract only existing values in res2[regs1[k]]
+            row_values = [regs1[k], get_name(regs1[k]),
+                        cosregs[regs1[k]],
+                        get_name(cosregs[regs1[k]]), nclus_nins[k,1],
+                        nclus_nins[k,0], nclus_nins[k,2], cano] 
+
+            # Ensure row length matches column length
+            for col in effects + sig_effects:
+                row_values.append(res2[regs1[k]].get(col, None))  
+
+            r.append(row_values)            
+
+        df  = pd.DataFrame(data=r, columns=columns)
+        df.dropna(axis=1, how='all', inplace=True)
         df  = df.reindex(index=df.index[::-1])
-        df.reset_index(drop=True, inplace=True)       
-        df.to_csv(meta_pth / 'region_info.csv')
+        df.reset_index(drop=True, inplace=True)
+        df.to_csv(meta_pth / 'region_info.csv', index=False)
                  
         print('saving table only')
         return 
@@ -1686,7 +1698,7 @@ def plot_bar_neuron_count(table_only=False, ssvers='_rerun'):
         ax[k].barh(range(len(regs1)), nclus_nins[:,2],color=cols, 
                    height=barwidth)
         ax[k].set_xscale("log")
-        ax[k].tick_params(axis='y', pad=19, left=False)
+        ax[k].tick_params(axis='y', pad=19,left = False) 
         ax[k].set_yticks(range(len(regs1)))
         ax[k].set_yticklabels([reg for reg in regs1],
                               fontsize=fs, ha = 'left')
@@ -1724,6 +1736,7 @@ def plot_bar_neuron_count(table_only=False, ssvers='_rerun'):
 
         
     fig.tight_layout()
+
 
 
 # -------------------------------------------------------------------------------------------------
