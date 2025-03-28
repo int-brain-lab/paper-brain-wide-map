@@ -1,9 +1,7 @@
 import matplotlib as mpl
-from matplotlib.lines import Line2D
-
 mpl.use("Qt5Agg")
 import matplotlib.pyplot as plt
-
+from matplotlib.lines import Line2D
 import pandas as pd
 import numpy as np
 from pathlib import Path
@@ -3921,6 +3919,8 @@ def main_fig_for_wheel(individual_pans=False, save=True, save_path=None):
         wheel_decoding_ex('speed', axs=[axs['f_1'], axs['f_2']], save=False)
         axs['f_1'].set_xlabel('')
         axs['f_2'].set_xlabel('')
+        ylabel = axs['f_1'].get_ylabel()
+        axs['f_1'].set_ylabel(ylabel, labelpad=6)
         wheel_decoding_ex('velocity', axs=[axs['g_1'], axs['g_2']], save=False)
         axs['g_1'].set_title('')
         axs['g_2'].set_title('')
