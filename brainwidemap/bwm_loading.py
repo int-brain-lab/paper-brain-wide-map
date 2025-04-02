@@ -214,7 +214,7 @@ def merge_probes(spikes_list, clusters_list):
 def load_trials_and_mask(
         one, eid, min_rt=0.08, max_rt=2., nan_exclude='default', min_trial_len=None,
         max_trial_len=None, exclude_unbiased=False, exclude_nochoice=False, sess_loader=None,
-        truncate_to_pass=True, saturation_intervals=None, revision='2024-07-14'
+        truncate_to_pass=True, saturation_intervals=None, revision=MODIFIED_BEFORE
 ):
     """
     Function to load all trials for a given session and create a mask to exclude all trials that have a reaction time
@@ -283,7 +283,7 @@ def load_trials_and_mask(
         ]
 
     if sess_loader is None:
-        sess_loader = SessionLoader(one=one, eid=eid, revision=MODIFIED_BEFORE)
+        sess_loader = SessionLoader(one=one, eid=eid, revision=revision)
 
     if sess_loader.trials.empty:
         sess_loader.load_trials()
