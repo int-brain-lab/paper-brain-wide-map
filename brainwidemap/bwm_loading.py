@@ -1,5 +1,6 @@
 from dateutil import parser
 import json
+import logging
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -8,11 +9,13 @@ from brainbox.behavior import training
 from brainbox.io.one import SpikeSortingLoader, SessionLoader
 from iblatlas.atlas import BrainRegions
 from iblutil.numerical import ismember, hash_uuids
+from iblutil.io import hashfile
 from one.alf import spec
 from one.remote import aws
 
 import brainwidemap
 
+_logger = logging.getLogger(__name__)
 
 MODIFIED_BEFORE = '2024-07-10'
 """Load data last modified before this date."""
@@ -371,7 +374,14 @@ def download_aggregate_tables(one, target_path=None, type='clusters', tag='2024_
     agg_path: pathlib.Path
         Path to the downloaded aggregate
     """
-
+    md5_expected = {
+        '2024_Q2_IBL_et_al_BWM':
+            {'trials':
+                 '067fb0e3d242ebeface361c42bdcf8c8',
+             'clusters':
+                 'b89fac76289f3a3d585910711f1eef41',
+             }
+    }
     if target_path is None:
         target_path = Path(one.cache_dir).joinpath('bwm_tables')
         target_path.mkdir(exist_ok=True)
@@ -382,6 +392,19 @@ def download_aggregate_tables(one, target_path=None, type='clusters', tag='2024_
     s3, bucket_name = aws.get_s3_from_alyx(alyx=one.alyx)
     aws.s3_download_file(f"aggregates/{tag}/{type}.pqt", agg_path, s3=s3,
                          bucket_name=bucket_name, overwrite=overwrite)
+
+    # if we have a hash on file for the tag,check the md5 hash of the downloaded file
+    if tag in md5_expected:
+        # if there is a mismatch, first try to re-download the file with overwrite=True
+        if hashfile.md5(agg_path) != md5_expected[tag][type]:
+            _logger.warning(f'MD5 hash of downloaded file {agg_path} does not match expected hash for tag {tag}, will'
+                            f'try downloading again.')
+            aws.s3_download_file(f"aggregates/{tag}/{type}.pqt", agg_path, s3=s3,
+                                 bucket_name=bucket_name, overwrite=True)
+        # if there is still a mismatch, now we raise
+        if hashfile.md5(agg_path) != md5_expected[tag][type]:
+            assert hashfile.md5(agg_path) == md5_expected[tag][type]\
+                , f'MD5 hash of downloaded file {agg_path} does not match expected hash for tag {tag}.'
 
     if not agg_path.exists():
         print(f'Downloading of {type} table failed.')
