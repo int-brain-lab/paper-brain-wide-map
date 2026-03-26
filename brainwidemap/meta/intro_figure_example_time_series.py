@@ -20,8 +20,9 @@ from dmn_bwm import get_allen_info
 
 mpl.rcParams.update({'font.size': 10})
 
-one = ONE(base_url='https://openalyx.internationalbrainlab.org',
-          password='international', silent=True)
+one = ONE()
+    # base_url='https://openalyx.internationalbrainlab.org',
+    #       password='international', silent=True)
 
 # save results for plotting here
 pth_res = Path(one.cache_dir, 'bwm_res', 'si')
@@ -115,14 +116,22 @@ def example_block_structure(eid):
 
 
 def bwm_data_series_fig(cnew=True, alter=True):
-    '''
-    plot a behavioral time series on block-colored background
-    above neural data - intro figure
-    '''
+    """
+    Plot a behavioral time series on block-colored background
+    above neural data - intro figure.
+
+    Parameters
+    ----------
+    cnew : bool
+        If True, recompute and cache the behavioral/neural traces.
+        If False, load them from pth_res / 'Q.npy'.
+    alter : bool
+        If True, plot neural activity as a spike raster.
+        If False, plot binned population activity as an image.
+    """
 
     eid = '15f742e1-1043-45c9-9504-f1e8a53c1744'
     video_type = 'left'
-    # reg = 'PRNr'#'SCiw''MRN'
     probe = 'probe00'
     trial_range = [242, 244]
     nsubplots = 4
@@ -131,223 +140,252 @@ def bwm_data_series_fig(cnew=True, alter=True):
     tstart = trials['intervals'][trial_range[0]][0]
     tend = trials['intervals'][trial_range[-1]][-1]
 
-    fig, axs = plt.subplots(nsubplots, 1, figsize=(5.98, 6.91), sharex=True,
-                            gridspec_kw={'height_ratios': [1, 1, 1, 4]})
-    # plot wheel speed trace
-    # axs.append(plt.subplot(nsubplots,1,1))
+    fig, axs = plt.subplots(
+        nsubplots, 1, figsize=(5.98, 6.91), sharex=True,
+        gridspec_kw={'height_ratios': [1, 1, 1, 4]}
+    )
 
     if cnew:
         Q = []
-        wheel = one.load_object(eid, 'wheel')
-        pos, times_w = wh.interpolate_position(wheel.timestamps,
-                                               wheel.position, freq=1 / T_BIN)
 
+        # -------------------------
+        # Load spike sorting first
+        # -------------------------
+        sl_spk = SpikeSortingLoader(eid=eid, pname=probe, one=one, atlas=ba)
+        spikes, clusters, channels = sl_spk.load_spike_sorting()
+        clusters = sl_spk.merge_clusters(spikes, clusters, channels)
+
+        # -------------------------
+        # 1) Wheel speed
+        # -------------------------
+        wheel = one.load_object(eid, 'wheel')
+        pos, times_w = wh.interpolate_position(
+            wheel.timestamps, wheel.position, freq=1 / T_BIN
+        )
         v = np.append(np.diff(pos), np.diff(pos)[-1])
 
         s_idx = find_nearest(times_w, tstart)
         e_idx = find_nearest(times_w, tend)
 
-        x = times_w[s_idx:e_idx]
-        y = v[s_idx:e_idx]
+        x0 = times_w[s_idx:e_idx]
+        y0 = v[s_idx:e_idx]
+        Q.append([x0, y0])
 
-        Q.append([times_w[s_idx:e_idx], v[s_idx:e_idx]])
-
-    else:
-        Q = np.load(pth_res / 'Q.npy', allow_pickle=True)
-        x, y = Q[0]
-
-    axs[0].plot(x, y, c='k', label='wheel speed', linewidth=0.5)
-    axs[0].set_ylabel('wheel speed')  # \n [rad/sec]
-    axs[0].axes.yaxis.set_visible(False)
-    # plot whisker motion
-    # axs.append(plt.subplot(nsubplots,1,2,sharex=axs[0]))
-
-    if cnew:
-        # when changing cam type, change fs in cut
+        # -------------------------
+        # 2) Whisker motion energy
+        # -------------------------
         times_me, ME = get_ME(eid, video_type)
-
         s_idx = find_nearest(times_me, tstart)
         e_idx = find_nearest(times_me, tend)
 
-        x, y = times_me[s_idx:e_idx], ME[s_idx:e_idx]
-        Q.append([x, y])
+        x1 = times_me[s_idx:e_idx]
+        y1 = ME[s_idx:e_idx]
+        Q.append([x1, y1])
 
-    else:
-        x, y = Q[1]
-
-    axs[1].plot(x, y, c='k', label='whisker ME', linewidth=0.5)
-    axs[1].set_ylabel('whisking')  # \n [a.u.]
-    axs[1].axes.yaxis.set_visible(False)
-    # plot licks
-    # axs.append(plt.subplot(nsubplots,1,3,sharex=axs[0]))
-
-    if cnew:
-
-        sess_loader = SessionLoader(one, eid)
-
-        # load DLC
+        # -------------------------
+        # 3) Licking
+        # -------------------------
+        sess_loader = SessionLoader(one=one, eid=eid)
         sess_loader.load_pose(views=['left', 'right'])
+
         dlc_left = sess_loader.pose['leftCamera']
         dlc_right = sess_loader.pose['rightCamera']
 
-        # get licks using both cameras
         lick_times = []
         for dlc in [dlc_left, dlc_right]:
             r = get_licks(dlc)
             lick_times.append(dlc['times'][r])
 
-        # combine left/right video licks and bin
-        lick_times = sorted(np.concatenate(lick_times))
-        R, times_l, _ = bincount2D(lick_times,
-                                   np.ones(len(lick_times)), T_BIN)
+        lick_times = np.sort(np.concatenate(lick_times))
+        R, times_l, _ = bincount2D(
+            lick_times, np.ones(len(lick_times)), T_BIN
+        )
         lcs = R[0]
 
         s_idx = find_nearest(times_l, tstart)
         e_idx = find_nearest(times_l, tend)
 
-        x, y = times_l[s_idx:e_idx], lcs[s_idx:e_idx]
-        Q.append([x, y])
+        x2 = times_l[s_idx:e_idx]
+        y2 = lcs[s_idx:e_idx]
+        Q.append([x2, y2])
 
-    else:
-        x, y = Q[2]
+        # -------------------------
+        # 4) Neural activity (binned)
+        # -------------------------
+        Rn, times_n, cluster_ids = bincount2D(
+            spikes['times'], spikes['clusters'], T_BIN
+        )
 
-    axs[2].plot(x, y, c='k', linewidth=0.5)
-    axs[2].set_ylabel('licking')  # \n [a.u.]
-    axs[2].axes.yaxis.set_visible(False)
-
-    # neural activity
-    # axs.append(plt.subplot(nsubplots,1,4,sharex=axs[0]))
-
-    if cnew:
-
-  
-
-        R, times_n, Clusters = bincount2D(
-            spikes['times'], spikes['clusters'], T_BIN)
-        D = R.T
-
-        acs = br.id2acronym(clusters['atlas_id'], mapping='Beryl')
-        _, palette = get_allen_info()
-        cols_ = [palette[x] for x in acs]
+        # Rn shape is (n_clusters_present, n_timebins)
+        D = Rn
 
         s_idx = find_nearest(times_n, tstart)
         e_idx = find_nearest(times_n, tend)
 
-        D = D[s_idx:e_idx]  # ,m_ask]
-        D = D.T
+        D_cut = D[:, s_idx:e_idx]
+        x3 = D_cut
+        y3 = [times_n[s_idx], times_n[e_idx]]
 
-        x, y = D, [times_n[s_idx], times_n[e_idx]]
-        Q.append([x, y])
-        
-        
+        # colors for present cluster ids only
+        _, palette = get_allen_info()
+        acs = br.id2acronym(clusters['atlas_id'], mapping='Beryl')
+        cid2acronym = dict(zip(clusters['cluster_id'], acs))
+        cols_ = [palette[cid2acronym[cid]] for cid in cluster_ids if cid in cid2acronym]
 
-         
-        
+        Q.append([x3, y3])
 
     else:
-        x, y = Q[3]
+        Q = np.load(pth_res / 'Q.npy', allow_pickle=True)
 
+        x0, y0 = Q[0]
+        x1, y1 = Q[1]
+        x2, y2 = Q[2]
+        x3, y3 = Q[3]
+        cols_ = None
 
+    # -------------------------
+    # Plot wheel
+    # -------------------------
+    axs[0].plot(x0, y0, c='k', label='wheel speed', linewidth=0.5)
+    axs[0].set_ylabel('wheel speed')
+    axs[0].axes.yaxis.set_visible(False)
+
+    # -------------------------
+    # Plot whisker ME
+    # -------------------------
+    axs[1].plot(x1, y1, c='k', label='whisker ME', linewidth=0.5)
+    axs[1].set_ylabel('whisking')
+    axs[1].axes.yaxis.set_visible(False)
+
+    # -------------------------
+    # Plot licks
+    # -------------------------
+    axs[2].plot(x2, y2, c='k', linewidth=0.5)
+    axs[2].set_ylabel('licking')
+    axs[2].axes.yaxis.set_visible(False)
+
+    # -------------------------
+    # Neural panel
+    # -------------------------
     if alter:
-    
-        # Load in spikesorting
-        sl = SpikeSortingLoader(eid=eid, pname=probe, one=one, atlas=ba)
-        spikes, clusters, channels = sl.load_spike_sorting()
-        clusters = sl.merge_clusters(spikes, clusters, channels)
-    
-        # Alternative plotting using single spikes
-        
+        # Need spike sorting loaded even if cnew=False
+        sl_spk = SpikeSortingLoader(eid=eid, pname=probe, one=one, atlas=ba)
+        spikes, clusters, channels = sl_spk.load_spike_sorting()
+        clusters = sl_spk.merge_clusters(spikes, clusters, channels)
+
         s_idx = find_nearest(spikes['times'], tstart)
         e_idx = find_nearest(spikes['times'], tend)
-        times_s = spikes['times'][s_idx: e_idx]
-        clus_s = spikes['clusters'][s_idx: e_idx]
 
-        adict = {}
+        times_s = spikes['times'][s_idx:e_idx]
+        clus_s = spikes['clusters'][s_idx:e_idx]
+
         uclus = np.unique(clus_s)
-        
-        # order by depth
-        depthd = dict(zip(clusters['cluster_id'],
-                          clusters['depths']))
-                          
-        depthl = [depthd[c] for c in uclus]                  
-        uclus = uclus[np.argsort(depthl)]
-        
-        
-        # assume cluster are in depth order
-        # re-index for plotting
-        k = 0
-        for c in uclus:
-            adict[k] = times_s[clus_s == c]     
-            k += 1
-        
+
+        depthd = dict(zip(clusters['cluster_id'], clusters['depths']))
+        uclus = np.array([c for c in uclus if c in depthd])
+
+        if len(uclus) > 0:
+            depthl = np.array([depthd[c] for c in uclus])
+            uclus = uclus[np.argsort(depthl)]
+
+        clus2row = {c: i for i, c in enumerate(uclus)}
+
         x_values = []
         y_values = []
+        for c in uclus:
+            ts = times_s[clus_s == c]
+            x_values.extend(ts)
+            y_values.extend([clus2row[c]] * len(ts))
 
-        for key, timestamps in adict.items():
-            x_values.extend(timestamps)
-            y_values.extend([key] * len(timestamps))   
-        
-        axs[3].scatter(x_values, y_values, marker='|',s=1, color='k')
-
-                
-                
-    else:
-
-        nneu, nobs = x.shape
-        axs[3].imshow(x, aspect='auto', cmap='Greys',
-                      extent=[y[0], y[1], 0, nneu], vmin=0, vmax=2)
-
+        axs[3].scatter(x_values, y_values, marker='|', s=1, color='k')
         axs[3].set_ylabel('neuron')
-        
-    if cnew:
-        for i in range(len(cols_)):
-            axs[3].plot([960.76, 960.90], [i, i], color=cols_[i])
 
-    # correct, incorrect, stimulus contrast, choice, stim side
+    else:
+        nneu, nobs = x3.shape
+        axs[3].imshow(
+            x3, aspect='auto', cmap='Greys',
+            extent=[y3[0], y3[1], 0, nneu],
+            vmin=0, vmax=2, origin='lower'
+        )
+        axs[3].set_ylabel('neuron')
 
-    cols = {'0.8': [0.13850039, 0.41331206, 0.74052025],
-            '0.2': [0.66080672, 0.21526712, 0.23069468], '0.5': 'g'}
+        # optional colored side bars for cluster identity
+        if cnew and cols_ is not None:
+            xbar0 = y3[0] + 0.01 * (y3[1] - y3[0])
+            xbar1 = y3[0] + 0.03 * (y3[1] - y3[0])
+            for i, col in enumerate(cols_[:nneu]):
+                axs[3].plot([xbar0, xbar1], [i, i], color=col, linewidth=1)
+
+    # -------------------------
+    # Trial annotations
+    # -------------------------
+    cols = {
+        '0.8': [0.13850039, 0.41331206, 0.74052025],
+        '0.2': [0.66080672, 0.21526712, 0.23069468],
+        '0.5': 'g'
+    }
+
+    y0_text = np.nanpercentile(y0, 90) if len(y0) else 0.1
+
     for i in range(trial_range[0], trial_range[-1] + 1):
         st = trials['intervals'][i][0]
         en = trials['intervals'][i][1]
-
         pl = trials['probabilityLeft'][i]
 
         if np.isnan(trials['contrastLeft'][i]):
-            side = 'r'  # right side stimulus
+            side = 'r'
         else:
-            side = 'l'  # left side stimulus
+            side = 'l'
 
-        choi = {1: 'l', -1: 'r'}[trials['choice'][i]]
+        choice_val = trials['choice'][i]
+        choi = {1: 'l', -1: 'r'}.get(choice_val, 'n/a')
         ftype = trials['feedbackType'][i]
-        s = f'Trial: {i} \n stim: {side} \n choice: {choi} \n correct: {ftype}'
-        axs[0].text(st, 0.1, s)
+
+        s = f'Trial: {i}\nstim: {side}\nchoice: {choi}\ncorrect: {ftype}'
+        axs[0].text(st, y0_text, s, va='top', fontsize=8)
 
         for k in range(nsubplots):
-#            axs[k].axvspan(st, en, facecolor=cols[str(pl)],
-#                           alpha=0.1, label=f'p(l)={str(pl)}')
-            axs[k].axvline(x=trials['stimOn_times'][i], color='k',
-                           linestyle='--', label='stimOn')
-            axs[k].axvline(x=trials['feedback_times'][i], color='k',
-                           linestyle='--', label='feedback')
+            # Uncomment if you want shaded block backgrounds
+            # axs[k].axvspan(st, en, facecolor=cols[str(pl)], alpha=0.1)
 
-    [axs[k].get_xaxis().set_visible(False) for k in range(len(axs[1:]))]
+            if not np.isnan(trials['stimOn_times'][i]):
+                axs[k].axvline(
+                    x=trials['stimOn_times'][i],
+                    color='k', linestyle='--',
+                    label='stimOn' if (i == trial_range[0] and k == 0) else None
+                )
+
+            if not np.isnan(trials['feedback_times'][i]):
+                axs[k].axvline(
+                    x=trials['feedback_times'][i],
+                    color='k', linestyle=':',
+                    label='feedback' if (i == trial_range[0] and k == 0) else None
+                )
+
+    # -------------------------
+    # Cosmetics
+    # -------------------------
+    for ax in axs[:-1]:
+        ax.get_xaxis().set_visible(False)
+
     axs[-1].set_xlabel('time [sec]')
-    [ax.axis("off") for ax in axs]
-#    fig.subplots_adjust(top=0.812,
-#                        bottom=0.176,
-#                        left=0.191,
-#                        right=0.985,
-#                        hspace=0.15,
-#                        wspace=0.2)
 
-    handles, labels = plt.gca().get_legend_handles_labels()
+    # If you really want everything visually off, this also hides labels.
+    # Keeping axes on is usually more useful for debugging/inspection.
+    # for ax in axs:
+    #     ax.axis("off")
+
+    handles, labels = axs[0].get_legend_handles_labels()
     by_label = dict(zip(labels, handles))
-    axs[-1].legend(by_label.values(),
-                   by_label.keys(), ncol=4).set_draggable(True)
+    if len(by_label) > 0:
+        axs[-1].legend(by_label.values(), by_label.keys(), ncol=4).set_draggable(True)
+
+    plt.tight_layout()
 
     if cnew:
-        np.save(pth_res / 'Q.npy', Q, allow_pickle=True)
+        np.save(pth_res / 'Q.npy', np.array(Q, dtype=object), allow_pickle=True)
+
+    return fig, axs
         
         
 if __name__ == "__main__":        
@@ -358,5 +396,4 @@ if __name__ == "__main__":
     3 example trials
     '''
     eid = '15f742e1-1043-45c9-9504-f1e8a53c1744'
-    sl = SessionLoader(one=one, eid=eid)
-    sl.load_session_data()
+    bwm_data_series_fig()
