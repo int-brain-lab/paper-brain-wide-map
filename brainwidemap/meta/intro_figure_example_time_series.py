@@ -357,5 +357,6 @@ if __name__ == "__main__":
     illustrating time series and neural data for
     3 example trials
     '''
+    eid = '15f742e1-1043-45c9-9504-f1e8a53c1744'
     sl = SessionLoader(one=one, eid=eid)
     sl.load_session_data()
