@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import matplotlib as mpl
 
+from matplotlib.lines import Line2D
 import sys
 sys.path.append('Dropbox/scripts/IBL/')
 from dmn_bwm import get_allen_info
@@ -115,7 +116,7 @@ def example_block_structure(eid):
     plt.tight_layout()
 
 
-def bwm_data_series_fig(cnew=True, alter=True):
+def bwm_data_series_fig(cnew=True, alter=True, sort_reg=True):
     """
     Plot a behavioral time series on block-colored background
     above neural data - intro figure.
@@ -123,11 +124,12 @@ def bwm_data_series_fig(cnew=True, alter=True):
     Parameters
     ----------
     cnew : bool
-        If True, recompute and cache the behavioral/neural traces.
-        If False, load them from pth_res / 'Q.npy'.
     alter : bool
-        If True, plot neural activity as a spike raster.
-        If False, plot binned population activity as an image.
+        If True, plot neural activity as a true binary raster image.
+        If False, plot binned population activity as a grayscale image.
+    sort_reg : bool
+        True  -> depth sorting (GitHub default)
+        False -> no sorting (np.unique ordering, Dropbox-like)
     """
 
     eid = '15f742e1-1043-45c9-9504-f1e8a53c1744'
@@ -141,23 +143,23 @@ def bwm_data_series_fig(cnew=True, alter=True):
     tend = trials['intervals'][trial_range[-1]][-1]
 
     fig, axs = plt.subplots(
-        nsubplots, 1, figsize=(5.98, 6.91), sharex=True,
-        gridspec_kw={'height_ratios': [1, 1, 1, 4]}
+        nsubplots, 1,
+        figsize=(5.98, 6.91),
+        sharex=True,
+        gridspec_kw={'height_ratios': [1, 1, 1, 4], 'hspace': 0.06}
     )
 
+    # -------------------------
+    # COMPUTE / LOAD CACHED TIME SERIES
+    # -------------------------
     if cnew:
         Q = []
 
-        # -------------------------
-        # Load spike sorting first
-        # -------------------------
         sl_spk = SpikeSortingLoader(eid=eid, pname=probe, one=one, atlas=ba)
         spikes, clusters, channels = sl_spk.load_spike_sorting()
         clusters = sl_spk.merge_clusters(spikes, clusters, channels)
 
-        # -------------------------
-        # 1) Wheel speed
-        # -------------------------
+        # --- wheel ---
         wheel = one.load_object(eid, 'wheel')
         pos, times_w = wh.interpolate_position(
             wheel.timestamps, wheel.position, freq=1 / T_BIN
@@ -171,9 +173,7 @@ def bwm_data_series_fig(cnew=True, alter=True):
         y0 = v[s_idx:e_idx]
         Q.append([x0, y0])
 
-        # -------------------------
-        # 2) Whisker motion energy
-        # -------------------------
+        # --- whisker ---
         times_me, ME = get_ME(eid, video_type)
         s_idx = find_nearest(times_me, tstart)
         e_idx = find_nearest(times_me, tend)
@@ -182,9 +182,7 @@ def bwm_data_series_fig(cnew=True, alter=True):
         y1 = ME[s_idx:e_idx]
         Q.append([x1, y1])
 
-        # -------------------------
-        # 3) Licking
-        # -------------------------
+        # --- licking ---
         sess_loader = SessionLoader(one=one, eid=eid)
         sess_loader.load_pose(views=['left', 'right'])
 
@@ -209,99 +207,94 @@ def bwm_data_series_fig(cnew=True, alter=True):
         y2 = lcs[s_idx:e_idx]
         Q.append([x2, y2])
 
-        # -------------------------
-        # 4) Neural activity (binned)
-        # -------------------------
-        Rn, times_n, cluster_ids = bincount2D(
+        # --- neural (binned activity image for alter=False) ---
+        Rn, times_n, _ = bincount2D(
             spikes['times'], spikes['clusters'], T_BIN
         )
-
-        # Rn shape is (n_clusters_present, n_timebins)
-        D = Rn
 
         s_idx = find_nearest(times_n, tstart)
         e_idx = find_nearest(times_n, tend)
 
-        D_cut = D[:, s_idx:e_idx]
-        x3 = D_cut
+        x3 = Rn[:, s_idx:e_idx]
         y3 = [times_n[s_idx], times_n[e_idx]]
-
-        # colors for present cluster ids only
-        _, palette = get_allen_info()
-        acs = br.id2acronym(clusters['atlas_id'], mapping='Beryl')
-        cid2acronym = dict(zip(clusters['cluster_id'], acs))
-        cols_ = [palette[cid2acronym[cid]] for cid in cluster_ids if cid in cid2acronym]
-
         Q.append([x3, y3])
 
     else:
         Q = np.load(pth_res / 'Q.npy', allow_pickle=True)
-
         x0, y0 = Q[0]
         x1, y1 = Q[1]
         x2, y2 = Q[2]
         x3, y3 = Q[3]
-        cols_ = None
 
     # -------------------------
-    # Plot wheel
+    # PLOT TIME SERIES
     # -------------------------
-    axs[0].plot(x0, y0, c='k', label='wheel speed', linewidth=0.5)
-    axs[0].set_ylabel('wheel speed')
-    axs[0].axes.yaxis.set_visible(False)
+    axs[0].plot(x0, y0, c='k', linewidth=0.5, label='wheel velocity')
+    axs[0].set_ylabel('wheel velocity')
 
-    # -------------------------
-    # Plot whisker ME
-    # -------------------------
-    axs[1].plot(x1, y1, c='k', label='whisker ME', linewidth=0.5)
+    axs[1].plot(x1, y1, c='k', linewidth=0.5, label='whisking')
     axs[1].set_ylabel('whisking')
-    axs[1].axes.yaxis.set_visible(False)
 
-    # -------------------------
-    # Plot licks
-    # -------------------------
-    axs[2].plot(x2, y2, c='k', linewidth=0.5)
+    axs[2].plot(x2, y2, c='k', linewidth=0.5, label='licking')
     axs[2].set_ylabel('licking')
-    axs[2].axes.yaxis.set_visible(False)
 
     # -------------------------
-    # Neural panel
+    # NEURAL PANEL
     # -------------------------
     if alter:
-        # Need spike sorting loaded even if cnew=False
         sl_spk = SpikeSortingLoader(eid=eid, pname=probe, one=one, atlas=ba)
         spikes, clusters, channels = sl_spk.load_spike_sorting()
         clusters = sl_spk.merge_clusters(spikes, clusters, channels)
 
-        s_idx = find_nearest(spikes['times'], tstart)
-        e_idx = find_nearest(spikes['times'], tend)
+        # restrict time using boolean mask for exact windowing
+        mask = (spikes['times'] >= tstart) & (spikes['times'] <= tend)
+        times_s = spikes['times'][mask]
+        clus_s = spikes['clusters'][mask]
 
-        times_s = spikes['times'][s_idx:e_idx]
-        clus_s = spikes['clusters'][s_idx:e_idx]
-
+        # Dropbox-like baseline: np.unique ordering
         uclus = np.unique(clus_s)
 
-        depthd = dict(zip(clusters['cluster_id'], clusters['depths']))
-        uclus = np.array([c for c in uclus if c in depthd])
+        if sort_reg:
+            depthd = dict(zip(clusters['cluster_id'], clusters['depths']))
+            uclus = np.array([c for c in uclus if c in depthd])
+            if len(uclus) > 0:
+                depthl = np.array([depthd[c] for c in uclus])
+                uclus = uclus[np.argsort(depthl)]
 
-        if len(uclus) > 0:
-            depthl = np.array([depthd[c] for c in uclus])
-            uclus = uclus[np.argsort(depthl)]
-
+        # map cluster -> row
         clus2row = {c: i for i, c in enumerate(uclus)}
 
-        x_values = []
-        y_values = []
-        for c in uclus:
-            ts = times_s[clus_s == c]
-            x_values.extend(ts)
-            y_values.extend([clus2row[c]] * len(ts))
+        # binary time-neuron raster
+        dt = T_BIN
+        t_bins = np.arange(tstart, tend + dt, dt)
+        n_t = len(t_bins) - 1
+        n_n = len(uclus)
 
-        axs[3].scatter(x_values, y_values, marker='|', s=1, color='k')
+        M = np.zeros((n_n, n_t), dtype=np.uint8)
+
+        if n_n > 0 and len(times_s) > 0:
+            t_idx = np.searchsorted(t_bins, times_s, side='right') - 1
+            valid = (t_idx >= 0) & (t_idx < n_t)
+
+            for tbin, clu in zip(t_idx[valid], clus_s[valid]):
+                row = clus2row.get(clu, None)
+                if row is not None:
+                    M[row, tbin] = 1
+
+        axs[3].imshow(
+            M,
+            aspect='auto',
+            cmap='binary',              # 0 white, 1 black
+            interpolation='nearest',   # no smoothing
+            extent=[tstart, tend, 0, n_n],
+            origin='lower',
+            vmin=0,
+            vmax=1
+        )
         axs[3].set_ylabel('neuron')
 
     else:
-        nneu, nobs = x3.shape
+        nneu, _ = x3.shape
         axs[3].imshow(
             x3, aspect='auto', cmap='Greys',
             extent=[y3[0], y3[1], 0, nneu],
@@ -309,78 +302,61 @@ def bwm_data_series_fig(cnew=True, alter=True):
         )
         axs[3].set_ylabel('neuron')
 
-        # optional colored side bars for cluster identity
-        if cnew and cols_ is not None:
-            xbar0 = y3[0] + 0.01 * (y3[1] - y3[0])
-            xbar1 = y3[0] + 0.03 * (y3[1] - y3[0])
-            for i, col in enumerate(cols_[:nneu]):
-                axs[3].plot([xbar0, xbar1], [i, i], color=col, linewidth=1)
-
     # -------------------------
-    # Trial annotations
+    # TRIAL STRUCTURE
     # -------------------------
-    cols = {
-        '0.8': [0.13850039, 0.41331206, 0.74052025],
-        '0.2': [0.66080672, 0.21526712, 0.23069468],
-        '0.5': 'g'
-    }
-
-    y0_text = np.nanpercentile(y0, 90) if len(y0) else 0.1
+    y0_top = np.nanmax(y0) if len(y0) else 0.1
+    y0_rng = (np.nanmax(y0) - np.nanmin(y0)) if len(y0) else 1.0
+    y0_text = y0_top + 0.08 * (y0_rng if y0_rng > 0 else 1.0)
 
     for i in range(trial_range[0], trial_range[-1] + 1):
         st = trials['intervals'][i][0]
-        en = trials['intervals'][i][1]
-        pl = trials['probabilityLeft'][i]
 
         if np.isnan(trials['contrastLeft'][i]):
             side = 'r'
         else:
             side = 'l'
 
-        choice_val = trials['choice'][i]
-        choi = {1: 'l', -1: 'r'}.get(choice_val, 'n/a')
+        choi = {1: 'l', -1: 'r'}.get(trials['choice'][i], 'n/a')
         ftype = trials['feedbackType'][i]
 
-        s = f'Trial: {i}\nstim: {side}\nchoice: {choi}\ncorrect: {ftype}'
-        axs[0].text(st, y0_text, s, va='top', fontsize=8)
+        txt = f'Trial: {i}\nstim: {side}\nchoice: {choi}\ncorrect: {ftype}'
+        axs[0].text(st, y0_text, txt, va='bottom', fontsize=8)
 
         for k in range(nsubplots):
-            # Uncomment if you want shaded block backgrounds
-            # axs[k].axvspan(st, en, facecolor=cols[str(pl)], alpha=0.1)
-
             if not np.isnan(trials['stimOn_times'][i]):
                 axs[k].axvline(
-                    x=trials['stimOn_times'][i],
-                    color='k', linestyle='--',
+                    trials['stimOn_times'][i],
+                    color='k', linestyle='--', linewidth=0.8,
                     label='stimOn' if (i == trial_range[0] and k == 0) else None
                 )
-
             if not np.isnan(trials['feedback_times'][i]):
                 axs[k].axvline(
-                    x=trials['feedback_times'][i],
-                    color='k', linestyle=':',
+                    trials['feedback_times'][i],
+                    color='k', linestyle=':', linewidth=0.8,
                     label='feedback' if (i == trial_range[0] and k == 0) else None
                 )
 
     # -------------------------
-    # Cosmetics
+    # COSMETICS
     # -------------------------
+    for ax in axs:
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+
     for ax in axs[:-1]:
-        ax.get_xaxis().set_visible(False)
+        ax.tick_params(axis='x', which='both', bottom=False, labelbottom=False)
 
     axs[-1].set_xlabel('time [sec]')
 
-    # If you really want everything visually off, this also hides labels.
-    # Keeping axes on is usually more useful for debugging/inspection.
-    # for ax in axs:
-    #     ax.axis("off")
+    legend_handles = [
+        Line2D([0], [0], color='k', linestyle='--', linewidth=0.8, label='stimOn'),
+        Line2D([0], [0], color='k', linestyle=':',  linewidth=0.8, label='feedback'),
+    ]
 
-    handles, labels = axs[0].get_legend_handles_labels()
-    by_label = dict(zip(labels, handles))
-    if len(by_label) > 0:
-        axs[-1].legend(by_label.values(), by_label.keys(), ncol=4).set_draggable(True)
+    axs[-1].legend(handles=legend_handles, frameon=False, loc='upper right')
 
-    plt.tight_layout()
+    fig.subplots_adjust(left=0.14, right=0.98, bottom=0.08, top=0.96, hspace=0.08)
 
     if cnew:
         np.save(pth_res / 'Q.npy', np.array(Q, dtype=object), allow_pickle=True)
@@ -388,12 +364,12 @@ def bwm_data_series_fig(cnew=True, alter=True):
     return fig, axs
         
         
-if __name__ == "__main__":        
+# if __name__ == "__main__":        
 
-    '''
-    Create panel of intro figure of the brain-wide-map paper
-    illustrating time series and neural data for
-    3 example trials
-    '''
-    eid = '15f742e1-1043-45c9-9504-f1e8a53c1744'
-    bwm_data_series_fig()
+#     '''
+#     Create panel of intro figure of the brain-wide-map paper
+#     illustrating time series and neural data for
+#     3 example trials
+#     '''
+#     eid = '15f742e1-1043-45c9-9504-f1e8a53c1744'
+#     bwm_data_series_fig()
