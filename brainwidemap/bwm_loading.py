@@ -405,7 +405,7 @@ def download_aggregate_tables(one, target_path=None, type='clusters', tag='2026_
              },
         '2026_Q2_IBL_et_al_BWM':
             {'clusters':
-                 '8d3fae2fb7fe78df652d850f88082f56',
+                 'ac22196fbd77687d6ee3a0c6b1b1fc15',
              'clusters.waveforms_peak':
                  'db71666e84ae28b6a9051e3fa866d1c9',
              'clusters.acgs_log':
