@@ -1,5 +1,6 @@
 from dateutil import parser
 import json
+import logging
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -8,11 +9,13 @@ from brainbox.behavior import training
 from brainbox.io.one import SpikeSortingLoader, SessionLoader
 from iblatlas.atlas import BrainRegions
 from iblutil.numerical import ismember, hash_uuids
+from iblutil.io import hashfile
 from one.alf import spec
 from one.remote import aws
 
 import brainwidemap
 
+_logger = logging.getLogger(__name__)
 
 MODIFIED_BEFORE = '2024-07-10'
 """Load data last modified before this date."""
@@ -147,21 +150,44 @@ def load_good_units(one, pid, compute_metrics=False, qc=1., **kwargs):
             raise ValueError('"eid" and "pname" optional arguments must be provided for ONE in local mode.')
         spike_loader = SpikeSortingLoader(one=one, eid=eid, pname=pname)
     else:
-        spike_loader = SpikeSortingLoader(pid=pid, one=one)
+        spike_loader = SpikeSortingLoader(pid=pid, one=one, pname=pname, eid=eid)
+
     download_good_units_only = qc >= 1.0
     spikes, clusters, channels = spike_loader.load_spike_sorting(revision="2024-05-06", good_units=download_good_units_only)
     clusters_labeled = SpikeSortingLoader.merge_clusters(
         spikes, clusters, channels, compute_metrics=compute_metrics).to_df()
-    iok = clusters_labeled['label'] >= qc
-    good_clusters = clusters_labeled[iok]
-
+    if qc >= 0:
+        iok = clusters_labeled['label'] >= qc
+        good_clusters = clusters_labeled[iok]
+    elif qc == -1:  # load unitrefine model
+        good_clusters = apply_unit_refine_model(clusters_labeled)
+    elif qc == -2: # pseudo-random selection of extra unit refine units
+        iok = clusters_labeled['label'] == 0
+        good_clusters = apply_unit_refine_model(clusters_labeled)
+        # we take a random selection of units to make up the count to nur unit
+        n_extra = good_clusters.shape[0] - np.sum(iok)
+        if n_extra > 0:
+            iok[np.random.choice( np.where(~iok.values)[0], size=n_extra, replace=False)] = True
+        good_clusters = clusters_labeled[iok]
     spike_idx, ib = ismember(spikes['clusters'], good_clusters.index)
     good_clusters.reset_index(drop=True, inplace=True)
     # Filter spike trains for only good clusters
     good_spikes = {k: v[spike_idx] for k, v in spikes.items()}
     good_spikes['clusters'] = good_clusters.index[ib].astype(np.int32)
-
     return good_spikes, good_clusters
+
+
+def apply_unit_refine_model(clusters_labeled):
+    import yaml
+    from xgboost import XGBClassifier
+    path_model = Path('/Users/olivier/Documents/datadisk/unitrefine/alejandro/AlejandroPanVazquez_IBL_slim-mushroom-alligator')
+    path_model = Path(path_model)
+    with open(path_model.joinpath("meta.yaml")) as f:
+        metadata = yaml.safe_load(f)
+    classifier = XGBClassifier(model_file=path_model.joinpath("model.ubj"))
+    classifier.load_model(path_model.joinpath("model.ubj"))
+    pred = classifier.predict(clusters_labeled.loc[:, metadata['FEATURES']])
+    return clusters_labeled[np.array(metadata['CLASSES'])[pred] == 'good']
 
 
 def merge_probes(spikes_list, clusters_list):
@@ -213,7 +239,7 @@ def merge_probes(spikes_list, clusters_list):
 def load_trials_and_mask(
         one, eid, min_rt=0.08, max_rt=2., nan_exclude='default', min_trial_len=None,
         max_trial_len=None, exclude_unbiased=False, exclude_nochoice=False, sess_loader=None,
-        truncate_to_pass=True, saturation_intervals=None, revision='2024-07-14'
+        truncate_to_pass=True, saturation_intervals=None, revision=MODIFIED_BEFORE
 ):
     """
     Function to load all trials for a given session and create a mask to exclude all trials that have a reaction time
@@ -282,7 +308,7 @@ def load_trials_and_mask(
         ]
 
     if sess_loader is None:
-        sess_loader = SessionLoader(one=one, eid=eid, revision=MODIFIED_BEFORE)
+        sess_loader = SessionLoader(one=one, eid=eid, revision=revision)
 
     if sess_loader.trials.empty:
         sess_loader.load_trials()
@@ -348,7 +374,7 @@ def load_trials_and_mask(
     return sess_loader.trials, mask
 
 
-def download_aggregate_tables(one, target_path=None, type='clusters', tag='2024_Q2_IBL_et_al_BWM', overwrite=False):
+def download_aggregate_tables(one, target_path=None, type='clusters', tag='2026_Q2_IBL_et_al_BWM', overwrite=False):
     """
     Function to download the aggregated clusters information associated with the given data release tag from AWS.
 
@@ -361,7 +387,7 @@ def download_aggregate_tables(one, target_path=None, type='clusters', tag='2024_
     type: {'clusters', 'trials'}
         Which type of aggregate table to load, clusters or trials table.
     tag: str
-        Tag for which to download the clusters table. Default is '2023_Q4_IBL_et_al_BWM_2''.
+        Tag for which to download the clusters table. Default is '2026_Q2_IBL_et_al_BWM'.
     overwrite : bool
         If True, will re-download files even if file exists locally and file sizes match.
 
@@ -370,17 +396,48 @@ def download_aggregate_tables(one, target_path=None, type='clusters', tag='2024_
     agg_path: pathlib.Path
         Path to the downloaded aggregate
     """
-
+    md5_expected = {
+        '2024_Q2_IBL_et_al_BWM':
+            {'trials':
+                 '067fb0e3d242ebeface361c42bdcf8c8',
+             'clusters':
+                 'b89fac76289f3a3d585910711f1eef41',
+             },
+        '2026_Q2_IBL_et_al_BWM':
+            {'clusters':
+                 '8d3fae2fb7fe78df652d850f88082f56',
+             'clusters.waveforms_peak':
+                 'db71666e84ae28b6a9051e3fa866d1c9',
+             'clusters.acgs_log':
+                 '7f1cc617d97b234b307ca9ff16cbf09f',
+             'acgs_log.times':
+                 'c331a024cedb4ffa30304dc40af5a703',
+             },
+    }
     if target_path is None:
         target_path = Path(one.cache_dir).joinpath('bwm_tables')
-        target_path.mkdir(exist_ok=True)
+        target_path.mkdir(exist_ok=True, parents=True)
     else:
         assert target_path.exists(), 'The target_path you passed does not exist.'
 
-    agg_path = target_path.joinpath(f'{type}.pqt')
+    ext = '.pqt' if type in ('clusters', 'trials') else '.npy'
+    agg_path = target_path.joinpath(f'{type}{ext}')
     s3, bucket_name = aws.get_s3_from_alyx(alyx=one.alyx)
-    aws.s3_download_file(f"aggregates/{tag}/{type}.pqt", agg_path, s3=s3,
+    aws.s3_download_file(f"aggregates/{tag}/{type}{ext}", agg_path, s3=s3,
                          bucket_name=bucket_name, overwrite=overwrite)
+
+    # if we have a hash on file for the tag,check the md5 hash of the downloaded file
+    if tag in md5_expected:
+        # if there is a mismatch, first try to re-download the file with overwrite=True
+        if hashfile.md5(agg_path) != md5_expected[tag][type]:
+            _logger.warning(f'MD5 hash of downloaded file {agg_path} does not match expected hash for tag {tag}, will'
+                            f'try downloading again.')
+            aws.s3_download_file(f"aggregates/{tag}/{type}.pqt", agg_path, s3=s3,
+                                 bucket_name=bucket_name, overwrite=True)
+        # if there is still a mismatch, now we raise
+        if hashfile.md5(agg_path) != md5_expected[tag][type]:
+            assert hashfile.md5(agg_path) == md5_expected[tag][type]\
+                , f'MD5 hash of downloaded file {agg_path} does not match expected hash for tag {tag}.'
 
     if not agg_path.exists():
         print(f'Downloading of {type} table failed.')
@@ -583,14 +640,16 @@ def bwm_units(one=None, freeze='2023_12_bwm_release', rt_range=(0.08, 0.2), min_
                                   min_units_sessions=min_units_sessions)
     print(hash_uuids(unit_df['uuids']))
     if freeze == '2023_12_bwm_release' and enforce_version:
+        str_assert = ("The hash of unit UUIDs for freeze='2023_12_bwm_release' has failed verification"
+                      "Make sure to set enforce_version=False if you want to use different criteria from the paper. ")
         if 1.0 <= min_qc:
-            assert hash_uuids(unit_df['uuids']) == 'd16d0b38d392b18c0ce8b615ec89d60d7c901df2eeb3432986b62130af28ef01'
+            assert hash_uuids(unit_df['uuids']) == 'd16d0b38d392b18c0ce8b615ec89d60d7c901df2eeb3432986b62130af28ef01', str_assert
         elif 1 / 3 < min_qc <= 2 / 3:
-            assert hash_uuids(unit_df['uuids']) == '931802298e1a79df49226f4a7ff9d0d865b06102d7d0bedbd76f87f632da8fae'
+            assert hash_uuids(unit_df['uuids']) == '931802298e1a79df49226f4a7ff9d0d865b06102d7d0bedbd76f87f632da8fae', str_assert
         elif 0 < min_qc <= 1 / 3:
-            assert hash_uuids(unit_df['uuids']) == 'aef0abbe1e3cb743f24d40e5d9dd3b739b57adca79af66b2d86dc618fc4b9908'
+            assert hash_uuids(unit_df['uuids']) == 'aef0abbe1e3cb743f24d40e5d9dd3b739b57adca79af66b2d86dc618fc4b9908', str_assert
         else:
-            assert hash_uuids(unit_df['uuids']) == '82a43bb2344a960b0f39a5c28fa56406dd5788b7946d0d178cb36205b1029b92'
+            assert hash_uuids(unit_df['uuids']) == '82a43bb2344a960b0f39a5c28fa56406dd5788b7946d0d178cb36205b1029b92', str_assert
 
     return unit_df
 

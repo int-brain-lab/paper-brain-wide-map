@@ -1,7 +1,9 @@
+import numpy as np
 from one.api import ONE
 from brainbox.io.one import SessionLoader
 
 from brainwidemap import bwm_query, load_good_units, load_trials_and_mask, bwm_units
+from brainwidemap.bwm_loading import download_aggregate_tables
 
 """
 Example 1:
@@ -72,3 +74,33 @@ unit_df = bwm_units(one, rt_range=(0.08, 0.2), min_errors=3, min_qc=1., min_unit
 # min_units_sessions -- the first entry is the minimum of units per session per region for a session to be retained, the
 #                       second entry is the minimum number of those sessions per region for a region to be retained
 #                       (can be set to None to avoid this filter)
+
+
+"""
+Example 3:
+==========
+Download the 2026_Q2_IBL_et_al_BWM aggregate tables including waveforms and ACGs
+"""
+
+one = ONE(base_url='https://openalyx.internationalbrainlab.org', password='international')
+TAG = '2026_Q2_IBL_et_al_BWM'
+
+# clusters.pqt: one row per unit with QC metrics, brain region, etc.
+clusters_path = download_aggregate_tables(one, type='clusters', tag=TAG)
+
+# clusters.waveforms_peak.npy: peak waveform template per unit (n_units, n_samples, n_channels_around_peak)
+waveforms_path = download_aggregate_tables(one, type='clusters.waveforms_peak', tag=TAG)
+
+# clusters.acgs_log.npy: autocorrelogram on a log time axis per unit (n_units, n_bins)
+acgs_path = download_aggregate_tables(one, type='clusters.acgs_log', tag=TAG)
+
+# acgs_log.times.npy: time bin centres in seconds shared by all ACGs (n_bins,)
+acg_times_path = download_aggregate_tables(one, type='acgs_log.times', tag=TAG)
+
+import pandas as pd
+clusters_df = pd.read_parquet(clusters_path)
+waveforms = np.load(waveforms_path)
+acgs = np.load(acgs_path)
+acg_times = np.load(acg_times_path)
+
+print(clusters_df.shape, waveforms.shape, acgs.shape, acg_times.shape)
